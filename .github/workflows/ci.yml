@@ -114,4 +114,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Tauri debug build
+        env:
+          NODE_OPTIONS: "--max-old-space-size=8192"
         run: npm run tauri -- build --debug --no-bundle

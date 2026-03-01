@@ -1099,7 +1099,7 @@ export function FileViewPanel({
     if (!view) {
       return;
     }
-    void resolveDefinitionAtOffset(view.state.selection.main.head, view);
+    void resolveDefinitionAtOffset(view.state.selection.main.head, view as unknown as EditorView);
   }, [resolveDefinitionAtOffset]);
 
   const runReferencesFromCursor = useCallback(() => {

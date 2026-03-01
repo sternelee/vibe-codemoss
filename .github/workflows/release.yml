@@ -97,6 +97,7 @@ jobs:
       - name: Build app bundle
         env:
           APPLE_SIGNING_IDENTITY: ${{ vars.CODESIGN_IDENTITY }}
+          NODE_OPTIONS: "--max-old-space-size=8192"
         run: |
           set -euo pipefail
           # TAURI_SIGNING_PRIVATE_KEY expects base64-encoded minisign key
@@ -207,6 +208,8 @@ jobs:
         run: npm ci
 
       - name: build AppImage
+        env:
+          NODE_OPTIONS: "--max-old-space-size=8192"
         run: |
           set -euo pipefail
           # TAURI_SIGNING_PRIVATE_KEY expects base64-encoded minisign key
@@ -248,6 +251,8 @@ jobs:
 
       - name: Build Windows installer
         shell: pwsh
+        env:
+          NODE_OPTIONS: "--max-old-space-size=8192"
         run: |
           # TAURI_SIGNING_PRIVATE_KEY expects base64-encoded minisign key
           $env:TAURI_SIGNING_PRIVATE_KEY = $env:TAURI_SIGNING_PRIVATE_KEY_B64
