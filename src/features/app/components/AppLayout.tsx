@@ -31,6 +31,7 @@ type AppLayoutProps = {
   desktopTopbarLeftNode: ReactNode;
   tabletNavNode: ReactNode;
   tabBarNode: ReactNode;
+  rightPanelToolbarNode: ReactNode;
   gitDiffPanelNode: ReactNode;
   gitDiffViewerNode: ReactNode;
   fileViewPanelNode: ReactNode;
@@ -79,6 +80,7 @@ export const AppLayout = memo(function AppLayout({
   desktopTopbarLeftNode,
   tabletNavNode,
   tabBarNode,
+  rightPanelToolbarNode,
   gitDiffPanelNode,
   gitDiffViewerNode,
   fileViewPanelNode,
@@ -177,6 +179,7 @@ export const AppLayout = memo(function AppLayout({
       messagesNode={messagesNode}
       gitDiffViewerNode={gitDiffViewerNode}
       fileViewPanelNode={fileViewPanelNode}
+      rightPanelToolbarNode={rightPanelToolbarNode}
       gitDiffPanelNode={gitDiffPanelNode}
       planPanelNode={planPanelNode}
       composerNode={composerNode}

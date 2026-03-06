@@ -6,11 +6,12 @@
   flex-wrap: nowrap;
   align-items: center;
   gap: 8px;
-  padding: 6px 0;
+  padding: 10px 0 6px;
   margin-top: 10px;
   margin-bottom: -10px;
   background: transparent;
   min-height: 28px;
+  border-top: 1px solid color-mix(in srgb, var(--border-subtle) 88%, transparent);
 }
 
 /* Ensure the first visible child element (usually Header content or input area) has rounded corners */

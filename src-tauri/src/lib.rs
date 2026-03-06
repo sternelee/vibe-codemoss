@@ -261,6 +261,7 @@ pub fn run() {
             workspaces::connect_workspace,
             workspaces::list_workspace_files,
             workspaces::list_workspace_directory_children,
+            workspaces::search_workspace_text,
             workspaces::list_external_spec_tree,
             workspaces::read_workspace_file,
             workspaces::read_external_spec_file,

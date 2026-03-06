@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { ConversationItem, RequestUserInputRequest } from "../../../types";
 import { Messages } from "./Messages";
@@ -191,16 +191,8 @@ describe("Messages", () => {
     );
 
     const userText = container.querySelector(".user-collapsible-text-content");
-    const bubble = container.querySelector(
-      '.message-bubble[data-collab-mode="code"]',
-    );
-    const badge = container.querySelector(
-      '.message-bubble[data-collab-mode="code"] .message-mode-badge.is-code',
-    );
     expect(userText?.textContent ?? "").toBe("你好");
-    expect(bubble).toBeTruthy();
-    expect(badge).toBeTruthy();
-    expect((badge?.textContent ?? "").trim()).toBe("");
+    expect(container.querySelector(".message-mode-badge")).toBeNull();
   });
 
   it("hides plan fallback prefix and keeps only actual user request", () => {
@@ -227,19 +219,11 @@ describe("Messages", () => {
     );
 
     const userText = container.querySelector(".user-collapsible-text-content");
-    const bubble = container.querySelector(
-      '.message-bubble[data-collab-mode="plan"]',
-    );
-    const badge = container.querySelector(
-      '.message-bubble[data-collab-mode="plan"] .message-mode-badge.is-plan',
-    );
     expect(userText?.textContent ?? "").toBe("先给我计划");
-    expect(bubble).toBeTruthy();
-    expect(badge).toBeTruthy();
-    expect((badge?.textContent ?? "").trim()).toBe("");
+    expect(container.querySelector(".message-mode-badge")).toBeNull();
   });
 
-  it("shows plan badge for user message when message mode is plan", () => {
+  it("does not show plan badge for user message when message mode is plan", () => {
     const items: ConversationItem[] = [
       {
         id: "msg-plan-1",
@@ -262,15 +246,7 @@ describe("Messages", () => {
       />,
     );
 
-    const bubble = container.querySelector(
-      '.message-bubble[data-collab-mode="plan"]',
-    );
-    const badge = container.querySelector(
-      '.message-bubble[data-collab-mode="plan"] .message-mode-badge.is-plan',
-    );
-    expect(bubble).toBeTruthy();
-    expect(badge).toBeTruthy();
-    expect((badge?.textContent ?? "").trim()).toBe("");
+    expect(container.querySelector(".message-mode-badge")).toBeNull();
   });
 
   it("does not backfill historical user message badge from active mode", () => {
@@ -323,9 +299,7 @@ describe("Messages", () => {
       />,
     );
 
-    expect(
-      container.querySelector('.message-bubble[data-collab-mode="code"]'),
-    ).toBeNull();
+    expect(container.querySelector(".message-mode-badge")).toBeNull();
     expect(container.textContent ?? "").toContain(
       "Collaboration mode: code. Do not ask the user follow-up questions.",
     );
@@ -1171,6 +1145,72 @@ describe("Messages", () => {
         "Step 1 complete",
       );
     });
+  });
+
+  it("freezes assistant content updates while text is selected", () => {
+    const initialItems: ConversationItem[] = [
+      {
+        id: "assistant-selection-1",
+        kind: "message",
+        role: "assistant",
+        text: "这是用于复制稳定性的测试文本。",
+      },
+    ];
+
+    const { container, rerender } = render(
+      <Messages
+        items={initialItems}
+        threadId="thread-selection-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const initialParagraph = container.querySelector(".message.assistant .markdown p");
+    const initialTextNode = initialParagraph?.firstChild;
+    expect(initialTextNode?.textContent).toBe("这是用于复制稳定性的测试文本。");
+
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    const range = document.createRange();
+    range.selectNodeContents(initialTextNode as Node);
+    selection?.addRange(range);
+    act(() => {
+      document.dispatchEvent(new Event("selectionchange"));
+    });
+    expect(selection?.toString()).toBe("这是用于复制稳定性的测试文本。");
+
+    rerender(
+      <Messages
+        items={[{ ...initialItems[0], text: "新的流式内容不应打断当前复制。" }]}
+        threadId="thread-selection-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+        userInputRequests={[]}
+        conversationState={{
+          items: [{ ...initialItems[0], text: "新的流式内容不应打断当前复制。" }],
+          plan: null,
+          userInputQueue: [],
+          meta: {
+            workspaceId: "ws-1",
+            threadId: "thread-selection-1",
+            engine: "codex",
+            activeTurnId: null,
+            isThinking: false,
+            heartbeatPulse: 3,
+            historyRestoredAtMs: null,
+          },
+        }}
+      />,
+    );
+
+    const rerenderedParagraph = container.querySelector(".message.assistant .markdown p");
+    expect(rerenderedParagraph?.textContent).toBe("这是用于复制稳定性的测试文本。");
+
   });
 
   it("keeps a single codex reasoning row stable under rapid stream updates", async () => {

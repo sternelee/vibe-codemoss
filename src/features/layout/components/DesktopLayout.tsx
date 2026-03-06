@@ -32,6 +32,7 @@ type DesktopLayoutProps = {
   messagesNode: ReactNode;
   gitDiffViewerNode: ReactNode;
   fileViewPanelNode: ReactNode;
+  rightPanelToolbarNode: ReactNode;
   gitDiffPanelNode: ReactNode;
   planPanelNode: ReactNode;
   composerNode: ReactNode;
@@ -67,6 +68,7 @@ export function DesktopLayout({
   messagesNode,
   gitDiffViewerNode,
   fileViewPanelNode,
+  rightPanelToolbarNode,
   gitDiffPanelNode,
   planPanelNode,
   composerNode,
@@ -327,6 +329,7 @@ export function DesktopLayout({
                       onMouseDown={onRightPanelResizeStart}
                     />
                     <div className={`right-panel ${hasActivePlan ? "" : "plan-collapsed"}`}>
+                      {rightPanelToolbarNode}
                       <div className="right-panel-top">{gitDiffPanelNode}</div>
                       <div
                         className="right-panel-divider"

@@ -1152,6 +1152,26 @@ export type WorkspaceFilesResponse = {
   gitignored_directories: string[];
 };
 
+export type WorkspaceTextSearchMatch = {
+  line: number;
+  column: number;
+  end_column: number;
+  preview: string;
+};
+
+export type WorkspaceTextSearchFileResult = {
+  path: string;
+  match_count: number;
+  matches: WorkspaceTextSearchMatch[];
+};
+
+export type WorkspaceTextSearchResponse = {
+  files: WorkspaceTextSearchFileResult[];
+  file_count: number;
+  match_count: number;
+  limit_hit: boolean;
+};
+
 export type ExternalSpecFileResponse = {
   exists: boolean;
   content: string;
@@ -1169,6 +1189,28 @@ export async function getWorkspaceDirectoryChildren(
   return invoke<WorkspaceFilesResponse>("list_workspace_directory_children", {
     workspaceId,
     path,
+  });
+}
+
+export async function searchWorkspaceText(
+  workspaceId: string,
+  options: {
+    query: string;
+    caseSensitive: boolean;
+    wholeWord: boolean;
+    isRegex: boolean;
+    includePattern?: string | null;
+    excludePattern?: string | null;
+  },
+) {
+  return invoke<WorkspaceTextSearchResponse>("search_workspace_text", {
+    workspaceId,
+    query: options.query,
+    caseSensitive: options.caseSensitive,
+    wholeWord: options.wholeWord,
+    isRegex: options.isRegex,
+    includePattern: options.includePattern ?? null,
+    excludePattern: options.excludePattern ?? null,
   });
 }
 

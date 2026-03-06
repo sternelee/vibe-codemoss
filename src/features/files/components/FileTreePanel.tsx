@@ -1,6 +1,5 @@
 import {
   useCallback,
-  useDeferredValue,
   useEffect,
   useMemo,
   useRef,
@@ -21,11 +20,8 @@ import Plus from "lucide-react/dist/esm/icons/plus";
 import SquareMinus from "lucide-react/dist/esm/icons/square-minus";
 import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 import TreePine from "lucide-react/dist/esm/icons/tree-pine";
-import Construction from "lucide-react/dist/esm/icons/construction";
-import LayoutDashboard from "lucide-react/dist/esm/icons/layout-dashboard";
-import Search from "lucide-react/dist/esm/icons/search";
 import FileIcon from "../../../components/FileIcon";
-import { PanelTabs, type PanelTabId } from "../../layout/components/PanelTabs";
+import type { PanelTabId } from "../../layout/components/PanelTabs";
 import {
   createWorkspaceDirectory,
   copyWorkspaceItem,
@@ -56,7 +52,7 @@ type FileTreePanelProps = {
   filePanelMode: PanelTabId;
   onFilePanelModeChange: (mode: PanelTabId) => void;
   onInsertText?: (text: string) => void;
-  onOpenFile?: (path: string) => void;
+  onOpenFile?: (path: string, location?: FileOpenLocation) => void;
   openTargets: OpenAppTarget[];
   openAppIconById: Record<string, string>;
   selectedOpenAppId: string;
@@ -69,6 +65,11 @@ type FileTreePanelProps = {
   gitignoredFiles?: Set<string>;
   gitignoredDirectories?: Set<string>;
   onRefreshFiles?: () => void;
+};
+
+type FileOpenLocation = {
+  line: number;
+  column: number;
 };
 
 type FileTreeBuildNode = {
@@ -297,18 +298,18 @@ export function FileTreePanel({
   files,
   directories,
   isLoading,
-  filePanelMode,
-  onFilePanelModeChange,
+  filePanelMode: _filePanelMode,
+  onFilePanelModeChange: _onFilePanelModeChange,
   onInsertText,
   onOpenFile,
   openTargets,
   openAppIconById,
   selectedOpenAppId,
   onSelectOpenAppId,
-  onToggleRuntimeConsole,
-  isRuntimeConsoleVisible = false,
-  onOpenSpecHub,
-  isSpecHubActive = false,
+  onToggleRuntimeConsole: _onToggleRuntimeConsole,
+  isRuntimeConsoleVisible: _isRuntimeConsoleVisible = false,
+  onOpenSpecHub: _onOpenSpecHub,
+  isSpecHubActive: _isSpecHubActive = false,
   gitStatusFiles,
   gitignoredFiles,
   gitignoredDirectories,
@@ -320,7 +321,6 @@ export function FileTreePanel({
   const { t } = useTranslation();
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [rootExpanded, setRootExpanded] = useState(true);
-  const [query, setQuery] = useState("");
   const [previewPath, setPreviewPath] = useState<string | null>(null);
   const [previewAnchor, setPreviewAnchor] = useState<{
     top: number;
@@ -361,8 +361,6 @@ export function FileTreePanel({
   const loadedLazyDirectoriesRef = useRef<Set<string>>(new Set());
   const loadingLazyDirectoriesRef = useRef<Set<string>>(new Set());
 
-  const deferredQuery = useDeferredValue(query);
-  const normalizedQuery = deferredQuery.trim().toLowerCase();
   const workspaceRootLabel = useMemo(
     () => resolveWorkspaceRootLabel(workspacePath, workspaceName),
     [workspaceName, workspacePath],
@@ -417,33 +415,16 @@ export function FileTreePanel({
     return map;
   }, [gitStatusFiles]);
 
-  const filteredFiles = useMemo(() => {
-    if (!normalizedQuery) {
-      return mergedFiles;
-    }
-    return mergedFiles.filter((path) => path.toLowerCase().includes(normalizedQuery));
-  }, [mergedFiles, normalizedQuery]);
-
-  const filteredDirectories = useMemo(() => {
-    if (!normalizedQuery) {
-      return mergedDirectories;
-    }
-    return mergedDirectories.filter((path) => path.toLowerCase().includes(normalizedQuery));
-  }, [mergedDirectories, normalizedQuery]);
-
   const { nodes, folderPaths } = useMemo(
     () => buildTree(
-      normalizedQuery ? filteredFiles : mergedFiles,
-      normalizedQuery ? filteredDirectories : mergedDirectories,
+      mergedFiles,
+      mergedDirectories,
       effectiveLazyLoadableDirectories,
     ),
     [
       effectiveLazyLoadableDirectories,
-      filteredDirectories,
-      filteredFiles,
       mergedDirectories,
       mergedFiles,
-      normalizedQuery,
     ],
   );
 
@@ -481,13 +462,10 @@ export function FileTreePanel({
   const hasFolders = visibleFolderPaths.size > 0;
   const allVisibleExpanded =
     hasFolders && Array.from(visibleFolderPaths).every((path) => expandedFolders.has(path));
-  const isRootVisibleExpanded = rootExpanded || normalizedQuery.length > 0;
+  const isRootVisibleExpanded = rootExpanded;
 
   useEffect(() => {
     setExpandedFolders((prev) => {
-      if (normalizedQuery) {
-        return new Set(folderPaths);
-      }
       // Keep only folders that still exist; default is all collapsed.
       const next = new Set<string>();
       prev.forEach((path) => {
@@ -497,7 +475,7 @@ export function FileTreePanel({
       });
       return next;
     });
-  }, [folderPaths, normalizedQuery]);
+  }, [folderPaths]);
 
   useEffect(() => {
     loadedLazyDirectoriesRef.current = loadedLazyDirectories;
@@ -1152,7 +1130,7 @@ export function FileTreePanel({
                 if (canExpand) {
                   const shouldExpand = !expandedFolders.has(node.path);
                   toggleFolder(node.path);
-                  if (shouldExpand && isLazyFolder && !normalizedQuery) {
+                  if (shouldExpand && isLazyFolder) {
                     void loadLazyDirectoryChildren(node.path);
                   }
                 }
@@ -1238,55 +1216,6 @@ export function FileTreePanel({
   return (
     <aside className="diff-panel file-tree-panel" ref={panelRef}>
       <div className="file-tree-top-zone">
-        <div className="file-tree-tool-row">
-          <div className="file-tree-tabs-wrap">
-            <PanelTabs active={filePanelMode} onSelect={onFilePanelModeChange} />
-          </div>
-          <div className="file-tree-search file-tree-search-inline">
-            <Search className="file-tree-search-icon" aria-hidden />
-            <input
-              className="file-tree-search-input"
-              type="search"
-              placeholder={t("files.filterPlaceholder")}
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              aria-label={t("files.filterPlaceholder")}
-            />
-          </div>
-          <div className="file-tree-meta">
-            <div className="file-tree-count">
-              {filteredFiles.length
-                ? normalizedQuery
-                  ? t("files.matchCount", { count: filteredFiles.length })
-                  : t("files.fileCount", { count: filteredFiles.length })
-                : showLoading
-                  ? t("files.loadingFiles")
-                  : t("files.noFiles")}
-            </div>
-            {onToggleRuntimeConsole ? (
-              <button
-                type="button"
-                className={`ghost icon-button file-tree-toggle file-tree-toggle-runtime${isRuntimeConsoleVisible ? " is-active" : ""}`}
-                onClick={onToggleRuntimeConsole}
-                aria-label={t("files.openRunConsole")}
-                title={t("files.openRunConsole")}
-              >
-                <Construction aria-hidden />
-              </button>
-            ) : null}
-            {onOpenSpecHub ? (
-              <button
-                type="button"
-                className={`ghost icon-button file-tree-toggle file-tree-toggle-spec-hub${isSpecHubActive ? " is-active" : ""}`}
-                onClick={onOpenSpecHub}
-                aria-label={t("sidebar.specHub")}
-                title={t("sidebar.specHub")}
-              >
-                <LayoutDashboard aria-hidden />
-              </button>
-            ) : null}
-          </div>
-        </div>
         <div className="file-tree-root-row">
           <div className="file-tree-root-wrap">
             <button
@@ -1295,9 +1224,6 @@ export function FileTreePanel({
               onClick={() => {
                 setSelectedNodePath("");
                 setSelectedNodeType("folder");
-                if (normalizedQuery) {
-                  return;
-                }
                 setRootExpanded((prev) => !prev);
               }}
               onContextMenu={(event) => {
@@ -1375,7 +1301,7 @@ export function FileTreePanel({
           </div>
         ) : !isRootVisibleExpanded ? null : nodes.length === 0 ? (
           <div className="file-tree-empty">
-            {normalizedQuery ? t("files.noMatchesFound") : t("files.noFilesAvailable")}
+            {t("files.noFilesAvailable")}
           </div>
         ) : (
           nodes.map((node) => renderNode(node, 1))
