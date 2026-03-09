@@ -445,6 +445,13 @@ body[data-panel-resizing="true"] .main {
   );
 }
 
+.app.macos-desktop.sidebar-collapsed.right-panel-collapsed .main-topbar {
+  padding-left: calc(
+    var(--main-panel-padding)
+    + var(--titlebar-inset-left, 72px)
+  );
+}
+
 .app.windows-desktop.right-panel-collapsed .main-header-actions {
   margin-right: var(--titlebar-toggle-side-gap, 12px);
 }

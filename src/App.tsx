@@ -85,7 +85,7 @@ import { useLayoutController } from "./features/app/hooks/useLayoutController";
 import { useWindowLabel } from "./features/layout/hooks/useWindowLabel";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { homeDir } from "@tauri-apps/api/path";
-import { isWindowsPlatform } from "./utils/platform";
+import { isMacPlatform, isWindowsPlatform } from "./utils/platform";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { ask } from "@tauri-apps/plugin-dialog";
 import {
@@ -2798,6 +2798,7 @@ function MainApp() {
   useWindowDrag("titlebar");
 
   const isWindowsDesktop = useMemo(() => isWindowsPlatform(), []);
+  const isMacDesktop = useMemo(() => isMacPlatform(), []);
 
   useEffect(() => {
     const title = activeWorkspace
@@ -4159,6 +4160,7 @@ function MainApp() {
     isPhone ? " layout-phone" : ""
   }${isTablet ? " layout-tablet" : ""}${
     isWindowsDesktop ? " windows-desktop" : ""
+  }${isMacDesktop ? " macos-desktop" : ""
   }${
     reduceTransparency ? " reduced-transparency" : ""
   }${!isCompact && sidebarCollapsed && !showGitHistory ? " sidebar-collapsed" : ""}${
