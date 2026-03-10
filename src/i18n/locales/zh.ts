@@ -201,6 +201,21 @@ const zh = {
     updated: "更新于",
   },
 
+  homeChat: {
+    badge: "Workspace-aware chat home",
+    title: "MossX Agent，让你的工作更轻松",
+    subtitle: "从项目开始，快速进入对话、执行、交付。",
+    promptPlaceholder: "描述你的目标，例如：帮我为这个仓库生成一版发布说明，并附上风险检查。",
+    pathResolving: "正在解析默认项目路径…",
+    quickActions: "快捷能力",
+    quick: {
+      plan: "定计划",
+      doc: "写文档",
+      release: "发版说明",
+      review: "代码评审",
+    },
+  },
+
   // 设置
   settings: {
     title: "设置",
@@ -1924,6 +1939,13 @@ const zh = {
     turnFailedWithMessage: "会话失败：{{message}}",
     turnFailedToStart: "会话启动失败。",
     turnFailedToStartWithMessage: "会话启动失败：{{message}}",
+    firstPacketTimeout:
+      "首次响应在 {{seconds}} 秒内未返回。可能是网络、代理或上游服务繁忙导致，请稍后重试。",
+    networkProxyHint:
+      "网络连接异常。请检查网络与代理配置（HTTP_PROXY / HTTPS_PROXY / ALL_PROXY / NO_PROXY）后重试。",
+    networkConnectionHint: "网络连接异常。请确认网络可达后重试。",
+    requestTimeoutHint:
+      "请求在收到响应前已超时。可能是网络抖动或上游服务繁忙导致，请稍后重试。",
     contextCompactionFailed: "上下文压缩失败。",
     contextCompactionFailedWithMessage: "上下文压缩失败：{{message}}",
     specRootContext: {

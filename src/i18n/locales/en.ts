@@ -202,6 +202,22 @@ const en = {
     updated: "Updated",
   },
 
+  homeChat: {
+    badge: "Workspace-aware chat home",
+    title: "MossX Agent, make work easier",
+    subtitle: "Start from projects, then move fast into chat, execution, and delivery.",
+    promptPlaceholder:
+      "Describe your goal, for example: Generate release notes for this repository and include risk checks.",
+    pathResolving: "Resolving default project path...",
+    quickActions: "Quick actions",
+    quick: {
+      plan: "Plan",
+      doc: "Docs",
+      release: "Release notes",
+      review: "Code review",
+    },
+  },
+
   // Settings
   settings: {
     title: "Settings",
@@ -1958,6 +1974,14 @@ const en = {
     turnFailedWithMessage: "Turn failed: {{message}}",
     turnFailedToStart: "Turn failed to start.",
     turnFailedToStartWithMessage: "Turn failed to start: {{message}}",
+    firstPacketTimeout:
+      "No initial response within {{seconds}}s. Network, proxy, or upstream service load may be causing delay. Please retry.",
+    networkProxyHint:
+      "Network connection failed. Check network and proxy settings (HTTP_PROXY / HTTPS_PROXY / ALL_PROXY / NO_PROXY), then retry.",
+    networkConnectionHint:
+      "Network connection failed. Please verify your network is reachable, then retry.",
+    requestTimeoutHint:
+      "Request timed out before receiving a response. Network jitter or upstream service load may be causing delay. Please retry.",
     contextCompactionFailed: "Context compaction failed.",
     contextCompactionFailedWithMessage: "Context compaction failed: {{message}}",
     specRootContext: {

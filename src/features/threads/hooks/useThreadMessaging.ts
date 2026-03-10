@@ -1,6 +1,7 @@
 import { useCallback, useRef } from "react";
 import type { Dispatch, MutableRefObject } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import type {
   AccessMode,
   MemoryContextInjectionMode,
@@ -42,6 +43,11 @@ import {
   extractRpcErrorMessage,
   parseReviewTarget,
 } from "../utils/threadNormalize";
+import {
+  classifyNetworkError,
+  parseFirstPacketTimeoutSeconds,
+  stripBackendErrorPrefix,
+} from "../utils/networkErrors";
 import type { ThreadAction, ThreadState } from "./useThreadsReducer";
 import { useReviewPrompt } from "./useReviewPrompt";
 import { formatRelativeTime } from "../../../utils/time";
@@ -301,6 +307,41 @@ function isInvalidReviewThreadIdError(message: string): boolean {
     || normalized.includes("expected an optional prefix of `urn:uuid:`")
     || normalized.includes('expected an optional prefix of "urn:uuid:"')
   );
+}
+
+function mapNetworkErrorToUserMessage(
+  rawMessage: string,
+  t: TFunction,
+): { message: string; isNetwork: boolean } {
+  const timeoutSeconds = parseFirstPacketTimeoutSeconds(rawMessage);
+  if (timeoutSeconds) {
+    return {
+      message: t("threads.firstPacketTimeout", { seconds: timeoutSeconds }),
+      isNetwork: true,
+    };
+  }
+
+  const networkKind = classifyNetworkError(rawMessage);
+  if (networkKind) {
+    if (networkKind === "timeout") {
+      return {
+        message: t("threads.requestTimeoutHint"),
+        isNetwork: true,
+      };
+    }
+    return {
+      message:
+        networkKind === "proxy"
+          ? t("threads.networkProxyHint")
+          : t("threads.networkConnectionHint"),
+      isNetwork: true,
+    };
+  }
+
+  return {
+    message: stripBackendErrorPrefix(rawMessage),
+    isNetwork: false,
+  };
 }
 
 type UseThreadMessagingOptions = {
@@ -722,7 +763,9 @@ export function useThreadMessaging({
 
       const wasProcessing =
         (threadStatusById[threadId]?.isProcessing ?? false) && steerEnabled;
-      if (wasProcessing) {
+      const shouldAddOptimisticUserBubble =
+        resolvedEngine === "codex" || wasProcessing;
+      if (shouldAddOptimisticUserBubble) {
         const optimisticText = visibleUserText;
         if (optimisticText || images.length > 0) {
           dispatch({
@@ -929,9 +972,22 @@ export function useThreadMessaging({
 
           const rpcError = extractRpcErrorMessage(response);
           if (rpcError) {
+            const normalized = mapNetworkErrorToUserMessage(rpcError, t);
             markProcessing(threadId, false);
             setActiveTurnId(threadId, null);
-            pushThreadErrorMessage(threadId, t("threads.turnFailedWithMessage", { message: rpcError }));
+            pushThreadErrorMessage(
+              threadId,
+              normalized.isNetwork
+                ? normalized.message
+                : t("threads.turnFailedWithMessage", { message: normalized.message }),
+            );
+            if (normalized.isNetwork) {
+              pushErrorToast({
+                title: t("common.error"),
+                message: normalized.message,
+                durationMs: 4800,
+              });
+            }
             safeMessageActivity();
             return;
           }
@@ -956,7 +1012,8 @@ export function useThreadMessaging({
           setActiveTurnId(threadId, turnId);
 
         } else {
-          // Codex is event-driven and emits user/assistant events from backend.
+          // Codex assistant/tool events are event-driven from backend.
+          // User message bubble is inserted optimistically on send for instant feedback.
           const preferredLanguage = i18n.language.toLowerCase().startsWith("zh")
             ? "zh"
             : "en";
@@ -986,9 +1043,22 @@ export function useThreadMessaging({
         });
         const rpcError = extractRpcErrorMessage(response);
         if (rpcError) {
+          const normalized = mapNetworkErrorToUserMessage(rpcError, t);
           markProcessing(threadId, false);
           setActiveTurnId(threadId, null);
-          pushThreadErrorMessage(threadId, t("threads.turnFailedToStartWithMessage", { message: rpcError }));
+          pushThreadErrorMessage(
+            threadId,
+            normalized.isNetwork
+              ? normalized.message
+              : t("threads.turnFailedToStartWithMessage", { message: normalized.message }),
+          );
+          if (normalized.isNetwork) {
+            pushErrorToast({
+              title: t("common.error"),
+              message: normalized.message,
+              durationMs: 4800,
+            });
+          }
           safeMessageActivity();
           return;
         }
@@ -1034,6 +1104,8 @@ export function useThreadMessaging({
             }
           });
       } catch (error) {
+        const rawMessage = error instanceof Error ? error.message : String(error);
+        const normalized = mapNetworkErrorToUserMessage(rawMessage, t);
         markProcessing(threadId, false);
         setActiveTurnId(threadId, null);
         onDebug?.({
@@ -1041,12 +1113,16 @@ export function useThreadMessaging({
           timestamp: Date.now(),
           source: "error",
           label: "turn/start error",
-          payload: error instanceof Error ? error.message : String(error),
+          payload: rawMessage,
         });
-        pushThreadErrorMessage(
-          threadId,
-          error instanceof Error ? error.message : String(error),
-        );
+        pushThreadErrorMessage(threadId, normalized.message);
+        if (normalized.isNetwork) {
+          pushErrorToast({
+            title: t("common.error"),
+            message: normalized.message,
+            durationMs: 4800,
+          });
+        }
         safeMessageActivity();
       }
     },

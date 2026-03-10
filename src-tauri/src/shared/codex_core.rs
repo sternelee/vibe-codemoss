@@ -19,8 +19,12 @@ use crate::rules;
 use crate::shared::account::{build_account_response, read_auth_account};
 use crate::types::{AppSettings, WorkspaceEntry};
 
-const THREAD_COMPACTION_METHOD_CANDIDATES: [&str; 3] =
-    ["thread/compact/start", "thread/compactStart", "thread/compact"];
+const THREAD_COMPACTION_METHOD_CANDIDATES: [&str; 3] = [
+    "thread/compact/start",
+    "thread/compactStart",
+    "thread/compact",
+];
+const FIRST_PACKET_TIMEOUT_ERROR_PREFIX: &str = "FIRST_PACKET_TIMEOUT";
 
 fn normalize_preferred_language(preferred_language: Option<&str>) -> Option<&'static str> {
     match preferred_language
@@ -42,6 +46,13 @@ fn normalize_custom_spec_root(custom_spec_root: Option<&str>) -> Option<String> 
         return None;
     }
     Some(trimmed.to_string())
+}
+
+fn build_first_packet_timeout_error(timeout_duration: Duration) -> String {
+    let timeout_seconds = timeout_duration.as_secs().max(1);
+    format!(
+        "{FIRST_PACKET_TIMEOUT_ERROR_PREFIX}:{timeout_seconds}:Timed out waiting for initial response. Network, proxy, or upstream service load may be causing delay. Please retry."
+    )
 }
 
 fn build_writable_roots(workspace_path: &str, custom_spec_root: Option<&str>) -> Vec<String> {
@@ -339,13 +350,16 @@ async fn resolve_codex_home_for_workspace_core(
 pub(crate) async fn start_thread_core(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
     workspace_id: String,
+    model: Option<String>,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
-    let params = json!({
-        "cwd": session.entry.path,
-        "approvalPolicy": "on-request"
-    });
-    session.send_request("thread/start", params).await
+    let mut params = Map::new();
+    params.insert("cwd".to_string(), json!(session.entry.path));
+    params.insert("approvalPolicy".to_string(), json!("on-request"));
+    if let Some(model) = model.map(|value| value.trim().to_string()).filter(|value| !value.is_empty()) {
+        params.insert("model".to_string(), json!(model));
+    }
+    session.send_request("thread/start", Value::Object(params)).await
 }
 
 pub(crate) async fn resume_thread_core(
@@ -537,9 +551,17 @@ pub(crate) async fn send_user_message_core(
     if let Some(language) = normalized_language {
         params.insert("preferredLanguage".to_string(), json!(language));
     }
+    let timeout_duration = session.initial_turn_start_timeout();
     let response = session
-        .send_request("turn/start", Value::Object(params.clone()))
-        .await?;
+        .send_request_with_timeout("turn/start", Value::Object(params.clone()), timeout_duration)
+        .await
+        .map_err(|error| {
+            if error == "request timed out" {
+                build_first_packet_timeout_error(timeout_duration)
+            } else {
+                error
+            }
+        })?;
     if can_send_collaboration_mode && is_collaboration_mode_capability_error(&response) {
         log::warn!(
             "[turn/start][collaboration_mode] workspace_id={} thread_id={} capability=unsupported action=retry_without_collaboration_mode",
@@ -619,13 +641,8 @@ mod tests {
 
     #[test]
     fn resolve_execution_policy_keeps_default_code_path() {
-        let (sandbox, approval, reason) = resolve_execution_policy(
-            "full-access",
-            "/workspace/repo",
-            None,
-            "code",
-            true,
-        );
+        let (sandbox, approval, reason) =
+            resolve_execution_policy("full-access", "/workspace/repo", None, "code", true);
         assert_eq!(sandbox, json!({ "type": "dangerFullAccess" }));
         assert_eq!(approval, "never");
         assert_eq!(reason, None);
@@ -796,7 +813,6 @@ mod tests {
         assert_eq!(input.len(), 2);
         assert_eq!(input[0]["type"], "text");
     }
-
 }
 
 pub(crate) async fn collaboration_mode_list_core(

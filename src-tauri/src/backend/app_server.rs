@@ -38,8 +38,15 @@ const AUTO_COMPACTION_THRESHOLD_PERCENT: f64 = 92.0;
 const AUTO_COMPACTION_TARGET_PERCENT: f64 = 70.0;
 const AUTO_COMPACTION_COOLDOWN_MS: u64 = 90_000;
 const AUTO_COMPACTION_INFLIGHT_TIMEOUT_MS: u64 = 120_000;
-const AUTO_COMPACTION_METHOD_CANDIDATES: [&str; 3] =
-    ["thread/compact/start", "thread/compactStart", "thread/compact"];
+const DEFAULT_REQUEST_TIMEOUT_SECS: u64 = 300;
+const DEFAULT_INITIAL_TURN_START_TIMEOUT_MS: u64 = 120_000;
+const MIN_INITIAL_TURN_START_TIMEOUT_MS: u64 = 30_000;
+const MAX_INITIAL_TURN_START_TIMEOUT_MS: u64 = 240_000;
+const AUTO_COMPACTION_METHOD_CANDIDATES: [&str; 3] = [
+    "thread/compact/start",
+    "thread/compactStart",
+    "thread/compact",
+];
 
 #[derive(Debug, Default, Clone)]
 struct PlanTurnState {
@@ -74,6 +81,17 @@ fn now_millis() -> u64 {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_else(|_| Duration::from_millis(0))
         .as_millis() as u64
+}
+
+fn resolve_initial_turn_start_timeout_ms() -> u64 {
+    let configured = env::var("MOSSX_INITIAL_TURN_START_TIMEOUT_MS")
+        .ok()
+        .and_then(|value| value.trim().parse::<u64>().ok())
+        .unwrap_or(DEFAULT_INITIAL_TURN_START_TIMEOUT_MS);
+    configured.clamp(
+        MIN_INITIAL_TURN_START_TIMEOUT_MS,
+        MAX_INITIAL_TURN_START_TIMEOUT_MS,
+    )
 }
 
 fn extract_thread_id(value: &Value) -> Option<String> {
@@ -123,7 +141,8 @@ fn extract_compaction_usage_percent(value: &Value) -> Option<f64> {
         // Require last/current snapshot for compaction decisions.
         // total_* fields are cumulative session stats and can stay high after compaction.
         let usage = last_usage?;
-        let input_tokens = read_number_field(usage, &["input_tokens", "inputTokens"]).unwrap_or(0.0);
+        let input_tokens =
+            read_number_field(usage, &["input_tokens", "inputTokens"]).unwrap_or(0.0);
         let cached_tokens = read_number_field(
             usage,
             &[
@@ -137,7 +156,11 @@ fn extract_compaction_usage_percent(value: &Value) -> Option<f64> {
         let used_tokens = input_tokens + cached_tokens;
         let context_window = read_number_field(
             usage,
-            &["model_context_window", "modelContextWindow", "context_window"],
+            &[
+                "model_context_window",
+                "modelContextWindow",
+                "context_window",
+            ],
         )
         .or_else(|| read_number_field(info, &["model_context_window", "modelContextWindow"]))
         .unwrap_or(200_000.0);
@@ -149,7 +172,8 @@ fn extract_compaction_usage_percent(value: &Value) -> Option<f64> {
             .unwrap_or(&Value::Null);
         // Require last/current snapshot for auto-compaction decisions.
         let snapshot = usage.get("last").filter(|value| value.is_object())?;
-        let input_tokens = read_number_field(snapshot, &["inputTokens", "input_tokens"]).unwrap_or(0.0);
+        let input_tokens =
+            read_number_field(snapshot, &["inputTokens", "input_tokens"]).unwrap_or(0.0);
         let cached_tokens = read_number_field(
             snapshot,
             &[
@@ -163,7 +187,11 @@ fn extract_compaction_usage_percent(value: &Value) -> Option<f64> {
         let used_tokens = input_tokens + cached_tokens;
         let context_window = read_number_field(
             usage,
-            &["modelContextWindow", "model_context_window", "context_window"],
+            &[
+                "modelContextWindow",
+                "model_context_window",
+                "context_window",
+            ],
         )
         .unwrap_or(200_000.0);
         (used_tokens, context_window)
@@ -1029,14 +1057,28 @@ impl WorkspaceSession {
     }
 
     pub(crate) async fn send_request(&self, method: &str, params: Value) -> Result<Value, String> {
+        self.send_request_with_timeout(
+            method,
+            params,
+            Duration::from_secs(DEFAULT_REQUEST_TIMEOUT_SECS),
+        )
+        .await
+    }
+
+    pub(crate) async fn send_request_with_timeout(
+        &self,
+        method: &str,
+        params: Value,
+        timeout_duration: Duration,
+    ) -> Result<Value, String> {
         let id = self.next_id.fetch_add(1, Ordering::SeqCst);
         let (tx, rx) = oneshot::channel();
         self.pending.lock().await.insert(id, tx);
         self.write_message(json!({ "id": id, "method": method, "params": params }))
             .await?;
-        // Add a 5-minute timeout to prevent pending entries from leaking forever
+        // Add timeout to prevent pending entries from leaking forever
         // when the child process crashes without sending a response.
-        match timeout(Duration::from_secs(300), rx).await {
+        match timeout(timeout_duration, rx).await {
             Ok(Ok(value)) => Ok(value),
             Ok(Err(_)) => {
                 self.pending.lock().await.remove(&id);
@@ -1047,6 +1089,10 @@ impl WorkspaceSession {
                 Err("request timed out".to_string())
             }
         }
+    }
+
+    pub(crate) fn initial_turn_start_timeout(&self) -> Duration {
+        Duration::from_millis(resolve_initial_turn_start_timeout_ms())
     }
 
     pub(crate) async fn send_notification(
@@ -1151,7 +1197,10 @@ impl WorkspaceSession {
         );
     }
 
-    async fn evaluate_auto_compaction_trigger(&self, value: &Value) -> Option<AutoCompactionTrigger> {
+    async fn evaluate_auto_compaction_trigger(
+        &self,
+        value: &Value,
+    ) -> Option<AutoCompactionTrigger> {
         let method = extract_event_method(value)?;
         let thread_id = extract_thread_id(value)?;
         if !is_codex_thread_id(&thread_id) {
@@ -1171,7 +1220,9 @@ impl WorkspaceSession {
 
         Some(AutoCompactionTrigger {
             thread_id,
-            usage_percent: state.last_usage_percent.max(AUTO_COMPACTION_THRESHOLD_PERCENT),
+            usage_percent: state
+                .last_usage_percent
+                .max(AUTO_COMPACTION_THRESHOLD_PERCENT),
         })
     }
 
@@ -2241,8 +2292,10 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
                         let extra_thread_id = extract_thread_id(&failed_event);
                         let mut sent_to_background = false;
                         if let Some(ref tid) = extra_thread_id {
-                            let callbacks =
-                                session_for_compaction.background_thread_callbacks.lock().await;
+                            let callbacks = session_for_compaction
+                                .background_thread_callbacks
+                                .lock()
+                                .await;
                             if let Some(tx) = callbacks.get(tid) {
                                 let _ = tx.send(failed_event.clone());
                                 sent_to_background = true;
@@ -2370,11 +2423,10 @@ mod tests {
         detect_plan_blocker_reason, detect_repo_mutating_blocked_method,
         evaluate_auto_compaction_state, extract_compaction_usage_percent, extract_plan_step_count,
         extract_stream_delta_text, extract_thread_id, is_codex_thread_id,
-        is_plan_blocker_stream_method,
-        is_repo_mutating_command_tokens, looks_like_executable_plan_text,
-        looks_like_plan_blocker_prompt, looks_like_user_info_followup_prompt,
-        normalize_command_tokens_from_item, should_block_request_user_input,
-        AutoCompactionThreadState, PlanTurnState,
+        is_plan_blocker_stream_method, is_repo_mutating_command_tokens,
+        looks_like_executable_plan_text, looks_like_plan_blocker_prompt,
+        looks_like_user_info_followup_prompt, normalize_command_tokens_from_item,
+        should_block_request_user_input, AutoCompactionThreadState, PlanTurnState,
         MODE_BLOCKED_PLAN_REASON, MODE_BLOCKED_PLAN_SUGGESTION, MODE_BLOCKED_REASON,
         MODE_BLOCKED_REASON_CODE_PLAN_READONLY, MODE_BLOCKED_REASON_CODE_REQUEST_USER_INPUT,
         MODE_BLOCKED_SUGGESTION,
