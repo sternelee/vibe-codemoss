@@ -1,4 +1,11 @@
-import { useCallback, useMemo, type MouseEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+} from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
@@ -18,6 +25,12 @@ type PreviewPreNode = {
     children?: Array<{ value?: string }>;
   }>;
 };
+
+type MermaidRenderState =
+  | { status: "idle" }
+  | { status: "rendering" }
+  | { status: "success"; svg: string }
+  | { status: "error"; message: string };
 
 function extractLanguageTag(className?: string) {
   if (!className) {
@@ -39,6 +52,19 @@ function extractCodeFromPre(node?: PreviewPreNode) {
     className: normalizedClassName,
     value: value.replace(/\n$/, ""),
   };
+}
+
+function detectMermaidTheme(): "dark" | "default" {
+  const dataTheme = document.documentElement.dataset.theme;
+  if (dataTheme === "light") return "default";
+  if (dataTheme === "dark" || dataTheme === "dim") return "dark";
+  if (
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-color-scheme: light)").matches
+  ) {
+    return "default";
+  }
+  return "dark";
 }
 
 function FileMarkdownCodeBlock({
@@ -65,6 +91,124 @@ function FileMarkdownCodeBlock({
           dangerouslySetInnerHTML={{ __html: highlightedHtml }}
         />
       </pre>
+    </div>
+  );
+}
+
+function FileMarkdownMermaidBlock({
+  className,
+  value,
+}: {
+  className?: string;
+  value: string;
+}) {
+  const [activeTab, setActiveTab] = useState<"source" | "render">("source");
+  const [renderState, setRenderState] = useState<MermaidRenderState>({
+    status: "idle",
+  });
+  const [renderKey, setRenderKey] = useState(0);
+  const idRef = useRef(`file-mermaid-${crypto.randomUUID()}`);
+  const highlightedHtml = useMemo(() => highlightLine(value, "mermaid"), [value]);
+
+  useEffect(() => {
+    if (activeTab !== "render") {
+      return;
+    }
+
+    let cancelled = false;
+    setRenderState({ status: "rendering" });
+
+    void (async () => {
+      try {
+        const mermaid = (await import("mermaid")).default;
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: detectMermaidTheme(),
+          securityLevel: "strict",
+          fontFamily:
+            "ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif",
+        });
+
+        const id = `${idRef.current}-${renderKey}-${Date.now()}`;
+        const { svg } = await mermaid.render(id, value);
+        if (!cancelled) {
+          setRenderState({ status: "success", svg });
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setRenderState({
+            status: "error",
+            message: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, renderKey, value]);
+
+  useEffect(() => {
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.attributeName === "data-theme") {
+          setRenderKey((prev) => prev + 1);
+        }
+      }
+    });
+    observer.observe(document.documentElement, { attributes: true });
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div className="fvp-file-markdown-codeblock fvp-file-markdown-mermaid">
+      <div className="fvp-file-markdown-codeblock-label">
+        <span>Mermaid</span>
+        <div className="fvp-file-markdown-mermaid-tabs" role="tablist" aria-label="Mermaid block view">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "source"}
+            className={`fvp-file-markdown-mermaid-tab${activeTab === "source" ? " is-active" : ""}`}
+            onClick={() => setActiveTab("source")}
+          >
+            Source
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "render"}
+            className={`fvp-file-markdown-mermaid-tab${activeTab === "render" ? " is-active" : ""}`}
+            onClick={() => setActiveTab("render")}
+          >
+            Render
+          </button>
+        </div>
+      </div>
+
+      {activeTab === "source" ? (
+        <pre>
+          <code
+            className={className}
+            dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+          />
+        </pre>
+      ) : renderState.status === "success" ? (
+        <div
+          className="fvp-file-markdown-mermaid-diagram"
+          data-testid="file-markdown-mermaid-preview"
+          dangerouslySetInnerHTML={{ __html: renderState.svg }}
+        />
+      ) : renderState.status === "error" ? (
+        <div className="fvp-file-markdown-mermaid-status fvp-file-markdown-mermaid-error">
+          Render failed: {renderState.message}
+        </div>
+      ) : (
+        <div className="fvp-file-markdown-mermaid-status">
+          Rendering diagram...
+        </div>
+      )}
     </div>
   );
 }
@@ -134,6 +278,14 @@ export function FileMarkdownPreview({
       );
       if (!codeClassName && !codeValue) {
         return <pre>{children}</pre>;
+      }
+      if (extractLanguageTag(codeClassName) === "mermaid") {
+        return (
+          <FileMarkdownMermaidBlock
+            className={codeClassName}
+            value={codeValue}
+          />
+        );
       }
       return (
         <FileMarkdownCodeBlock

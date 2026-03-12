@@ -104,6 +104,18 @@ vi.mock("../../../services/tauri", () => ({
   getCodeIntelReferences: vi.fn(),
 }));
 
+const mermaidInitialize = vi.fn();
+const mermaidRender = vi.fn(async (_id: string, source: string) => ({
+  svg: `<svg data-mermaid-source="${source.replace(/"/g, "&quot;")}"></svg>`,
+}));
+
+vi.mock("mermaid", () => ({
+  default: {
+    initialize: mermaidInitialize,
+    render: mermaidRender,
+  },
+}));
+
 function buildLocation(path: string, line: number, character: number) {
   return {
     uri: `file:///repo/${path}`,
@@ -338,6 +350,42 @@ describe("FileViewPanel markdown modes", () => {
 
     const updatedEditor = (await screen.findByTestId("mock-codemirror")) as HTMLTextAreaElement;
     expect(updatedEditor.value).toBe("# Updated");
+  });
+
+  it("renders mermaid blocks lazily with per-block tabs", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "```mermaid\ngraph TD\nA-->B\n```",
+      truncated: false,
+    });
+    mermaidInitialize.mockClear();
+    mermaidRender.mockClear();
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-md-4"
+        workspacePath="/repo"
+        filePath="README.md"
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByTestId("mock-codemirror");
+    fireEvent.click(screen.getByRole("button", { name: /preview/i }));
+
+    await screen.findByTestId("file-markdown-preview");
+    expect(screen.getByRole("tab", { name: "Source" }).getAttribute("aria-selected")).toBe("true");
+    expect(mermaidRender).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Render" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("file-markdown-mermaid-preview")).toBeTruthy();
+      expect(mermaidRender).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("keeps non-markdown preview on the existing code preview path", async () => {
