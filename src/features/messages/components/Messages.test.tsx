@@ -534,9 +534,7 @@ describe("Messages", () => {
     expect(screen.queryByText("Legacy step")).toBeNull();
   });
 
-  it("opens the external plan panel when provided instead of inline expansion", () => {
-    const onOpenPlanPanel = vi.fn();
-
+  it("does not render plan quick view in chat canvas even when plan data exists", () => {
     render(
       <Messages
         items={[]}
@@ -561,15 +559,12 @@ describe("Messages", () => {
             historyRestoredAtMs: null,
           },
         }}
-        onOpenPlanPanel={onOpenPlanPanel}
         openTargets={[]}
         selectedOpenAppId=""
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Plan" }));
-
-    expect(onOpenPlanPanel).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: "Plan" })).toBeNull();
     expect(screen.queryByText("Open panel")).toBeNull();
   });
 

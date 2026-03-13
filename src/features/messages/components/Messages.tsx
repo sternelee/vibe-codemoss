@@ -1503,7 +1503,6 @@ export const Messages = memo(function Messages({
   isPlanMode: _isPlanMode = false,
   isPlanProcessing: _isPlanProcessing = false,
   onOpenDiffPath,
-  onOpenPlanPanel: _onOpenPlanPanel,
   conversationState = null,
   presentationProfile = null,
   onOpenWorkspaceFile,
@@ -1582,7 +1581,6 @@ export const Messages = memo(function Messages({
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [activeAnchorId, setActiveAnchorId] = useState<string | null>(null);
-  const [isPlanPreviewOpen, setIsPlanPreviewOpen] = useState(false);
   const [showAllHistoryItems, setShowAllHistoryItems] = useState(false);
   const hideClaudeReasoning = activeEngine === "claude" && shouldHideClaudeReasoningModule();
   const [isSelectionFrozen, setIsSelectionFrozen] = useState(false);
@@ -2187,48 +2185,6 @@ export const Messages = memo(function Messages({
       )
       : null;
 
-  const plan = effectiveState.plan;
-  useEffect(() => {
-    setIsPlanPreviewOpen(false);
-  }, [plan?.turnId]);
-
-  const handlePlanClick = useCallback(() => {
-    if (_onOpenPlanPanel) {
-      _onOpenPlanPanel();
-      return;
-    }
-    setIsPlanPreviewOpen((previous) => !previous);
-  }, [_onOpenPlanPanel]);
-
-  const planQuickViewNode = plan
-    ? (
-      <div
-        className="message assistant"
-        style={{ marginTop: 6, marginBottom: 6 }}
-      >
-        <div className="bubble message-bubble" style={{ maxWidth: 560 }}>
-          <button
-            type="button"
-            className="ghost"
-            onClick={handlePlanClick}
-            aria-label="Plan"
-            style={{ marginBottom: !_onOpenPlanPanel && isPlanPreviewOpen ? 8 : 0 }}
-          >
-            Plan
-          </button>
-          {!_onOpenPlanPanel && isPlanPreviewOpen && (
-            <div style={{ display: "grid", gap: 6 }}>
-              {plan.explanation ? <div>{plan.explanation}</div> : null}
-              {plan.steps.map((step, index) => (
-                <div key={`${plan.turnId}-${index}-${step.step}`}>{step.step}</div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    )
-    : null;
-
   const renderSingleItem = (item: ConversationItem) => {
     if (item.kind === "message") {
       const itemRenderKey = `message:${item.id}`;
@@ -2419,7 +2375,6 @@ export const Messages = memo(function Messages({
             </div>
           )}
           {groupedEntries.map(renderEntry)}
-          {planQuickViewNode}
           {claudeDockedReasoningItems.map(({ item, parsed }) => (
             <ReasoningRow
               key={`claude-live-${item.id}`}
