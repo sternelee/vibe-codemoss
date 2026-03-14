@@ -3315,6 +3315,7 @@ const zh = {
 
   // 权限模式
   modes: {
+    selectMode: "选择模式",
     default: {
       label: "默认模式",
       tooltip: "标准权限行为",
@@ -3363,6 +3364,7 @@ const zh = {
 
   // 模型标签
   models: {
+    selectModel: "选择模型",
     addModel: "添加模型",
     claude: {
       sonnet46: {

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Claude, Gemini } from '@lobehub/icons';
 import openaiColorIcon from '../../../../../assets/model-icons/openai.svg';
+import xuanzhonIcon from '../../../../../assets/xuanzhong.svg';
 import { AVAILABLE_MODELS } from '../types';
 import type { ModelInfo } from '../types';
 import { STORAGE_KEYS } from '../../../types/provider';
@@ -203,7 +204,7 @@ export const ModelSelect = ({ value, onChange, models = AVAILABLE_MODELS, curren
       {isOpen && (
         <div
           ref={dropdownRef}
-          className="selector-dropdown"
+          className="selector-dropdown selector-dropdown--model"
           style={{
             position: 'absolute',
             bottom: '100%',
@@ -212,33 +213,37 @@ export const ModelSelect = ({ value, onChange, models = AVAILABLE_MODELS, curren
             zIndex: 10000,
           }}
         >
+          <div className="selector-dropdown-title">{t('models.selectModel')}</div>
           {models.map((model) => (
             <div
               key={model.id}
               className={`selector-option ${model.id === value ? 'selected' : ''}`}
               onClick={() => handleSelect(model.id)}
             >
-              <ModelIcon provider={currentProvider} size={16} />
-              <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+              <ModelIcon provider={currentProvider} size={20} />
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
                 <span>{getModelLabel(model)}</span>
                 {getModelDescription(model) && (
                   <span className="model-description">{getModelDescription(model)}</span>
                 )}
               </div>
-              {model.id === value && (
-                <span className="codicon codicon-check check-mark" />
-              )}
+              <div style={{ width: 20, height: 20, flexShrink: 0, marginLeft: 'auto' }}>
+                {model.id === value && (
+                  <img src={xuanzhonIcon} style={{ width: 20, height: 20 }} aria-hidden />
+                )}
+              </div>
             </div>
           ))}
           {onAddModel && (
             <>
               <div className="selector-divider" />
-              <div
-                className="selector-option selector-option-add"
-                onClick={() => { onAddModel(); setIsOpen(false); }}
-              >
-                <span className="codicon codicon-add selector-add-icon" />
-                <span>{t('models.addModel')}</span>
+              <div className="selector-add-footer">
+                <div
+                  className="selector-option selector-option-add"
+                  onClick={() => { onAddModel(); setIsOpen(false); }}
+                >
+                  <span>{t('models.addModel')}</span>
+                </div>
               </div>
             </>
           )}

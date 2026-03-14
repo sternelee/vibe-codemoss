@@ -141,6 +141,24 @@
   --color-tool-name: #90caf9;
   --color-tool-summary: #888;
   --color-tool-file-link: #a5d6a7;
+
+  /* Dropdown/Selector styles */
+  --dropdown-bg: #1a1d26;
+  --dropdown-border: #2a2d36;
+  --dropdown-hover: #262b34;
+  --dropdown-selected: transparent;
+  --dropdown-selected-text: #e6e7ea;
+  --success-color: #78ebbe;
+  --tooltip-bg: #1a1d26;
+  --dropdown-hover-color: #262B34;
+  --dropdown-divider-color: #2a2d36;
+  --dropdown-title-color: #7a8088;
+  --dropdown-description-color: #7a8088;
+  --dropdown-add-bg: #262b34;
+  --dropdown-add-hover-bg: #2e3540;
+  --dropdown-add-text-color: #d0d0d0;
+  --dropdown-shadow-color: rgba(0, 0, 0, 0.5);
+  --dropdown-text-color: #e6e7ea;
 }
 
 :root[data-theme="dark"] {

@@ -1,6 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AVAILABLE_MODES, type PermissionMode } from '../types';
+import xuanzhonIcon from '../../../../../assets/xuanzhong.svg';
+import morenmoshiIcon from '../../../../../assets/morenmoshi.svg';
+import guihuamoshiIcon from '../../../../../assets/guihuamoshi.svg';
+import dailimoshiIcon from '../../../../../assets/dailimoshi.svg';
+import zidongmoshiIcon from '../../../../../assets/zidongmoshi.svg';
+
+const MODE_ICONS: Record<string, string> = {
+  default: morenmoshiIcon,
+  plan: guihuamoshiIcon,
+  acceptEdits: dailimoshiIcon,
+  bypassPermissions: zidongmoshiIcon,
+};
 
 interface ModeSelectProps {
   value: PermissionMode;
@@ -95,7 +107,7 @@ export const ModeSelect = ({ value, onChange, provider }: ModeSelectProps) => {
         onClick={handleToggle}
         title={getModeText(currentMode.id, 'tooltip') || `${t('chat.currentMode', { mode: getModeText(currentMode.id, 'label') })}`}
       >
-        <span className={`codicon ${currentMode.icon}`} />
+        <img src={MODE_ICONS[currentMode.id]} style={{ width: 12, height: 12, flexShrink: 0 }} aria-hidden />
         <span className="selector-button-text">{getModeText(currentMode.id, 'label')}</span>
         <span className={`codicon codicon-chevron-${isOpen ? 'up' : 'down'}`} style={{ fontSize: '10px', marginLeft: '2px' }} />
       </button>
@@ -103,7 +115,7 @@ export const ModeSelect = ({ value, onChange, provider }: ModeSelectProps) => {
       {isOpen && (
         <div
           ref={dropdownRef}
-          className="selector-dropdown"
+          className="selector-dropdown selector-dropdown--mode"
           style={{
             position: 'absolute',
             bottom: '100%',
@@ -123,13 +135,13 @@ export const ModeSelect = ({ value, onChange, provider }: ModeSelectProps) => {
                 cursor: mode.disabled ? 'not-allowed' : 'pointer',
               }}
             >
-              <span className={`codicon ${mode.icon}`} />
+              <img src={MODE_ICONS[mode.id]} className="mode-icon" style={{ width: 18, height: 18, flexShrink: 0 }} aria-hidden />
               <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
                 <span>{getModeText(mode.id, 'label')}</span>
                 <span className="mode-description">{getModeText(mode.id, 'description')}</span>
               </div>
               {mode.id === value && (
-                <span className="codicon codicon-check check-mark" />
+                <img src={xuanzhonIcon} className="check-mark" style={{ width: 20, height: 20 }} aria-hidden />
               )}
             </div>
           ))}

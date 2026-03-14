@@ -3375,6 +3375,7 @@ const en = {
 
   // Permission modes
   modes: {
+    selectMode: "Select Mode",
     default: {
       label: "Default Mode",
       tooltip: "Standard permission behavior",
@@ -3423,6 +3424,7 @@ const en = {
 
   // Model labels
   models: {
+    selectModel: "Select Model",
     addModel: "Add Model",
     claude: {
       sonnet46: {
