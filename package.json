@@ -23,6 +23,8 @@
     "ensure:dev-port": "node scripts/ensure-dev-port.mjs",
     "check:large-files": "node scripts/check-large-files.mjs --threshold 3000",
     "check:large-files:baseline": "node scripts/check-large-files.mjs --threshold 3000 --mode report --markdown-output docs/architecture/large-file-baseline.md",
+    "check:large-files:near-threshold": "node scripts/check-large-files.mjs --threshold 2500 --mode warn",
+    "check:large-files:near-threshold:baseline": "node scripts/check-large-files.mjs --threshold 2500 --mode report --markdown-output docs/architecture/large-file-near-threshold-watchlist.md",
     "check:large-files:ci": "node scripts/check-large-files.mjs --threshold 3000 --mode warn",
     "check:large-files:gate": "node scripts/check-large-files.mjs --threshold 3000 --mode fail",
     "lint": "eslint . --ext .ts,.tsx",

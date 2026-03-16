@@ -2,11 +2,13 @@
 
 ## Scope
 
-This playbook governs source files larger than 3000 lines in this repository.
+This playbook governs large-file growth with Deferred + JIT strategy.
 
-- Threshold: `> 3000` lines
+- Enforcement threshold: `> 3000` lines
+- Watchlist threshold: `2500-3000` lines (informational only)
 - Scanner: `scripts/check-large-files.mjs`
 - Baseline report: `docs/architecture/large-file-baseline.md`
+- Optional watchlist report: `docs/architecture/large-file-near-threshold-watchlist.md`
 
 ## Quality Gate
 
@@ -15,6 +17,7 @@ This playbook governs source files larger than 3000 lines in this repository.
 ```bash
 npm run check:large-files:baseline
 npm run check:large-files:gate
+npm run check:large-files:near-threshold:baseline  # optional visibility report
 ```
 
 ### CI checks
@@ -22,6 +25,24 @@ npm run check:large-files:gate
 - Workflow: `.github/workflows/large-file-governance.yml`
 - Hard gate command: `npm run check:large-files:gate`
 - Rule: any new `>3000` file fails PR checks.
+- Near-threshold (`2500-3000`) does not block merge by itself.
+
+## JIT Remediation Protocol
+
+When a PR fails large-file gate because a file exceeds 3000 lines:
+
+1. Keep remediation in the same PR. Do not merge first and split later.
+2. Apply minimal-scope decomposition (extract modules/adapters only as needed to get under threshold).
+3. Preserve facade exports and external contracts.
+4. Re-run required checks:
+
+```bash
+npm run typecheck
+npm run check:large-files:gate
+cargo check --manifest-path src-tauri/Cargo.toml
+```
+
+5. Include retained capability notes in PR description.
 
 ## Capability Retention Matrix
 
@@ -37,7 +58,7 @@ npm run check:large-files:gate
 
 ### Trigger
 
-Rollback is required when any of the following occurs after modularization:
+Rollback is required when any of the following occurs after JIT modularization:
 
 - App startup/navigation regression.
 - SpecHub / GitHistory / Settings critical interaction breakage.
@@ -51,7 +72,7 @@ Rollback is required when any of the following occurs after modularization:
 3. Re-run:
 
 ```bash
-npm run check:large-files:baseline
+npm run check:large-files:gate
 cargo check --manifest-path src-tauri/Cargo.toml
 ```
 
@@ -70,9 +91,11 @@ cargo check --manifest-path src-tauri/Cargo.toml
 - Resolve conflicts semantically at state/action/render granularity.
 - Verify key symbols still exist with `rg`.
 - Keep PR notes with explicit “retained capability list”.
+- For `>3000` violations, remediation must be in the same PR.
 
 ## Operational Notes
 
+- Deferred + JIT is the default mode: no mandatory batch split for near-threshold files.
+- Keep an optional watchlist report to track risk hotspots over time.
 - Prefer incremental split by `state/actions/render`.
 - Keep external API and exported types stable during split.
-- If a file is still above 3000 after one split round, continue decomposition in the same PR chain.
