@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import Activity from "lucide-react/dist/esm/icons/activity";
 import Bot from "lucide-react/dist/esm/icons/bot";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
@@ -1135,7 +1134,6 @@ export function WorkspaceSessionActivityPanel({
             <div
               className={`session-activity-title-row${viewModel.isProcessing ? " is-live" : ""}`}
             >
-              <Activity size={15} aria-hidden />
               <span>{t("activityPanel.title")}</span>
             </div>
             {onToggleLiveEditPreview ? (

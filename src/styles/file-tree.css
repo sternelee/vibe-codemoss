@@ -54,6 +54,19 @@
   align-items: center;
   gap: 2px;
   flex: 0 0 auto;
+  opacity: 0;
+  transform: translateY(-1px);
+  pointer-events: none;
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+}
+
+.file-tree-panel:hover .file-tree-root-actions,
+.file-tree-panel:focus-within .file-tree-root-actions {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
 }
 
 .file-tree-root-action {

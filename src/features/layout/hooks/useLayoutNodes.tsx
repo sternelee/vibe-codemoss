@@ -21,7 +21,6 @@ import { DebugPanel } from "../../debug/components/DebugPanel";
 import { PlanPanel } from "../../plan/components/PlanPanel";
 import { PanelTabs } from "../components/PanelTabs";
 import Construction from "lucide-react/dist/esm/icons/construction";
-import LayoutDashboard from "lucide-react/dist/esm/icons/layout-dashboard";
 import { TabBar } from "../../app/components/TabBar";
 import { TabletNav } from "../../app/components/TabletNav";
 import { TerminalDock } from "../../terminal/components/TerminalDock";
@@ -1052,16 +1051,6 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
           title={t("files.openRunConsole")}
         >
           <Construction aria-hidden />
-        </button>
-        <button
-          type="button"
-          className={`ghost icon-button file-tree-toggle file-tree-toggle-spec-hub${options.activeTab === "spec" ? " is-active" : ""}`}
-          onClick={options.onOpenSpecHub}
-          data-tauri-drag-region="false"
-          aria-label={t("sidebar.specHub")}
-          title={t("sidebar.specHub")}
-        >
-          <LayoutDashboard aria-hidden />
         </button>
       </div>
     </div>

@@ -16,6 +16,7 @@ import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import FilePlus from "lucide-react/dist/esm/icons/file-plus";
 import FolderPlus from "lucide-react/dist/esm/icons/folder-plus";
+import LayoutDashboard from "lucide-react/dist/esm/icons/layout-dashboard";
 import Plus from "lucide-react/dist/esm/icons/plus";
 import SquareMinus from "lucide-react/dist/esm/icons/square-minus";
 import Trash2 from "lucide-react/dist/esm/icons/trash-2";
@@ -308,8 +309,8 @@ export function FileTreePanel({
   onSelectOpenAppId,
   onToggleRuntimeConsole: _onToggleRuntimeConsole,
   isRuntimeConsoleVisible: _isRuntimeConsoleVisible = false,
-  onOpenSpecHub: _onOpenSpecHub,
-  isSpecHubActive: _isSpecHubActive = false,
+  onOpenSpecHub,
+  isSpecHubActive = false,
   gitStatusFiles,
   gitignoredFiles,
   gitignoredDirectories,
@@ -1244,6 +1245,16 @@ export function FileTreePanel({
             </button>
           </div>
           <div className="file-tree-root-actions">
+            <button
+              type="button"
+              className={`ghost icon-button file-tree-root-action${isSpecHubActive ? " is-active" : ""}`}
+              onClick={onOpenSpecHub}
+              disabled={!onOpenSpecHub}
+              aria-label={t("sidebar.specHub")}
+              title={t("sidebar.specHub")}
+            >
+              <LayoutDashboard aria-hidden />
+            </button>
             <button
               type="button"
               className="ghost icon-button file-tree-root-action"

@@ -2,6 +2,7 @@ import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import Construction from "lucide-react/dist/esm/icons/construction";
 import Focus from "lucide-react/dist/esm/icons/focus";
+import LayoutDashboard from "lucide-react/dist/esm/icons/layout-dashboard";
 import PanelRightClose from "lucide-react/dist/esm/icons/panel-right-close";
 import PanelRightOpen from "lucide-react/dist/esm/icons/panel-right-open";
 import TerminalSquare from "lucide-react/dist/esm/icons/terminal-square";
@@ -20,6 +21,9 @@ type MainHeaderActionsProps = {
   showSoloButton?: boolean;
   isSoloMode?: boolean;
   onToggleSoloMode?: () => void;
+  showSpecHubButton?: boolean;
+  isSpecHubActive?: boolean;
+  onOpenSpecHub?: () => void;
 };
 
 export const MainHeaderActions = memo(function MainHeaderActions({
@@ -35,6 +39,9 @@ export const MainHeaderActions = memo(function MainHeaderActions({
   showSoloButton = false,
   isSoloMode = false,
   onToggleSoloMode,
+  showSpecHubButton = false,
+  isSpecHubActive = false,
+  onOpenSpecHub,
 }: MainHeaderActionsProps) {
   const { t } = useTranslation();
   const { rightPanelAvailable = true, onCollapseRightPanel, onExpandRightPanel } =
@@ -44,6 +51,7 @@ export const MainHeaderActions = memo(function MainHeaderActions({
     showRuntimeConsoleButton && Boolean(onToggleRuntimeConsole);
   const canToggleTerminal = showTerminalButton && Boolean(onToggleTerminal);
   const canToggleSoloMode = showSoloButton && Boolean(onToggleSoloMode);
+  const canToggleSpecHub = showSpecHubButton && Boolean(onOpenSpecHub);
 
   if (
     isCompact ||
@@ -94,6 +102,18 @@ export const MainHeaderActions = memo(function MainHeaderActions({
           title={t(isSoloMode ? "sidebar.exitSoloMode" : "sidebar.enterSoloMode")}
         >
           <Focus size={14} aria-hidden />
+        </button>
+      )}
+      {canToggleSpecHub && (
+        <button
+          type="button"
+          className={`ghost main-header-action${isSpecHubActive ? " is-active" : ""}`}
+          onClick={() => onOpenSpecHub?.()}
+          data-tauri-drag-region="false"
+          aria-label={t("sidebar.specHub")}
+          title={t("sidebar.specHub")}
+        >
+          <LayoutDashboard size={14} aria-hidden />
         </button>
       )}
       {rightPanelAvailable && !isSoloMode && (

@@ -33,7 +33,7 @@ const SHOW_PROMPTS_TAB = false;
 // Toggle to show/hide git tab
 const SHOW_GIT_TAB = true;
 
-const tabIds: PanelTabId[] = (["git", "files", "search", "activity", "prompts"] as const).filter(
+const tabIds: PanelTabId[] = (["activity", "git", "files", "search", "prompts"] as const).filter(
   (id) =>
     (id !== "prompts" || SHOW_PROMPTS_TAB) &&
     (id !== "git" || SHOW_GIT_TAB)
