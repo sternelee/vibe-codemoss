@@ -992,13 +992,18 @@
 
 .kanban-task-group-header {
   border-bottom: 1px solid var(--border-color, #e2e8f0);
-  background: var(--surface-control, var(--bg-secondary, #f8fafc));
+  background: var(--bg-primary, #fff);
   color: var(--text-muted, var(--text-secondary, #334155));
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 6px 8px;
   margin: 0;
+}
+
+.kanban-task-group-panel.is-collapsed .kanban-task-group-header {
+  background: var(--bg-primary, #fff);
+  border-bottom-color: color-mix(in srgb, var(--border-color, #e2e8f0) 72%, transparent);
 }
 
 .kanban-task-group-toggle-btn {
@@ -1091,6 +1096,91 @@
   font-size: 11px;
   color: var(--text-tertiary, #6b7280);
   font-variant-numeric: tabular-nums;
+}
+
+.kanban-group-bulk-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: color-mix(in srgb, #0f172a 28%, transparent);
+  backdrop-filter: blur(1px);
+  -webkit-backdrop-filter: blur(1px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+
+.kanban-group-bulk-confirm-dialog {
+  width: 320px;
+  max-width: 100%;
+  background: var(--bg-primary, #fff);
+  border: 1px solid color-mix(in srgb, var(--border-color, #d1d5db) 78%, transparent);
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.kanban-group-bulk-confirm-heading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.kanban-group-bulk-confirm-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: color-mix(in srgb, #d97706 72%, #92400e);
+  background: color-mix(in srgb, #fef3c7 78%, #fffbeb);
+  border: 1px solid color-mix(in srgb, #f59e0b 34%, transparent);
+  flex-shrink: 0;
+}
+
+.kanban-group-bulk-confirm-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.35;
+  font-weight: 600;
+  text-align: center;
+  color: var(--text-primary, #111827);
+}
+
+.kanban-group-bulk-confirm-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.kanban-group-bulk-confirm-btn {
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.kanban-group-bulk-confirm-btn.is-cancel {
+  background: color-mix(in srgb, var(--bg-secondary, #f3f4f6) 80%, #f8fafc);
+  border-color: color-mix(in srgb, var(--border-color, #d1d5db) 86%, transparent);
+  color: color-mix(in srgb, var(--text-primary, #111827) 84%, #334155);
+}
+
+.kanban-group-bulk-confirm-btn.is-confirm {
+  background: color-mix(in srgb, #2563eb 90%, #1d4ed8);
+  color: #fff;
 }
 
 @keyframes kanban-hint-fade-in {

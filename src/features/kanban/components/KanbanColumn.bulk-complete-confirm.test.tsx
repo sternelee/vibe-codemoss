@@ -66,7 +66,6 @@ afterEach(() => {
 describe("KanbanColumn bulk complete confirm", () => {
   it("does not bulk complete when confirmation is cancelled", () => {
     const onBulkMoveGroup = vi.fn();
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
     const head = createTask("head");
     const downstream: KanbanTask = {
       ...createTask("downstream"),
@@ -94,14 +93,13 @@ describe("KanbanColumn bulk complete confirm", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "kanban.task.group.bulkComplete" }));
+    fireEvent.click(screen.getByRole("button", { name: "common.cancel" }));
 
-    expect(confirmSpy).toHaveBeenCalledTimes(1);
     expect(onBulkMoveGroup).not.toHaveBeenCalled();
   });
 
   it("bulk completes when confirmation is accepted", () => {
     const onBulkMoveGroup = vi.fn();
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
     const head = createTask("head");
     const downstream: KanbanTask = {
       ...createTask("downstream"),
@@ -129,8 +127,8 @@ describe("KanbanColumn bulk complete confirm", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "kanban.task.group.bulkComplete" }));
+    fireEvent.click(screen.getByRole("button", { name: "common.ok" }));
 
-    expect(confirmSpy).toHaveBeenCalledTimes(1);
     expect(onBulkMoveGroup).toHaveBeenCalledTimes(1);
     expect(onBulkMoveGroup).toHaveBeenCalledWith(
       expect.arrayContaining(["head", "downstream"]),
@@ -139,9 +137,8 @@ describe("KanbanColumn bulk complete confirm", () => {
     );
   });
 
-  it("does not bulk complete when confirmation api is unavailable", () => {
+  it("does not bulk complete when confirmation dialog is dismissed by overlay", () => {
     const onBulkMoveGroup = vi.fn();
-    const originalConfirm = window.confirm;
     const head = createTask("head");
     const downstream: KanbanTask = {
       ...createTask("downstream"),
@@ -151,38 +148,25 @@ describe("KanbanColumn bulk complete confirm", () => {
         groupCode: "123",
       },
     };
-    Object.defineProperty(window, "confirm", {
-      value: undefined,
-      writable: true,
-      configurable: true,
-    });
+    render(
+      <KanbanColumn
+        column={column}
+        tasks={[head, downstream]}
+        allTasks={[head, downstream]}
+        selectedTaskId={null}
+        taskProcessingMap={{}}
+        onAddTask={vi.fn()}
+        onDeleteTask={vi.fn()}
+        onToggleSchedulePausedTask={vi.fn()}
+        onCancelOrBlockTask={vi.fn()}
+        onSelectTask={vi.fn()}
+        onBulkMoveGroup={onBulkMoveGroup}
+      />,
+    );
 
-    try {
-      render(
-        <KanbanColumn
-          column={column}
-          tasks={[head, downstream]}
-          allTasks={[head, downstream]}
-          selectedTaskId={null}
-          taskProcessingMap={{}}
-          onAddTask={vi.fn()}
-          onDeleteTask={vi.fn()}
-          onToggleSchedulePausedTask={vi.fn()}
-          onCancelOrBlockTask={vi.fn()}
-          onSelectTask={vi.fn()}
-          onBulkMoveGroup={onBulkMoveGroup}
-        />,
-      );
+    fireEvent.click(screen.getByRole("button", { name: "kanban.task.group.bulkComplete" }));
+    fireEvent.click(screen.getByTestId("kanban-group-bulk-confirm-overlay"));
 
-      fireEvent.click(screen.getByRole("button", { name: "kanban.task.group.bulkComplete" }));
-
-      expect(onBulkMoveGroup).not.toHaveBeenCalled();
-    } finally {
-      Object.defineProperty(window, "confirm", {
-        value: originalConfirm,
-        writable: true,
-        configurable: true,
-      });
-    }
+    expect(onBulkMoveGroup).not.toHaveBeenCalled();
   });
 });

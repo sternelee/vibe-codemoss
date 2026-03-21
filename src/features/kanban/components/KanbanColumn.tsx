@@ -8,7 +8,7 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { Droppable } from "@hello-pangea/dnd";
-import { Check, ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, CircleAlert, Plus } from "lucide-react";
 import type { KanbanColumnDef, KanbanTask, KanbanTaskStatus } from "../types";
 import { KanbanCard } from "./KanbanCard";
 
@@ -232,6 +232,12 @@ export function KanbanColumn({
   const [groupVisibleTaskLimits, setGroupVisibleTaskLimits] = useState<
     Record<string, number>
   >({});
+  const [bulkConfirmState, setBulkConfirmState] = useState<{
+    taskIds: string[];
+    sourceStatus: KanbanTaskStatus;
+    destinationStatus: KanbanTaskStatus;
+    count: number;
+  } | null>(null);
 
   const chainGroupByTaskId = useMemo(() => {
     const chainGroupMap = new Map<string, string>();
@@ -661,13 +667,14 @@ export function KanbanColumn({
                 return (
                   <div
                     key={meta.key}
-                    className={`kanban-task-group-panel${meta.kind === "chain" ? " is-chain" : " is-recurring"}`}
+                    className={`kanban-task-group-panel${meta.kind === "chain" ? " is-chain" : " is-recurring"}${isCollapsed ? " is-collapsed" : ""}`}
                   >
                     <div className="kanban-task-group-header">
                       <button
                         type="button"
                         className="kanban-task-group-toggle-btn"
                         onClick={() => handleToggleGroup(meta.key, defaultCollapsed)}
+                        aria-expanded={!isCollapsed}
                       >
                         {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
                         <span className="kanban-task-group-title">{groupLabel}</span>
@@ -685,19 +692,12 @@ export function KanbanColumn({
                           title={t("kanban.task.group.bulkComplete")}
                           onClick={(event) => {
                             event.stopPropagation();
-                            const confirmFn =
-                              typeof window !== "undefined" ? window.confirm : undefined;
-                            const shouldProceed =
-                              typeof confirmFn === "function" &&
-                              confirmFn(
-                                t("kanban.task.group.bulkCompleteConfirm", {
-                                  count: groupTaskIds.length,
-                                }),
-                              );
-                            if (!shouldProceed) {
-                              return;
-                            }
-                            onBulkMoveGroup?.(groupTaskIds, column.id, "done");
+                            setBulkConfirmState({
+                              taskIds: groupTaskIds,
+                              sourceStatus: column.id,
+                              destinationStatus: "done",
+                              count: groupTaskIds.length,
+                            });
                           }}
                         >
                           <Check size={13} />
@@ -771,6 +771,54 @@ export function KanbanColumn({
           </div>
         )}
       </Droppable>
+      {bulkConfirmState && (
+        <div
+          className="kanban-group-bulk-confirm-overlay"
+          data-testid="kanban-group-bulk-confirm-overlay"
+          onClick={() => setBulkConfirmState(null)}
+        >
+          <div
+            className="kanban-group-bulk-confirm-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("kanban.task.group.bulkComplete")}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="kanban-group-bulk-confirm-heading">
+              <span className="kanban-group-bulk-confirm-icon" aria-hidden="true">
+                <CircleAlert size={14} />
+              </span>
+              <p className="kanban-group-bulk-confirm-text">
+                {t("kanban.task.group.bulkCompleteConfirm", { count: bulkConfirmState.count })}
+              </p>
+            </div>
+            <div className="kanban-group-bulk-confirm-actions">
+              <button
+                type="button"
+                className="kanban-group-bulk-confirm-btn is-cancel"
+                onClick={() => setBulkConfirmState(null)}
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                type="button"
+                className="kanban-group-bulk-confirm-btn is-confirm"
+                onClick={() => {
+                  onBulkMoveGroup?.(
+                    bulkConfirmState.taskIds,
+                    bulkConfirmState.sourceStatus,
+                    bulkConfirmState.destinationStatus,
+                  );
+                  setBulkConfirmState(null);
+                }}
+              >
+                <Check size={14} aria-hidden="true" />
+                {t("common.ok")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
