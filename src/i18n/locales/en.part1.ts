@@ -161,6 +161,7 @@ const enPart1 = {
     exitSoloMode: "Exit SOLO mode",
     quickNewThread: "New Thread",
     quickAutomation: "Panel",
+    quickAutomationBadge: "new task!",
     quickSearch: "Search",
     quickSkills: "Skills",
     releaseNotes: "Release Notes",

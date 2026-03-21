@@ -1161,6 +1161,8 @@ const zhPart2 = {
     },
     board: {
       back: "返回",
+      backActions: "返回操作",
+      backToPanels: "返回面板列表",
       backToChat: "返回对话",
       addTask: "添加",
       searchPlaceholder: "搜索...",
@@ -1224,6 +1226,10 @@ const zhPart2 = {
         recurring: "周期新会话组",
         chain: "关联任务组",
         count: "{{count}} 项",
+        bulkComplete: "批量完成",
+        bulkCompleteConfirm: "确认将该组 {{count}} 项任务批量完成吗？",
+        loadMore: "继续加载 {{count}} 项",
+        remaining: "剩余 {{count}} 项",
       },
       snapshot: {
         badge: "结果快照",
@@ -1256,6 +1262,8 @@ const zhPart2 = {
         downstreamNotTodo: "下游任务不在待办状态",
         downstreamHasSchedule: "下游任务存在独立计划",
         chainRequiresHeadTrigger: "串联任务需由头任务自动触发",
+        chainRequiresHeadTriggerWithOrder:
+          "串联任务需由头任务（串行#{{headOrder}}）自动触发，当前任务为串行#{{currentOrder}}",
         chainRequiresExecutionCompletion: "串联任务需先在进行中执行完成后才能进入审查或归档",
         chainCompletedCannotBackToTodo: "已执行完成的串联任务不允许拖回待办",
         chainCompletedStatusLocked: "串行任务已完成，不能再拖动到其他状态",

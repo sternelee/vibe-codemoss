@@ -1,10 +1,16 @@
-import { Fragment, useEffect, useMemo, useState, type CSSProperties } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { Droppable } from "@hello-pangea/dnd";
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Plus } from "lucide-react";
 import type { KanbanColumnDef, KanbanTask, KanbanTaskStatus } from "../types";
 import { KanbanCard } from "./KanbanCard";
-import { chainPositionOfTask } from "../utils/chaining";
 
 type KanbanColumnProps = {
   column: KanbanColumnDef;
@@ -19,6 +25,11 @@ type KanbanColumnProps = {
   onSelectTask: (task: KanbanTask) => void;
   onEditTask?: (task: KanbanTask) => void;
   onVisibleTaskIdsChange?: (columnId: KanbanTaskStatus, taskIds: string[]) => void;
+  onBulkMoveGroup?: (
+    taskIds: string[],
+    sourceColumnId: KanbanTaskStatus,
+    destinationColumnId: KanbanTaskStatus,
+  ) => void;
 };
 
 type TaskGroupKind = "recurring" | "chain";
@@ -46,6 +57,9 @@ type RecurringGroupDescriptor = {
   seriesId: string | null;
 };
 
+const GROUP_VISIBLE_TASKS_INITIAL_LIMIT = 30;
+const GROUP_VISIBLE_TASKS_STEP = 30;
+
 function resolveRecurringGroupDescriptor(task: KanbanTask): RecurringGroupDescriptor | null {
   const schedule = task.schedule;
   if (
@@ -67,6 +81,12 @@ function resolveRecurringGroupDescriptor(task: KanbanTask): RecurringGroupDescri
       ? schedule.seriesId.trim()
       : null;
   return { signature, seriesId };
+}
+
+function resolveRecurringGroupKey(descriptor: RecurringGroupDescriptor): string {
+  return descriptor.seriesId
+    ? `recurring:${descriptor.seriesId}`
+    : `recurring:sig:${descriptor.signature}`;
 }
 
 function resolveChainGroupCode(allTasks: KanbanTask[], groupId: string): string {
@@ -106,9 +126,60 @@ function resolveGroupBadgeStyle(seed: string): CSSProperties {
   };
 }
 
-function resolveTaskChainGroupId(allTasks: KanbanTask[], task: KanbanTask): string | null {
+function resolveUpstreamRecurringGroupCode(
+  allTasksById: Map<string, KanbanTask>,
+  task: KanbanTask,
+): string | null {
+  if (!task.chain?.previousTaskId) {
+    return null;
+  }
+  const upstreamTask = allTasksById.get(task.chain.previousTaskId);
+  if (!upstreamTask) {
+    return null;
+  }
+  const recurringDescriptor = resolveRecurringGroupDescriptor(upstreamTask);
+  if (!recurringDescriptor) {
+    return null;
+  }
+  const recurringGroupKey = resolveRecurringGroupKey(recurringDescriptor);
+  return resolveRecurringGroupCode(recurringGroupKey);
+}
+
+function resolveTaskUpstreamRecurringGroup(
+  allTasks: KanbanTask[],
+  task: KanbanTask,
+): { groupCode: string; groupBadgeStyle: CSSProperties } | null {
+  const previousTaskId = task.chain?.previousTaskId;
+  if (!previousTaskId) {
+    return null;
+  }
+  const upstreamTask = allTasks.find((entry) => entry.id === previousTaskId);
+  if (!upstreamTask) {
+    return null;
+  }
+  const recurringDescriptor = resolveRecurringGroupDescriptor(upstreamTask);
+  if (!recurringDescriptor) {
+    return null;
+  }
+  const recurringGroupKey = recurringDescriptor.seriesId
+    ? `recurring:${recurringDescriptor.seriesId}`
+    : `recurring:sig:${recurringDescriptor.signature}`;
+  return {
+    groupCode: resolveRecurringGroupCode(recurringGroupKey),
+    groupBadgeStyle: resolveGroupBadgeStyle(recurringGroupKey),
+  };
+}
+
+function resolveTaskChainGroupId(
+  allTasks: KanbanTask[],
+  task: KanbanTask,
+  chainGroupByTaskId?: Map<string, string>,
+): string | null {
   if (task.chain?.groupId) {
     return task.chain.groupId;
+  }
+  if (chainGroupByTaskId) {
+    return chainGroupByTaskId.get(task.id) ?? null;
   }
   return (
     allTasks.find((entry) => entry.chain?.previousTaskId === task.id)?.chain?.groupId ??
@@ -128,10 +199,15 @@ function resolveRecurringRunIndex(task: KanbanTask): number | null {
   return completedRounds + 1;
 }
 
-function resolveTaskSerialOrder(tasks: KanbanTask[], task: KanbanTask): number | null {
-  const chainGroupId = resolveTaskChainGroupId(tasks, task);
+function resolveTaskSerialOrder(
+  tasks: KanbanTask[],
+  task: KanbanTask,
+  chainPositionByTaskId?: Map<string, number>,
+  chainGroupByTaskId?: Map<string, string>,
+): number | null {
+  const chainGroupId = resolveTaskChainGroupId(tasks, task, chainGroupByTaskId);
   if (chainGroupId) {
-    return chainPositionOfTask(tasks, task.id);
+    return chainPositionByTaskId?.get(task.id) ?? 1;
   }
   return resolveRecurringRunIndex(task);
 }
@@ -149,25 +225,132 @@ export function KanbanColumn({
   onSelectTask,
   onEditTask,
   onVisibleTaskIdsChange,
+  onBulkMoveGroup,
 }: KanbanColumnProps) {
   const { t } = useTranslation();
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [groupVisibleTaskLimits, setGroupVisibleTaskLimits] = useState<
+    Record<string, number>
+  >({});
 
-  const renderBlocks = useMemo<TaskRenderBlock[]>(() => {
-    const chainGroupByTaskId = new Map<string, string>();
+  const chainGroupByTaskId = useMemo(() => {
+    const chainGroupMap = new Map<string, string>();
     for (const task of allTasks) {
       if (!task.chain?.groupId) {
         continue;
       }
-      chainGroupByTaskId.set(task.id, task.chain.groupId);
+      chainGroupMap.set(task.id, task.chain.groupId);
       if (task.chain.previousTaskId) {
-        chainGroupByTaskId.set(task.chain.previousTaskId, task.chain.groupId);
+        chainGroupMap.set(task.chain.previousTaskId, task.chain.groupId);
       }
     }
+    return chainGroupMap;
+  }, [allTasks]);
 
+  const chainPositionByTaskId = useMemo(() => {
+    const tasksById = new Map(allTasks.map((task) => [task.id, task]));
+    const chainPositionMap = new Map<string, number>();
+    const resolvingTaskIds = new Set<string>();
+
+    const resolveChainPosition = (taskId: string): number => {
+      const cached = chainPositionMap.get(taskId);
+      if (typeof cached === "number") {
+        return cached;
+      }
+
+      if (resolvingTaskIds.has(taskId)) {
+        return 1;
+      }
+      resolvingTaskIds.add(taskId);
+      const currentTask = tasksById.get(taskId);
+      const previousId = currentTask?.chain?.previousTaskId;
+      const position =
+        previousId && previousId !== taskId
+          ? resolveChainPosition(previousId) + 1
+          : 1;
+      resolvingTaskIds.delete(taskId);
+      chainPositionMap.set(taskId, position);
+      return position;
+    };
+
+    for (const task of allTasks) {
+      if (task.chain?.groupId || task.chain?.previousTaskId || chainGroupByTaskId.has(task.id)) {
+        resolveChainPosition(task.id);
+      }
+    }
+    return chainPositionMap;
+  }, [allTasks, chainGroupByTaskId]);
+
+  const resolveVisibleGroupTaskCount = useCallback(
+    (groupKey: string, totalTaskCount: number, isCollapsed: boolean): number => {
+      if (isCollapsed) {
+        return 0;
+      }
+      const configuredLimit = groupVisibleTaskLimits[groupKey];
+      const visibleLimit =
+        typeof configuredLimit === "number" && Number.isFinite(configuredLimit)
+          ? Math.max(1, configuredLimit)
+          : GROUP_VISIBLE_TASKS_INITIAL_LIMIT;
+      return Math.min(totalTaskCount, visibleLimit);
+    },
+    [groupVisibleTaskLimits],
+  );
+
+  const handleToggleGroup = useCallback((groupKey: string, defaultCollapsed: boolean) => {
+    setCollapsedGroups((prev) => {
+      const nextCollapsed = !(prev[groupKey] ?? defaultCollapsed);
+      if (!nextCollapsed) {
+        setGroupVisibleTaskLimits((prevLimits) => {
+          const existing = prevLimits[groupKey];
+          if (typeof existing === "number" && existing > 0) {
+            return prevLimits;
+          }
+          return {
+            ...prevLimits,
+            [groupKey]: GROUP_VISIBLE_TASKS_INITIAL_LIMIT,
+          };
+        });
+      }
+      return {
+        ...prev,
+        [groupKey]: nextCollapsed,
+      };
+    });
+  }, []);
+
+  const handleLoadMoreGroupTasks = useCallback((groupKey: string, totalTaskCount: number) => {
+    setGroupVisibleTaskLimits((prev) => {
+      const current =
+        typeof prev[groupKey] === "number"
+          ? prev[groupKey]
+          : GROUP_VISIBLE_TASKS_INITIAL_LIMIT;
+      const next = Math.min(totalTaskCount, current + GROUP_VISIBLE_TASKS_STEP);
+      if (next === current) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [groupKey]: next,
+      };
+    });
+  }, []);
+
+  const renderBlocks = useMemo<TaskRenderBlock[]>(() => {
     const taskGroupByTaskId = new Map<string, TaskGroupRef>();
     const groupedTaskIdsByKey = new Map<string, string[]>();
     const groupedKindByKey = new Map<string, TaskGroupKind>();
+    const allTasksById = new Map(allTasks.map((task) => [task.id, task]));
+    const chainGroupTaskCountById = new Map<string, number>();
+    for (const task of tasks) {
+      const chainGroupId = task.chain?.groupId ?? chainGroupByTaskId.get(task.id);
+      if (!chainGroupId) {
+        continue;
+      }
+      chainGroupTaskCountById.set(
+        chainGroupId,
+        (chainGroupTaskCountById.get(chainGroupId) ?? 0) + 1,
+      );
+    }
 
     const recurringDescriptors = new Map<string, RecurringGroupDescriptor>();
     const recurringSeriesBySignature = new Map<string, Set<string>>();
@@ -194,7 +377,7 @@ export function KanbanColumn({
           (hasSingleSeries ? Array.from(signatureSeries as Set<string>)[0] : null);
         const recurringGroupKey = preferredSeriesId
           ? `recurring:${preferredSeriesId}`
-          : `recurring:sig:${recurringDescriptor.signature}`;
+          : resolveRecurringGroupKey(recurringDescriptor);
         taskGroupByTaskId.set(task.id, { key: recurringGroupKey, kind: "recurring" });
         groupedKindByKey.set(recurringGroupKey, "recurring");
         groupedTaskIdsByKey.set(recurringGroupKey, [
@@ -205,6 +388,37 @@ export function KanbanColumn({
       }
 
       const chainGroupId = task.chain?.groupId ?? chainGroupByTaskId.get(task.id);
+      const chainGroupTaskCount = chainGroupId ? (chainGroupTaskCountById.get(chainGroupId) ?? 0) : 0;
+      if (chainGroupId && chainGroupTaskCount >= 2) {
+        const chainGroupKey = `chain:${chainGroupId}`;
+        taskGroupByTaskId.set(task.id, { key: chainGroupKey, kind: "chain" });
+        groupedKindByKey.set(chainGroupKey, "chain");
+        groupedTaskIdsByKey.set(chainGroupKey, [
+          ...(groupedTaskIdsByKey.get(chainGroupKey) ?? []),
+          task.id,
+        ]);
+        continue;
+      }
+
+      const chainOrderIndex = chainPositionByTaskId.get(task.id) ?? null;
+      const upstreamRecurringGroupCode = resolveUpstreamRecurringGroupCode(allTasksById, task);
+      if (
+        upstreamRecurringGroupCode &&
+        typeof chainOrderIndex === "number" &&
+        Number.isFinite(chainOrderIndex) &&
+        chainOrderIndex > 1
+      ) {
+        const recurringTriggeredChainGroupKey =
+          `chain-upstream-scheduler:${upstreamRecurringGroupCode}:step:${Math.floor(chainOrderIndex)}`;
+        taskGroupByTaskId.set(task.id, { key: recurringTriggeredChainGroupKey, kind: "chain" });
+        groupedKindByKey.set(recurringTriggeredChainGroupKey, "chain");
+        groupedTaskIdsByKey.set(recurringTriggeredChainGroupKey, [
+          ...(groupedTaskIdsByKey.get(recurringTriggeredChainGroupKey) ?? []),
+          task.id,
+        ]);
+        continue;
+      }
+
       if (!chainGroupId) {
         continue;
       }
@@ -223,13 +437,19 @@ export function KanbanColumn({
         continue;
       }
       const kind = groupedKindByKey.get(groupKey) ?? "chain";
+      const isConcreteChainGroup = kind === "chain" && groupKey.startsWith("chain:");
+      const concreteChainGroupId = isConcreteChainGroup
+        ? groupKey.replace(/^chain:/, "")
+        : null;
       groupMetaByKey.set(groupKey, {
         key: groupKey,
         kind,
-        groupId: kind === "chain" ? groupKey.replace(/^chain:/, "") : null,
+        groupId: concreteChainGroupId,
         groupCode:
           kind === "chain"
-            ? resolveChainGroupCode(allTasks, groupKey.replace(/^chain:/, ""))
+            ? concreteChainGroupId
+              ? resolveChainGroupCode(allTasks, concreteChainGroupId)
+              : resolveRecurringGroupCode(groupKey)
             : resolveRecurringGroupCode(groupKey),
         groupBadgeStyle: resolveGroupBadgeStyle(groupKey),
         count: taskIds.length,
@@ -261,8 +481,18 @@ export function KanbanColumn({
 
       const groupTasks = (groupedTasksByKey.get(groupMeta.key) ?? []).slice();
       groupTasks.sort((a, b) => {
-        const serialA = resolveTaskSerialOrder(allTasks, a);
-        const serialB = resolveTaskSerialOrder(allTasks, b);
+        const serialA = resolveTaskSerialOrder(
+          allTasks,
+          a,
+          chainPositionByTaskId,
+          chainGroupByTaskId,
+        );
+        const serialB = resolveTaskSerialOrder(
+          allTasks,
+          b,
+          chainPositionByTaskId,
+          chainGroupByTaskId,
+        );
         if (serialA !== null && serialB !== null && serialA !== serialB) {
           return serialA - serialB;
         }
@@ -288,7 +518,7 @@ export function KanbanColumn({
         block.type === "single",
     );
     return [...groupedBlocks, ...singleBlocks];
-  }, [tasks, allTasks]);
+  }, [tasks, allTasks, chainGroupByTaskId, chainPositionByTaskId]);
 
   const visibleTaskIds = useMemo(() => {
     const ids: string[] = [];
@@ -300,13 +530,18 @@ export function KanbanColumn({
       const defaultCollapsed = column.id === "testing" || column.id === "done";
       const isCollapsed = collapsedGroups[block.meta.key] ?? defaultCollapsed;
       if (!isCollapsed) {
-        for (const task of block.tasks) {
+        const visibleGroupTaskCount = resolveVisibleGroupTaskCount(
+          block.meta.key,
+          block.tasks.length,
+          isCollapsed,
+        );
+        for (const task of block.tasks.slice(0, visibleGroupTaskCount)) {
           ids.push(task.id);
         }
       }
     }
     return ids;
-  }, [column.id, collapsedGroups, renderBlocks]);
+  }, [column.id, collapsedGroups, renderBlocks, resolveVisibleGroupTaskCount]);
 
   useEffect(() => {
     if (!onVisibleTaskIdsChange) {
@@ -328,13 +563,17 @@ export function KanbanColumn({
             <span className="kanban-column-count">{tasks.length}</span>
           )}
         </div>
-        <button
-          className="kanban-icon-btn"
-          onClick={onAddTask}
-          aria-label={t("kanban.board.addTask")}
-        >
-          <Plus size={16} />
-        </button>
+        {column.id === "todo" && (
+          <button
+            type="button"
+            className="kanban-column-add-btn"
+            onClick={onAddTask}
+            aria-label={t("kanban.board.addTask")}
+            title={t("kanban.board.addTask")}
+          >
+            <Plus size={13} strokeWidth={2.5} />
+          </button>
+        )}
       </div>
       <Droppable droppableId={column.id}>
         {(provided, snapshot) => (
@@ -348,7 +587,7 @@ export function KanbanColumn({
               return renderBlocks.map((block) => {
                 if (block.type === "single") {
                   const task = block.task;
-                  const chainGroupId = resolveTaskChainGroupId(allTasks, task);
+                  const chainGroupId = resolveTaskChainGroupId(allTasks, task, chainGroupByTaskId);
                   const chainGroupCode =
                     chainGroupId ? resolveChainGroupCode(allTasks, chainGroupId) : null;
                   const chainGroupBadgeStyle = chainGroupId
@@ -366,11 +605,19 @@ export function KanbanColumn({
                   const recurringGroupBadgeStyle = recurringGroupKey
                     ? resolveGroupBadgeStyle(recurringGroupKey)
                     : undefined;
-                  const displayGroupCode = recurringGroupCode ?? chainGroupCode;
-                  const displayGroupCodePrefix = recurringGroupCode ? "$" : "#";
-                  const displayGroupBadgeStyle = recurringGroupBadgeStyle ?? chainGroupBadgeStyle;
+                  const upstreamRecurringGroup = resolveTaskUpstreamRecurringGroup(allTasks, task);
+                  const displayGroupCode =
+                    recurringGroupCode ??
+                    upstreamRecurringGroup?.groupCode ??
+                    chainGroupCode;
+                  const displayGroupCodePrefix =
+                    recurringGroupCode || upstreamRecurringGroup ? "$" : "#";
+                  const displayGroupBadgeStyle =
+                    recurringGroupBadgeStyle ??
+                    upstreamRecurringGroup?.groupBadgeStyle ??
+                    chainGroupBadgeStyle;
                   const chainOrderIndex = chainGroupId
-                    ? chainPositionOfTask(allTasks, task.id)
+                    ? (chainPositionByTaskId.get(task.id) ?? 1)
                     : null;
                   const card = (
                     <KanbanCard
@@ -397,50 +644,94 @@ export function KanbanColumn({
                 const { meta, tasks: groupedTasks } = block;
                 const defaultCollapsed = column.id === "testing" || column.id === "done";
                 const isCollapsed = collapsedGroups[meta.key] ?? defaultCollapsed;
+                const visibleGroupTaskCount = resolveVisibleGroupTaskCount(
+                  meta.key,
+                  groupedTasks.length,
+                  isCollapsed,
+                );
+                const visibleGroupedTasks = groupedTasks.slice(0, visibleGroupTaskCount);
+                const hiddenGroupTaskCount = Math.max(0, groupedTasks.length - visibleGroupedTasks.length);
                 const groupLabel =
                   meta.kind === "recurring"
                     ? t("kanban.task.group.recurring")
                     : t("kanban.task.group.chain");
+                const groupTaskIds = groupedTasks.map((entry) => entry.id);
+                const canBulkCompleteGroup = column.id === "testing" && groupTaskIds.length > 0;
 
                 return (
                   <div
                     key={meta.key}
                     className={`kanban-task-group-panel${meta.kind === "chain" ? " is-chain" : " is-recurring"}`}
                   >
-                    <button
-                      type="button"
-                      className="kanban-task-group-header"
-                      onClick={() =>
-                        setCollapsedGroups((prev) => ({
-                          ...prev,
-                          [meta.key]: !(prev[meta.key] ?? defaultCollapsed),
-                        }))
-                      }
-                    >
-                      {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
-                      <span className="kanban-task-group-title">{groupLabel}</span>
-                      {meta.groupCode && (
-                        <span className="kanban-task-group-code" style={meta.groupBadgeStyle}>
-                          {meta.kind === "chain" ? `#${meta.groupCode}` : `$${meta.groupCode}`}
-                        </span>
+                    <div className="kanban-task-group-header">
+                      <button
+                        type="button"
+                        className="kanban-task-group-toggle-btn"
+                        onClick={() => handleToggleGroup(meta.key, defaultCollapsed)}
+                      >
+                        {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                        <span className="kanban-task-group-title">{groupLabel}</span>
+                        {meta.groupCode && (
+                          <span className="kanban-task-group-code" style={meta.groupBadgeStyle}>
+                            {meta.kind === "chain" ? `#${meta.groupCode}` : `$${meta.groupCode}`}
+                          </span>
+                        )}
+                      </button>
+                      {canBulkCompleteGroup && (
+                        <button
+                          type="button"
+                          className="kanban-task-group-action-btn"
+                          aria-label={t("kanban.task.group.bulkComplete")}
+                          title={t("kanban.task.group.bulkComplete")}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            const shouldProceed =
+                              typeof window === "undefined" ||
+                              typeof window.confirm !== "function" ||
+                              window.confirm(
+                                t("kanban.task.group.bulkCompleteConfirm", {
+                                  count: groupTaskIds.length,
+                                }),
+                              );
+                            if (!shouldProceed) {
+                              return;
+                            }
+                            onBulkMoveGroup?.(groupTaskIds, column.id, "done");
+                          }}
+                        >
+                          <Check size={13} />
+                        </button>
                       )}
                       <span className="kanban-task-group-count">
                         {t("kanban.task.group.count", { count: meta.count })}
                       </span>
-                    </button>
-                    {!isCollapsed && groupedTasks.map((task) => {
-                      const taskChainGroupId = resolveTaskChainGroupId(allTasks, task);
+                    </div>
+                    {!isCollapsed && visibleGroupedTasks.map((task) => {
+                      const taskChainGroupId = resolveTaskChainGroupId(
+                        allTasks,
+                        task,
+                        chainGroupByTaskId,
+                      );
                       const chainOrderIndex = taskChainGroupId
-                        ? chainPositionOfTask(allTasks, task.id)
+                        ? (chainPositionByTaskId.get(task.id) ?? 1)
                         : null;
+                      const upstreamRecurringGroup = resolveTaskUpstreamRecurringGroup(allTasks, task);
+                      const displayGroupCode =
+                        upstreamRecurringGroup?.groupCode ??
+                        meta.groupCode;
+                      const displayGroupCodePrefix =
+                        upstreamRecurringGroup || meta.kind === "recurring" ? "$" : "#";
+                      const displayGroupBadgeStyle =
+                        upstreamRecurringGroup?.groupBadgeStyle ??
+                        meta.groupBadgeStyle;
                       const card = (
                         <KanbanCard
                           key={task.id}
                           task={task}
                           index={draggableIndex}
-                          chainGroupCode={meta.groupCode}
-                          chainGroupCodePrefix={meta.kind === "recurring" ? "$" : "#"}
-                          chainGroupBadgeStyle={meta.groupBadgeStyle}
+                          chainGroupCode={displayGroupCode}
+                          chainGroupCodePrefix={displayGroupCodePrefix}
+                          chainGroupBadgeStyle={displayGroupBadgeStyle}
                           chainOrderIndex={chainOrderIndex}
                           isSelected={task.id === selectedTaskId}
                           isProcessing={taskProcessingMap[task.id]?.isProcessing ?? false}
@@ -455,6 +746,22 @@ export function KanbanColumn({
                       draggableIndex += 1;
                       return card;
                     })}
+                    {!isCollapsed && hiddenGroupTaskCount > 0 && (
+                      <div className="kanban-task-group-footer">
+                        <button
+                          type="button"
+                          className="kanban-task-group-load-more"
+                          onClick={() => handleLoadMoreGroupTasks(meta.key, groupedTasks.length)}
+                        >
+                          {t("kanban.task.group.loadMore", {
+                            count: Math.min(GROUP_VISIBLE_TASKS_STEP, hiddenGroupTaskCount),
+                          })}
+                        </button>
+                        <span className="kanban-task-group-remaining">
+                          {t("kanban.task.group.remaining", { count: hiddenGroupTaskCount })}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 );
               });

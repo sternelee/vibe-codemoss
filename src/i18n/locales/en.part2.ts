@@ -1186,6 +1186,8 @@ const enPart2 = {
     },
     board: {
       back: "Back",
+      backActions: "Back actions",
+      backToPanels: "Back to Panels",
       backToChat: "Back to Chat",
       addTask: "Add",
       searchPlaceholder: "Search...",
@@ -1249,6 +1251,10 @@ const enPart2 = {
         recurring: "Recurring run group",
         chain: "Linked task group",
         count: "{{count}} items",
+        bulkComplete: "Bulk complete",
+        bulkCompleteConfirm: "Confirm bulk complete for {{count}} tasks in this group?",
+        loadMore: "Load {{count}} more",
+        remaining: "{{count}} remaining",
       },
       snapshot: {
         badge: "Snapshot ready",
@@ -1281,6 +1287,8 @@ const enPart2 = {
         downstreamNotTodo: "Downstream task is not todo",
         downstreamHasSchedule: "Downstream task has independent schedule",
         chainRequiresHeadTrigger: "Chained task must be triggered by head task",
+        chainRequiresHeadTriggerWithOrder:
+          "Chained task must be auto-triggered by head step (#{{headOrder}}); current step is #{{currentOrder}}",
         chainRequiresExecutionCompletion:
           "Chained task must complete In Progress execution before entering Review/Done",
         chainCompletedCannotBackToTodo: "Completed chained tasks cannot be moved back to Todo",

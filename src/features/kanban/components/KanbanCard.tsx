@@ -20,6 +20,7 @@ import {
   Pencil,
   Play,
   Trash2,
+  X,
 } from "lucide-react";
 import type { KanbanTask, KanbanTaskStatus } from "../types";
 import type { EngineType } from "../../../types";
@@ -132,10 +133,27 @@ export function KanbanCard({
   const dragHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [elapsed, setElapsed] = useState("");
   const [countdownText, setCountdownText] = useState<string | null>(null);
+  const [dismissedBlockedReason, setDismissedBlockedReason] = useState<string | null>(null);
   const scheduleDescriptor = describeSchedule(task.schedule);
   const isChainedTask = Boolean(task.chain?.previousTaskId);
   const rawBlockedReason = task.chain?.blockedReason ?? task.execution?.blockedReason ?? null;
-  const blockedReason = formatKanbanBlockedReason(t, rawBlockedReason);
+  const chainHeadTriggerHintText =
+    typeof chainOrderIndex === "number" &&
+    Number.isFinite(chainOrderIndex) &&
+    chainOrderIndex > 1
+      ? t("kanban.task.blockedReason.chainRequiresHeadTriggerWithOrder", {
+          headOrder: 1,
+          currentOrder: chainOrderIndex,
+        })
+      : t("kanban.task.blockedReason.chainRequiresHeadTrigger");
+  const blockedReason =
+    rawBlockedReason === "chain_requires_head_trigger"
+      ? chainHeadTriggerHintText
+      : formatKanbanBlockedReason(t, rawBlockedReason);
+  const normalizedBlockedReason = blockedReason?.trim() ?? "";
+  const hasBlockedReason = normalizedBlockedReason.length > 0;
+  const shouldShowBlockedReason =
+    hasBlockedReason && dismissedBlockedReason !== normalizedBlockedReason;
   const recurringSchedule = task.schedule?.mode === "recurring" ? task.schedule : null;
   const onceSchedule = task.schedule?.mode === "once" ? task.schedule : null;
   const hasActiveSchedule = Boolean(task.schedule && task.schedule.mode !== "manual");
@@ -197,6 +215,10 @@ export function KanbanCard({
   const hasSecondaryMetaSignals =
     hasCountdownBadge || hasTimeRangeBadge || Boolean(recurringRoundsLabel);
   const placeGroupCodeInPrimary = Boolean(chainGroupCodeLabel) && !hasSecondaryMetaSignals;
+  const todoDragHintText =
+    task.status === "todo" && isChainedTask
+      ? chainHeadTriggerHintText
+      : t("kanban.task.dragToStart");
 
   const formatRunAt = useCallback((timestamp: number | null | undefined): string | null => {
     if (typeof timestamp !== "number" || !Number.isFinite(timestamp)) {
@@ -243,6 +265,16 @@ export function KanbanCard({
     const timer = setInterval(updateCountdown, 1000);
     return () => clearInterval(timer);
   }, [recurringCountdownTarget, updateCountdown]);
+
+  useEffect(() => {
+    if (!hasBlockedReason) {
+      setDismissedBlockedReason(null);
+      return;
+    }
+    if (dismissedBlockedReason && dismissedBlockedReason !== normalizedBlockedReason) {
+      setDismissedBlockedReason(null);
+    }
+  }, [dismissedBlockedReason, hasBlockedReason, normalizedBlockedReason]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -319,7 +351,7 @@ export function KanbanCard({
         >
           {showDragHint && task.status === "todo" && (
             <div className="kanban-card-drag-hint">
-              {t("kanban.task.dragToStart")}
+              {todoDragHintText}
             </div>
           )}
           <div className="kanban-card-header">
@@ -510,9 +542,24 @@ export function KanbanCard({
               )}
             </div>
           )}
-          {blockedReason && (
+          {shouldShowBlockedReason && (
             <div className="kanban-card-blocked-reason">
-              {t("kanban.task.blocked", { reason: blockedReason })}
+              <span className="kanban-card-blocked-reason-text">
+                {t("kanban.task.blocked", { reason: normalizedBlockedReason })}
+              </span>
+              <button
+                type="button"
+                className="kanban-card-blocked-reason-close"
+                onMouseDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setDismissedBlockedReason(normalizedBlockedReason);
+                }}
+                aria-label={t("kanban.conversation.close")}
+                title={t("kanban.conversation.close")}
+              >
+                <X size={12} />
+              </button>
             </div>
           )}
           {isProcessing && (

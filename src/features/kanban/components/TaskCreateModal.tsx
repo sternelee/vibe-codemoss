@@ -1,11 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { X, ImagePlus, Sparkles, Loader2 } from "lucide-react";
+import {
+  X,
+  ImagePlus,
+  Sparkles,
+  Loader2,
+  Calendar,
+  Clock3,
+  Repeat,
+  Settings2,
+  Hash,
+  GitBranch,
+  Link2,
+} from "lucide-react";
 import type { EngineStatus, EngineType } from "../../../types";
 import type {
   KanbanNewThreadResultMode,
   KanbanRecurringUnit,
   KanbanRecurringExecutionMode,
+  KanbanScheduleMode,
   KanbanTask,
   KanbanTaskChain,
   KanbanTaskSchedule,
@@ -100,6 +113,19 @@ export function TaskCreateModal({
   const [maxRounds, setMaxRounds] = useState(10);
   const [previousTaskId, setPreviousTaskId] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+  const scheduleModeOptions: Array<{
+    value: KanbanScheduleMode;
+    icon: typeof Calendar;
+    label: string;
+  }> = [
+    { value: "manual", icon: Calendar, label: t("kanban.task.schedule.manual") },
+    { value: "once", icon: Clock3, label: t("kanban.task.schedule.once") },
+    { value: "recurring", icon: Repeat, label: t("kanban.task.schedule.recurring") },
+  ];
+  const scheduleModeIndex = Math.max(
+    0,
+    scheduleModeOptions.findIndex((option) => option.value === scheduleMode),
+  );
 
   // branchName is always "main" - no UI control needed
   const branchName = "main";
@@ -153,6 +179,27 @@ export function TaskCreateModal({
         return type;
     }
   };
+
+  const resolveTaskScheduleModeLabel = useCallback(
+    (mode: KanbanScheduleMode): string => {
+      if (mode === "once") {
+        return t("kanban.task.schedule.once");
+      }
+      if (mode === "recurring") {
+        return t("kanban.task.schedule.recurring");
+      }
+      return t("kanban.task.schedule.manual");
+    },
+    [t],
+  );
+
+  const formatUpstreamTaskLabel = useCallback(
+    (task: KanbanTask): string => {
+      const mode = task.schedule?.mode ?? "manual";
+      return `[${resolveTaskScheduleModeLabel(mode)}] ${task.title}`;
+    },
+    [resolveTaskScheduleModeLabel],
+  );
 
   useEffect(() => {
     if (isOpen) {
@@ -486,25 +533,48 @@ export function TaskCreateModal({
               }
             />
 
-            <div className="kanban-task-config-block">
+            <div className="kanban-task-config-block is-compact">
               <div className="kanban-task-config-row">
                 <span className="kanban-task-config-label">
+                  <Calendar size={13} className="kanban-task-config-label-icon" />
                   {t("kanban.task.schedule.modeLabel")}
                 </span>
-                <select
-                  className="kanban-select"
-                  value={scheduleMode}
-                  onChange={(e) => setScheduleMode(e.target.value as "manual" | "once" | "recurring")}
+                <div
+                  className="kanban-task-mode-segmented"
+                  role="radiogroup"
+                  aria-label={t("kanban.task.schedule.modeLabel")}
                 >
-                  <option value="manual">{t("kanban.task.schedule.manual")}</option>
-                  <option value="once">{t("kanban.task.schedule.once")}</option>
-                  <option value="recurring">{t("kanban.task.schedule.recurring")}</option>
-                </select>
+                  <span
+                    className="kanban-task-mode-segmented-thumb"
+                    aria-hidden
+                    style={{
+                      transform: `translateX(${scheduleModeIndex * 100}%)`,
+                    }}
+                  />
+                  {scheduleModeOptions.map((option) => {
+                    const Icon = option.icon;
+                    const isActive = scheduleMode === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={isActive}
+                        className={`kanban-task-mode-segmented-btn${isActive ? " is-active" : ""}`}
+                        onClick={() => setScheduleMode(option.value)}
+                      >
+                        <Icon size={13} className="kanban-task-mode-segmented-icon" />
+                        <span>{option.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {scheduleMode === "once" && (
                 <div className="kanban-task-config-row">
                   <span className="kanban-task-config-label">
+                    <Clock3 size={13} className="kanban-task-config-label-icon" />
                     {t("kanban.task.schedule.runAt")}
                   </span>
                   <input
@@ -520,11 +590,12 @@ export function TaskCreateModal({
                 <>
                   <div className="kanban-task-config-row">
                     <span className="kanban-task-config-label">
+                      <Repeat size={13} className="kanban-task-config-label-icon" />
                       {t("kanban.task.schedule.every")}
                     </span>
                     <div className="kanban-task-config-inline">
                       <input
-                        className="kanban-input kanban-task-interval-input"
+                        className="kanban-input kanban-task-recurring-interval-input"
                         type="number"
                         min={1}
                         value={recurringInterval}
@@ -545,6 +616,7 @@ export function TaskCreateModal({
 
                   <div className="kanban-task-config-row">
                     <span className="kanban-task-config-label">
+                      <Settings2 size={13} className="kanban-task-config-label-icon" />
                       {t("kanban.task.schedule.executionModeLabel")}
                     </span>
                     <select
@@ -566,10 +638,11 @@ export function TaskCreateModal({
                   {recurringExecutionMode === "same_thread" && (
                     <div className="kanban-task-config-row">
                       <span className="kanban-task-config-label">
+                        <Hash size={13} className="kanban-task-config-label-icon" />
                         {t("kanban.task.schedule.maxRounds")}
                       </span>
                       <input
-                        className="kanban-input kanban-task-interval-input"
+                        className="kanban-input kanban-task-rounds-input"
                         type="number"
                         min={1}
                         max={50}
@@ -586,6 +659,7 @@ export function TaskCreateModal({
                   {recurringExecutionMode === "new_thread" && (
                     <div className="kanban-task-config-row">
                       <span className="kanban-task-config-label">
+                        <GitBranch size={13} className="kanban-task-config-label-icon" />
                         {t("kanban.task.schedule.resultPassing")}
                       </span>
                       <select
@@ -610,6 +684,7 @@ export function TaskCreateModal({
               {scheduleMode === "manual" && (
                 <div className="kanban-task-config-row">
                   <span className="kanban-task-config-label">
+                    <Link2 size={13} className="kanban-task-config-label-icon" />
                     {t("kanban.task.chain.upstreamLabel")}
                   </span>
                   <select
@@ -620,7 +695,7 @@ export function TaskCreateModal({
                     <option value="">{t("kanban.task.chain.none")}</option>
                     {chainCandidates.map((task) => (
                       <option key={task.id} value={task.id}>
-                        {task.title}
+                        {formatUpstreamTaskLabel(task)}
                       </option>
                     ))}
                   </select>

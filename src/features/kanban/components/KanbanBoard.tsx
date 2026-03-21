@@ -38,6 +38,24 @@ type RecurringGroupDescriptor = {
   seriesId: string | null;
 };
 
+function resolveRecurringGroupKey(descriptor: RecurringGroupDescriptor): string {
+  return descriptor.seriesId
+    ? `recurring:${descriptor.seriesId}`
+    : `recurring:sig:${descriptor.signature}`;
+}
+
+function hashGroupSeed(seed: string): number {
+  let hash = 0;
+  for (const ch of seed) {
+    hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  }
+  return hash;
+}
+
+function resolveRecurringGroupCode(seed: string): string {
+  return `${(hashGroupSeed(seed) % 900) + 100}`;
+}
+
 function resolveRecurringGroupDescriptor(task: KanbanTask): RecurringGroupDescriptor | null {
   const schedule = task.schedule;
   if (
@@ -59,6 +77,25 @@ function resolveRecurringGroupDescriptor(task: KanbanTask): RecurringGroupDescri
       ? schedule.seriesId.trim()
       : null;
   return { signature, seriesId };
+}
+
+function resolveUpstreamRecurringGroupCode(
+  allTasksById: Map<string, KanbanTask>,
+  task: KanbanTask,
+): string | null {
+  if (!task.chain?.previousTaskId) {
+    return null;
+  }
+  const upstreamTask = allTasksById.get(task.chain.previousTaskId);
+  if (!upstreamTask) {
+    return null;
+  }
+  const recurringDescriptor = resolveRecurringGroupDescriptor(upstreamTask);
+  if (!recurringDescriptor) {
+    return null;
+  }
+  const recurringGroupKey = resolveRecurringGroupKey(recurringDescriptor);
+  return resolveRecurringGroupCode(recurringGroupKey);
 }
 
 function resolveTaskChainGroupId(allTasks: KanbanTask[], task: KanbanTask): string | null {
@@ -97,6 +134,8 @@ function sortTasksForColumnDisplay(columnTasks: KanbanTask[], allTasks: KanbanTa
   }
 
   const chainGroupByTaskId = new Map<string, string>();
+  const allTasksById = new Map(allTasks.map((task) => [task.id, task]));
+  const chainGroupTaskCountById = new Map<string, number>();
   for (const task of allTasks) {
     if (!task.chain?.groupId) {
       continue;
@@ -105,6 +144,13 @@ function sortTasksForColumnDisplay(columnTasks: KanbanTask[], allTasks: KanbanTa
     if (task.chain.previousTaskId) {
       chainGroupByTaskId.set(task.chain.previousTaskId, task.chain.groupId);
     }
+  }
+  for (const task of columnTasks) {
+    const chainGroupId = task.chain?.groupId ?? chainGroupByTaskId.get(task.id);
+    if (!chainGroupId) {
+      continue;
+    }
+    chainGroupTaskCountById.set(chainGroupId, (chainGroupTaskCountById.get(chainGroupId) ?? 0) + 1);
   }
 
   const recurringDescriptors = new Map<string, RecurringGroupDescriptor>();
@@ -134,7 +180,7 @@ function sortTasksForColumnDisplay(columnTasks: KanbanTask[], allTasks: KanbanTa
         (hasSingleSeries ? Array.from(signatureSeries as Set<string>)[0] : null);
       const recurringGroupKey = preferredSeriesId
         ? `recurring:${preferredSeriesId}`
-        : `recurring:sig:${recurringDescriptor.signature}`;
+        : resolveRecurringGroupKey(recurringDescriptor);
       taskGroupKeyByTaskId.set(task.id, recurringGroupKey);
       groupedTaskIdsByKey.set(recurringGroupKey, [
         ...(groupedTaskIdsByKey.get(recurringGroupKey) ?? []),
@@ -144,6 +190,34 @@ function sortTasksForColumnDisplay(columnTasks: KanbanTask[], allTasks: KanbanTa
     }
 
     const chainGroupId = task.chain?.groupId ?? chainGroupByTaskId.get(task.id);
+    const chainGroupTaskCount = chainGroupId ? (chainGroupTaskCountById.get(chainGroupId) ?? 0) : 0;
+    if (chainGroupId && chainGroupTaskCount >= 2) {
+      const chainGroupKey = `chain:${chainGroupId}`;
+      taskGroupKeyByTaskId.set(task.id, chainGroupKey);
+      groupedTaskIdsByKey.set(chainGroupKey, [
+        ...(groupedTaskIdsByKey.get(chainGroupKey) ?? []),
+        task.id,
+      ]);
+      continue;
+    }
+
+    const chainOrderIndex = chainPositionOfTask(allTasks, task.id);
+    const upstreamRecurringGroupCode = resolveUpstreamRecurringGroupCode(allTasksById, task);
+    if (
+      upstreamRecurringGroupCode &&
+      Number.isFinite(chainOrderIndex) &&
+      chainOrderIndex > 1
+    ) {
+      const recurringTriggeredChainGroupKey =
+        `chain-upstream-scheduler:${upstreamRecurringGroupCode}:step:${Math.floor(chainOrderIndex)}`;
+      taskGroupKeyByTaskId.set(task.id, recurringTriggeredChainGroupKey);
+      groupedTaskIdsByKey.set(recurringTriggeredChainGroupKey, [
+        ...(groupedTaskIdsByKey.get(recurringTriggeredChainGroupKey) ?? []),
+        task.id,
+      ]);
+      continue;
+    }
+
     if (!chainGroupId) {
       continue;
     }
@@ -329,6 +403,39 @@ export function KanbanBoard({
       });
     },
     [],
+  );
+
+  const handleBulkMoveGroup = useCallback(
+    (
+      taskIds: string[],
+      sourceStatus: KanbanTaskStatus,
+      destinationStatus: KanbanTaskStatus,
+    ) => {
+      if (sourceStatus !== "testing" || destinationStatus !== "done" || taskIds.length === 0) {
+        return;
+      }
+
+      const taskById = new Map(tasks.map((task) => [task.id, task]));
+      const groupTasks = taskIds
+        .map((taskId) => taskById.get(taskId))
+        .filter(
+          (task): task is KanbanTask =>
+            typeof task !== "undefined" && task.status === sourceStatus,
+        );
+      if (groupTasks.length === 0) {
+        return;
+      }
+
+      let nextSortOrder = tasksByColumn[destinationStatus].reduce(
+        (max, task) => Math.max(max, task.sortOrder),
+        0,
+      );
+      for (const task of groupTasks) {
+        nextSortOrder += 1000;
+        onReorderTask(task.id, destinationStatus, nextSortOrder);
+      }
+    },
+    [onReorderTask, tasks, tasksByColumn],
   );
 
   const handleDragEnd = useCallback(
@@ -663,6 +770,7 @@ export function KanbanBoard({
                   onSelectTask={onSelectTask}
                   onEditTask={col.id === "todo" ? handleEditTask : undefined}
                   onVisibleTaskIdsChange={handleVisibleTaskIdsChange}
+                  onBulkMoveGroup={handleBulkMoveGroup}
                 />
               ))}
             </div>

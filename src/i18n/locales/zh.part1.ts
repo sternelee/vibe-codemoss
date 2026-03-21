@@ -161,6 +161,7 @@ const zhPart1 = {
     exitSoloMode: "退出 SOLO 模式",
     quickNewThread: "对话模式",
     quickAutomation: "面板模式",
+    quickAutomationBadge: "new task!",
     quickSearch: "搜索",
     quickSkills: "技能",
     releaseNotes: "版本记录",

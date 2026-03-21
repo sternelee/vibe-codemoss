@@ -211,4 +211,91 @@ describe("TaskCreateModal", () => {
     const [, changes] = onUpdate.mock.calls[0];
     expect(changes.execution?.blockedReason).toBeNull();
   });
+
+  it("shows upstream task type labels in chain selector options", () => {
+    const props = {
+      workspaceId: "ws-1",
+      workspaceBackendId: "ws-1",
+      panelId: "panel-1",
+      defaultStatus: "todo" as const,
+      engineStatuses,
+      availableTasks: [
+        {
+          id: "task-manual",
+          workspaceId: "ws-1",
+          panelId: "panel-1",
+          title: "Manual task",
+          description: "",
+          status: "todo",
+          engineType: "claude",
+          modelId: "claude-sonnet",
+          branchName: "main",
+          images: [],
+          autoStart: false,
+          sortOrder: 1,
+          threadId: null,
+          createdAt: 1,
+          updatedAt: 1,
+        },
+        {
+          id: "task-once",
+          workspaceId: "ws-1",
+          panelId: "panel-1",
+          title: "One-time task",
+          description: "",
+          status: "todo",
+          engineType: "claude",
+          modelId: "claude-sonnet",
+          branchName: "main",
+          images: [],
+          autoStart: false,
+          sortOrder: 2,
+          threadId: null,
+          schedule: {
+            mode: "once",
+            runAt: Date.now() + 60_000,
+          },
+          createdAt: 1,
+          updatedAt: 1,
+        },
+        {
+          id: "task-recurring",
+          workspaceId: "ws-1",
+          panelId: "panel-1",
+          title: "Recurring task",
+          description: "",
+          status: "todo",
+          engineType: "claude",
+          modelId: "claude-sonnet",
+          branchName: "main",
+          images: [],
+          autoStart: false,
+          sortOrder: 3,
+          threadId: null,
+          schedule: {
+            mode: "recurring",
+            interval: 1,
+            unit: "days",
+            nextRunAt: Date.now() + 60_000,
+          },
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ] as any,
+      onSubmit: vi.fn(),
+      onCancel: vi.fn(),
+    };
+
+    const { getByRole } = render(<TaskCreateModal {...props} isOpen />);
+
+    expect(
+      getByRole("option", { name: "[kanban.task.schedule.manual] Manual task" }),
+    ).toBeTruthy();
+    expect(
+      getByRole("option", { name: "[kanban.task.schedule.once] One-time task" }),
+    ).toBeTruthy();
+    expect(
+      getByRole("option", { name: "[kanban.task.schedule.recurring] Recurring task" }),
+    ).toBeTruthy();
+  });
 });

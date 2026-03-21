@@ -15,6 +15,7 @@ vi.mock("react-i18next", () => ({
         "sidebar.searchProjects": "Search projects",
         "sidebar.quickNewThread": "New Thread",
         "sidebar.quickAutomation": "Automation",
+        "sidebar.quickAutomationBadge": "new task!",
         "sidebar.quickSearch": "Search",
         "sidebar.quickSkills": "Skills",
         "lockScreen.lock": "Lock",
