@@ -7,6 +7,7 @@ import { buildWorkspaceSessionActivity } from "../../session-activity/adapters/b
 import { createCodexHistoryLoader } from "./codexHistoryLoader";
 import { parseCodexSessionHistory } from "./codexSessionHistory";
 import { createGeminiHistoryLoader } from "./geminiHistoryLoader";
+import { parseGeminiHistoryMessages } from "./geminiHistoryParser";
 import { createOpenCodeHistoryLoader } from "./opencodeHistoryLoader";
 
 describe("history loaders", () => {
@@ -123,6 +124,42 @@ describe("history loaders", () => {
       expect.objectContaining({
         kind: "message",
         role: "assistant",
+      }),
+    );
+  });
+
+  it("merges gemini tool start/result rows into a completed tool item", () => {
+    const items = parseGeminiHistoryMessages([
+      {
+        id: "gemini-tool-1",
+        kind: "tool",
+        toolType: "write_file",
+        title: "write_file",
+        toolInput: {
+          path: "src/a.ts",
+          content: "const a = 1;",
+        },
+      },
+      {
+        id: "gemini-tool-1-result",
+        kind: "tool",
+        toolType: "result",
+        title: "Result",
+        text: "done",
+        toolOutput: {
+          ok: true,
+        },
+      },
+    ]);
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toEqual(
+      expect.objectContaining({
+        id: "gemini-tool-1",
+        kind: "tool",
+        toolType: "write_file",
+        status: "completed",
+        output: "done",
       }),
     );
   });

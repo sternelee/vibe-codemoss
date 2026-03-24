@@ -706,9 +706,118 @@ fn extract_result_error_message(event: &Value) -> Option<String> {
         .map(|value| value.to_string())
 }
 
+fn extract_event_text(event: &Value) -> Option<String> {
+    first_non_empty_str(&[
+        event.get("delta").and_then(|v| v.as_str()),
+        event.get("text").and_then(|v| v.as_str()),
+        event.get("message").and_then(|v| v.as_str()),
+    ])
+    .map(|s| s.to_string())
+    .or_else(|| {
+        event
+            .get("content")
+            .and_then(|value| extract_text_from_value(value, 0))
+    })
+    .or_else(|| extract_text_from_value(event, 0))
+    .filter(|value| !value.trim().is_empty())
+}
+
+fn contains_reasoning_keyword(value: &str) -> bool {
+    let normalized = value.trim().to_ascii_lowercase();
+    if normalized.is_empty() {
+        return false;
+    }
+    normalized.contains("reason")
+        || normalized.contains("think")
+        || normalized.contains("thought")
+}
+
+fn is_truthy(value: Option<&Value>) -> bool {
+    match value {
+        Some(Value::Bool(flag)) => *flag,
+        Some(Value::Number(number)) => number.as_i64().is_some_and(|n| n != 0),
+        Some(Value::String(raw)) => {
+            let normalized = raw.trim().to_ascii_lowercase();
+            matches!(normalized.as_str(), "1" | "true" | "yes" | "on")
+        }
+        _ => false,
+    }
+}
+
+fn should_treat_message_as_reasoning(event: &Value, role: &str) -> bool {
+    if contains_reasoning_keyword(role) {
+        return true;
+    }
+    let kind = event
+        .get("kind")
+        .and_then(|value| value.as_str())
+        .unwrap_or_default();
+    if contains_reasoning_keyword(kind) {
+        return true;
+    }
+    let channel = event
+        .get("channel")
+        .and_then(|value| value.as_str())
+        .unwrap_or_default();
+    if contains_reasoning_keyword(channel) {
+        return true;
+    }
+    is_truthy(event.get("isThought").or_else(|| event.get("is_thought")))
+        || is_truthy(event.get("isReasoning").or_else(|| event.get("is_reasoning")))
+}
+
+fn is_reasoning_event_type(event_type: &str) -> bool {
+    let normalized = event_type.trim().to_ascii_lowercase();
+    if normalized.is_empty() {
+        return false;
+    }
+    matches!(
+        normalized.as_str(),
+        "reasoning" | "reasoning_delta" | "thinking" | "thinking_delta" | "thought" | "thought_delta"
+    ) || contains_reasoning_keyword(&normalized)
+}
+
+fn is_text_like_event_type(event_type: &str) -> bool {
+    let normalized = event_type.trim().to_ascii_lowercase();
+    if normalized.is_empty() {
+        return false;
+    }
+    matches!(
+        normalized.as_str(),
+        "text"
+            | "content_delta"
+            | "text_delta"
+            | "output_text_delta"
+            | "assistant_message_delta"
+            | "message_delta"
+            | "assistant_message"
+    ) || normalized.contains("message")
+        || normalized.contains("text")
+}
+
 fn parse_gemini_event(workspace_id: &str, event: &Value) -> Option<EngineEvent> {
     let event_type = event.get("type").and_then(|v| v.as_str())?;
     match event_type {
+        "text"
+        | "content_delta"
+        | "text_delta"
+        | "output_text_delta"
+        | "assistant_message_delta"
+        | "message_delta"
+        | "assistant_message" => {
+            let text = extract_event_text(event)?;
+            Some(EngineEvent::TextDelta {
+                workspace_id: workspace_id.to_string(),
+                text,
+            })
+        }
+        "reasoning" | "reasoning_delta" | "thinking" | "thinking_delta" | "thought" | "thought_delta" => {
+            let text = extract_event_text(event)?;
+            Some(EngineEvent::ReasoningDelta {
+                workspace_id: workspace_id.to_string(),
+                text,
+            })
+        }
         "message" => {
             let role = event
                 .get("role")
@@ -718,19 +827,12 @@ fn parse_gemini_event(workspace_id: &str, event: &Value) -> Option<EngineEvent> 
             if role == "user" || role == "system" {
                 return None;
             }
-            let text = first_non_empty_str(&[
-                event.get("delta").and_then(|v| v.as_str()),
-                event.get("text").and_then(|v| v.as_str()),
-            ])
-            .map(|s| s.to_string())
-            .or_else(|| {
-                event
-                    .get("content")
-                    .and_then(|value| extract_text_from_value(value, 0))
-            })
-            .or_else(|| extract_text_from_value(event, 0))?;
-            if text.trim().is_empty() {
-                return None;
+            let text = extract_event_text(event)?;
+            if should_treat_message_as_reasoning(event, &role) {
+                return Some(EngineEvent::ReasoningDelta {
+                    workspace_id: workspace_id.to_string(),
+                    text,
+                });
             }
             Some(EngineEvent::TextDelta {
                 workspace_id: workspace_id.to_string(),
@@ -867,7 +969,23 @@ fn parse_gemini_event(workspace_id: &str, event: &Value) -> Option<EngineEvent> 
                 result: result_payload,
             })
         }
-        _ => None,
+        _ => {
+            if is_reasoning_event_type(event_type) {
+                let text = extract_event_text(event)?;
+                return Some(EngineEvent::ReasoningDelta {
+                    workspace_id: workspace_id.to_string(),
+                    text,
+                });
+            }
+            if is_text_like_event_type(event_type) {
+                let text = extract_event_text(event)?;
+                return Some(EngineEvent::TextDelta {
+                    workspace_id: workspace_id.to_string(),
+                    text,
+                });
+            }
+            None
+        }
     }
 }
 
@@ -944,5 +1062,51 @@ mod tests {
         });
         let parsed = parse_gemini_event("workspace-1", &payload);
         assert!(matches!(parsed, Some(EngineEvent::TurnCompleted { .. })));
+    }
+
+    #[test]
+    fn parse_reasoning_delta_alias_maps_to_reasoning_delta() {
+        let payload = json!({
+            "type": "reasoning_delta",
+            "delta": "先规划，再执行"
+        });
+        let parsed = parse_gemini_event("workspace-1", &payload);
+        match parsed {
+            Some(EngineEvent::ReasoningDelta { text, .. }) => {
+                assert_eq!(text, "先规划，再执行");
+            }
+            _ => panic!("expected ReasoningDelta"),
+        }
+    }
+
+    #[test]
+    fn parse_message_with_reasoning_role_maps_to_reasoning_delta() {
+        let payload = json!({
+            "type": "message",
+            "role": "assistant_reasoning",
+            "delta": "分析上下文..."
+        });
+        let parsed = parse_gemini_event("workspace-1", &payload);
+        match parsed {
+            Some(EngineEvent::ReasoningDelta { text, .. }) => {
+                assert_eq!(text, "分析上下文...");
+            }
+            _ => panic!("expected ReasoningDelta"),
+        }
+    }
+
+    #[test]
+    fn parse_message_delta_alias_maps_to_text_delta() {
+        let payload = json!({
+            "type": "message_delta",
+            "delta": "回复片段"
+        });
+        let parsed = parse_gemini_event("workspace-1", &payload);
+        match parsed {
+            Some(EngineEvent::TextDelta { text, .. }) => {
+                assert_eq!(text, "回复片段");
+            }
+            _ => panic!("expected TextDelta"),
+        }
     }
 }

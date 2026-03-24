@@ -1005,6 +1005,54 @@ describe("Messages", () => {
     expect(screen.queryByText("LEGACY-CODEX-DEFAULT")).toBeNull();
   });
 
+  it("respects gemini routing from conversationState when activeEngine prop is omitted", () => {
+    const legacyItems: ConversationItem[] = [
+      {
+        id: "assistant-legacy-gemini-1",
+        kind: "message",
+        role: "assistant",
+        text: "LEGACY-GEMINI-DEFAULT",
+      },
+    ];
+    const stateItems: ConversationItem[] = [
+      {
+        id: "assistant-state-gemini-1",
+        kind: "message",
+        role: "assistant",
+        text: "PLAN\n\nSTATE-GEMINI-DEFAULT",
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={legacyItems}
+        threadId="gemini:thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        conversationState={{
+          items: stateItems,
+          plan: null,
+          userInputQueue: [],
+          meta: {
+            workspaceId: "ws-1",
+            threadId: "gemini:thread-1",
+            engine: "gemini",
+            activeTurnId: null,
+            isThinking: false,
+            heartbeatPulse: null,
+            historyRestoredAtMs: null,
+          },
+        }}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(container.textContent ?? "").toContain("STATE-GEMINI-DEFAULT");
+    expect(container.textContent ?? "").not.toContain("LEGACY-GEMINI-DEFAULT");
+    expect(container.querySelector(".markdown-codex-canvas")).toBeNull();
+  });
+
   it("prefers conversationState items for claude when state and legacy point to the same thread", () => {
     const legacyItems: ConversationItem[] = [
       {

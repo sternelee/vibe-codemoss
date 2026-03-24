@@ -1681,14 +1681,7 @@ export const Messages = memo(function Messages({
   const userInputRequests = effectiveState.userInputQueue;
   const workspaceId = effectiveState.meta.workspaceId || legacyWorkspaceId;
   const threadId = effectiveState.meta.threadId || legacyThreadId;
-  const activeEngine =
-    effectiveState.meta.engine === "claude"
-      ? "claude"
-      : effectiveState.meta.engine === "opencode"
-        ? "opencode"
-        : legacyActiveEngine === "gemini"
-          ? "gemini"
-          : "codex";
+  const activeEngine = toConversationEngine(effectiveState.meta.engine);
   const isThinking = conversationState
     ? effectiveState.meta.isThinking
     : legacyIsThinking;
