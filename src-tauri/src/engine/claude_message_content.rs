@@ -282,7 +282,10 @@ mod tests {
     #[test]
     fn normalize_image_path_preserves_unc_host() {
         let normalized = normalize_image_path("file://server/share/folder/a%20b.png");
-        assert_eq!(normalized.to_string_lossy(), "//server/share/folder/a b.png");
+        assert_eq!(
+            normalized.to_string_lossy(),
+            "//server/share/folder/a b.png"
+        );
     }
 
     #[test]

@@ -16,6 +16,8 @@ use super::events::EngineEvent;
 use super::gemini_history::{load_gemini_session, GeminiSessionMessage};
 use super::{EngineConfig, EngineType, SendMessageParams};
 
+const GEMINI_REASONING_HISTORY_SYNC_INTERVAL_MS: u64 = 900;
+
 #[derive(Debug, Clone)]
 pub struct GeminiTurnEvent {
     pub turn_id: String,
@@ -215,7 +217,10 @@ impl GeminiSession {
         for raw in images {
             if let Some(path) = Self::normalize_image_path_for_prompt(raw) {
                 let reference = Self::escape_image_reference(&path);
-                if !image_references.iter().any(|existing| existing == &reference) {
+                if !image_references
+                    .iter()
+                    .any(|existing| existing == &reference)
+                {
                     image_references.push(reference);
                 }
             }
@@ -361,9 +366,7 @@ impl GeminiSession {
     }
 
     fn resolve_approval_mode(access_mode: Option<&str>) -> Option<&'static str> {
-        let normalized = access_mode
-            .map(str::trim)
-            .filter(|value| !value.is_empty());
+        let normalized = access_mode.map(str::trim).filter(|value| !value.is_empty());
         match normalized {
             Some("full-access") => Some("yolo"),
             Some("read-only") => Some("plan"),
@@ -584,6 +587,9 @@ impl GeminiSession {
         let mut observed_event_types = BTreeSet::new();
         let mut last_reasoning_snapshot = String::new();
         let mut saw_reasoning_output = false;
+        let mut emitted_reasoning_texts = BTreeSet::new();
+        let mut last_reasoning_history_sync_at = std::time::Instant::now()
+            - std::time::Duration::from_millis(GEMINI_REASONING_HISTORY_SYNC_INTERVAL_MS);
 
         let reader = BufReader::new(stdout);
         let mut lines = reader.lines();
@@ -618,14 +624,18 @@ impl GeminiSession {
                         .is_some_and(|entry| matches!(entry, EngineEvent::ReasoningDelta { .. }));
                     if !parsed_is_reasoning {
                         if let Some(thought_text) = extract_latest_thought_text(&event) {
-                            if thought_text != last_reasoning_snapshot {
-                                last_reasoning_snapshot = thought_text.clone();
+                            let normalized_thought_text = thought_text.trim().to_string();
+                            if !normalized_thought_text.is_empty()
+                                && normalized_thought_text != last_reasoning_snapshot
+                                && emitted_reasoning_texts.insert(normalized_thought_text.clone())
+                            {
+                                last_reasoning_snapshot = normalized_thought_text.clone();
                                 saw_reasoning_output = true;
                                 self.emit_turn_event(
                                     turn_id,
                                     EngineEvent::ReasoningDelta {
                                         workspace_id: self.workspace_id.clone(),
-                                        text: thought_text,
+                                        text: normalized_thought_text,
                                     },
                                 );
                             }
@@ -638,7 +648,11 @@ impl GeminiSession {
                             }
                             EngineEvent::ReasoningDelta { text, .. } => {
                                 saw_reasoning_output = true;
-                                last_reasoning_snapshot = text.clone();
+                                let normalized_text = text.trim().to_string();
+                                if !normalized_text.is_empty() {
+                                    last_reasoning_snapshot = normalized_text.clone();
+                                    emitted_reasoning_texts.insert(normalized_text);
+                                }
                             }
                             EngineEvent::ToolStarted { .. } | EngineEvent::ToolCompleted { .. } => {
                                 saw_tool_activity = true;
@@ -661,6 +675,49 @@ impl GeminiSession {
                         }
                         self.emit_turn_event(turn_id, unified_event);
                     }
+
+                    if last_reasoning_history_sync_at.elapsed()
+                        >= std::time::Duration::from_millis(
+                            GEMINI_REASONING_HISTORY_SYNC_INTERVAL_MS,
+                        )
+                    {
+                        last_reasoning_history_sync_at = std::time::Instant::now();
+                        let fallback_session_id = if new_session_id.is_some() {
+                            new_session_id.clone()
+                        } else {
+                            self.get_session_id().await
+                        };
+                        if let Some(session_id) = fallback_session_id {
+                            if let Ok(history) = load_gemini_session(
+                                &self.workspace_path,
+                                &session_id,
+                                self.home_dir.as_deref(),
+                            )
+                            .await
+                            {
+                                let synced_reasoning =
+                                    collect_latest_turn_reasoning_texts(&history.messages);
+                                for text in synced_reasoning {
+                                    let normalized_text = text.trim().to_string();
+                                    if normalized_text.is_empty()
+                                        || normalized_text == last_reasoning_snapshot
+                                        || !emitted_reasoning_texts.insert(normalized_text.clone())
+                                    {
+                                        continue;
+                                    }
+                                    last_reasoning_snapshot = normalized_text.clone();
+                                    saw_reasoning_output = true;
+                                    self.emit_turn_event(
+                                        turn_id,
+                                        EngineEvent::ReasoningDelta {
+                                            workspace_id: self.workspace_id.clone(),
+                                            text: normalized_text,
+                                        },
+                                    );
+                                }
+                            }
+                        }
+                    }
                 }
                 Err(_) => {
                     error_output.push_str(&line);
@@ -676,24 +733,25 @@ impl GeminiSession {
                 self.get_session_id().await
             };
             if let Some(session_id) = fallback_session_id {
-                if let Ok(history) = load_gemini_session(
-                    &self.workspace_path,
-                    &session_id,
-                    self.home_dir.as_deref(),
-                )
-                .await
+                if let Ok(history) =
+                    load_gemini_session(&self.workspace_path, &session_id, self.home_dir.as_deref())
+                        .await
                 {
                     let fallback_reasoning = collect_latest_turn_reasoning_texts(&history.messages);
                     for text in fallback_reasoning {
-                        if text == last_reasoning_snapshot {
+                        let normalized_text = text.trim().to_string();
+                        if normalized_text.is_empty()
+                            || normalized_text == last_reasoning_snapshot
+                            || !emitted_reasoning_texts.insert(normalized_text.clone())
+                        {
                             continue;
                         }
-                        last_reasoning_snapshot = text.clone();
+                        last_reasoning_snapshot = normalized_text.clone();
                         self.emit_turn_event(
                             turn_id,
                             EngineEvent::ReasoningDelta {
                                 workspace_id: self.workspace_id.clone(),
-                                text,
+                                text: normalized_text,
                             },
                         );
                     }
@@ -913,7 +971,10 @@ fn extract_latest_thought_text_from_value(value: &Value, depth: usize) -> Option
     if depth > 6 {
         return None;
     }
-    if let Some(thoughts) = value.get("thoughts").and_then(|candidate| candidate.as_array()) {
+    if let Some(thoughts) = value
+        .get("thoughts")
+        .and_then(|candidate| candidate.as_array())
+    {
         if let Some(latest) = thoughts.iter().rev().find_map(extract_thought_entry_text) {
             return Some(latest);
         }
@@ -922,8 +983,16 @@ fn extract_latest_thought_text_from_value(value: &Value, depth: usize) -> Option
     if let Some(text) = value
         .get("thought")
         .and_then(extract_thought_entry_text)
-        .or_else(|| value.get("currentThought").and_then(extract_thought_entry_text))
-        .or_else(|| value.get("latestThought").and_then(extract_thought_entry_text))
+        .or_else(|| {
+            value
+                .get("currentThought")
+                .and_then(extract_thought_entry_text)
+        })
+        .or_else(|| {
+            value
+                .get("latestThought")
+                .and_then(extract_thought_entry_text)
+        })
     {
         return Some(text);
     }
@@ -942,8 +1011,8 @@ fn extract_latest_thought_text_from_value(value: &Value, depth: usize) -> Option
     };
 
     for key in [
-        "message", "messages", "item", "items", "content", "data", "payload", "result",
-        "response", "event", "turn",
+        "message", "messages", "item", "items", "content", "data", "payload", "result", "response",
+        "event", "turn",
     ] {
         if let Some(nested) = object.get(key) {
             if let Some(latest) = extract_latest_thought_text_from_value(nested, depth + 1) {
@@ -968,8 +1037,16 @@ fn extract_reasoning_event_text(event: &Value) -> Option<String> {
     extract_event_text(event)
         .or_else(|| extract_thought_entry_text(event))
         .or_else(|| event.get("thought").and_then(extract_thought_entry_text))
-        .or_else(|| event.get("currentThought").and_then(extract_thought_entry_text))
-        .or_else(|| event.get("latestThought").and_then(extract_thought_entry_text))
+        .or_else(|| {
+            event
+                .get("currentThought")
+                .and_then(extract_thought_entry_text)
+        })
+        .or_else(|| {
+            event
+                .get("latestThought")
+                .and_then(extract_thought_entry_text)
+        })
         .or_else(|| extract_latest_thought_text(event))
 }
 
@@ -1002,8 +1079,16 @@ fn parse_completion_event(workspace_id: &str, event: &Value) -> Option<EngineEve
         .get("text")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
-        .or_else(|| event.get("response").and_then(|value| extract_text_from_value(value, 0)))
-        .or_else(|| event.get("result").and_then(|value| extract_text_from_value(value, 0)));
+        .or_else(|| {
+            event
+                .get("response")
+                .and_then(|value| extract_text_from_value(value, 0))
+        })
+        .or_else(|| {
+            event
+                .get("result")
+                .and_then(|value| extract_text_from_value(value, 0))
+        });
     let result_payload = if let Some(text) = result_text {
         Some(json!({
             "text": text,
@@ -1058,9 +1143,7 @@ fn contains_reasoning_keyword(value: &str) -> bool {
     if normalized.is_empty() {
         return false;
     }
-    normalized.contains("reason")
-        || normalized.contains("think")
-        || normalized.contains("thought")
+    normalized.contains("reason") || normalized.contains("think") || normalized.contains("thought")
 }
 
 fn is_truthy(value: Option<&Value>) -> bool {
@@ -1094,7 +1177,11 @@ fn should_treat_message_as_reasoning(event: &Value, role: &str) -> bool {
         return true;
     }
     is_truthy(event.get("isThought").or_else(|| event.get("is_thought")))
-        || is_truthy(event.get("isReasoning").or_else(|| event.get("is_reasoning")))
+        || is_truthy(
+            event
+                .get("isReasoning")
+                .or_else(|| event.get("is_reasoning")),
+        )
 }
 
 fn is_reasoning_event_type(event_type: &str) -> bool {
@@ -1104,7 +1191,12 @@ fn is_reasoning_event_type(event_type: &str) -> bool {
     }
     matches!(
         normalized.as_str(),
-        "reasoning" | "reasoning_delta" | "thinking" | "thinking_delta" | "thought" | "thought_delta"
+        "reasoning"
+            | "reasoning_delta"
+            | "thinking"
+            | "thinking_delta"
+            | "thought"
+            | "thought_delta"
     ) || contains_reasoning_keyword(&normalized)
 }
 
@@ -1161,7 +1253,8 @@ fn parse_gemini_event(workspace_id: &str, event: &Value) -> Option<EngineEvent> 
                 text,
             })
         }
-        "reasoning" | "reasoning_delta" | "thinking" | "thinking_delta" | "thought" | "thought_delta" => {
+        "reasoning" | "reasoning_delta" | "thinking" | "thinking_delta" | "thought"
+        | "thought_delta" => {
             let text = extract_reasoning_event_text(event)?;
             Some(EngineEvent::ReasoningDelta {
                 workspace_id: workspace_id.to_string(),
@@ -1295,12 +1388,12 @@ fn parse_gemini_event(workspace_id: &str, event: &Value) -> Option<EngineEvent> 
 
 #[cfg(test)]
 mod tests {
+    use super::EngineEvent;
     use super::{
         collect_latest_turn_reasoning_texts, extract_latest_thought_text, parse_gemini_event,
         GeminiSession, GeminiSessionMessage,
     };
     use serde_json::json;
-    use super::EngineEvent;
 
     #[test]
     fn selected_auth_type_for_api_key_modes() {
@@ -1349,7 +1442,8 @@ mod tests {
             "/tmp/screen 1.png".to_string(),
             "/tmp/screen-2.jpg".to_string(),
         ];
-        let prompt = GeminiSession::with_image_references("Describe screenshots", Some(images.as_slice()));
+        let prompt =
+            GeminiSession::with_image_references("Describe screenshots", Some(images.as_slice()));
         assert_eq!(
             prompt,
             "Describe screenshots\n\n@\"/tmp/screen 1.png\" @\"/tmp/screen-2.jpg\""
@@ -1662,6 +1756,9 @@ mod tests {
             },
         ];
         let collected = collect_latest_turn_reasoning_texts(&messages);
-        assert_eq!(collected, vec!["先看目录".to_string(), "再读 README".to_string()]);
+        assert_eq!(
+            collected,
+            vec!["先看目录".to_string(), "再读 README".to_string()]
+        );
     }
 }

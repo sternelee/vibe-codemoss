@@ -678,6 +678,13 @@ function dedupeAdjacentReasoningItems(
       deduped.push(item);
       continue;
     }
+    if (
+      isExplicitReasoningSegmentId(previous.id) ||
+      isExplicitReasoningSegmentId(item.id)
+    ) {
+      deduped.push(item);
+      continue;
+    }
     const previousMeta =
       reasoningMetaById.get(previous.id) ?? parseReasoning(previous);
     const nextMeta = reasoningMetaById.get(item.id) ?? parseReasoning(item);

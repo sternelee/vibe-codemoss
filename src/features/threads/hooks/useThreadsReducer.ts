@@ -14,6 +14,19 @@ import {
   isIncrementalDerivationEnabled,
   isReducerNoopGuardEnabled,
 } from "../utils/realtimePerfFlags";
+import {
+  buildLegacyTextDeltaItemId,
+  findAssistantMessageIndexByLegacyTextDelta,
+  findReasoningIndexById,
+  insertLiveReasoningItem,
+  isLegacyTextDeltaItemId,
+} from "./threadReducerItemLookup";
+import {
+  isClaudeReasoningThread,
+  isGeminiReasoningThread,
+  isLocalCliReasoningThread,
+  shouldAcceptReasoningDelta,
+} from "./threadReducerReasoningGuards";
 
 const REDUCER_NOOP_GUARD_ENABLED = isReducerNoopGuardEnabled();
 const INCREMENTAL_DERIVATION_ENABLED = isIncrementalDerivationEnabled();
@@ -255,25 +268,6 @@ function isPendingToolStatus(status: string) {
   );
 }
 
-function isLocalCliReasoningThread(threadId: string) {
-  return (
-    threadId.startsWith("claude:") ||
-    threadId.startsWith("claude-pending-") ||
-    threadId.startsWith("gemini:") ||
-    threadId.startsWith("gemini-pending-") ||
-    threadId.startsWith("opencode:") ||
-    threadId.startsWith("opencode-pending-")
-  );
-}
-
-function isGeminiReasoningThread(threadId: string) {
-  return threadId.startsWith("gemini:") || threadId.startsWith("gemini-pending-");
-}
-
-function isClaudeReasoningThread(threadId: string) {
-  return threadId.startsWith("claude:") || threadId.startsWith("claude-pending-");
-}
-
 type ThreadActivityStatus = {
   isProcessing: boolean;
   hasUnread: boolean;
@@ -478,20 +472,6 @@ export const initialState: ThreadState = {
   lastAgentMessageByThread: {},
   agentSegmentByThread: {},
 };
-
-function shouldAcceptReasoningDelta(state: ThreadState, threadId: string) {
-  // Gemini may emit reasoning fallback snapshots after processing settles.
-  // Keep these deltas so realtime reasoning stays consistent with history.
-  if (isGeminiReasoningThread(threadId)) {
-    return true;
-  }
-  if (!isLocalCliReasoningThread(threadId)) {
-    return true;
-  }
-  const hasActiveTurn = (state.activeTurnIdByThread[threadId] ?? null) !== null;
-  const isProcessing = Boolean(state.threadStatusById[threadId]?.isProcessing);
-  return hasActiveTurn || isProcessing;
-}
 
 function mergeStreamingText(existing: string, delta: string) {
   if (!delta) {
@@ -1325,19 +1305,6 @@ function findAssistantMessageIndexById(
   return -1;
 }
 
-function findReasoningIndexById(list: ConversationItem[], candidateId: string) {
-  if (!candidateId) {
-    return -1;
-  }
-  for (let index = list.length - 1; index >= 0; index -= 1) {
-    const item = list[index];
-    if (item.kind === "reasoning" && item.id === candidateId) {
-      return index;
-    }
-  }
-  return -1;
-}
-
 function findAssistantMessageIndexByPrefix(
   list: ConversationItem[],
   idPrefix: string,
@@ -1352,36 +1319,6 @@ function findAssistantMessageIndexByPrefix(
       item.kind === "message" &&
       item.role === "assistant" &&
       item.id.startsWith(segmentPrefix)
-    ) {
-      return index;
-    }
-  }
-  return -1;
-}
-
-function buildLegacyTextDeltaItemId(threadId: string) {
-  return `${threadId}:text-delta`;
-}
-
-function isLegacyTextDeltaItemId(threadId: string, itemId: string) {
-  if (!threadId || !itemId) {
-    return false;
-  }
-  const legacyId = buildLegacyTextDeltaItemId(threadId);
-  return itemId === legacyId || itemId.startsWith(`${legacyId}-seg-`);
-}
-
-function findAssistantMessageIndexByLegacyTextDelta(
-  list: ConversationItem[],
-  threadId: string,
-) {
-  const legacyId = buildLegacyTextDeltaItemId(threadId);
-  for (let index = list.length - 1; index >= 0; index -= 1) {
-    const item = list[index];
-    if (
-      item.kind === "message" &&
-      item.role === "assistant" &&
-      (item.id === legacyId || item.id.startsWith(`${legacyId}-seg-`))
     ) {
       return index;
     }
@@ -1414,50 +1351,6 @@ function resolveLiveReasoningItemId(
   }
   const segment = state.agentSegmentByThread[threadId] ?? 0;
   return segment > 0 ? `${itemId}-seg-${segment}` : itemId;
-}
-
-function findGeminiReasoningInsertIndex(list: ConversationItem[]) {
-  let lastUserMessageIndex = -1;
-  for (let index = list.length - 1; index >= 0; index -= 1) {
-    const item = list[index];
-    if (item.kind === "message" && item.role === "user") {
-      lastUserMessageIndex = index;
-      break;
-    }
-  }
-
-  const scanStart = lastUserMessageIndex >= 0 ? lastUserMessageIndex + 1 : 0;
-  for (let index = scanStart; index < list.length; index += 1) {
-    const item = list[index];
-    if (item.kind === "message" && item.role === "assistant") {
-      return index;
-    }
-  }
-  return -1;
-}
-
-function insertLiveReasoningItem(
-  list: ConversationItem[],
-  index: number,
-  updated: ConversationItem,
-  shouldInsertBeforeAssistant: boolean,
-) {
-  if (index >= 0) {
-    const next = [...list];
-    next[index] = updated;
-    return next;
-  }
-  if (shouldInsertBeforeAssistant) {
-    const reasoningInsertIndex = findGeminiReasoningInsertIndex(list);
-    if (reasoningInsertIndex >= 0) {
-      return [
-        ...list.slice(0, reasoningInsertIndex),
-        updated,
-        ...list.slice(reasoningInsertIndex),
-      ];
-    }
-  }
-  return [...list, updated];
 }
 
 function addSummaryBoundary(existing: string) {
@@ -2628,7 +2521,7 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
       }
       const shouldInsertBeforeAssistant =
         isGeminiReasoningThread(action.threadId) &&
-        !Boolean(state.threadStatusById[action.threadId]?.isProcessing) &&
+        !state.threadStatusById[action.threadId]?.isProcessing &&
         (state.activeTurnIdByThread[action.threadId] ?? null) === null;
       const segmentedReasoningId = resolveLiveReasoningItemId(
         state,
@@ -2683,7 +2576,7 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
       }
       const shouldInsertBeforeAssistant =
         isGeminiReasoningThread(action.threadId) &&
-        !Boolean(state.threadStatusById[action.threadId]?.isProcessing) &&
+        !state.threadStatusById[action.threadId]?.isProcessing &&
         (state.activeTurnIdByThread[action.threadId] ?? null) === null;
       const segmentedReasoningId = resolveLiveReasoningItemId(
         state,
@@ -2754,7 +2647,7 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
       }
       const shouldInsertBeforeAssistant =
         isGeminiReasoningThread(action.threadId) &&
-        !Boolean(state.threadStatusById[action.threadId]?.isProcessing) &&
+        !state.threadStatusById[action.threadId]?.isProcessing &&
         (state.activeTurnIdByThread[action.threadId] ?? null) === null;
       const segmentedReasoningId = resolveLiveReasoningItemId(
         state,
