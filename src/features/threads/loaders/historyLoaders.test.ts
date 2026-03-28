@@ -328,6 +328,7 @@ describe("history loaders", () => {
           expect.objectContaining({
             path: "src/App.tsx",
             kind: "modified",
+            diff: expect.stringContaining("+const after = true;"),
           }),
         ],
       }),
@@ -484,6 +485,77 @@ describe("history loaders", () => {
           expect.objectContaining({
             path: "src/routes.ts",
             kind: "modified",
+            diff: expect.stringContaining("+const route = \"/new\";"),
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("prefers richer local fileChange diffs when remote history only has path-level snapshots", async () => {
+    const loader = createCodexHistoryLoader({
+      workspaceId: "ws-codex-file-diff-merge",
+      resumeThread: vi.fn().mockResolvedValue({
+        result: {
+          thread: {
+            turns: [
+              {
+                id: "turn-1",
+                items: [
+                  {
+                    id: "patch-1",
+                    type: "fileChange",
+                    status: "completed",
+                    changes: [
+                      {
+                        path: "src/App.tsx",
+                        kind: "M",
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      }),
+      loadCodexSession: vi.fn().mockResolvedValue({
+        entries: [
+          {
+            type: "response_item",
+            payload: {
+              type: "custom_tool_call",
+              call_id: "patch-1",
+              name: "apply_patch",
+              status: "completed",
+              input:
+                "*** Begin Patch\n*** Update File: src/App.tsx\n@@\n-const before = true;\n+const after = true;\n*** End Patch\n",
+            },
+          },
+          {
+            type: "response_item",
+            payload: {
+              type: "custom_tool_call_output",
+              call_id: "patch-1",
+              output: "Patch applied\nOutput:\nSuccess",
+            },
+          },
+        ],
+      }),
+    });
+
+    const snapshot = await loader.load("thread-codex-file-diff-merge");
+    const patchItem = snapshot.items.find((item) => item.id === "patch-1");
+    expect(patchItem).toBeTruthy();
+    expect(patchItem).toEqual(
+      expect.objectContaining({
+        kind: "tool",
+        toolType: "fileChange",
+        changes: [
+          expect.objectContaining({
+            path: "src/App.tsx",
+            kind: "modified",
+            diff: expect.stringContaining("+const after = true;"),
           }),
         ],
       }),

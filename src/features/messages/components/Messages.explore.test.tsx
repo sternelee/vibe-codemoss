@@ -57,6 +57,42 @@ describe("Messages explore rows", () => {
     );
   });
 
+  it("auto-enables collapse for completed multi-step explore blocks", async () => {
+    const items: ConversationItem[] = [
+      {
+        id: "explore-auto-collapse-1",
+        kind: "explore",
+        status: "explored",
+        entries: [
+          { kind: "search", label: "find reducer" },
+          { kind: "read", label: "Messages.tsx" },
+        ],
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const block = container.querySelector(".explore-inline");
+    expect(block?.className ?? "").toContain("is-collapsible");
+    expect(container.querySelector(".explore-inline-list")?.className ?? "").toContain(
+      "is-collapsed",
+    );
+
+    fireEvent.click(container.querySelector(".explore-inline-header-toggle") as HTMLElement);
+    expect(container.querySelector(".explore-inline-list")?.className ?? "").not.toContain(
+      "is-collapsed",
+    );
+  });
+
   it("renders spec-root explore card as collapsible and toggles details", async () => {
     const items: ConversationItem[] = [
       {
@@ -90,7 +126,7 @@ describe("Messages explore rows", () => {
     expect(list?.className ?? "").toContain("is-collapsed");
 
     const toggle = container.querySelector(
-      ".explore-inline.is-collapsible .tool-inline-bar-toggle",
+      ".explore-inline.is-collapsible .explore-inline-header-toggle",
     );
     expect(toggle).toBeTruthy();
     fireEvent.click(toggle as HTMLElement);

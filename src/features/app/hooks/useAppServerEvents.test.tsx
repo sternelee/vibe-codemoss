@@ -1792,6 +1792,58 @@ describe("useAppServerEvents", () => {
     });
   });
 
+  it("ignores codex item/updated agentMessage snapshot after streaming delta in legacy routing", async () => {
+    const handlers: Handlers = {
+      onAgentMessageDelta: vi.fn(),
+      onItemUpdated: vi.fn(),
+    };
+    const { root } = await mount(handlers);
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-codex",
+        message: {
+          method: "item/agentMessage/delta",
+          params: {
+            threadId: "thread-codex-legacy-1",
+            itemId: "assistant-codex-legacy-1",
+            delta: "codex stream",
+          },
+        },
+      });
+    });
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-codex",
+        message: {
+          method: "item/updated",
+          params: {
+            threadId: "thread-codex-legacy-1",
+            item: {
+              id: "assistant-codex-legacy-1",
+              type: "agentMessage",
+              text: "codex snapshot",
+            },
+          },
+        },
+      });
+    });
+
+    expect(handlers.onAgentMessageDelta).toHaveBeenCalledTimes(1);
+    expect(handlers.onAgentMessageDelta).toHaveBeenCalledWith({
+      workspaceId: "ws-codex",
+      threadId: "thread-codex-legacy-1",
+      itemId: "assistant-codex-legacy-1",
+      delta: "codex stream",
+    });
+    expect(handlers.onItemUpdated).not.toHaveBeenCalled();
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
   it("keeps claude realtime assistant body single in legacy mode when delta and snapshot coexist", async () => {
     const handlers: Handlers = {
       onAgentMessageDelta: vi.fn(),
@@ -1973,7 +2025,7 @@ describe("useAppServerEvents", () => {
     });
   });
 
-  it("keeps non-claude agentMessage snapshot routing unchanged in normalized mode", async () => {
+  it("keeps codex agentMessage snapshot routing when no streaming delta was seen in normalized mode", async () => {
     const handlers: Handlers = {
       onAgentMessageDelta: vi.fn(),
     };
@@ -2005,6 +2057,60 @@ describe("useAppServerEvents", () => {
       itemId: "assistant-codex-1",
       delta: "codex snapshot",
     });
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("ignores codex agentMessage snapshot after streaming delta in normalized mode", async () => {
+    const handlers: Handlers = {
+      onAgentMessageDelta: vi.fn(),
+      onItemUpdated: vi.fn(),
+    };
+    const { root } = await mount(handlers, {
+      useNormalizedRealtimeAdapters: true,
+    });
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-codex",
+        message: {
+          method: "item/agentMessage/delta",
+          params: {
+            threadId: "thread-codex-2",
+            itemId: "assistant-codex-2",
+            delta: "codex stream",
+          },
+        },
+      });
+    });
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-codex",
+        message: {
+          method: "item/updated",
+          params: {
+            threadId: "thread-codex-2",
+            item: {
+              id: "assistant-codex-2",
+              type: "agentMessage",
+              text: "codex snapshot",
+            },
+          },
+        },
+      });
+    });
+
+    expect(handlers.onAgentMessageDelta).toHaveBeenCalledTimes(1);
+    expect(handlers.onAgentMessageDelta).toHaveBeenCalledWith({
+      workspaceId: "ws-codex",
+      threadId: "thread-codex-2",
+      itemId: "assistant-codex-2",
+      delta: "codex stream",
+    });
+    expect(handlers.onItemUpdated).not.toHaveBeenCalled();
 
     await act(async () => {
       root.unmount();

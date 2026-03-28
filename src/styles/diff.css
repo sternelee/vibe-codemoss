@@ -305,6 +305,7 @@
 .git-root-current {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   font-size: 11px;
   color: var(--text-faint);
@@ -319,10 +320,17 @@
 }
 
 .git-root-path {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.git-root-inline-alert {
+  color: var(--status-error, #ff6b6b);
+  font-size: 11px;
+  font-weight: 600;
   white-space: nowrap;
 }
 
@@ -334,6 +342,14 @@
   border-radius: 12px;
   border: 1px solid var(--border-muted);
   background: var(--surface-card);
+}
+
+.git-root-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .git-root-title {
@@ -349,15 +365,41 @@
 }
 
 .git-root-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 6px 10px;
   font-size: 11px;
   border-radius: 8px;
 }
 
-.git-root-button--icon {
+.git-root-button--scan {
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.git-root-button--workspace-root {
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.git-root-button--toggle {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  justify-content: center;
+  padding: 6px 10px;
+  min-width: 52px;
+  min-height: 28px;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.git-root-button--toggle .git-root-button-icon {
+  transition: transform 140ms ease;
 }
 
 .git-root-button-icon {

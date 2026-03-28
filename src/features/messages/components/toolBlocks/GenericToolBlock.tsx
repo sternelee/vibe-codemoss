@@ -6,7 +6,10 @@
 import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ConversationItem } from '../../../../types';
+import { parseDiff, type ParsedDiffLine } from '../../../../utils/diff';
+import { computeDiff } from '../../utils/diffUtils';
 import {
+  asRecord,
   extractToolName,
   getToolDisplayName,
   getFileName,
@@ -31,11 +34,34 @@ type DiffStats = {
   deletions: number;
 };
 
+const FILE_CHANGE_PATH_KEYS = [
+  'file_path',
+  'filePath',
+  'filepath',
+  'path',
+  'target_file',
+  'targetFile',
+  'filename',
+  'file',
+];
+
+const FILE_CHANGE_DIFF_KEYS = [
+  'diff',
+  'patch',
+  'unified_diff',
+  'unifiedDiff',
+];
+
+const FILE_CHANGE_DIFF_PREVIEW_MAX_LINES = 48;
+
 type DisplayChange = {
   path: string;
   normalizedKind: NormalizedChangeKind;
   kindCode: 'A' | 'M' | 'D' | 'R';
   diffStats: DiffStats;
+  diffText?: string;
+  diffPreviewLines: ParsedDiffLine[];
+  diffPreviewTruncated: boolean;
 };
 
 interface GenericToolBlockProps {
@@ -257,14 +283,249 @@ function collectDiffStats(diff?: string): DiffStats {
   return { additions, deletions };
 }
 
-function toDisplayChanges(changes: Array<{ path: string; kind?: string; diff?: string }>): DisplayChange[] {
+function getFirstStringFieldCaseInsensitive(
+  source: Record<string, unknown> | null,
+  keys: string[],
+): string {
+  if (!source) {
+    return '';
+  }
+  const lowered = new Map<string, unknown>();
+  Object.entries(source).forEach(([key, value]) => {
+    lowered.set(key.toLowerCase(), value);
+  });
+  for (const key of keys) {
+    const value = lowered.get(key.toLowerCase());
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+  return '';
+}
+
+function countContentLines(value: string): number {
+  if (!value) {
+    return 0;
+  }
+  return value.split('\n').length;
+}
+
+function computeLineDelta(oldString: string, newString: string): DiffStats {
+  const oldCount = countContentLines(oldString);
+  const newCount = countContentLines(newString);
+  if (oldCount === 0 && newCount === 0) {
+    return { additions: 0, deletions: 0 };
+  }
+  if (oldCount === 0) {
+    return { additions: newCount, deletions: 0 };
+  }
+  if (newCount === 0) {
+    return { additions: 0, deletions: oldCount };
+  }
+  if (oldString !== newString && oldCount === newCount) {
+    return { additions: 1, deletions: 1 };
+  }
+  const diff = newCount - oldCount;
+  if (diff >= 0) {
+    return { additions: diff || 1, deletions: 0 };
+  }
+  return { additions: 0, deletions: -diff };
+}
+
+function collectDiffStatsFromArgs(args: Record<string, unknown>): DiffStats {
+  const oldString = getFirstStringFieldCaseInsensitive(args, ['old_string', 'oldString']);
+  const newString = getFirstStringFieldCaseInsensitive(args, ['new_string', 'newString']);
+  if (oldString || newString) {
+    return computeLineDelta(oldString, newString);
+  }
+  const content = getFirstStringFieldCaseInsensitive(args, [
+    'content',
+    'new_content',
+    'newContent',
+  ]);
+  if (content) {
+    return { additions: content.split('\n').length, deletions: 0 };
+  }
+  const diff = getFirstStringFieldCaseInsensitive(args, [
+    'diff',
+    'patch',
+    'unified_diff',
+    'unifiedDiff',
+  ]);
+  if (diff) {
+    return collectDiffStats(diff);
+  }
+  return { additions: 0, deletions: 0 };
+}
+
+function normalizePath(path: string): string {
+  return path.replace(/\\/g, '/').trim();
+}
+
+function pathHintMatches(pathHint: string, targetPath: string): boolean {
+  const normalizedHint = normalizePath(pathHint);
+  const normalizedTarget = normalizePath(targetPath);
+  if (!normalizedHint || !normalizedTarget) {
+    return true;
+  }
+  return (
+    normalizedHint === normalizedTarget ||
+    normalizedHint.endsWith(`/${normalizedTarget}`) ||
+    normalizedTarget.endsWith(`/${normalizedHint}`)
+  );
+}
+
+function buildSyntheticUnifiedDiffFromArgs(args: Record<string, unknown>): string | undefined {
+  const oldString = getFirstStringFieldCaseInsensitive(args, ['old_string', 'oldString']);
+  const newString = getFirstStringFieldCaseInsensitive(args, ['new_string', 'newString']);
+  const content = getFirstStringFieldCaseInsensitive(args, [
+    'content',
+    'new_content',
+    'newContent',
+  ]);
+  const oldContent = oldString;
+  const newContent = newString || content;
+  if (!oldContent && !newContent) {
+    return undefined;
+  }
+  if (oldContent === newContent) {
+    return undefined;
+  }
+  const diff = computeDiff(oldContent, newContent);
+  if (diff.lines.length === 0) {
+    return undefined;
+  }
+  const oldLines = oldContent ? oldContent.split('\n').length : 0;
+  const newLines = newContent ? newContent.split('\n').length : 0;
+  const header = `@@ -1,${oldLines} +1,${newLines} @@`;
+  const body = diff.lines
+    .map((line) => {
+      if (line.type === 'added') {
+        return `+${line.content}`;
+      }
+      if (line.type === 'deleted') {
+        return `-${line.content}`;
+      }
+      return ` ${line.content}`;
+    })
+    .join('\n');
+  return body ? `${header}\n${body}` : header;
+}
+
+function resolveChangeDiffText(
+  change: { path: string; diff?: string },
+  allChanges: Array<{ path: string; kind?: string; diff?: string }>,
+  candidateArgs: Record<string, unknown>[],
+  outputDiffText: string,
+): string | undefined {
+  const direct = (change.diff ?? '').trim();
+  if (direct) {
+    return direct;
+  }
+  if (allChanges.length === 1) {
+    for (const args of candidateArgs) {
+      const pathHint = getFirstStringFieldCaseInsensitive(args, FILE_CHANGE_PATH_KEYS);
+      if (pathHint && !pathHintMatches(pathHint, change.path)) {
+        continue;
+      }
+      const argsDiff = getFirstStringFieldCaseInsensitive(args, FILE_CHANGE_DIFF_KEYS);
+      if (argsDiff) {
+        return argsDiff;
+      }
+      const synthetic = buildSyntheticUnifiedDiffFromArgs(args);
+      if (synthetic) {
+        return synthetic;
+      }
+    }
+    const outputTrimmed = outputDiffText.trim();
+    if (outputTrimmed) {
+      return outputTrimmed;
+    }
+  }
+  return undefined;
+}
+
+function resolveChangeDiffStats(
+  change: { path: string; diff?: string },
+  allChanges: Array<{ path: string; kind?: string; diff?: string }>,
+  candidateArgs: Record<string, unknown>[],
+  outputStats: DiffStats,
+  resolvedDiffText?: string,
+): DiffStats {
+  if (resolvedDiffText) {
+    return collectDiffStats(resolvedDiffText);
+  }
+  const direct = collectDiffStats(change.diff);
+  if (direct.additions > 0 || direct.deletions > 0) {
+    return direct;
+  }
+  if (allChanges.length === 1) {
+    for (const args of candidateArgs) {
+      const pathHint = getFirstStringFieldCaseInsensitive(args, FILE_CHANGE_PATH_KEYS);
+      if (pathHint && !pathHintMatches(pathHint, change.path)) {
+        continue;
+      }
+      const fromArgs = collectDiffStatsFromArgs(args);
+      if (fromArgs.additions > 0 || fromArgs.deletions > 0) {
+        return fromArgs;
+      }
+    }
+    if (outputStats.additions > 0 || outputStats.deletions > 0) {
+      return outputStats;
+    }
+  }
+  return direct;
+}
+
+function buildDiffPreview(diffText?: string): {
+  lines: ParsedDiffLine[];
+  truncated: boolean;
+} {
+  if (!diffText) {
+    return { lines: [], truncated: false };
+  }
+  const parsed = parseDiff(diffText);
+  if (parsed.length <= FILE_CHANGE_DIFF_PREVIEW_MAX_LINES) {
+    return { lines: parsed, truncated: false };
+  }
+  return {
+    lines: parsed.slice(0, FILE_CHANGE_DIFF_PREVIEW_MAX_LINES),
+    truncated: true,
+  };
+}
+
+function toDisplayChanges(
+  changes: Array<{ path: string; kind?: string; diff?: string }>,
+  candidateArgs: Record<string, unknown>[],
+  outputStats: DiffStats,
+  outputDiffText: string,
+  includePreview: boolean,
+): DisplayChange[] {
   return changes.map((change) => {
     const normalizedKind = normalizeChangeKind(change.kind);
+    const diffText = resolveChangeDiffText(
+      change,
+      changes,
+      candidateArgs,
+      outputDiffText,
+    );
+    const preview = includePreview
+      ? buildDiffPreview(diffText)
+      : { lines: [], truncated: false };
     return {
       path: change.path,
       normalizedKind,
       kindCode: changeKindCode(normalizedKind),
-      diffStats: collectDiffStats(change.diff),
+      diffStats: resolveChangeDiffStats(
+        change,
+        changes,
+        candidateArgs,
+        outputStats,
+        diffText,
+      ),
+      diffText,
+      diffPreviewLines: preview.lines,
+      diffPreviewTruncated: preview.truncated,
     };
   });
 }
@@ -312,13 +573,42 @@ export const GenericToolBlock = memo(function GenericToolBlock({
   const isExpanded = isCollapsible ? internalExpanded : externalExpanded;
 
   const parsedArgs = useMemo(() => parseToolArgs(item.detail), [item.detail]);
+  const fileChangeCandidateArgs = useMemo(() => {
+    const inputArgs = asRecord(parsedArgs?.input);
+    const nestedArgs = asRecord(parsedArgs?.arguments);
+    return [parsedArgs, inputArgs, nestedArgs].filter(
+      (entry): entry is Record<string, unknown> => Boolean(entry),
+    );
+  }, [parsedArgs]);
+  const outputStats = useMemo(
+    () => collectDiffStats(item.output),
+    [item.output],
+  );
+  const outputDiffText = useMemo(
+    () => item.output ?? '',
+    [item.output],
+  );
   const displayChanges = useMemo(
-    () => toDisplayChanges(item.changes ?? []),
-    [item.changes],
+    () => toDisplayChanges(
+      item.changes ?? [],
+      fileChangeCandidateArgs,
+      outputStats,
+      outputDiffText,
+      isExpanded,
+    ),
+    [item.changes, fileChangeCandidateArgs, outputStats, outputDiffText, isExpanded],
   );
   const changeStats = useMemo(
     () => collectChangeStats(displayChanges),
     [displayChanges],
+  );
+  const collapsedPreviewChange = useMemo(
+    () => (!isExpanded && hasChanges ? displayChanges[0] : undefined),
+    [isExpanded, hasChanges, displayChanges],
+  );
+  const collapsedPreviewMoreCount = useMemo(
+    () => Math.max(0, (item.changes?.length ?? 0) - 1),
+    [item.changes],
   );
 
   const filePath = useMemo(() => {
@@ -357,6 +647,12 @@ export const GenericToolBlock = memo(function GenericToolBlock({
     activeCollaborationModeId === "code" &&
     activeEngine !== "claude" &&
     !suppressPlanModeHintForClaude;
+  const hasTaskDetails =
+    shouldShowDetails ||
+    (isExpanded && Boolean(item.output) && !hasChanges) ||
+    (isExpanded && hasChanges && Boolean(item.changes)) ||
+    (isExpanded && !shouldShowDetails && !item.output && !hasChanges && Boolean(item.detail)) ||
+    showPlanModeHint;
 
   const handleClick = () => {
     if (isCollapsible) {
@@ -367,7 +663,7 @@ export const GenericToolBlock = memo(function GenericToolBlock({
   };
 
   return (
-    <div className="task-container">
+    <div className={`task-container${hasTaskDetails ? "" : " task-container-collapsed"}`}>
       <div
         className="task-header"
         onClick={handleClick}
@@ -396,6 +692,19 @@ export const GenericToolBlock = memo(function GenericToolBlock({
               <span>{item.changes?.length ?? 0} files</span>
               <span className="diff-stat-add">+{changeStats.additions}</span>
               <span className="diff-stat-del">-{changeStats.deletions}</span>
+              {collapsedPreviewChange && (
+                <span className="tool-change-collapsed-preview" title={collapsedPreviewChange.path}>
+                  <FileIcon fileName={getFileName(collapsedPreviewChange.path)} size={14} />
+                  <span className="tool-change-collapsed-file-name">
+                    {getFileName(collapsedPreviewChange.path)}
+                  </span>
+                  {collapsedPreviewMoreCount > 0 && (
+                    <span className="tool-change-collapsed-more">
+                      +{collapsedPreviewMoreCount} more
+                    </span>
+                  )}
+                </span>
+              )}
             </span>
           )}
         </div>
@@ -445,47 +754,90 @@ export const GenericToolBlock = memo(function GenericToolBlock({
 
       {isExpanded && hasChanges && item.changes && (
         <div className="task-details tool-change-details" style={{ border: 'none' }}>
-          <div className="tool-change-metrics">
-            <span>{item.changes.length} files</span>
-            <span className="diff-stat-add">+{changeStats.additions}</span>
-            <span className="diff-stat-del">-{changeStats.deletions}</span>
-            {changeStats.added > 0 && <span className="tool-change-kind-badge added">A {changeStats.added}</span>}
-            {changeStats.modified > 0 && <span className="tool-change-kind-badge modified">M {changeStats.modified}</span>}
-            {changeStats.deleted > 0 && <span className="tool-change-kind-badge deleted">D {changeStats.deleted}</span>}
-            {changeStats.renamed > 0 && <span className="tool-change-kind-badge renamed">R {changeStats.renamed}</span>}
-          </div>
           <div className="task-content-wrapper">
             {displayChanges.map((change, index) => (
-              <div key={`${change.path}-${index}`} className="tool-change-row">
-                <span className={`tool-change-kind-badge ${change.normalizedKind}`}>
-                  {change.kindCode}
-                </span>
-                <FileIcon fileName={getFileName(change.path)} size={14} />
-                {onOpenDiffPath ? (
-                  <button
-                    type="button"
-                    className="tool-change-file-name tool-change-file-link"
-                    title={change.path}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      try {
-                        onOpenDiffPath(change.path);
-                      } catch {
-                        // Keep conversation interactive even if diff entry routing fails.
-                      }
-                    }}
-                  >
-                    {getFileName(change.path)}
-                  </button>
-                ) : (
-                  <span className="tool-change-file-name" title={change.path}>
-                    {getFileName(change.path)}
+              <div key={`${change.path}-${index}`} className="tool-change-entry">
+                <div className="tool-change-row">
+                  <span className={`tool-change-kind-badge ${change.normalizedKind}`}>
+                    {change.kindCode}
                   </span>
+                  <FileIcon fileName={getFileName(change.path)} size={14} />
+                  {onOpenDiffPath ? (
+                    <button
+                      type="button"
+                      className="tool-change-file-name tool-change-file-link"
+                      title={change.path}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        try {
+                          onOpenDiffPath(change.path);
+                        } catch {
+                          // Keep conversation interactive even if diff entry routing fails.
+                        }
+                      }}
+                    >
+                      {getFileName(change.path)}
+                    </button>
+                  ) : (
+                    <span className="tool-change-file-name" title={change.path}>
+                      {getFileName(change.path)}
+                    </span>
+                  )}
+                  <span className="tool-change-file-diff-stats">
+                    <span className="diff-stat-add">+{change.diffStats.additions}</span>
+                    <span className="diff-stat-del">-{change.diffStats.deletions}</span>
+                  </span>
+                </div>
+                {change.diffPreviewLines.length > 0 && (
+                  <div className="tool-change-inline-diff edit-diff-viewer">
+                    {change.diffPreviewLines.map((line, lineIndex) => {
+                      const lineClass =
+                        line.type === 'del'
+                          ? 'is-deleted'
+                          : line.type === 'add'
+                            ? 'is-added'
+                            : line.type === 'hunk' || line.type === 'meta'
+                              ? 'is-hunk'
+                              : '';
+                      const sign =
+                        line.type === 'del'
+                          ? '-'
+                          : line.type === 'add'
+                            ? '+'
+                            : line.type === 'hunk'
+                              ? ''
+                              : ' ';
+                      const signNode =
+                        line.type === 'hunk' ? (
+                          <span
+                            className="codicon codicon-diff tool-change-hunk-icon"
+                            aria-hidden
+                          />
+                        ) : (
+                          sign
+                        );
+                      const content =
+                        line.type === 'hunk'
+                          ? line.text
+                              .replace(/^@@\s*/, '')
+                              .replace(/\s*@@$/, '')
+                          : line.text;
+                      return (
+                        <div
+                          key={`${change.path}-${line.type}-${lineIndex}`}
+                          className={`edit-diff-line ${lineClass}`}
+                        >
+                          <div className="edit-diff-gutter" />
+                          <div className={`edit-diff-sign ${lineClass}`}>{signNode}</div>
+                          <pre className="edit-diff-content">{content}</pre>
+                        </div>
+                      );
+                    })}
+                    {change.diffPreviewTruncated && (
+                      <div className="tool-change-inline-diff-truncated">Diff truncated…</div>
+                    )}
+                  </div>
                 )}
-                <span className="tool-change-file-diff-stats">
-                  <span className="diff-stat-add">+{change.diffStats.additions}</span>
-                  <span className="diff-stat-del">-{change.diffStats.deletions}</span>
-                </span>
               </div>
             ))}
           </div>

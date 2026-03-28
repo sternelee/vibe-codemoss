@@ -61,6 +61,7 @@ type FollowBubbleGeometry = {
 };
 
 const RUNNING_CARD_MIN_EXPANDED_MS = 2000;
+const FOLLOW_BUBBLE_AUTO_DISMISS_MS = 3000;
 const MAX_STICKY_CHILD_SESSION_COUNT = 24;
 const SOLO_FOLLOW_COACH_DISMISSED_BY_WORKSPACE_STORAGE_KEY =
   "mossx.sessionActivity.soloFollowCoachDismissedByWorkspace";
@@ -1221,6 +1222,36 @@ export function WorkspaceSessionActivityPanel({
     : showFollowCoachBubble
       ? t("activityPanel.followCoachDismiss")
       : t("activityPanel.followNudgeLater");
+
+  useEffect(() => {
+    if (!showFollowCoachBubble && !showFollowNudgeBubble) {
+      return;
+    }
+    const timeoutId = window.setTimeout(() => {
+      if (showFollowCoachBubble) {
+        if (!workspaceId) {
+          setShowFollowCoach(false);
+          return;
+        }
+        const nextDismissedByWorkspace = {
+          ...readSoloFollowCoachDismissedByWorkspace(),
+          [workspaceId]: Date.now(),
+        };
+        writeSoloFollowCoachDismissedByWorkspace(nextDismissedByWorkspace);
+        setShowFollowCoach(false);
+        return;
+      }
+
+      if (showFollowNudgeBubble && followNudgeContext) {
+        followNudgeDismissedTurnKeysRef.current[followNudgeContext.turnKey] = true;
+      }
+      setFollowNudgeContext(null);
+      setFollowNudgeError(null);
+    }, FOLLOW_BUBBLE_AUTO_DISMISS_MS);
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [followNudgeContext, showFollowCoachBubble, showFollowNudgeBubble, workspaceId]);
 
   useLayoutEffect(() => {
     if (!shouldShowFollowBubble || typeof window === "undefined") {

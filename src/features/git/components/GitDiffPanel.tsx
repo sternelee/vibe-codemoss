@@ -18,11 +18,13 @@ import ChevronsUpDown from "lucide-react/dist/esm/icons/chevrons-up-down";
 import CircleCheckBig from "lucide-react/dist/esm/icons/circle-check-big";
 import FolderTree from "lucide-react/dist/esm/icons/folder-tree";
 import GitPullRequest from "lucide-react/dist/esm/icons/git-pull-request";
+import HardDrive from "lucide-react/dist/esm/icons/hard-drive";
 import History from "lucide-react/dist/esm/icons/history";
 import LayoutGrid from "lucide-react/dist/esm/icons/layout-grid";
 import MessageSquareWarning from "lucide-react/dist/esm/icons/message-square-warning";
 import Minus from "lucide-react/dist/esm/icons/minus";
 import Plus from "lucide-react/dist/esm/icons/plus";
+import Search from "lucide-react/dist/esm/icons/search";
 import SquarePen from "lucide-react/dist/esm/icons/square-pen";
 import Undo2 from "lucide-react/dist/esm/icons/undo-2";
 import Upload from "lucide-react/dist/esm/icons/upload";
@@ -1326,7 +1328,7 @@ export function GitDiffPanel({
   onScanGitRoots,
   onSelectGitRoot,
   onClearGitRoot,
-  onPickGitRoot,
+  onPickGitRoot: _onPickGitRoot,
   commitMessage = "",
   commitMessageLoading = false,
   commitMessageError = null,
@@ -1359,6 +1361,14 @@ export function GitDiffPanel({
   const [isPreviewModalMaximized, setIsPreviewModalMaximized] = useState(false);
   const [previewHeaderControlsTarget, setPreviewHeaderControlsTarget] = useState<HTMLDivElement | null>(null);
   const [isModeMenuOpen, setIsModeMenuOpen] = useState(false);
+  const [isGitRootPanelOpen, setIsGitRootPanelOpen] = useState(
+    () =>
+      isMissingRepo(error) ||
+      gitRootScanLoading ||
+      gitRootScanHasScanned ||
+      Boolean(gitRootScanError) ||
+      gitRootCandidates.length > 0,
+  );
   const [modeMenuLayout, setModeMenuLayout] = useState<ModeMenuLayout>({
     align: "right",
     width: 246,
@@ -1608,6 +1618,27 @@ export function GitDiffPanel({
   useEffect(() => {
     setIsModeMenuOpen(false);
   }, [mode]);
+
+  const shouldAutoOpenGitRootPanel =
+    isMissingRepo(error) ||
+    gitRootScanLoading ||
+    Boolean(gitRootScanError) ||
+    gitRootCandidates.length > 0;
+  const shouldAutoCollapseGitRootPanelAfterScan =
+    gitRootScanHasScanned &&
+    !gitRootScanLoading &&
+    !gitRootScanError &&
+    gitRootCandidates.length === 0;
+
+  useEffect(() => {
+    if (shouldAutoOpenGitRootPanel) {
+      setIsGitRootPanelOpen(true);
+      return;
+    }
+    if (shouldAutoCollapseGitRootPanelAfterScan) {
+      setIsGitRootPanelOpen(false);
+    }
+  }, [shouldAutoCollapseGitRootPanelAfterScan, shouldAutoOpenGitRootPanel]);
 
   useEffect(() => {
     if (mode !== "diff" || !onGitDiffListViewChange) {
@@ -1914,12 +1945,17 @@ export function GitDiffPanel({
       : fileStatus;
   const compactTreeMetaNode = hasDiffTotals ? diffTotalsNode : <span>{fileStatus}</span>;
   const hasGitRoot = Boolean(gitRoot && gitRoot.trim());
-  const showGitRootPanel =
-    isMissingRepo(error) ||
-    gitRootScanLoading ||
-    gitRootScanHasScanned ||
-    Boolean(gitRootScanError) ||
-    gitRootCandidates.length > 0;
+  const activeRootPath = (gitRoot ?? "").trim() || (workspacePath ?? "").trim() || (workspaceId ?? "").trim();
+  const activeRootPathDisplay = activeRootPath || t("git.unknown");
+  const showActiveRootSummary = mode !== "issues";
+  const rootAlertText =
+    mode === "diff"
+      ? isMissingRepo(error)
+        ? t("git.noRepositoriesFound")
+        : error
+          ? t("git.statusUnavailable")
+          : null
+      : null;
   const normalizedGitRoot = normalizeRootPath(gitRoot);
   const normalizedWorkspacePath = normalizeRootPath(workspacePath);
   const repositoryRootName =
@@ -2074,9 +2110,31 @@ export function GitDiffPanel({
           )}
         </div>
       </div>
+      {showActiveRootSummary && (
+        <div className="git-root-current">
+          <span className="git-root-label">{t("git.path")}</span>
+          <span className="git-root-path" title={activeRootPathDisplay}>
+            {activeRootPathDisplay}
+          </span>
+          {rootAlertText && <span className="git-root-inline-alert">{rootAlertText}</span>}
+          {onScanGitRoots && (
+            <button
+              type="button"
+              className="ghost git-root-button git-root-button--toggle"
+              onClick={() => setIsGitRootPanelOpen((open) => !open)}
+              aria-label={t("git.change")}
+              title={t("git.change")}
+              aria-expanded={isGitRootPanelOpen}
+            >
+              <ArrowLeftRight className="git-root-button-icon" aria-hidden />
+              <span>{t("git.change")}</span>
+            </button>
+          )}
+        </div>
+      )}
       {mode === "diff" ? (
         <>
-          {!useUnifiedDiffSummary ? <div className="diff-status">{diffStatusNode}</div> : null}
+          {!useUnifiedDiffSummary && !rootAlertText ? <div className="diff-status">{diffStatusNode}</div> : null}
           {worktreeApplyError && <div className="diff-error">{worktreeApplyError}</div>}
         </>
       ) : mode === "log" ? (
@@ -2115,85 +2173,60 @@ export function GitDiffPanel({
           </div>
         </>
       )}
-      {(mode === "diff" || mode === "log") && !useUnifiedDiffSummary ? (
+      {(mode === "diff" || mode === "log") && !useUnifiedDiffSummary && !rootAlertText ? (
         <div className="diff-branch">{branchName || t("git.unknown")}</div>
       ) : null}
-      {mode !== "issues" && hasGitRoot && !useUnifiedDiffSummary && (
-        <div className="git-root-current">
-          <span className="git-root-label">{t("git.path")}</span>
-          <span className="git-root-path" title={gitRoot ?? ""}>
-            {gitRoot}
-          </span>
-          {onScanGitRoots && (
-            <button
-              type="button"
-              className="ghost git-root-button git-root-button--icon"
-              onClick={onScanGitRoots}
-              disabled={gitRootScanLoading}
-            >
-              <ArrowLeftRight className="git-root-button-icon" aria-hidden />
-              {t("git.change")}
-            </button>
-          )}
-        </div>
-      )}
       {mode === "diff" ? (
         <div className="diff-list" onClick={handleDiffListClick}>
-          {error && <div className="diff-error">{error}</div>}
-          {showGitRootPanel && (
-            <div className="git-root-panel">
-              <div className="git-root-title">{t("git.chooseRepo")}</div>
-              <div className="git-root-actions">
-                <button
-                  type="button"
-                  className="ghost git-root-button"
-                  onClick={onScanGitRoots}
-                  disabled={!onScanGitRoots || gitRootScanLoading}
-                >
-                  {t("git.scanWorkspace")}
-                </button>
-                <label className="git-root-depth">
-                  <span>{t("git.depth")}</span>
-                  <select
-                    className="git-root-select"
-                    value={gitRootScanDepth}
-                    onChange={(event) => {
-                      const value = Number(event.target.value);
-                      if (!Number.isNaN(value)) {
-                        onGitRootScanDepthChange?.(value);
-                      }
-                    }}
-                    disabled={gitRootScanLoading}
-                  >
-                    {DEPTH_OPTIONS.map((depth) => (
-                      <option key={depth} value={depth}>
-                        {depth}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                {onPickGitRoot && (
+          {isGitRootPanelOpen && (
+            <div className="git-root-panel" id="git-root-panel">
+              <div className="git-root-toolbar">
+                <div className="git-root-title">{t("git.chooseRepo")}</div>
+                <div className="git-root-actions">
                   <button
                     type="button"
-                    className="ghost git-root-button"
-                    onClick={() => {
-                      void onPickGitRoot();
-                    }}
-                    disabled={gitRootScanLoading}
+                    className="ghost git-root-button git-root-button--scan"
+                    onClick={onScanGitRoots}
+                    disabled={!onScanGitRoots || gitRootScanLoading}
                   >
-                    {t("git.pickFolder")}
+                    <Search className="git-root-button-icon" aria-hidden />
+                    {t("git.scanWorkspace")}
                   </button>
-                )}
-                {hasGitRoot && onClearGitRoot && (
-                  <button
-                    type="button"
-                    className="ghost git-root-button"
-                    onClick={onClearGitRoot}
-                    disabled={gitRootScanLoading}
-                  >
-                    {t("git.useWorkspaceRoot")}
-                  </button>
-                )}
+                  <label className="git-root-depth">
+                    <span>{t("git.depth")}</span>
+                    <select
+                      className="git-root-select"
+                      value={gitRootScanDepth}
+                      onChange={(event) => {
+                        const value = Number(event.target.value);
+                        if (!Number.isNaN(value)) {
+                          onGitRootScanDepthChange?.(value);
+                        }
+                      }}
+                      disabled={gitRootScanLoading}
+                    >
+                      {DEPTH_OPTIONS.map((depth) => (
+                        <option key={depth} value={depth}>
+                          {depth}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {hasGitRoot && onClearGitRoot && (
+                    <button
+                      type="button"
+                      className="ghost git-root-button git-root-button--workspace-root"
+                      onClick={() => {
+                        onClearGitRoot();
+                        setIsGitRootPanelOpen(false);
+                      }}
+                      disabled={gitRootScanLoading}
+                    >
+                      <HardDrive className="git-root-button-icon" aria-hidden />
+                      {t("git.useWorkspaceRoot")}
+                    </button>
+                  )}
+                </div>
               </div>
               {gitRootScanLoading && (
                 <div className="diff-empty">{t("git.scanningRepositories")}</div>
@@ -2216,7 +2249,10 @@ export function GitDiffPanel({
                       key={path}
                       type="button"
                       className={`git-root-item ${isActive ? "active" : ""}`}
-                      onClick={() => onSelectGitRoot?.(path)}
+                      onClick={() => {
+                        onSelectGitRoot?.(path);
+                        setIsGitRootPanelOpen(false);
+                      }}
                     >
                       <span className="git-root-path">{path}</span>
                       {isActive && <span className="git-root-tag">{t("git.active")}</span>}

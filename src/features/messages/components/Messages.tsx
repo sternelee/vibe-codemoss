@@ -1607,7 +1607,8 @@ function exploreKindLabel(kind: ExploreRowProps["item"]["entries"][number]["kind
 const ExploreRow = memo(function ExploreRow({ item, isExpanded, onToggle }: ExploreRowProps) {
   const { t } = useTranslation();
   const title = item.title ?? (item.status === "exploring" ? "Exploring" : "Explored");
-  const isCollapsible = item.collapsible === true;
+  const isCollapsible =
+    item.collapsible ?? (item.status === "explored" && item.entries.length > 1);
   const listCollapsed = isCollapsible && !isExpanded;
   const handleToggle = () => {
     if (!isCollapsible) {
@@ -1617,24 +1618,37 @@ const ExploreRow = memo(function ExploreRow({ item, isExpanded, onToggle }: Expl
   };
   return (
     <div className={`tool-inline explore-inline${isCollapsible ? " is-collapsible" : ""}`}>
-      <button
-        type="button"
-        className="tool-inline-bar-toggle"
-        onClick={handleToggle}
-        aria-expanded={isCollapsible ? isExpanded : undefined}
-        aria-label={isCollapsible ? t("messages.toggleDetails") : undefined}
-        disabled={!isCollapsible}
-      />
       <div className="tool-inline-content">
         <div className="explore-inline-header">
-          <Terminal
-            className={`tool-inline-icon ${
-              item.status === "exploring" ? "processing" : "completed"
-            }`}
-            size={14}
-            aria-hidden
-          />
-          <span className="explore-inline-title">{title}</span>
+          {isCollapsible ? (
+            <button
+              type="button"
+              className="explore-inline-header-toggle"
+              onClick={handleToggle}
+              aria-expanded={isExpanded}
+              aria-label={t("messages.toggleDetails")}
+            >
+              <Terminal
+                className={`tool-inline-icon explore-inline-toggle-icon${
+                  isExpanded ? " is-expanded" : ""
+                } ${item.status === "exploring" ? "processing" : "completed"}`}
+                size={14}
+                aria-hidden
+              />
+              <span className="explore-inline-title">{title}</span>
+            </button>
+          ) : (
+            <>
+              <Terminal
+                className={`tool-inline-icon ${
+                  item.status === "exploring" ? "processing" : "completed"
+                }`}
+                size={14}
+                aria-hidden
+              />
+              <span className="explore-inline-title">{title}</span>
+            </>
+          )}
         </div>
         <div className={`explore-inline-list${listCollapsed ? " is-collapsed" : ""}`}>
           {item.entries.map((entry, index) => (

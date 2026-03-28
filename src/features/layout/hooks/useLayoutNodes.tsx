@@ -300,6 +300,8 @@ type LayoutNodesOptions = {
     location?: EditorNavigationLocation,
     options?: OpenFileOptions,
   ) => void;
+  externalChangeMonitoringEnabled?: boolean;
+  externalChangeTransportMode?: "watcher" | "polling";
   liveEditPreviewEnabled?: boolean;
   onToggleLiveEditPreview?: () => void;
   onExitEditor: () => void;
@@ -323,6 +325,7 @@ type LayoutNodesOptions = {
   onFilePanelModeChange: (mode: "git" | "files" | "search" | "prompts" | "memory" | "activity" | "radar") => void;
   fileTreeLoading: boolean;
   onRefreshFiles?: () => void;
+  onOpenDetachedFileExplorer?: (initialFilePath?: string | null) => void;
   onToggleRuntimeConsole: () => void;
   runtimeConsoleVisible: boolean;
   gitStatus: {
@@ -1325,6 +1328,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         isRuntimeConsoleVisible={options.runtimeConsoleVisible}
         onOpenSpecHub={options.onOpenSpecHub}
         isSpecHubActive={options.activeTab === "spec"}
+        onOpenDetachedExplorer={options.onOpenDetachedFileExplorer}
         gitStatusFiles={options.gitStatus.files}
         gitignoredFiles={options.gitignoredFiles}
         gitignoredDirectories={options.gitignoredDirectories}
@@ -1530,6 +1534,8 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         onNavigateToLocation={options.onOpenFile}
         onClose={options.onExitEditor}
         onInsertText={options.onInsertComposerText}
+        externalChangeMonitoringEnabled={options.externalChangeMonitoringEnabled}
+        externalChangeTransportMode={options.externalChangeTransportMode}
       />
     ) : null;
 

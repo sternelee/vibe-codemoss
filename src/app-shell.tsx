@@ -9,7 +9,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type PointerEvent as ReactPointerEvent,
 } from "react";
 import { useTranslation } from "react-i18next";
 import { AppLayout } from "./features/app/components/AppLayout";
@@ -52,6 +51,7 @@ import {
 } from "./features/layout/components/SidebarToggleControls";
 import { useAppSettingsController } from "./features/app/hooks/useAppSettingsController";
 import { useUpdaterController } from "./features/app/hooks/useUpdaterController";
+import { useGitHistoryPanelResize } from "./features/app/hooks/useGitHistoryPanelResize";
 import { useReleaseNotes } from "./features/update/hooks/useReleaseNotes";
 import { useErrorToasts } from "./features/notifications/hooks/useErrorToasts";
 import { useComposerShortcuts } from "./features/composer/hooks/useComposerShortcuts";
@@ -114,6 +114,10 @@ import type { SearchContentFilter, SearchResult, SearchScope } from "./features/
 import { toggleSearchContentFilters } from "./features/search/utils/contentFilters";
 import { resolveSearchScopeOnOpen } from "./features/search/utils/scope";
 import {
+  buildDetachedFileExplorerSession,
+  openOrFocusDetachedFileExplorer,
+} from "./features/files/detachedFileExplorer";
+import {
   getSelectedAgentConfig,
   getOpenCodeAgentsList,
   ensureWorkspacePathDir,
@@ -141,22 +145,19 @@ import { useCodeCssVars } from "./features/app/hooks/useCodeCssVars";
 import { useAccountSwitching } from "./features/app/hooks/useAccountSwitching";
 import { useMenuLocalization } from "./features/app/hooks/useMenuLocalization";
 import { sendSystemNotification, setNotificationActionHandler } from "./services/systemNotification";
+import { pushErrorToast } from "./services/toasts";
 import { ReleaseNotesModal } from "./features/update/components/ReleaseNotesModal";
 import { requestVendorModelManager } from "./features/vendors/modelManagerRequest";
 import {
   PANEL_LOCK_INITIAL_PASSWORD,
   LOCK_LIVE_SESSION_LIMIT,
   OPENCODE_VARIANT_OPTIONS,
-  GIT_HISTORY_PANEL_MAX_SNAP_THRESHOLD,
-  GIT_HISTORY_PANEL_CLOSE_THRESHOLD,
   LOCAL_PLAN_APPLY_REQUEST_PREFIX,
   PLAN_APPLY_ACTION_QUESTION_ID,
   PLAN_APPLY_EXECUTE_PROMPT,
   CODE_MODE_RESUME_PROMPT,
   type ThreadCompletionTracker,
   extractFirstUserInputAnswer,
-  clampGitHistoryPanelHeight,
-  getDefaultGitHistoryPanelHeight,
   isJankDebugEnabled,
   extractPlanFromTimelineItems,
   resolveLockLivePreview,
@@ -175,6 +176,8 @@ import {
   resolveLatestUserMessage,
 } from "./features/session-activity/utils/sessionRadarPersistence";
 
+const DEFAULT_CLAUDE_MODEL_ID = "claude-sonnet-4-6";
+
 const SettingsView = lazy(() =>
   import("./features/settings/components/SettingsView").then((module) => ({
     default: module.SettingsView,
@@ -186,12 +189,6 @@ const GitHubPanelData = lazy(() =>
     default: module.GitHubPanelData,
   })),
 );
-
-const GIT_HISTORY_PANEL_MIN_HEIGHT = 260;
-const GIT_HISTORY_PANEL_MIN_TOP_CLEARANCE = 44;
-function getViewportHeight(): number {
-  return typeof window === "undefined" ? 0 : window.innerHeight;
-}
 
 export function AppShell() {
   const { t } = useTranslation();
@@ -313,15 +310,19 @@ export function AppShell() {
     toggleDebugPanelShortcut: appSettings.toggleDebugPanelShortcut,
     toggleTerminalShortcut: appSettings.toggleTerminalShortcut,
   });
-  const [gitHistoryPanelHeight, setGitHistoryPanelHeight] = useState(() => {
-    const stored = getClientStoreSync<number>("layout", "gitHistoryPanelHeight");
-    if (typeof stored === "number" && Number.isFinite(stored)) {
-      return clampGitHistoryPanelHeight(stored);
-    }
-    return getDefaultGitHistoryPanelHeight();
-  });
+  const [appMode, setAppMode] = useState<AppMode>("chat");
   const appRootRef = useRef<HTMLDivElement | null>(null);
-  const gitHistoryPanelHeightRef = useRef(gitHistoryPanelHeight);
+  const {
+    gitHistoryPanelHeight,
+    gitHistoryPanelHeightRef,
+    onGitHistoryPanelResizeStart,
+    setGitHistoryPanelHeight,
+  } = useGitHistoryPanelResize({
+    appRootRef,
+    onClosePanel: () => {
+      setAppMode("chat");
+    },
+  });
 
   const resetSoloSplitToHalf = useCallback(() => {
     window.requestAnimationFrame(() => {
@@ -331,113 +332,6 @@ export function AppShell() {
       setRightPanelWidth(Math.floor(mainWidth / 2));
     });
   }, [setRightPanelWidth]);
-
-  useEffect(() => {
-    gitHistoryPanelHeightRef.current = gitHistoryPanelHeight;
-  }, [gitHistoryPanelHeight]);
-  useEffect(() => {
-    writeClientStoreValue("layout", "gitHistoryPanelHeight", gitHistoryPanelHeight);
-  }, [gitHistoryPanelHeight]);
-  useEffect(() => {
-    const handleResize = () => {
-      setGitHistoryPanelHeight((current) => clampGitHistoryPanelHeight(current));
-    };
-    window.addEventListener("resize", handleResize);
-    return () => {
-      window.removeEventListener("resize", handleResize);
-    };
-  }, []);
-  const onGitHistoryPanelResizeStart = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      event.stopPropagation();
-      const pointerId = event.pointerId;
-      const startY = event.clientY;
-      const startHeight = gitHistoryPanelHeightRef.current;
-      const viewportHeight = getViewportHeight();
-      const maxHeight = Math.max(
-        GIT_HISTORY_PANEL_MIN_HEIGHT,
-        viewportHeight - GIT_HISTORY_PANEL_MIN_TOP_CLEARANCE,
-      );
-      const minHeight = Math.min(GIT_HISTORY_PANEL_MIN_HEIGHT, maxHeight);
-      const dragHandle = event.currentTarget;
-      const appRoot = appRootRef.current;
-      let latestRawHeight = startHeight;
-      let latestClampedHeight = clampGitHistoryPanelHeight(startHeight, viewportHeight);
-      let animationFrameId: number | null = null;
-
-      const flushDraggedHeight = () => {
-        animationFrameId = null;
-        if (appRoot) {
-          appRoot.style.setProperty(
-            "--git-history-panel-height",
-            `${latestClampedHeight}px`,
-          );
-        }
-      };
-
-      const scheduleDraggedHeightFlush = () => {
-        if (animationFrameId !== null) {
-          return;
-        }
-        animationFrameId = window.requestAnimationFrame(flushDraggedHeight);
-      };
-
-      dragHandle.setPointerCapture(pointerId);
-      document.body.dataset.gitHistoryResizing = "true";
-
-      const handlePointerMove = (moveEvent: globalThis.PointerEvent) => {
-        if (moveEvent.pointerId !== pointerId) {
-          return;
-        }
-        const delta = moveEvent.clientY - startY;
-        const nextHeight = startHeight - delta;
-        latestRawHeight = nextHeight;
-        latestClampedHeight = clampGitHistoryPanelHeight(nextHeight, viewportHeight);
-        scheduleDraggedHeightFlush();
-      };
-
-      const handlePointerUp = (upEvent: globalThis.PointerEvent) => {
-        if (upEvent.pointerId !== pointerId) {
-          return;
-        }
-        window.removeEventListener("pointermove", handlePointerMove);
-        window.removeEventListener("pointerup", handlePointerUp);
-        window.removeEventListener("pointercancel", handlePointerUp);
-        if (dragHandle.hasPointerCapture(pointerId)) {
-          dragHandle.releasePointerCapture(pointerId);
-        }
-        if (animationFrameId !== null) {
-          window.cancelAnimationFrame(animationFrameId);
-          flushDraggedHeight();
-        }
-        document.body.style.cursor = "";
-        document.body.style.userSelect = "";
-        document.body.style.webkitUserSelect = "";
-        delete document.body.dataset.gitHistoryResizing;
-
-        if (latestRawHeight <= minHeight - GIT_HISTORY_PANEL_CLOSE_THRESHOLD) {
-          setAppMode("chat");
-          return;
-        }
-
-        if (latestRawHeight >= maxHeight - GIT_HISTORY_PANEL_MAX_SNAP_THRESHOLD) {
-          setGitHistoryPanelHeight(maxHeight);
-          return;
-        }
-
-        setGitHistoryPanelHeight(latestClampedHeight);
-      };
-
-      window.addEventListener("pointermove", handlePointerMove);
-      window.addEventListener("pointerup", handlePointerUp);
-      window.addEventListener("pointercancel", handlePointerUp);
-      document.body.style.cursor = "row-resize";
-      document.body.style.userSelect = "none";
-      document.body.style.webkitUserSelect = "none";
-    },
-    [],
-  );
 
   const {
     settingsOpen,
@@ -877,8 +771,6 @@ export function AppShell() {
     };
   }, [activeEngine, addDebugEntry]);
 
-  // --- Kanban mode ---
-  const [appMode, setAppMode] = useState<AppMode>("chat");
   const handleAppModeChange = useCallback(
     (mode: AppMode) => {
       setAppMode(mode);
@@ -967,7 +859,7 @@ export function AppShell() {
     const engineSelection = engineSelectedModelIdByType[activeEngine] ?? null;
     if (engineModelsAsOptions.length === 0) {
       if (activeEngine === "claude") {
-        return engineSelection ?? "claude-sonnet-4-6";
+        return engineSelection ?? DEFAULT_CLAUDE_MODEL_ID;
       }
       return engineSelection;
     }
@@ -1098,6 +990,30 @@ export function AppShell() {
   const alertError = useCallback((error: unknown) => {
     alert(error instanceof Error ? error.message : String(error));
   }, []);
+  const handleOpenDetachedFileExplorer = useCallback(
+    async (initialFilePath?: string | null) => {
+      if (!activeWorkspace) {
+        return;
+      }
+      try {
+        await openOrFocusDetachedFileExplorer(
+          buildDetachedFileExplorerSession({
+            workspaceId: activeWorkspace.id,
+            workspacePath: activeWorkspace.path,
+            workspaceName: activeWorkspace.name,
+            initialFilePath,
+          }),
+        );
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        pushErrorToast({
+          title: t("files.openDetachedExplorer"),
+          message,
+        });
+      }
+    },
+    [activeWorkspace, t],
+  );
   const {
     applyWorktreeChanges: handleApplyWorktreeChanges,
     revertAllGitChanges: handleRevertAllGitChanges,
@@ -1450,15 +1366,40 @@ export function AppShell() {
         return;
       }
       const force = options?.force ?? false;
-      if (!force && hydratedThreadListWorkspaceIdsRef.current.has(workspaceId)) {
+      const existingThreads = threadsByWorkspace[workspaceId] ?? [];
+      const isLoading = threadListLoadingByWorkspace[workspaceId] ?? false;
+      const hasHydratedThreadList =
+        hydratedThreadListWorkspaceIdsRef.current.has(workspaceId);
+      if (
+        !force &&
+        (isLoading ||
+          hasHydratedThreadList)
+      ) {
         return;
       }
       void listThreadsForWorkspaceTracked(workspace, {
         preserveState: options?.preserveState,
       });
     },
-    [listThreadsForWorkspaceTracked, workspacesById],
+    [
+      listThreadsForWorkspaceTracked,
+      threadListLoadingByWorkspace,
+      threadsByWorkspace,
+      workspacesById,
+    ],
   );
+  const autoHydratedActiveWorkspaceIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!activeWorkspaceId) {
+      autoHydratedActiveWorkspaceIdRef.current = null;
+      return;
+    }
+    if (autoHydratedActiveWorkspaceIdRef.current === activeWorkspaceId) {
+      return;
+    }
+    autoHydratedActiveWorkspaceIdRef.current = activeWorkspaceId;
+    ensureWorkspaceThreadListLoaded(activeWorkspaceId, { preserveState: true });
+  }, [activeWorkspaceId, ensureWorkspaceThreadListLoaded]);
   const handleEnsureWorkspaceThreadsForSettings = useCallback(
     (workspaceId: string) => {
       ensureWorkspaceThreadListLoaded(workspaceId, { preserveState: true });
@@ -2886,7 +2827,7 @@ export function AppShell() {
     handleCloseFileTab, handleCollaborationModeResolved, handleCommit, handleCommitAndPush, handleCommitAndSync, handleCommitMessageChange, handleCopyDebug, handleCopyThread,
     handleCreateBranch, handleCreatePrompt, handleDebugClick, handleDeletePrompt, handleDeleteQueued, handleDeleteThreadPromptCancel, handleDeleteThreadPromptConfirm, handleDraftChange,
     handleDropWorkspacePaths, handleEditQueued, handleEnsureWorkspaceThreadsForSettings, handleExitEditor, handleGenerateCommitMessage, handleGitIssuesChange, handleGitPanelModeChange, handleGitPullRequestCommentsChange,
-    handleGitPullRequestDiffsChange, handleGitPullRequestsChange, handleInsertComposerText, handleLockPanel, handleMovePrompt, handleOpenFile, handleOpenModelSettings, handleOpenRenameWorktree,
+    handleGitPullRequestDiffsChange, handleGitPullRequestsChange, handleInsertComposerText, handleLockPanel, handleMovePrompt, handleOpenDetachedFileExplorer, handleOpenFile, handleOpenModelSettings, handleOpenRenameWorktree,
     handlePickGitRoot, handlePointerMove, handlePointerUp, handlePush, handleRenamePromptCancel, handleRenamePromptChange, handleRenamePromptConfirm, handleRenameThread,
     handleRenameWorktreeCancel, handleRenameWorktreeChange, handleRenameWorktreeConfirm, handleResize, handleRevealGeneralPrompts, handleRevealWorkspacePrompts, handleRevertAllGitChanges, handleRevertGitFile,
     handleReviewPromptKeyDown, handleSelectAgent, handleSelectCommit, handleSelectDiff, handleSelectModel, handleSelectOpenAppId, handleSelectOpenCodeAgent, handleSelectOpenCodeVariant,

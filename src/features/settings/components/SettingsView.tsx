@@ -133,6 +133,7 @@ import { ShortcutsSection } from "./settings-view/sections/ShortcutsSection";
 import { OpenAppsSection } from "./settings-view/sections/OpenAppsSection";
 import { CodexSection } from "./settings-view/sections/CodexSection";
 import { OtherSection } from "./settings-view/sections/OtherSection";
+import { DetachedExternalChangeToggles } from "./settings-view/sections/DetachedExternalChangeToggles";
 
 // Feature flags to show/hide settings sidebar entries
 const SHOW_DICTATION_ENTRY = false;
@@ -2816,23 +2817,11 @@ export function SettingsView({
                 <div className="settings-section-subtitle">
                   {t("settings.gitDescription")}
                 </div>
-                <div className="settings-toggle-row">
-                  <div>
-                    <div className="settings-toggle-title">{t("settings.preloadGitDiffs")}</div>
-                    <div className="settings-toggle-subtitle">
-                      {t("settings.preloadGitDiffsDesc")}
-                    </div>
-                  </div>
-                  <Switch
-                    checked={appSettings.preloadGitDiffs}
-                    onCheckedChange={(checked) =>
-                      void onUpdateAppSettings({
-                        ...appSettings,
-                        preloadGitDiffs: checked,
-                      })
-                    }
-                  />
-                </div>
+                <DetachedExternalChangeToggles
+                  t={t}
+                  appSettings={appSettings}
+                  onUpdateAppSettings={onUpdateAppSettings}
+                />
               </section>
             )}
             {/* vendors is now mapped to providers above */}

@@ -1684,6 +1684,48 @@ describe("WorkspaceSessionActivityPanel", () => {
     expect(screen.queryByText("activityPanel.followCoachBody")).toBeNull();
   });
 
+  it("auto-dismisses follow coach after 3 seconds", () => {
+    vi.useFakeTimers();
+    try {
+      const onToggleLiveEditPreview = vi.fn();
+      const viewModel = createViewModel();
+      const view = render(
+        <WorkspaceSessionActivityPanel
+          workspaceId="workspace-1"
+          viewModel={viewModel}
+          onOpenDiffPath={vi.fn()}
+          onSelectThread={vi.fn()}
+          liveEditPreviewEnabled={false}
+          onToggleLiveEditPreview={onToggleLiveEditPreview}
+        />,
+      );
+
+      expect(screen.getByText("activityPanel.followCoachBody")).toBeTruthy();
+
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      expect(screen.queryByText("activityPanel.followCoachBody")).toBeNull();
+
+      view.rerender(
+        <WorkspaceSessionActivityPanel
+          workspaceId="workspace-1"
+          viewModel={viewModel}
+          onOpenDiffPath={vi.fn()}
+          onSelectThread={vi.fn()}
+          liveEditPreviewEnabled={false}
+          onToggleLiveEditPreview={onToggleLiveEditPreview}
+        />,
+      );
+
+      expect(screen.queryByText("activityPanel.followCoachBody")).toBeNull();
+      expect(onToggleLiveEditPreview).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("shows follow nudge for file-change and suppresses repeats within the same turn", () => {
     const onToggleLiveEditPreview = vi.fn();
     const viewModel = createViewModel();
@@ -1751,6 +1793,49 @@ describe("WorkspaceSessionActivityPanel", () => {
     );
 
     expect(screen.getByText("activityPanel.followNudgeBody")).toBeTruthy();
+  });
+
+  it("auto-dismisses follow nudge after 3 seconds", () => {
+    vi.useFakeTimers();
+    try {
+      const onToggleLiveEditPreview = vi.fn();
+      const viewModel = createViewModel();
+      dismissSoloFollowCoachForWorkspace("workspace-1");
+      const view = render(
+        <WorkspaceSessionActivityPanel
+          workspaceId="workspace-1"
+          viewModel={viewModel}
+          onOpenDiffPath={vi.fn()}
+          onSelectThread={vi.fn()}
+          liveEditPreviewEnabled={false}
+          onToggleLiveEditPreview={onToggleLiveEditPreview}
+        />,
+      );
+
+      expect(screen.getByText("activityPanel.followNudgeBody")).toBeTruthy();
+
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      expect(screen.queryByText("activityPanel.followNudgeBody")).toBeNull();
+
+      view.rerender(
+        <WorkspaceSessionActivityPanel
+          workspaceId="workspace-1"
+          viewModel={viewModel}
+          onOpenDiffPath={vi.fn()}
+          onSelectThread={vi.fn()}
+          liveEditPreviewEnabled={false}
+          onToggleLiveEditPreview={onToggleLiveEditPreview}
+        />,
+      );
+
+      expect(screen.queryByText("activityPanel.followNudgeBody")).toBeNull();
+      expect(onToggleLiveEditPreview).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("enables live follow from nudge action", () => {

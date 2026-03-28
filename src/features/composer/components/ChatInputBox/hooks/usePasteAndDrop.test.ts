@@ -2,6 +2,10 @@
 import React, { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  DETACHED_FILE_TREE_DRAG_BRIDGE_EVENT,
+  DETACHED_FILE_TREE_DRAG_SNAPSHOT_STORAGE_KEY,
+} from "../../../../files/detachedFileTreeDragBridge";
 import { usePasteAndDrop } from "./usePasteAndDrop";
 
 let windowDropHandler:
@@ -13,6 +17,9 @@ let windowDropHandler:
       };
     }) => void)
   | null = null;
+let crossWindowDragBridgeHandler:
+  | ((event: { payload: { type: "start"; paths: string[] } }) => void)
+  | null = null;
 
 vi.mock("../../../../../services/dragDrop.js", () => ({
   subscribeWindowDragDrop: (handler: typeof windowDropHandler) => {
@@ -21,6 +28,24 @@ vi.mock("../../../../../services/dragDrop.js", () => ({
       windowDropHandler = null;
     };
   },
+}));
+
+vi.mock("@tauri-apps/api/window", () => ({
+  getCurrentWindow: () => ({
+    listen: vi.fn(
+      async (
+        eventName: string,
+        handler: typeof crossWindowDragBridgeHandler,
+      ) => {
+        if (eventName === DETACHED_FILE_TREE_DRAG_BRIDGE_EVENT) {
+          crossWindowDragBridgeHandler = handler;
+        }
+        return () => {
+          crossWindowDragBridgeHandler = null;
+        };
+      },
+    ),
+  }),
 }));
 
 type HookResult = ReturnType<typeof usePasteAndDrop>;
@@ -96,6 +121,10 @@ describe("usePasteAndDrop path insertion", () => {
     delete window.__fileTreeDragPaths;
     delete window.__fileTreeDragStamp;
     delete window.__fileTreeDragActive;
+    delete window.__fileTreeDragOverChat;
+    delete window.__fileTreeDragDropped;
+    window.localStorage.removeItem(DETACHED_FILE_TREE_DRAG_SNAPSHOT_STORAGE_KEY);
+    crossWindowDragBridgeHandler = null;
   });
 
   it("inserts multi-path payload from custom drag data once", () => {
@@ -147,6 +176,67 @@ describe("usePasteAndDrop path insertion", () => {
     expect(harness.editable.textContent).toContain("@/tmp/from-tree.ts");
     expect(window.__fileTreeDragPaths).toBeUndefined();
     expect(window.__fileTreeDragStamp).toBeUndefined();
+    harness.unmount();
+  });
+
+  it("consumes detached window bridge paths forwarded into the main window", () => {
+    const harness = createHarness();
+
+    act(() => {
+      crossWindowDragBridgeHandler?.({
+        payload: {
+          type: "start",
+          paths: ["/tmp/from-detached-window.ts"],
+        },
+      });
+    });
+
+    const dropEvent = {
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn(),
+      dataTransfer: {
+        files: [] as File[],
+        getData: () => "",
+      },
+    } as unknown as React.DragEvent;
+
+    act(() => {
+      harness.result.handleDrop(dropEvent);
+    });
+
+    expect(harness.editable.textContent).toContain("@/tmp/from-detached-window.ts");
+    expect(window.__fileTreeDragPaths).toBeUndefined();
+    harness.unmount();
+  });
+
+  it("accepts detached bridge drop with zero coordinates when target is inside editable", () => {
+    const harness = createHarness();
+
+    act(() => {
+      crossWindowDragBridgeHandler?.({
+        payload: {
+          type: "start",
+          paths: ["/tmp/from-detached-zero-point.ts"],
+        },
+      });
+    });
+
+    const dragOverEvent = new Event("dragover", { bubbles: true, cancelable: true });
+    Object.defineProperty(dragOverEvent, "clientX", { value: 0 });
+    Object.defineProperty(dragOverEvent, "clientY", { value: 0 });
+    act(() => {
+      harness.editable.dispatchEvent(dragOverEvent);
+    });
+
+    const dropEvent = new Event("drop", { bubbles: true, cancelable: true });
+    Object.defineProperty(dropEvent, "clientX", { value: 0 });
+    Object.defineProperty(dropEvent, "clientY", { value: 0 });
+    act(() => {
+      harness.editable.dispatchEvent(dropEvent);
+    });
+
+    expect(harness.editable.textContent).toContain("@/tmp/from-detached-zero-point.ts");
+    expect(window.__fileTreeDragPaths).toBeUndefined();
     harness.unmount();
   });
 
@@ -277,6 +367,60 @@ describe("usePasteAndDrop path insertion", () => {
     expect(referenceCount).toBe(1);
     harness.unmount();
     vi.useRealTimers();
+  });
+
+  it("consumes detached bridge paths when window drop has no paths", () => {
+    const harness = createHarness();
+
+    act(() => {
+      crossWindowDragBridgeHandler?.({
+        payload: {
+          type: "start",
+          paths: ["/tmp/from-window-drop-empty.ts"],
+        },
+      });
+    });
+
+    act(() => {
+      windowDropHandler?.({
+        payload: {
+          type: "drop",
+          position: { x: 10, y: 10 },
+          paths: [],
+        },
+      });
+    });
+
+    expect(harness.editable.textContent).toContain("@/tmp/from-window-drop-empty.ts");
+    expect(window.__fileTreeDragPaths).toBeUndefined();
+    harness.unmount();
+  });
+
+  it("falls back to detached snapshot when bridge start event is missed", () => {
+    const harness = createHarness();
+    window.localStorage.setItem(
+      DETACHED_FILE_TREE_DRAG_SNAPSHOT_STORAGE_KEY,
+      JSON.stringify({
+        paths: ["/tmp/from-detached-snapshot.ts"],
+        stamp: Date.now(),
+      }),
+    );
+
+    const dropEvent = {
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn(),
+      dataTransfer: {
+        files: [] as File[],
+        getData: () => "",
+      },
+    } as unknown as React.DragEvent;
+
+    act(() => {
+      harness.result.handleDrop(dropEvent);
+    });
+
+    expect(harness.editable.textContent).toContain("@/tmp/from-detached-snapshot.ts");
+    harness.unmount();
   });
 
   it("ignores window drop outside editable bounds", () => {

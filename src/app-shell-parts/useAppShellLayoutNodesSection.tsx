@@ -40,7 +40,7 @@ export function useAppShellLayoutNodesSection(ctx: any) {
     handleCopyThread, handleCreateBranch, handleCreatePrompt, handleDebugClick, handleDeletePrompt, handleDeleteQueued, handleDeleteThreadPromptCancel, handleDeleteThreadPromptConfirm,
     handleDeleteWorkspaceConversations, handleDeleteWorkspaceConversationsInSettings, handleDraftChange, handleDragToInProgress, handleDropWorkspacePaths, handleEditQueued, handleEnsureWorkspaceThreadsForSettings, handleExitEditor,
     handleExitWorkspaceEditor, handleGenerateCommitMessage, handleGitIssuesChange, handleGitPanelModeChange, handleGitPullRequestCommentsChange, handleGitPullRequestDiffsChange, handleGitPullRequestsChange, handleInsertComposerText,
-    handleKanbanCreateTask, handleLockPanel, handleMovePrompt, handleMoveWorkspace, handleOpenComposerKanbanPanel, handleOpenFile, handleOpenHomeChat, handleOpenModelSettings,
+    handleKanbanCreateTask, handleLockPanel, handleMovePrompt, handleMoveWorkspace, handleOpenComposerKanbanPanel, handleOpenDetachedFileExplorer, handleOpenFile, handleOpenHomeChat, handleOpenModelSettings,
     handleOpenRenameWorktree, handleOpenSearchPalette, handleOpenSpecHub, handleOpenTaskConversation, handleOpenWorkspaceFile, handleOpenWorkspaceHome, handlePickGitRoot, handlePointerMove,
     handlePointerUp, handlePush, handleRefreshAccountRateLimits, handleRenamePromptCancel, handleRenamePromptChange, handleRenamePromptConfirm, handleRenameThread, handleRenameWorktreeCancel,
     handleRenameWorktreeChange, handleRenameWorktreeConfirm, handleResize, handleRevealActiveWorkspace, handleRevealGeneralPrompts, handleRevealWorkspacePrompts, handleRevertAllGitChanges, handleRevertGitFile,
@@ -102,6 +102,10 @@ export function useAppShellLayoutNodesSection(ctx: any) {
     worktreeApplySuccess, worktreeCreateResult, worktreeLabel, worktreePrompt, worktreeRename, worktreeSetupScriptState,
     sessionRadarRunningSessions, sessionRadarRecentCompletedSessions, runningSessionCountByWorkspaceId, recentCompletedSessionCountByWorkspaceId,
   } = ctx;
+  const enableMainFileExternalChangeMonitoring = Boolean(
+    activeWorkspace &&
+      activeEditorFilePath,
+  );
 
   const {
     sidebarNode,
@@ -390,6 +394,7 @@ export function useAppShellLayoutNodesSection(ctx: any) {
     },
     fileTreeLoading: isFilesLoading,
     onRefreshFiles: refreshFiles,
+    onOpenDetachedFileExplorer: handleOpenDetachedFileExplorer,
     onToggleRuntimeConsole: handleToggleRuntimeConsole,
     runtimeConsoleVisible: runtimeRunState.runtimeConsoleVisible,
     centerMode,
@@ -408,6 +413,8 @@ export function useAppShellLayoutNodesSection(ctx: any) {
     onCloseAllEditorTabs: handleCloseAllWorkspaceFileTabs,
     onActiveEditorLineRangeChange: setActiveEditorLineRange,
     onOpenFile: handleOpenWorkspaceFile,
+    externalChangeMonitoringEnabled: enableMainFileExternalChangeMonitoring,
+    externalChangeTransportMode: "polling",
     onExitEditor: handleExitWorkspaceEditor,
     onExitDiff: () => {
       setCenterMode("chat");

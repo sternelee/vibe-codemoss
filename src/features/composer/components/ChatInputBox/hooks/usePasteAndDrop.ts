@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { Attachment } from '../types.js';
 import { generateId } from '../utils/generateId.js';
 import { insertTextAtCursor } from '../utils/selectionUtils.js';
@@ -10,6 +11,12 @@ import {
 } from '../utils/filePathReferences.js';
 import { subscribeWindowDragDrop } from '../../../../../services/dragDrop.js';
 import { perfTimer } from '../../../utils/debug.js';
+import {
+  clearDetachedFileTreeDragSnapshot,
+  readDetachedFileTreeDragSnapshot,
+  DETACHED_FILE_TREE_DRAG_BRIDGE_EVENT,
+  type DetachedFileTreeDragBridgePayload,
+} from "../../../../files/detachedFileTreeDragBridge";
 
 declare global {
   interface Window {
@@ -186,13 +193,33 @@ function clearFileTreeDragBridge() {
   });
 }
 
+function setFileTreeDragBridgeFromCrossWindow(paths: string[]) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  const validPaths = dedupeAndValidateFilePaths(paths);
+  if (validPaths.length === 0) {
+    return;
+  }
+  window.__fileTreeDragPaths = validPaths;
+  window.__fileTreeDragStamp = Date.now();
+  window.__fileTreeDragActive = true;
+  window.__fileTreeDragOverChat = false;
+  window.__fileTreeDragDropped = false;
+}
+
 function readFileTreeDragBridgePaths(): string[] {
   if (typeof window === "undefined") {
     return [];
   }
   const rawPaths = window.__fileTreeDragPaths;
   if (!Array.isArray(rawPaths) || rawPaths.length === 0) {
-    return [];
+    const snapshotPaths = readDetachedFileTreeDragSnapshot();
+    if (snapshotPaths.length === 0) {
+      return [];
+    }
+    setFileTreeDragBridgeFromCrossWindow(snapshotPaths);
+    return snapshotPaths;
   }
   const stamp = window.__fileTreeDragStamp;
   if (
@@ -239,6 +266,17 @@ function hasUsableDragPosition(point: { x: number; y: number } | null | undefine
     Number.isFinite(point.y) &&
     !(point.x === 0 && point.y === 0)
   );
+}
+
+function isEventTargetInsideDropZone(event: DragEvent, dropZone: Element | null): boolean {
+  if (!dropZone) {
+    return false;
+  }
+  const target = event.target;
+  if (!(target instanceof Node)) {
+    return false;
+  }
+  return dropZone.contains(target);
 }
 
 function resolveDragPositionFromEvent(event: DragEvent): { x: number; y: number } | null {
@@ -484,11 +522,16 @@ export function usePasteAndDrop({
         if (!isInside) {
           return;
         }
+        const effectiveDropPaths = droppedPaths.length > 0
+          ? droppedPaths
+          : readFileTreeDragBridgePaths();
         consumeDroppedPaths(
-          droppedPaths,
+          effectiveDropPaths,
           appendImagePathAttachments,
           handlePathInsertionWithDedupGuard,
         );
+        clearDetachedFileTreeDragSnapshot();
+        clearFileTreeDragBridge();
         return;
       }
       if (event.payload.type === 'leave') {
@@ -506,6 +549,32 @@ export function usePasteAndDrop({
     handlePathInsertionWithDedupGuard,
     resetDragHint,
   ]);
+
+  useEffect(() => {
+    let unlisten: (() => void) | null = null;
+    try {
+      const currentWindow = getCurrentWindow();
+      currentWindow
+        .listen<DetachedFileTreeDragBridgePayload>(
+          DETACHED_FILE_TREE_DRAG_BRIDGE_EVENT,
+          (event) => {
+            if (event.payload.type !== "start") {
+              return;
+            }
+            setFileTreeDragBridgeFromCrossWindow(event.payload.paths);
+          },
+        )
+        .then((handler) => {
+          unlisten = handler;
+        })
+        .catch(() => {});
+    } catch {
+      // Non-Tauri test environments do not expose per-window listeners.
+    }
+    return () => {
+      unlisten?.();
+    };
+  }, []);
 
   useEffect(() => {
     if (disabled) {
@@ -533,8 +602,9 @@ export function usePasteAndDrop({
         return;
       }
       const isInsideByPosition = point ? isDropInsideElement(dropZone, point) : false;
+      const isInsideByTarget = isEventTargetInsideDropZone(event, dropZone);
       const isInsideByBridgeHint = window.__fileTreeDragOverChat === true;
-      if (!isInsideByPosition && !isInsideByBridgeHint) {
+      if (!isInsideByPosition && !isInsideByTarget && !isInsideByBridgeHint) {
         window.__fileTreeDragOverChat = false;
         resetDragHint();
         return;
@@ -568,8 +638,9 @@ export function usePasteAndDrop({
         return;
       }
       const isInsideByPosition = point ? isDropInsideElement(dropZone, point) : false;
+      const isInsideByTarget = isEventTargetInsideDropZone(event, dropZone);
       const isInsideByBridgeHint = window.__fileTreeDragOverChat === true;
-      if (!isInsideByPosition && !isInsideByBridgeHint) {
+      if (!isInsideByPosition && !isInsideByTarget && !isInsideByBridgeHint) {
         window.__fileTreeDragOverChat = false;
         clearFileTreeDragBridge();
         resetDragHint();
@@ -579,6 +650,7 @@ export function usePasteAndDrop({
       event.preventDefault();
       handlePathInsertionWithDedupGuard(bridgePaths);
       window.__fileTreeDragDropped = true;
+      clearDetachedFileTreeDragSnapshot();
       clearFileTreeDragBridge();
       resetDragHint();
     };
@@ -842,6 +914,7 @@ export function usePasteAndDrop({
           handlePathInsertionWithDedupGuard,
         )
       ) {
+        clearDetachedFileTreeDragSnapshot();
         clearFileTreeDragBridge();
         resetDragHint();
         return;

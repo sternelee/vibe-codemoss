@@ -9,17 +9,13 @@ import type { DragEvent, MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { emitTo } from "@tauri-apps/api/event";
 import { Menu, MenuItem } from "@tauri-apps/api/menu";
 import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { confirm } from "@tauri-apps/plugin-dialog";
-import FilePlus from "lucide-react/dist/esm/icons/file-plus";
-import FolderPlus from "lucide-react/dist/esm/icons/folder-plus";
-import LayoutDashboard from "lucide-react/dist/esm/icons/layout-dashboard";
 import Plus from "lucide-react/dist/esm/icons/plus";
-import SquareMinus from "lucide-react/dist/esm/icons/square-minus";
-import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 import TreePine from "lucide-react/dist/esm/icons/tree-pine";
 import FileIcon from "../../../components/FileIcon";
 import type { PanelTabId } from "../../layout/components/PanelTabs";
@@ -33,7 +29,13 @@ import {
 } from "../../../services/tauri";
 import type { GitFileStatus, OpenAppTarget } from "../../../types";
 import { languageFromPath } from "../../../utils/syntax";
+import {
+  writeDetachedFileTreeDragSnapshot,
+  DETACHED_FILE_TREE_DRAG_BRIDGE_EVENT,
+  type DetachedFileTreeDragBridgePayload,
+} from "../detachedFileTreeDragBridge";
 import { FilePreviewPopover } from "./FilePreviewPopover";
+import { FileTreeRootActions } from "./FileTreeRootActions";
 
 type FileTreeNode = {
   name: string;
@@ -67,6 +69,10 @@ type FileTreePanelProps = {
   isRuntimeConsoleVisible?: boolean;
   onOpenSpecHub?: () => void;
   isSpecHubActive?: boolean;
+  onOpenDetachedExplorer?: (initialFilePath?: string | null) => void;
+  showSpecHubAction?: boolean;
+  showDetachedExplorerAction?: boolean;
+  crossWindowDragTargetLabel?: string | null;
   gitStatusFiles?: GitFileStatus[];
   gitignoredFiles?: Set<string>;
   gitignoredDirectories?: Set<string>;
@@ -127,7 +133,7 @@ const SPECIAL_BUILD_ARTIFACT_DIRECTORIES = new Set([
   ".tox",
   ".dart_tool",
 ]);
-
+const CROSS_WINDOW_TREE_DRAG_REBROADCAST_THROTTLE_MS = 120;
 function setFileTreeDragBridge(paths: string[]) {
   if (typeof window === "undefined") {
     return;
@@ -632,6 +638,10 @@ export function FileTreePanel({
   isRuntimeConsoleVisible: _isRuntimeConsoleVisible = false,
   onOpenSpecHub,
   isSpecHubActive = false,
+  onOpenDetachedExplorer,
+  showSpecHubAction = true,
+  showDetachedExplorerAction = true,
+  crossWindowDragTargetLabel = null,
   gitStatusFiles,
   gitignoredFiles,
   gitignoredDirectories,
@@ -665,6 +675,8 @@ export function FileTreePanel({
   const [selectedNodeType, setSelectedNodeType] = useState<"file" | "folder" | null>(null);
   const [selectedNodePaths, setSelectedNodePaths] = useState<Set<string>>(new Set());
   const selectionAnchorPathRef = useRef<string | null>(null);
+  const activeCrossWindowDragPathsRef = useRef<string[]>([]);
+  const lastCrossWindowDragBroadcastRef = useRef(0);
   const panelRef = useRef<HTMLElement | null>(null);
   const [newFileParent, setNewFileParent] = useState<string | null>(null);
   const [newFileName, setNewFileName] = useState("");
@@ -782,10 +794,6 @@ export function FileTreePanel({
     return map;
   }, [nodes, gitStatusMap]);
 
-  const visibleFolderPaths = folderPaths;
-  const hasFolders = visibleFolderPaths.size > 0;
-  const allVisibleExpanded =
-    hasFolders && Array.from(visibleFolderPaths).every((path) => expandedFolders.has(path));
   const isRootVisibleExpanded = rootExpanded;
   const visibleTreeNodeEntries = useMemo(() => {
     const entries: VisibleTreeNodeEntry[] = [{ path: "", type: "root" }];
@@ -1059,22 +1067,6 @@ export function FileTreePanel({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [previewPath, closePreview]);
-
-  const toggleAllFolders = () => {
-    if (!hasFolders) {
-      return;
-    }
-    setExpandedFolders((prev) => {
-      const next = new Set(prev);
-      if (allVisibleExpanded) {
-        visibleFolderPaths.forEach((path) => next.delete(path));
-      } else {
-        visibleFolderPaths.forEach((path) => next.add(path));
-      }
-      return next;
-    });
-
-  };
 
   const toggleFolder = (path: string) => {
     setExpandedFolders((prev) => {
@@ -1452,11 +1444,49 @@ export function FileTreePanel({
     () => resolveParentFolderForNode(selectedNodePath, selectedNodeType),
     [resolveParentFolderForNode, selectedNodePath, selectedNodeType],
   );
+  const detachedInitialFilePath = selectedNodeType === "file" ? selectedNodePath : null;
   const orderedSelectedNodePaths = useMemo(
     () =>
       visibleTreePathOrder.filter((path) => path.length > 0 && selectedNodePaths.has(path)),
     [selectedNodePaths, visibleTreePathOrder],
   );
+  const broadcastCrossWindowTreeDrag = useCallback(
+    (payload: DetachedFileTreeDragBridgePayload) => {
+      if (!crossWindowDragTargetLabel) {
+        return;
+      }
+      if (payload.type === "start") {
+        writeDetachedFileTreeDragSnapshot(payload.paths);
+      }
+      void emitTo(
+        crossWindowDragTargetLabel,
+        DETACHED_FILE_TREE_DRAG_BRIDGE_EVENT,
+        payload,
+      ).catch(() => {});
+    },
+    [crossWindowDragTargetLabel],
+  );
+  const rebroadcastCrossWindowTreeDrag = useCallback(() => {
+    if (!crossWindowDragTargetLabel) {
+      return;
+    }
+    const paths = activeCrossWindowDragPathsRef.current;
+    if (paths.length === 0) {
+      return;
+    }
+    const now = Date.now();
+    if (
+      now - lastCrossWindowDragBroadcastRef.current <
+      CROSS_WINDOW_TREE_DRAG_REBROADCAST_THROTTLE_MS
+    ) {
+      return;
+    }
+    lastCrossWindowDragBroadcastRef.current = now;
+    broadcastCrossWindowTreeDrag({
+      type: "start",
+      paths,
+    });
+  }, [broadcastCrossWindowTreeDrag, crossWindowDragTargetLabel]);
   const canTrashSelectedNode =
     selectedNodeType !== null && selectedNodePath !== null && selectedNodePath.length > 0;
 
@@ -1656,9 +1686,15 @@ export function FileTreePanel({
                 clearFileTreeDragBridge();
               }
               const absolutePaths = uniqueSourcePaths.map((path) => resolvePath(path));
+              activeCrossWindowDragPathsRef.current = absolutePaths;
+              lastCrossWindowDragBroadcastRef.current = Date.now();
               setFileTreeDragBridge(absolutePaths);
               window.__fileTreeDragCleanup = bindChatDropTargetsForTreeDrag(absolutePaths);
               setFileTreeDragPosition(event.clientX, event.clientY);
+              broadcastCrossWindowTreeDrag({
+                type: "start",
+                paths: absolutePaths,
+              });
               if (!event.dataTransfer) {
                 return;
               }
@@ -1669,8 +1705,11 @@ export function FileTreePanel({
             }}
             onDrag={(event: DragEvent<HTMLButtonElement>) => {
               setFileTreeDragPosition(event.clientX, event.clientY);
+              rebroadcastCrossWindowTreeDrag();
             }}
             onDragEnd={(event: DragEvent<HTMLButtonElement>) => {
+              activeCrossWindowDragPathsRef.current = [];
+              lastCrossWindowDragBroadcastRef.current = 0;
               if (typeof window !== "undefined" && window.__fileTreeDragDropped === true) {
                 clearFileTreeDragBridge();
                 return;
@@ -1801,61 +1840,25 @@ export function FileTreePanel({
               <span className="file-tree-name">{workspaceRootLabel}</span>
             </button>
           </div>
-          <div className="file-tree-root-actions">
-            <button
-              type="button"
-              className={`ghost icon-button file-tree-root-action${isSpecHubActive ? " is-active" : ""}`}
-              onClick={onOpenSpecHub}
-              disabled={!onOpenSpecHub}
-              aria-label={t("sidebar.specHub")}
-              title={t("sidebar.specHub")}
-            >
-              <LayoutDashboard aria-hidden />
-            </button>
-            <button
-              type="button"
-              className="ghost icon-button file-tree-root-action"
-              onClick={() => openNewFilePrompt(selectedParentFolder)}
-              aria-label={t("files.newFile")}
-              title={t("files.newFile")}
-            >
-              <FilePlus aria-hidden />
-            </button>
-            <button
-              type="button"
-              className="ghost icon-button file-tree-root-action"
-              onClick={() => openNewFolderPrompt(selectedParentFolder)}
-              aria-label={t("files.newFolder")}
-              title={t("files.newFolder")}
-            >
-              <FolderPlus aria-hidden />
-            </button>
-            <button
-              type="button"
-              className="ghost icon-button file-tree-root-action"
-              onClick={toggleAllFolders}
-              disabled={!hasFolders}
-              aria-label={allVisibleExpanded ? t("files.collapseAllFolders") : t("files.expandAllFolders")}
-              title={allVisibleExpanded ? t("files.collapseAllFolders") : t("files.expandAllFolders")}
-            >
-              <SquareMinus aria-hidden />
-            </button>
-            <button
-              type="button"
-              className="ghost icon-button file-tree-root-action file-tree-root-action-danger"
-              onClick={() => {
-                if (!canTrashSelectedNode || !selectedNodePath || !selectedNodeType) {
-                  return;
-                }
-                void trashItem(selectedNodePath, selectedNodeType === "folder");
-              }}
-              disabled={!canTrashSelectedNode}
-              aria-label={t("files.deleteItem")}
-              title={t("files.deleteItem")}
-            >
-              <Trash2 aria-hidden />
-            </button>
-          </div>
+          <FileTreeRootActions
+            canTrashSelectedNode={canTrashSelectedNode}
+            isSpecHubActive={isSpecHubActive}
+            selectedParentFolder={selectedParentFolder}
+            onOpenDetachedExplorer={onOpenDetachedExplorer}
+            detachedInitialFilePath={detachedInitialFilePath}
+            onOpenNewFile={(parentFolder) => openNewFilePrompt(parentFolder ?? "")}
+            onOpenNewFolder={(parentFolder) => openNewFolderPrompt(parentFolder ?? "")}
+            onRefreshFiles={onRefreshFiles}
+            onTrashSelected={() => {
+              if (!canTrashSelectedNode || !selectedNodePath || !selectedNodeType) {
+                return;
+              }
+              void trashItem(selectedNodePath, selectedNodeType === "folder");
+            }}
+            onOpenSpecHub={onOpenSpecHub}
+            showSpecHubAction={showSpecHubAction}
+            showDetachedExplorerAction={showDetachedExplorerAction}
+          />
         </div>
       </div>
       <div className={`file-tree-list${isRootVisibleExpanded && nodes.length > 0 ? " has-root-guide" : ""}`}>

@@ -295,6 +295,12 @@ const enPart1 = {
     // Git section
     preloadGitDiffs: "Preload Git Diffs",
     preloadGitDiffsDesc: "Automatically load Git diffs when opening a workspace.",
+    detachedExternalChangeAwareness: "Detached External Change Awareness",
+    detachedExternalChangeAwarenessDesc:
+      "Detect on-disk file changes for files opened in the detached explorer.",
+    detachedExternalChangeWatcher: "Use Native Watcher for Detached Explorer",
+    detachedExternalChangeWatcherDesc:
+      "Prefer filesystem watcher events; automatically falls back to bounded polling when unavailable.",
 
     // Experimental section
     experimentalWarning: "These features are experimental and may be unstable.",
@@ -1741,7 +1747,7 @@ const enPart1 = {
     useWorkspaceRoot: "Use workspace root",
     depth: "Depth",
     path: "Path:",
-    change: "Change",
+    change: "Switch",
     active: "Active",
     // GitHub integration
     githubIssues: "GitHub issues",

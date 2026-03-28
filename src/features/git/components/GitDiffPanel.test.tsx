@@ -32,6 +32,10 @@ vi.mock("react-i18next", () => ({
         "git.fileActions": "File actions",
         "git.stageFile": "Stage file",
         "git.stageChanges": "Stage changes",
+        "git.path": "Path:",
+        "git.change": "Switch",
+        "git.statusUnavailable": "Git status unavailable",
+        "git.noRepositoriesFound": "No repositories found.",
         "git.historyQuickAction": "Hub",
         "menu.maximize": "Maximize",
         "common.restore": "Restore",
@@ -361,5 +365,130 @@ describe("GitDiffPanel", () => {
     const restoreButton = screen.getByRole("button", { name: "Restore" });
     fireEvent.click(restoreButton);
     expect(modal?.classList.contains("is-maximized")).toBe(false);
+  });
+
+  it("keeps root summary visible and in first content row for non-git workspace path", () => {
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        workspacePath="/tmp/non-git-workspace"
+        gitRoot={null}
+        onScanGitRoots={vi.fn()}
+      />,
+    );
+
+    const rootPath = screen.getByText("/tmp/non-git-workspace");
+    expect(rootPath).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Switch" })).toBeTruthy();
+
+    const rootRow = document.querySelector(".git-root-current");
+    const statusRow = document.querySelector(".diff-status");
+    expect(rootRow).toBeTruthy();
+    expect(statusRow).toBeTruthy();
+    if (!rootRow || !statusRow) {
+      throw new Error("Expected root/status rows to exist");
+    }
+    expect(Boolean(rootRow.compareDocumentPosition(statusRow) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+  });
+
+  it("toggles git root panel by clicking change icon button", () => {
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        workspacePath="/tmp/non-git-workspace"
+        error="not a git repository"
+        gitRoot={null}
+        onScanGitRoots={vi.fn()}
+      />,
+    );
+
+    const toggleButton = screen.getByRole("button", { name: "Switch" });
+    expect(screen.getByText("git.chooseRepo")).toBeTruthy();
+
+    fireEvent.click(toggleButton);
+    expect(screen.queryByText("git.chooseRepo")).toBeNull();
+
+    fireEvent.click(toggleButton);
+    expect(screen.getByText("git.chooseRepo")).toBeTruthy();
+  });
+
+  it("renders compact red alert on root row and hides raw git error", () => {
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        workspacePath="/tmp/non-git-workspace"
+        error="could not find repository at '/tmp/non-git-workspace'; class=Repository (6); code=NotFound (-3)"
+        gitRoot={null}
+        onScanGitRoots={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("No repositories found.")).toBeTruthy();
+    expect(screen.queryByText(/could not find repository/i)).toBeNull();
+    expect(screen.queryByText("Git status unavailable")).toBeNull();
+    expect(screen.queryByText("main")).toBeNull();
+  });
+
+  it("auto-collapses git root panel after selecting a repository", () => {
+    const onSelectGitRoot = vi.fn();
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        workspacePath="/tmp/non-git-workspace"
+        gitRoot={null}
+        gitRootCandidates={["/tmp/non-git-workspace/repo-a"]}
+        onScanGitRoots={vi.fn()}
+        onSelectGitRoot={onSelectGitRoot}
+      />,
+    );
+
+    const repoOption = screen.getByRole("button", { name: "/tmp/non-git-workspace/repo-a" });
+    fireEvent.click(repoOption);
+    expect(onSelectGitRoot).toHaveBeenCalledWith("/tmp/non-git-workspace/repo-a");
+    expect(screen.queryByText("git.chooseRepo")).toBeNull();
+  });
+
+  it("auto-collapses git root panel when scan finishes with no repositories", () => {
+    const { rerender } = render(
+      <GitDiffPanel
+        {...baseProps}
+        workspacePath="/tmp/non-git-workspace"
+        gitRoot={null}
+        gitRootScanLoading={true}
+        onScanGitRoots={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("git.chooseRepo")).toBeTruthy();
+
+    rerender(
+      <GitDiffPanel
+        {...baseProps}
+        workspacePath="/tmp/non-git-workspace"
+        gitRoot={null}
+        gitRootScanLoading={false}
+        gitRootScanHasScanned={true}
+        gitRootCandidates={[]}
+        gitRootScanError={null}
+        onScanGitRoots={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText("git.chooseRepo")).toBeNull();
+  });
+
+  it("hides pick-folder action in root panel", () => {
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        workspacePath="/tmp/non-git-workspace"
+        gitRoot={null}
+        gitRootScanLoading={true}
+        onScanGitRoots={vi.fn()}
+        onPickGitRoot={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText("git.pickFolder")).toBeNull();
   });
 });

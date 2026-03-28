@@ -308,6 +308,12 @@ const zhPart1 = {
     // Git 部分
     preloadGitDiffs: "预加载 Git 差异Diff",
     preloadGitDiffsDesc: "打开工作区时自动加载 Git 差异。",
+    detachedExternalChangeAwareness: "独立窗口外部变更感知",
+    detachedExternalChangeAwarenessDesc:
+      "为独立文件窗口中打开的文件检测磁盘外部变化。",
+    detachedExternalChangeWatcher: "独立窗口启用原生 Watcher",
+    detachedExternalChangeWatcherDesc:
+      "优先使用文件系统 watcher 事件，不可用时自动回退到受限轮询。",
 
     // 实验性功能部分
     experimentalWarning: "这些功能是实验性的，可能不稳定。",
@@ -1706,7 +1712,7 @@ const zhPart1 = {
     useWorkspaceRoot: "使用工作区根目录",
     depth: "深度",
     path: "路径：",
-    change: "更改",
+    change: "切换",
     active: "活动",
     // GitHub 集成
     githubIssues: "GitHub 议题",

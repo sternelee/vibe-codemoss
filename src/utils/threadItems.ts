@@ -1452,12 +1452,44 @@ function normalizeFileChangeKind(rawKind: unknown): string | undefined {
   return normalized;
 }
 
-function parsePatchFileEntries(text: string): Array<{ path: string; kind?: string }> {
+function parsePatchFileEntries(text: string): Array<{ path: string; kind?: string; diff?: string }> {
   if (!text.trim()) {
     return [];
   }
-  const entries: Array<{ path: string; kind?: string }> = [];
+  const entries: Array<{ path: string; kind?: string; diff?: string }> = [];
   const lines = text.split(/\r?\n/);
+  let currentPath = "";
+  let currentKind: string | undefined;
+  let currentDiffLines: string[] = [];
+
+  const flushCurrent = () => {
+    if (!currentPath || currentPath === "/dev/null") {
+      currentPath = "";
+      currentKind = undefined;
+      currentDiffLines = [];
+      return;
+    }
+    const diff = currentDiffLines.join("\n").trim();
+    entries.push({
+      path: currentPath,
+      kind: currentKind,
+      diff: diff || undefined,
+    });
+    currentPath = "";
+    currentKind = undefined;
+    currentDiffLines = [];
+  };
+
+  const startCurrent = (path: string, kind?: string, keepHeaderLine?: string) => {
+    flushCurrent();
+    currentPath = path.trim();
+    currentKind = kind;
+    currentDiffLines = [];
+    if (keepHeaderLine) {
+      currentDiffLines.push(keepHeaderLine);
+    }
+  };
+
   for (const line of lines) {
     const trimmed = line.trim();
     let matched = "";
@@ -1471,19 +1503,165 @@ function parsePatchFileEntries(text: string): Array<{ path: string; kind?: strin
     } else if (trimmed.startsWith("*** Delete File: ")) {
       matched = trimmed.slice("*** Delete File: ".length).trim();
       kind = "delete";
+    } else if (trimmed.startsWith("*** Move to: ")) {
+      const movedPath = trimmed.slice("*** Move to: ".length).trim();
+      if (currentPath && movedPath && movedPath !== "/dev/null") {
+        currentPath = movedPath;
+        if (!currentKind || currentKind === "modified") {
+          currentKind = "rename";
+        }
+        currentDiffLines.push(line);
+      }
+      continue;
     } else if (trimmed.startsWith("+++ b/")) {
       matched = trimmed.slice("+++ b/".length).trim();
       kind = "modified";
     } else if (trimmed.startsWith("--- a/")) {
       matched = trimmed.slice("--- a/".length).trim();
       kind = "modified";
+    } else if (trimmed.startsWith("diff --git ")) {
+      const rest = trimmed.slice("diff --git ".length).trim();
+      const parts = rest.split(/\s+/);
+      const right = parts.length >= 2 ? parts[1] : "";
+      if (right.startsWith("b/")) {
+        matched = right.slice(2);
+        kind = "modified";
+      }
     }
-    if (!matched || matched === "/dev/null") {
+    if (matched && matched !== "/dev/null") {
+      startCurrent(matched, kind, line);
       continue;
     }
-    entries.push({ path: matched, kind });
+    if (!currentPath) {
+      continue;
+    }
+    currentDiffLines.push(line);
   }
-  return entries;
+  flushCurrent();
+
+  const byPath = new Map<string, { path: string; kind?: string; diff?: string }>();
+  entries.forEach((entry) => {
+    const normalizedPath = entry.path.trim();
+    if (!normalizedPath || normalizedPath === "/dev/null") {
+      return;
+    }
+    const existing = byPath.get(normalizedPath);
+    if (!existing) {
+      byPath.set(normalizedPath, { ...entry, path: normalizedPath });
+      return;
+    }
+    if (!existing.kind && entry.kind) {
+      existing.kind = entry.kind;
+    }
+    const currentDiff = asString(existing.diff).trim();
+    const incomingDiff = asString(entry.diff).trim();
+    if (!currentDiff && incomingDiff) {
+      existing.diff = incomingDiff;
+      return;
+    }
+    if (currentDiff && incomingDiff && !currentDiff.includes(incomingDiff)) {
+      existing.diff = `${currentDiff}\n\n${incomingDiff}`;
+    }
+  });
+  return Array.from(byPath.values());
+}
+
+function countDiffEditLines(diff?: string): number {
+  if (!diff) {
+    return 0;
+  }
+  return diff.split("\n").reduce((count, line) => {
+    if (line.startsWith("+++")) {
+      return count;
+    }
+    if (line.startsWith("---")) {
+      return count;
+    }
+    if (line.startsWith("+") || line.startsWith("-")) {
+      return count + 1;
+    }
+    return count;
+  }, 0);
+}
+
+function pickRicherDiff(primary?: string, secondary?: string): string | undefined {
+  const primaryDiff = asString(primary).trim();
+  const secondaryDiff = asString(secondary).trim();
+  if (!primaryDiff) {
+    return secondaryDiff || undefined;
+  }
+  if (!secondaryDiff) {
+    return primaryDiff;
+  }
+  const primaryEdits = countDiffEditLines(primaryDiff);
+  const secondaryEdits = countDiffEditLines(secondaryDiff);
+  if (secondaryEdits > primaryEdits) {
+    return secondaryDiff;
+  }
+  if (primaryEdits > secondaryEdits) {
+    return primaryDiff;
+  }
+  return secondaryDiff.length > primaryDiff.length ? secondaryDiff : primaryDiff;
+}
+
+function shouldPreferExplicitFileChangeOutput(explicitOutput: string): boolean {
+  const normalized = explicitOutput.trim();
+  if (!normalized) {
+    return false;
+  }
+  if (
+    normalized.startsWith("*** Begin Patch") ||
+    normalized.startsWith("diff --git ") ||
+    normalized.startsWith("@@ ")
+  ) {
+    return false;
+  }
+  if (!normalized.includes("\n") && /\bdiff\b/i.test(normalized)) {
+    return false;
+  }
+  return true;
+}
+
+function mergeToolChanges(
+  remoteChanges?: NonNullable<Extract<ConversationItem, { kind: "tool" }>["changes"]>,
+  localChanges?: NonNullable<Extract<ConversationItem, { kind: "tool" }>["changes"]>,
+) {
+  if (!remoteChanges || remoteChanges.length === 0) {
+    return localChanges;
+  }
+  if (!localChanges || localChanges.length === 0) {
+    return remoteChanges;
+  }
+  const localByPath = new Map<string, (typeof localChanges)[number]>();
+  localChanges.forEach((change) => {
+    if (change.path && !localByPath.has(change.path)) {
+      localByPath.set(change.path, change);
+    }
+  });
+  const remotePaths = new Set<string>();
+  const merged = remoteChanges.map((change) => {
+    if (!change.path) {
+      return change;
+    }
+    remotePaths.add(change.path);
+    const local = localByPath.get(change.path);
+    if (!local) {
+      return change;
+    }
+    const diff = pickRicherDiff(change.diff, local.diff);
+    return {
+      ...change,
+      kind: change.kind ?? local.kind,
+      diff,
+    };
+  });
+  localChanges.forEach((change) => {
+    if (!change.path || remotePaths.has(change.path)) {
+      return;
+    }
+    merged.push(change);
+  });
+  return merged;
 }
 
 function inferFileChangesFromPayload(
@@ -1520,7 +1698,7 @@ function inferFileChangesFromPayload(
     }
     if (typeof payload === "string") {
       for (const parsed of parsePatchFileEntries(payload)) {
-        merge(parsed.path, parsed.kind);
+        merge(parsed.path, parsed.kind, parsed.diff);
       }
       return;
     }
@@ -1552,7 +1730,7 @@ function inferFileChangesFromPayload(
         continue;
       }
       for (const parsed of parsePatchFileEntries(patchValue)) {
-        merge(parsed.path, parsed.kind);
+        merge(parsed.path, parsed.kind, parsed.diff);
       }
     }
   };
@@ -2331,6 +2509,8 @@ export function buildConversationItem(
       .map((change) => change.diff ?? "")
       .filter(Boolean)
       .join("\n\n");
+    const explicitOutput = asString(item.aggregatedOutput ?? item.output ?? item.text ?? "");
+    const preferExplicitOutput = shouldPreferExplicitFileChangeOutput(explicitOutput);
     return {
       id,
       kind: "tool",
@@ -2338,7 +2518,7 @@ export function buildConversationItem(
       title: "File changes",
       detail: paths || "Pending changes",
       status: asString(item.status ?? ""),
-      output: diffOutput || asString(item.aggregatedOutput ?? item.output ?? item.text ?? ""),
+      output: preferExplicitOutput ? explicitOutput : diffOutput || explicitOutput,
       changes: normalizedChanges,
     };
   }
@@ -2718,7 +2898,7 @@ function chooseRicherItem(remote: ConversationItem, local: ConversationItem) {
       ...base,
       status: remote.status ?? local.status,
       output: localLength > remoteLength ? local.output : remote.output,
-      changes: remote.changes ?? local.changes,
+      changes: mergeToolChanges(remote.changes, local.changes),
     };
   }
   if (remote.kind === "diff" && local.kind === "diff") {

@@ -88,12 +88,11 @@ export function extractFileChangeSummaries(items: ConversationItem[]): Operation
       continue;
     }
     const parsedArgs = parseToolArgs(item.detail);
-    const fallbackPath = parsedArgs
-      ? getFirstStringField(parsedArgs, ["file_path", "path", "target_file", "filename"])
-      : "";
-    const fallbackStats = parsedArgs
-      ? collectDiffStatsFromArgs(parsedArgs)
-      : { additions: 0, deletions: 0 };
+    const inputArgs = asRecord(parsedArgs?.input);
+    const nestedArgs = asRecord(parsedArgs?.arguments);
+    const candidateArgs = [parsedArgs, inputArgs, nestedArgs].filter(
+      (entry): entry is Record<string, unknown> => Boolean(entry),
+    );
     for (const change of changes) {
       const filePath = change.path;
       if (!filePath) {
@@ -101,13 +100,20 @@ export function extractFileChangeSummaries(items: ConversationItem[]): Operation
       }
       const fileName = getFileName(filePath);
       const directStats = collectDiffStats(change.diff);
-      const canUseFallback =
+      const fallbackStats =
         directStats.additions === 0 &&
         directStats.deletions === 0 &&
-        changes.length === 1 &&
-        fallbackPath === filePath;
-      const additions = canUseFallback ? fallbackStats.additions : directStats.additions;
-      const deletions = canUseFallback ? fallbackStats.deletions : directStats.deletions;
+        changes.length === 1
+          ? collectSingleChangeFallbackStats(candidateArgs, filePath, item.output)
+          : { additions: 0, deletions: 0 };
+      const additions =
+        directStats.additions === 0 && directStats.deletions === 0
+          ? fallbackStats.additions
+          : directStats.additions;
+      const deletions =
+        directStats.additions === 0 && directStats.deletions === 0
+          ? fallbackStats.deletions
+          : directStats.deletions;
       const status = normalizeFileStatus(change.kind);
       const existing = seen.get(filePath);
       if (!existing) {
@@ -164,6 +170,15 @@ export function summarizeFileChangeItem(
       const stats = collectDiffStats(change.diff);
       additions += stats.additions;
       deletions += stats.deletions;
+    }
+    if (additions === 0 && deletions === 0) {
+      const fallback = collectSingleChangeFallbackStats(
+        candidateArgs,
+        changes.length === 1 ? primaryPath : "",
+        item.output,
+      );
+      additions = fallback.additions;
+      deletions = fallback.deletions;
     }
   } else {
     for (const args of candidateArgs) {
@@ -316,6 +331,26 @@ function collectDiffStats(diff?: string) {
   return { additions, deletions };
 }
 
+function collectSingleChangeFallbackStats(
+  candidateArgs: Record<string, unknown>[],
+  expectedPath: string,
+  output?: string,
+) {
+  for (const args of candidateArgs) {
+    const pathHint =
+      getFirstStringField(args, FILE_CHANGE_PATH_KEYS) ||
+      getFirstStringFieldCaseInsensitive(args, FILE_CHANGE_PATH_KEYS);
+    if (pathHint && expectedPath && !pathHintMatches(pathHint, expectedPath)) {
+      continue;
+    }
+    const stats = collectDiffStatsFromArgs(args);
+    if (stats.additions > 0 || stats.deletions > 0) {
+      return stats;
+    }
+  }
+  return collectDiffStats(output);
+}
+
 function collectDiffStatsFromArgs(args: Record<string, unknown>) {
   const oldString = getFirstStringFieldCaseInsensitive(args, ["old_string", "oldString"]);
   const newString = getFirstStringFieldCaseInsensitive(args, ["new_string", "newString"]);
@@ -364,6 +399,23 @@ function countContentLines(value: string): number {
     return 0;
   }
   return value.split("\n").length;
+}
+
+function normalizePath(path: string): string {
+  return path.replace(/\\/g, "/").trim();
+}
+
+function pathHintMatches(pathHint: string, targetPath: string): boolean {
+  const normalizedHint = normalizePath(pathHint);
+  const normalizedTarget = normalizePath(targetPath);
+  if (!normalizedHint || !normalizedTarget) {
+    return true;
+  }
+  return (
+    normalizedHint === normalizedTarget ||
+    normalizedHint.endsWith(`/${normalizedTarget}`) ||
+    normalizedTarget.endsWith(`/${normalizedHint}`)
+  );
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {

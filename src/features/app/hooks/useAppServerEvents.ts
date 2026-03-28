@@ -258,6 +258,26 @@ function isClaudeThreadId(threadId: string): boolean {
   return threadId.startsWith("claude:") || threadId.startsWith("claude-pending-");
 }
 
+function isAgentMessageSnapshotMethod(method: string): boolean {
+  return method === "item/started" || method === "item/updated";
+}
+
+function shouldIgnoreAgentMessageSnapshot(params: {
+  threadId: string;
+  itemType: string;
+  method: string;
+  threadAgentDeltaSeenRef: MutableRefObject<Record<string, true>>;
+}): boolean {
+  const { threadId, itemType, method, threadAgentDeltaSeenRef } = params;
+  if (itemType !== "agentMessage" || !isAgentMessageSnapshotMethod(method)) {
+    return false;
+  }
+  if (isClaudeThreadId(threadId)) {
+    return true;
+  }
+  return Boolean(threadAgentDeltaSeenRef.current[threadId]);
+}
+
 function extractTokenUsageFromNormalizedEvent(
   event: NormalizedThreadEvent,
 ): Record<string, unknown> | null {
@@ -382,12 +402,16 @@ function routeNormalizedRealtimeEvent({
       }
       return false;
     case "appendAgentMessageDelta": {
-      const isClaudeAgentSnapshotDelta =
-        isClaudeThreadId(threadId) &&
-        (event.sourceMethod === "item/started" || event.sourceMethod === "item/updated");
-      if (isClaudeAgentSnapshotDelta) {
-        // Claude streaming already arrives through item/agentMessage/delta.
-        // Ignore snapshot-as-delta aliases to avoid duplicated assistant body.
+      if (
+        shouldIgnoreAgentMessageSnapshot({
+          threadId,
+          itemType: "agentMessage",
+          method: event.sourceMethod,
+          threadAgentDeltaSeenRef,
+        })
+      ) {
+        // Claude always ignores snapshot-as-delta aliases.
+        // Other engines only ignore them after a real streaming delta has already arrived.
         return true;
       }
       const delta = event.delta ?? (event.item.kind === "message" ? event.item.text : "");
@@ -1158,7 +1182,14 @@ export function useAppServerEvents(
               )
             : undefined;
         if (threadId && item) {
-          if (isClaudeThreadId(threadId) && String(item.type ?? "") === "agentMessage") {
+          if (
+            shouldIgnoreAgentMessageSnapshot({
+              threadId,
+              itemType: String(item.type ?? ""),
+              method,
+              threadAgentDeltaSeenRef,
+            })
+          ) {
             return;
           }
           handlers.onItemStarted?.(workspace_id, threadId, item);
@@ -1177,7 +1208,14 @@ export function useAppServerEvents(
               )
             : undefined;
         if (threadId && item) {
-          if (isClaudeThreadId(threadId) && String(item.type ?? "") === "agentMessage") {
+          if (
+            shouldIgnoreAgentMessageSnapshot({
+              threadId,
+              itemType: String(item.type ?? ""),
+              method,
+              threadAgentDeltaSeenRef,
+            })
+          ) {
             return;
           }
           handlers.onItemUpdated?.(workspace_id, threadId, item);
