@@ -82,7 +82,10 @@ function mergeCodexHistoryPreservingTurns(
     appendUniqueItems(merged, seenIds, fallbackUserTurns[turnIndex] ?? []);
   }
 
-  return merged;
+  return mergeThreadItems(
+    merged,
+    fallbackItems.filter((item) => item.kind !== "message"),
+  );
 }
 
 export function createCodexHistoryLoader({

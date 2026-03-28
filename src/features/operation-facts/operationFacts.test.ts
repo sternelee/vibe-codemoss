@@ -103,6 +103,71 @@ describe("operationFacts", () => {
     });
   });
 
+  it("falls back to tool output diff when file change entries do not include inline diff", () => {
+    const fileItem = toolItem("file-2-output-only", {
+      toolType: "fileChange",
+      title: "File changes",
+      detail: "M src/App.tsx",
+      status: "completed",
+      output: "@@ -1 +1 @@\n-old\n+new",
+      changes: [{ path: "src/App.tsx", kind: "modified" }],
+    });
+
+    expect(extractFileChangeSummaries([fileItem])).toEqual([
+      {
+        filePath: "src/App.tsx",
+        fileName: "App.tsx",
+        status: "M",
+        additions: 1,
+        deletions: 1,
+      },
+    ]);
+
+    expect(summarizeFileChangeItem(fileItem)).toEqual({
+      summary: "File change · App.tsx",
+      filePath: "src/App.tsx",
+      fileCount: 1,
+      additions: 1,
+      deletions: 1,
+      statusLetter: "M",
+    });
+  });
+
+  it("matches absolute/relative path hints when inferring single-change fallback stats", () => {
+    const fileItem = toolItem("file-2-pathhint-compat", {
+      toolType: "fileChange",
+      title: "File changes",
+      detail: JSON.stringify({
+        input: {
+          file_path: "/repo/src/App.tsx",
+          old_string: "const oldValue = 1;",
+          new_string: "const newValue = 1;",
+        },
+      }),
+      status: "completed",
+      changes: [{ path: "src/App.tsx", kind: "modified" }],
+    });
+
+    expect(extractFileChangeSummaries([fileItem])).toEqual([
+      {
+        filePath: "src/App.tsx",
+        fileName: "App.tsx",
+        status: "M",
+        additions: 1,
+        deletions: 1,
+      },
+    ]);
+
+    expect(summarizeFileChangeItem(fileItem)).toEqual({
+      summary: "File change · App.tsx",
+      filePath: "src/App.tsx",
+      fileCount: 1,
+      additions: 1,
+      deletions: 1,
+      statusLetter: "M",
+    });
+  });
+
   it("infers replace-like mcp tools as file changes for activity summary", () => {
     const fileItem = toolItem("file-3", {
       toolType: "mcpToolCall",

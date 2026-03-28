@@ -993,6 +993,34 @@ go lang`,
     }
   });
 
+  it("uses Move to target path for apply_patch rename entries", () => {
+    const item = buildConversationItem({
+      type: "fileChange",
+      id: "change-move-to-1",
+      status: "completed",
+      input: {
+        patch: [
+          "*** Begin Patch",
+          "*** Update File: src/old-name.ts",
+          "*** Move to: src/new-name.ts",
+          "@@ -1 +1 @@",
+          "-const oldName = true;",
+          "+const newName = true;",
+          "*** End Patch",
+        ].join("\n"),
+      },
+    });
+
+    expect(item).not.toBeNull();
+    if (item && item.kind === "tool") {
+      expect(item.detail).toContain("R src/new-name.ts");
+      expect(item.detail).not.toContain("src/old-name.ts");
+      expect(item.changes?.[0]?.path).toBe("src/new-name.ts");
+      expect(item.changes?.[0]?.kind).toBe("rename");
+      expect(item.changes?.[0]?.diff).toContain("*** Move to: src/new-name.ts");
+    }
+  });
+
   it("infers file changes from output-only unified diff payloads", () => {
     const item = buildConversationItem({
       type: "fileChange",
