@@ -37,8 +37,7 @@ pub(crate) async fn maybe_start_local_daemon_for_remote(
         return Ok(true);
     }
 
-    let daemon_binary = resolve_daemon_binary(app)
-        .ok_or_else(|| "Failed to locate moss_x_daemon binary for local auto-start.".to_string())?;
+    let daemon_binary = resolve_or_build_daemon_binary(app).await?;
 
     let mut command = crate::utils::async_command(&daemon_binary);
     command.arg("--listen").arg(&resolved_host);
@@ -426,6 +425,76 @@ fn resolve_daemon_binary(app: &AppHandle) -> Option<PathBuf> {
         }
     }
     None
+}
+
+async fn resolve_or_build_daemon_binary(app: &AppHandle) -> Result<PathBuf, String> {
+    if let Some(path) = resolve_daemon_binary(app) {
+        return Ok(path);
+    }
+
+    // Dev-only fallback: tauri dev usually doesn't build secondary bin targets
+    // unless explicitly requested. Build moss_x_daemon once, then retry resolve.
+    if cfg!(debug_assertions) {
+        if let Some(manifest_path) = find_dev_manifest_path() {
+            build_dev_daemon_binary(&manifest_path).await?;
+            if let Some(path) = resolve_daemon_binary(app) {
+                return Ok(path);
+            }
+        }
+    }
+
+    Err("Failed to locate moss_x_daemon binary for local auto-start.".to_string())
+}
+
+fn find_dev_manifest_path() -> Option<PathBuf> {
+    let mut seen = HashSet::new();
+    let mut candidates = Vec::new();
+
+    // compile-time source path, usually valid for local debug builds.
+    candidates.push(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml"));
+
+    if let Ok(current_exe) = env::current_exe() {
+        for ancestor in current_exe.ancestors() {
+            candidates.push(ancestor.join("Cargo.toml"));
+            candidates.push(ancestor.join("src-tauri").join("Cargo.toml"));
+        }
+    }
+
+    if let Ok(cwd) = env::current_dir() {
+        for ancestor in cwd.ancestors() {
+            candidates.push(ancestor.join("Cargo.toml"));
+            candidates.push(ancestor.join("src-tauri").join("Cargo.toml"));
+        }
+    }
+
+    for candidate in candidates {
+        let key = candidate.to_string_lossy().to_string();
+        if seen.insert(key) && candidate.is_file() {
+            return Some(candidate);
+        }
+    }
+
+    None
+}
+
+async fn build_dev_daemon_binary(manifest_path: &Path) -> Result<(), String> {
+    let status = crate::utils::async_command("cargo")
+        .arg("build")
+        .arg("--manifest-path")
+        .arg(manifest_path)
+        .arg("--bin")
+        .arg("moss_x_daemon")
+        .status()
+        .await
+        .map_err(|error| format!("Failed to execute cargo build for moss_x_daemon: {error}"))?;
+
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!(
+            "cargo build --bin moss_x_daemon failed with status {status}"
+        ))
+    }
 }
 
 fn append_daemon_candidates(base: &Path, output: &mut Vec<PathBuf>) {
