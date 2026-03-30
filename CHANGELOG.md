@@ -14,10 +14,12 @@ English:
 - Enhance Session Activity by exposing `search_query` tool-chain details and strengthening history replay recovery for better traceability
 - Unify `File changes` and `Batch` icon semantics with theme-aware color refinement for clearer visual scanning
 - Refresh the home-chat welcome area with client iconography and adjusted landing styles for stronger first-screen hierarchy
+- Add date-group bulk delete in Session Activity radar so users can remove all completed entries from a selected day in one action
 
 🔧 Improvements
 - Align file-tree Git folder status coloring with actual changed-path semantics, including test and style alignment, so folder-level change scanning is more predictable and visually consistent
 - Migrate message-flow tests into modular suites and harden realtime control-button compatibility to reduce UI regression risk
+- Improve sub-repo Git status path mapping by threading `gitRoot` across detached/file-tree/file-view flows, preventing workspace-root false matches and ensuring repo-relative diff targets resolve correctly
 
 🐛 Fixes
 - Fix local web-service auto-start failures caused by daemon binary discovery issues by adding a more robust binary-location fallback path in bootstrap logic
@@ -37,10 +39,12 @@ English:
 - 增强 Session Activity：补齐 `search_query` 工具链路展示并加固历史回放恢复能力，提升问题追踪可见性
 - 统一 `File changes` 与 `Batch` 图标语义并优化主题配色映射，提升工具卡视觉辨识度
 - 优化首页欢迎区首屏层次：新增客户端图标并调整欢迎样式编排
+- Session Activity 雷达支持按日期分组一键批量删除，便于快速清理某天的历史完成记录
 
 🔧 Improvements
 - 对齐文件树 Git 文件夹状态着色与实际变更路径语义，并同步测试与样式表现，使目录级变更扫描更可预测、视觉反馈更一致
 - 将消息链路测试迁移为模块化结构，并加固实时控制按钮兼容性，降低后续 UI 演进时的回归风险
+- 打通 `gitRoot` 在 detached/file-tree/file-view 全链路透传，修复子仓库场景下 Git 状态路径映射与 diff 目标路径匹配，避免同名根目录文件被误着色
 
 🐛 Fixes
 - 修复本地 web-service 自动启动时 daemon 二进制定位失败的问题：在 bootstrap 链路增加更稳健的二进制定位兜底路径
