@@ -4,6 +4,15 @@ import { asRecord, asString } from "./historyLoaderUtils";
 import { parseClaudeHistoryMessages } from "./claudeHistoryLoader";
 
 const RESULT_TOOL_SUFFIXES = ["-result", ":result", "_result", ".result", "/result"];
+const COMMAND_TOOL_KEYWORDS = [
+  "exec",
+  "bash",
+  "shell",
+  "terminal",
+  "command",
+  "stdin",
+];
+const FILE_CHANGE_TOOL_KEYWORDS = ["apply", "patch", "write", "edit"];
 
 function compactComparableReasoningText(value: string): string {
   return value
@@ -92,12 +101,40 @@ function resolveToolOutputText(text: string, toolOutput: unknown): string {
   return stringifyValue(toolOutput).trim();
 }
 
+function normalizeGeminiToolSnapshotType(rawToolType: string): string {
+  const normalized = rawToolType.trim().toLowerCase();
+  if (!normalized) {
+    return rawToolType;
+  }
+  if (normalized === "commandexecution") {
+    return "commandExecution";
+  }
+  if (normalized === "filechange") {
+    return "fileChange";
+  }
+  if (normalized === "mcptoolcall") {
+    return "mcpToolCall";
+  }
+  if (COMMAND_TOOL_KEYWORDS.some((keyword) => normalized.includes(keyword))) {
+    return "commandExecution";
+  }
+  if (
+    FILE_CHANGE_TOOL_KEYWORDS.some((keyword) => normalized.includes(keyword)) ||
+    normalized.startsWith("replace-") ||
+    normalized.includes("replace-")
+  ) {
+    return "fileChange";
+  }
+  return rawToolType;
+}
+
 function normalizeGeminiToolStartItem(
   message: Record<string, unknown>,
   itemId: string,
   rawToolType: string,
   text: string,
 ): Extract<ConversationItem, { kind: "tool" }> | null {
+  const normalizedToolType = normalizeGeminiToolSnapshotType(rawToolType);
   const inputRecord = asRecord(message.toolInput ?? message.tool_input ?? null);
   const status = asString(message.status ?? "").trim() || "started";
   const passthroughKeys = [
@@ -126,7 +163,7 @@ function normalizeGeminiToolStartItem(
   ] as const;
   const synthetic: Record<string, unknown> = {
     id: itemId,
-    type: rawToolType,
+    type: normalizedToolType,
     status,
     input: inputRecord,
     arguments: inputRecord,
@@ -289,6 +326,7 @@ export function parseGeminiHistoryMessages(messagesData: unknown): ConversationI
     }
 
     const rawToolType = asString(message.toolType ?? message.tool_type ?? "").trim();
+    const normalizedToolType = normalizeGeminiToolSnapshotType(rawToolType);
     const toolInput = message.toolInput ?? message.tool_input ?? null;
     const toolOutput = message.toolOutput ?? message.tool_output ?? null;
     const text = asString(message.text ?? "");
@@ -318,7 +356,7 @@ export function parseGeminiHistoryMessages(messagesData: unknown): ConversationI
       items.push({
         id: sourceToolId || itemId,
         kind: "tool",
-        toolType: rawToolType || "tool",
+        toolType: normalizedToolType || rawToolType || "tool",
         title,
         detail: detailText,
         status,
@@ -342,7 +380,7 @@ export function parseGeminiHistoryMessages(messagesData: unknown): ConversationI
     items.push({
       id: itemId,
       kind: "tool",
-      toolType: rawToolType || "tool",
+      toolType: normalizedToolType || rawToolType || "tool",
       title,
       detail: detailText || text,
       status: "started",

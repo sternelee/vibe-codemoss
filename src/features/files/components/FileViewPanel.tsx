@@ -76,6 +76,9 @@ import {
   normalizeComparablePath,
   normalizeFsPath,
   resolveFileReadTarget,
+  resolveGitRootWorkspacePrefix,
+  resolveGitStatusPathCandidates,
+  resolveWorkspacePathCandidates,
 } from "../../../utils/workspacePaths";
 import {
   reduceExternalChangeSyncState,
@@ -85,6 +88,7 @@ import {
 type FileViewPanelProps = {
   workspaceId: string;
   workspacePath: string;
+  gitRoot?: string | null;
   customSpecRoot?: string | null;
   filePath: string;
   gitStatusFiles?: GitFileStatus[];
@@ -136,6 +140,8 @@ const EXTERNAL_CHANGE_POLL_INTERVAL_MS = 2_000;
 const EXTERNAL_CHANGE_NOTICE_MS = 3_200;
 const EXTERNAL_CHANGE_ERROR_TOAST_THRESHOLD = 3;
 const EXTERNAL_CHANGE_ERROR_TOAST_COOLDOWN_MS = 30_000;
+const MISSING_FILE_ERROR_PATTERN =
+  /no such file or directory|os error 2|enoent|cannot find the file|the system cannot find the file specified/i;
 type EditorTheme = "light" | "dark";
 
 type ExternalChangeConflict = {
@@ -148,6 +154,10 @@ type ExternalChangeConflict = {
 function isMarkdownPath(path: string) {
   const ext = path.split(".").pop()?.toLowerCase() ?? "";
   return markdownExtensions.has(ext);
+}
+
+function isMissingFileErrorMessage(message: string): boolean {
+  return MISSING_FILE_ERROR_PATTERN.test(message);
 }
 
 const imageExtensions = new Set([
@@ -516,6 +526,7 @@ function hasGitLineMarkers(markers: GitLineMarkers | null | undefined) {
 export function FileViewPanel({
   workspaceId,
   workspacePath,
+  gitRoot = null,
   customSpecRoot = null,
   filePath,
   gitStatusFiles,
@@ -620,27 +631,71 @@ export function FileViewPanel({
 
   const isDirty = content !== savedContentRef.current;
   latestIsDirtyRef.current = isDirty;
+  const gitRootWorkspacePrefix = useMemo(
+    () => resolveGitRootWorkspacePrefix(workspacePath, gitRoot),
+    [gitRoot, workspacePath],
+  );
   const gitStatusMap = useMemo(() => {
-    const map = new Map<string, string>();
+    const map = new Map<string, { status: string; path: string }>();
     if (!gitStatusFiles) {
       return map;
     }
     for (const entry of gitStatusFiles) {
-      map.set(entry.path, entry.status);
+      const entryPath = entry.path?.trim();
+      const entryStatus = entry.status?.trim();
+      if (!entryPath || !entryStatus) {
+        continue;
+      }
+      const candidates = resolveGitStatusPathCandidates(
+        workspacePath,
+        gitRootWorkspacePrefix,
+        entryPath,
+      );
+      for (const candidate of candidates) {
+        if (!map.has(candidate)) {
+          map.set(candidate, { status: entryStatus, path: entryPath });
+        }
+      }
     }
     return map;
-  }, [gitStatusFiles]);
+  }, [gitRootWorkspacePrefix, gitStatusFiles, workspacePath]);
   const fileReadTarget = useMemo(
     () => resolveFileReadTarget(workspacePath, filePath, customSpecRoot),
     [workspacePath, filePath, customSpecRoot],
   );
   const workspaceRelativeFilePath = fileReadTarget.workspaceRelativePath;
-  const fileGitStatus = useMemo(
-    () =>
-      gitStatusMap.get(workspaceRelativeFilePath) ??
-      gitStatusMap.get(filePath) ??
-      null,
-    [gitStatusMap, workspaceRelativeFilePath, filePath],
+  const matchedGitStatus = useMemo(() => {
+    const fileCandidates = new Set<string>([
+      ...resolveWorkspacePathCandidates(workspacePath, workspaceRelativeFilePath),
+      ...resolveWorkspacePathCandidates(workspacePath, filePath),
+    ]);
+    for (const candidate of fileCandidates) {
+      const matched = gitStatusMap.get(candidate);
+      if (matched) {
+        return matched;
+      }
+    }
+    return null;
+  }, [
+    filePath,
+    gitRootWorkspacePrefix,
+    gitStatusMap,
+    workspacePath,
+    workspaceRelativeFilePath,
+  ]);
+  const fileGitStatus = matchedGitStatus?.status ?? null;
+  const gitDiffTargetPath = matchedGitStatus?.path ?? workspaceRelativeFilePath;
+  const resolveMatchedGitStatusByPath = useCallback(
+    (path: string) => {
+      for (const candidate of resolveWorkspacePathCandidates(workspacePath, path)) {
+        const matched = gitStatusMap.get(candidate);
+        if (matched) {
+          return matched;
+        }
+      }
+      return null;
+    },
+    [gitStatusMap, workspacePath],
   );
   const fileGitStatusClass = fileGitStatus ? `git-${fileGitStatus.toLowerCase()}` : "";
   const absolutePath = useMemo(
@@ -833,7 +888,7 @@ export function FileViewPanel({
     }
 
     let cancelled = false;
-    getGitFileFullDiff(workspaceId, workspaceRelativeFilePath)
+    getGitFileFullDiff(workspaceId, gitDiffTargetPath)
       .then((diff) => {
         if (cancelled) {
           return;
@@ -851,7 +906,7 @@ export function FileViewPanel({
     };
   }, [
     workspaceId,
-    workspaceRelativeFilePath,
+    gitDiffTargetPath,
     fileGitStatus,
     fileReadTarget.domain,
     hasExplicitHighlightMarkers,
@@ -1067,10 +1122,15 @@ export function FileViewPanel({
           pollError,
           "Unable to refresh file from disk.",
         );
+        const isMissingFileError = isMissingFileErrorMessage(message);
         const isTransientFsError =
           /permission denied|resource busy|sharing violation|used by another process/i.test(
             message,
           );
+        if (isMissingFileError) {
+          externalPollErrorCountRef.current = 0;
+          return;
+        }
         if (!isTransientFsError) {
           externalPollErrorCountRef.current += 1;
           const now = Date.now();
@@ -2130,7 +2190,7 @@ export function FileViewPanel({
         {visibleTabs.map((tabPath) => {
           const isActive = (activeTabPath ?? filePath) === tabPath;
           const tabName = tabPath.split("/").pop() || tabPath;
-          const tabGitStatus = gitStatusMap.get(tabPath) ?? null;
+          const tabGitStatus = resolveMatchedGitStatusByPath(tabPath)?.status ?? null;
           const tabGitStatusClass = tabGitStatus ? `git-${tabGitStatus.toLowerCase()}` : "";
           return (
             <div

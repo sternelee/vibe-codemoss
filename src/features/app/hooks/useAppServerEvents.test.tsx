@@ -1733,6 +1733,38 @@ describe("useAppServerEvents", () => {
     });
   });
 
+  it("routes gemini text:delta through legacy fallback when normalized adapters are disabled", async () => {
+    const handlers: Handlers = {
+      onAgentMessageDelta: vi.fn(),
+    };
+    const { root } = await mount(handlers);
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-gemini",
+        message: {
+          method: "text:delta",
+          params: {
+            threadId: "gemini:session-88",
+            itemId: "assistant-88",
+            delta: "短正文片段",
+          },
+        },
+      });
+    });
+
+    expect(handlers.onAgentMessageDelta).toHaveBeenCalledWith({
+      workspaceId: "ws-gemini",
+      threadId: "gemini:session-88",
+      itemId: "assistant-88",
+      delta: "短正文片段",
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
   it("does not route opencode text:delta when normalized realtime adapters are disabled", async () => {
     const handlers: Handlers = {
       onAgentMessageDelta: vi.fn(),

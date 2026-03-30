@@ -313,6 +313,20 @@ fn is_likely_legacy_claude_model_id(model: &str) -> bool {
     model.trim().to_ascii_lowercase().starts_with("claude-")
 }
 
+fn is_valid_claude_model_for_passthrough(model: &str) -> bool {
+    let trimmed = model.trim();
+    if trimmed.is_empty() || trimmed.len() > 128 {
+        return false;
+    }
+    trimmed.chars().all(|ch| {
+        ch.is_ascii_alphanumeric()
+            || matches!(
+                ch,
+                '-' | '_' | '.' | ':' | '/' | '[' | ']'
+            )
+    })
+}
+
 fn resolve_opencode_bin(config: Option<&EngineConfig>) -> String {
     if let Some(custom) = config.and_then(|c| c.bin_path.as_ref()) {
         return custom.clone();
@@ -2010,16 +2024,13 @@ pub async fn engine_send_message(
             let has_images = images
                 .as_ref()
                 .is_some_and(|entries| entries.iter().any(|entry| !entry.trim().is_empty()));
-            let continue_session_for_send = continue_session && !has_images;
+            let continue_session_for_send = continue_session;
 
             // Resolve session id according to mode:
             // 1) continue_session=true  -> explicit session_id or tracked session id
             // 2) continue_session=false -> force a fresh unique session id so concurrent
             //    Claude turns never collapse into one shared persisted session.
-            // 3) image attachments          -> force fresh session to isolate image context
-            let resolved_session_id = if has_images {
-                Some(uuid::Uuid::new_v4().to_string())
-            } else if continue_session {
+            let resolved_session_id = if continue_session {
                 if session_id.is_some() {
                     session_id
                 } else {
@@ -2034,7 +2045,7 @@ pub async fn engine_send_message(
                 .map(|value| value.trim())
                 .filter(|value| !value.is_empty())
                 .and_then(|value| {
-                    if value.starts_with("claude-") {
+                    if is_valid_claude_model_for_passthrough(value) {
                         Some(value.to_string())
                     } else {
                         None
@@ -2593,11 +2604,9 @@ pub async fn engine_send_message_sync(
             let has_images = images
                 .as_ref()
                 .is_some_and(|entries| entries.iter().any(|entry| !entry.trim().is_empty()));
-            let continue_session_for_send = continue_session && !has_images;
+            let continue_session_for_send = continue_session;
 
-            let resolved_session_id = if has_images {
-                Some(uuid::Uuid::new_v4().to_string())
-            } else if session_id.is_some() {
+            let resolved_session_id = if session_id.is_some() {
                 session_id
             } else if continue_session {
                 session.get_session_id().await
@@ -2610,7 +2619,7 @@ pub async fn engine_send_message_sync(
                 .map(|value| value.trim())
                 .filter(|value| !value.is_empty())
                 .and_then(|value| {
-                    if value.starts_with("claude-") {
+                    if is_valid_claude_model_for_passthrough(value) {
                         Some(value.to_string())
                     } else {
                         None

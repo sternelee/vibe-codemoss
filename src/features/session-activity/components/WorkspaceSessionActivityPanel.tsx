@@ -61,7 +61,7 @@ type FollowBubbleGeometry = {
 };
 
 const RUNNING_CARD_MIN_EXPANDED_MS = 2000;
-const FOLLOW_BUBBLE_AUTO_DISMISS_MS = 3000;
+const FOLLOW_BUBBLE_AUTO_DISMISS_MS = 1000;
 const MAX_STICKY_CHILD_SESSION_COUNT = 24;
 const SOLO_FOLLOW_COACH_DISMISSED_BY_WORKSPACE_STORAGE_KEY =
   "mossx.sessionActivity.soloFollowCoachDismissedByWorkspace";
@@ -239,6 +239,10 @@ function canExpandReasoning(event: SessionActivityEvent) {
   return event.kind === "reasoning" && Boolean(event.reasoningPreview);
 }
 
+function canExpandTask(event: SessionActivityEvent) {
+  return event.kind === "task" && Boolean(event.explorePreview);
+}
+
 function canExpandExplore(event: SessionActivityEvent) {
   if (event.kind !== "explore" || !event.explorePreview) {
     return false;
@@ -250,7 +254,12 @@ function canExpandExplore(event: SessionActivityEvent) {
 }
 
 function canExpandEvent(event: SessionActivityEvent) {
-  return canExpandCommand(event) || canExpandReasoning(event) || canExpandExplore(event);
+  return (
+    canExpandCommand(event) ||
+    canExpandReasoning(event) ||
+    canExpandTask(event) ||
+    canExpandExplore(event)
+  );
 }
 
 function unwrapShellCommand(command: string) {

@@ -1471,6 +1471,94 @@ describe("threadReducer", () => {
     }
   });
 
+  it("treats gemini reasoning updates as snapshots to avoid cumulative duplicate walls", () => {
+    const threadId = "gemini:session-snapshot-merge";
+    const liveState: ThreadState = {
+      ...initialState,
+      threadStatusById: {
+        [threadId]: {
+          isProcessing: true,
+          hasUnread: false,
+          isReviewing: false,
+          isContextCompacting: false,
+          processingStartedAt: Date.now(),
+          lastDurationMs: null,
+          heartbeatPulse: 1,
+        },
+      },
+      activeTurnIdByThread: {
+        [threadId]: "gemini-turn-snapshot-1",
+      },
+    };
+    const snapshot1 = "Investigating composer conditions for Gemini.";
+    const snapshot2 = `${snapshot1} Verifying status panel and live controls visibility.`;
+
+    const withFirst = threadReducer(liveState, {
+      type: "appendReasoningContent",
+      threadId,
+      itemId: "reasoning-gemini-snapshot-1",
+      delta: snapshot1,
+    });
+    const withSecond = threadReducer(withFirst, {
+      type: "appendReasoningContent",
+      threadId,
+      itemId: "reasoning-gemini-snapshot-1",
+      delta: snapshot2,
+    });
+
+    const item = withSecond.itemsByThread[threadId]?.find(
+      (entry) => entry.kind === "reasoning",
+    );
+    expect(item?.kind).toBe("reasoning");
+    if (item?.kind === "reasoning") {
+      expect(item.content).toBe(snapshot2);
+      expect(item.content).not.toBe(`${snapshot1}${snapshot2}`);
+    }
+  });
+
+  it("keeps gemini incremental reasoning deltas append-only when not snapshot-like", () => {
+    const threadId = "gemini:session-incremental-merge";
+    const liveState: ThreadState = {
+      ...initialState,
+      threadStatusById: {
+        [threadId]: {
+          isProcessing: true,
+          hasUnread: false,
+          isReviewing: false,
+          isContextCompacting: false,
+          processingStartedAt: Date.now(),
+          lastDurationMs: null,
+          heartbeatPulse: 1,
+        },
+      },
+      activeTurnIdByThread: {
+        [threadId]: "gemini-turn-incremental-1",
+      },
+    };
+
+    const withFirst = threadReducer(liveState, {
+      type: "appendReasoningContent",
+      threadId,
+      itemId: "reasoning-gemini-incremental-1",
+      delta: "先读取目录",
+    });
+    const withSecond = threadReducer(withFirst, {
+      type: "appendReasoningContent",
+      threadId,
+      itemId: "reasoning-gemini-incremental-1",
+      delta: "，再检查配置。",
+    });
+
+    const item = withSecond.itemsByThread[threadId]?.find(
+      (entry) => entry.kind === "reasoning",
+    );
+    expect(item?.kind).toBe("reasoning");
+    if (item?.kind === "reasoning") {
+      expect(item.content).toBe("先读取目录，再检查配置。");
+      expect(item.content).not.toContain("\n\n");
+    }
+  });
+
   it("accepts claude reasoning deltas while processing", () => {
     const processingState: ThreadState = {
       ...initialState,

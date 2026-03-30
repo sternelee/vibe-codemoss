@@ -119,6 +119,42 @@ impl GeminiSession {
         )
     }
 
+    fn locale_to_prompt_language_hint(locale: &str) -> Option<&'static str> {
+        let normalized = locale.trim().to_ascii_lowercase();
+        if normalized.is_empty() {
+            return None;
+        }
+        if normalized.starts_with("zh")
+            || normalized.contains("zh_cn")
+            || normalized.contains("zh-hans")
+            || normalized.contains("chinese")
+        {
+            return Some("Output language: Simplified Chinese.");
+        }
+        None
+    }
+
+    fn resolve_prompt_language_hint() -> Option<&'static str> {
+        let locale = ["LC_ALL", "LC_MESSAGES", "LANG"]
+            .iter()
+            .find_map(|key| std::env::var(key).ok())
+            .unwrap_or_default();
+        Self::locale_to_prompt_language_hint(&locale)
+    }
+
+    fn with_output_language_hint(text: &str) -> String {
+        let trimmed = text.trim_start();
+        if trimmed.starts_with("Output language:") {
+            return text.to_string();
+        }
+        let Some(language_hint) = Self::resolve_prompt_language_hint() else {
+            return text.to_string();
+        };
+        format!(
+            "{language_hint}\nPrefer this language for reasoning and final answer unless the user explicitly requests another language.\n\n{text}"
+        )
+    }
+
     fn normalize_image_path_for_prompt(raw: &str, workspace_path: &Path) -> Option<String> {
         let trimmed = raw.trim();
         if trimmed.is_empty() {
@@ -706,6 +742,7 @@ impl GeminiSession {
             params.images.as_deref(),
             &self.workspace_path,
         );
+        let message_text = Self::with_output_language_hint(&message_text);
         let safe_text = if message_text.starts_with('-') {
             format!(" {}", message_text)
         } else {
@@ -853,10 +890,7 @@ impl GeminiSession {
                         }
                     }
                     let parsed_event = parse_gemini_event(&self.workspace_id, &event);
-                    let parsed_is_reasoning = parsed_event
-                        .as_ref()
-                        .is_some_and(|entry| matches!(entry, EngineEvent::ReasoningDelta { .. }));
-                    if !parsed_is_reasoning {
+                    if should_extract_thought_fallback(parsed_event.as_ref()) {
                         if let Some(thought_text) = extract_latest_thought_text(&event) {
                             let normalized_thought_text = thought_text.trim().to_string();
                             if !normalized_thought_text.is_empty()
@@ -910,10 +944,11 @@ impl GeminiSession {
                         self.emit_turn_event(turn_id, unified_event);
                     }
 
-                    if last_reasoning_history_sync_at.elapsed()
-                        >= std::time::Duration::from_millis(
-                            GEMINI_REASONING_HISTORY_SYNC_INTERVAL_MS,
-                        )
+                    if !saw_reasoning_output
+                        && last_reasoning_history_sync_at.elapsed()
+                            >= std::time::Duration::from_millis(
+                                GEMINI_REASONING_HISTORY_SYNC_INTERVAL_MS,
+                            )
                     {
                         last_reasoning_history_sync_at = std::time::Instant::now();
                         let fallback_session_id = if new_session_id.is_some() {
@@ -1546,6 +1581,10 @@ fn parse_response_item_event(
     })
 }
 
+fn should_extract_thought_fallback(parsed_event: Option<&EngineEvent>) -> bool {
+    !matches!(parsed_event, Some(EngineEvent::ReasoningDelta { .. }))
+}
+
 fn find_tool_calls_array<'a>(value: &'a Value, depth: usize) -> Option<&'a Vec<Value>> {
     if depth > 6 {
         return None;
@@ -1936,8 +1975,8 @@ mod tests {
     use super::EngineEvent;
     use super::{
         collect_latest_turn_reasoning_texts, extract_latest_thought_text,
-        extract_tool_events_from_snapshot, parse_gemini_event, GeminiSession, GeminiSessionMessage,
-        GeminiSnapshotToolState,
+        extract_tool_events_from_snapshot, parse_gemini_event, should_extract_thought_fallback,
+        GeminiSession, GeminiSessionMessage, GeminiSnapshotToolState,
     };
     use base64::{engine::general_purpose::STANDARD, Engine as _};
     use serde_json::json;
@@ -2038,6 +2077,18 @@ mod tests {
             GeminiSession::selected_auth_type_for_mode(Some("unknown")),
             "oauth-personal"
         );
+    }
+
+    #[test]
+    fn locale_hint_detects_chinese_locale() {
+        let hint = GeminiSession::locale_to_prompt_language_hint("zh_CN.UTF-8");
+        assert_eq!(hint, Some("Output language: Simplified Chinese."));
+    }
+
+    #[test]
+    fn locale_hint_skips_non_chinese_locale() {
+        let hint = GeminiSession::locale_to_prompt_language_hint("en_US.UTF-8");
+        assert_eq!(hint, None);
     }
 
     #[test]
@@ -2277,6 +2328,25 @@ mod tests {
             }
             _ => panic!("expected ReasoningDelta"),
         }
+    }
+
+    #[test]
+    fn thought_fallback_triggers_for_non_reasoning_events() {
+        let parsed = EngineEvent::TextDelta {
+            workspace_id: "workspace-1".to_string(),
+            text: "正文".to_string(),
+        };
+        assert!(should_extract_thought_fallback(Some(&parsed)));
+        assert!(should_extract_thought_fallback(None));
+    }
+
+    #[test]
+    fn thought_fallback_skips_reasoning_events() {
+        let parsed = EngineEvent::ReasoningDelta {
+            workspace_id: "workspace-1".to_string(),
+            text: "思考".to_string(),
+        };
+        assert!(!should_extract_thought_fallback(Some(&parsed)));
     }
 
     #[test]

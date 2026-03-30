@@ -198,8 +198,8 @@ function extractAgentMessageDeltaPayload(
   const threadId = extractThreadIdFromParams(params);
   if (
     isTextAliasMethod &&
-    !threadId.startsWith("claude:") &&
-    !threadId.startsWith("claude-pending-")
+    !isClaudeThreadId(threadId) &&
+    !isGeminiThreadId(threadId)
   ) {
     return null;
   }
@@ -256,6 +256,10 @@ function toNumber(value: unknown): number {
 
 function isClaudeThreadId(threadId: string): boolean {
   return threadId.startsWith("claude:") || threadId.startsWith("claude-pending-");
+}
+
+function isGeminiThreadId(threadId: string): boolean {
+  return threadId.startsWith("gemini:") || threadId.startsWith("gemini-pending-");
 }
 
 function isAgentMessageSnapshotMethod(method: string): boolean {

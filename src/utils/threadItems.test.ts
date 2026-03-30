@@ -1157,6 +1157,85 @@ go lang`,
     }
   });
 
+  it("converts successful apply_patch commandExecution to fileChange", () => {
+    const item = buildConversationItem({
+      type: "commandExecution",
+      id: "cmd-apply-patch-1",
+      cmd:
+        "cat > /tmp/changelog_patch.diff <<'PATCH'\n" +
+        "*** Begin Patch\n" +
+        "*** Update File: CHANGELOG.md\n" +
+        "@@ -1,1 +1,2 @@\n" +
+        " old-line\n" +
+        "+new-line\n" +
+        "*** End Patch\n" +
+        "PATCH\n" +
+        "apply_patch < /tmp/changelog_patch.diff",
+      status: "completed",
+      aggregatedOutput: "Success. Updated the following files:\nM CHANGELOG.md",
+    });
+    expect(item).not.toBeNull();
+    if (item && item.kind === "tool") {
+      expect(item.toolType).toBe("fileChange");
+      expect(item.title).toBe("File changes");
+      expect(item.detail).toContain("CHANGELOG.md");
+      expect(item.changes?.[0]?.path).toBe("CHANGELOG.md");
+      expect(item.changes?.[0]?.kind).toBe("modified");
+      expect(item.changes?.[0]?.diff).toContain("+new-line");
+    }
+  });
+
+  it("keeps apply_patch commandExecution as command tool when execution fails", () => {
+    const item = buildConversationItem({
+      type: "commandExecution",
+      id: "cmd-apply-patch-failed-1",
+      cmd: "apply_patch < /tmp/changelog_patch.diff",
+      status: "failed",
+      aggregatedOutput: "error: malformed patch",
+    });
+    expect(item).not.toBeNull();
+    if (item && item.kind === "tool") {
+      expect(item.toolType).toBe("commandExecution");
+      expect(item.title).toBe("Command: apply_patch < /tmp/changelog_patch.diff");
+    }
+  });
+
+  it("does not convert commandExecution when patch text exists but apply_patch is not executed", () => {
+    const item = buildConversationItem({
+      type: "commandExecution",
+      id: "cmd-patch-text-only-1",
+      cmd:
+        "cat > /tmp/changelog_patch.diff <<'PATCH'\n" +
+        "*** Begin Patch\n" +
+        "*** Update File: CHANGELOG.md\n" +
+        "@@ -1,1 +1,2 @@\n" +
+        " old-line\n" +
+        "+new-line\n" +
+        "*** End Patch\n" +
+        "PATCH",
+      status: "completed",
+      aggregatedOutput: "",
+    });
+    expect(item).not.toBeNull();
+    if (item && item.kind === "tool") {
+      expect(item.toolType).toBe("commandExecution");
+    }
+  });
+
+  it("converts apply_patch commandExecution when status is missing but output has success marker", () => {
+    const item = buildConversationItem({
+      type: "commandExecution",
+      id: "cmd-apply-patch-status-missing-1",
+      cmd: "apply_patch < /tmp/changelog_patch.diff",
+      aggregatedOutput: "Success. Updated the following files:\nM CHANGELOG.md",
+    });
+    expect(item).not.toBeNull();
+    if (item && item.kind === "tool") {
+      expect(item.toolType).toBe("fileChange");
+      expect(item.changes?.[0]?.path).toBe("CHANGELOG.md");
+    }
+  });
+
   it("falls back to reasoning text when content is missing in streaming items", () => {
     const item = buildConversationItem({
       type: "reasoning",

@@ -13,6 +13,7 @@ import {
   writeWorkspaceFile,
 } from "../../../services/tauri";
 import { subscribeDetachedExternalFileChanges } from "../../../services/events";
+import { pushErrorToast } from "../../../services/toasts";
 
 const mockCodeMirrorDispatch = vi.fn();
 let detachedExternalFileChangeListener: ((event: any) => void) | null = null;
@@ -132,6 +133,10 @@ vi.mock("../../../services/events", () => ({
       detachedExternalFileChangeListener = null;
     };
   }),
+}));
+
+vi.mock("../../../services/toasts", () => ({
+  pushErrorToast: vi.fn(),
 }));
 
 const mermaidInitialize = vi.fn();
@@ -499,6 +504,66 @@ describe("FileViewPanel navigation", () => {
       "ws-windows-absolute-path",
       "src/Main.java",
     );
+  });
+
+  it("uses repo-relative git path for diff when git root is a workspace subdirectory", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "APP_HOST=0.0.0.0\n",
+      truncated: false,
+    });
+    vi.mocked(getGitFileFullDiff).mockResolvedValue("@@ -1,1 +1,2 @@\n-APP_HOST=0.0.0.0\n+APP_HOST=127.0.0.1");
+
+    const { container } = render(
+      <FileViewPanel
+        workspaceId="ws-subrepo"
+        workspacePath="/tmp/JinSen"
+        gitRoot="kmllm-search-showcar-py"
+        filePath="kmllm-search-showcar-py/.env.example"
+        gitStatusFiles={[
+          { path: ".env.example", status: "M", additions: 1, deletions: 1 },
+        ]}
+        highlightMarkers={{ added: [], modified: [] }}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByTestId("mock-codemirror");
+    expect(getGitFileFullDiff).toHaveBeenCalledWith("ws-subrepo", ".env.example");
+    expect(container.querySelector(".fvp-filepath")?.className).toContain("git-m");
+  });
+
+  it("does not apply subrepo repo-relative git status to workspace root file with same relative path", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "# workspace root readme\n",
+      truncated: false,
+    });
+    vi.mocked(getGitFileFullDiff).mockResolvedValue("");
+
+    const { container } = render(
+      <FileViewPanel
+        workspaceId="ws-subrepo-root"
+        workspacePath="/tmp/JinSen"
+        gitRoot="kmllm-search-showcar-py"
+        filePath="README.md"
+        gitStatusFiles={[
+          { path: "README.md", status: "M", additions: 1, deletions: 1 },
+        ]}
+        highlightMarkers={{ added: [], modified: [] }}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByTestId("file-markdown-preview");
+    expect(getGitFileFullDiff).not.toHaveBeenCalled();
+    expect(container.querySelector(".fvp-filepath")?.className).not.toContain("git-m");
   });
 
   it("reads file content via external spec route when path is under custom spec root", async () => {
@@ -1173,6 +1238,37 @@ describe("FileViewPanel external change awareness in detached mode", () => {
         .toBe("const value = 2;");
       expect(vi.mocked(readWorkspaceFile).mock.calls.length).toBeGreaterThanOrEqual(3);
     });
+  });
+
+  it("does not show unavailable monitor toast for missing-file polling errors", async () => {
+    vi.mocked(readWorkspaceFile)
+      .mockResolvedValueOnce({ content: "const value = 1;", truncated: false })
+      .mockRejectedValue(new Error("Failed to open file: No such file or directory (os error 2)"));
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-ext-poll-missing"
+        workspacePath="/repo"
+        filePath="src/value-missing.ts"
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+        externalChangeMonitoringEnabled
+        externalChangePollIntervalMs={20}
+      />,
+    );
+
+    await screen.findByTestId("mock-codemirror");
+    await waitFor(() => {
+      expect(vi.mocked(readWorkspaceFile).mock.calls.length).toBeGreaterThanOrEqual(4);
+    });
+    expect(vi.mocked(pushErrorToast)).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "External file monitor is unavailable",
+      }),
+    );
   });
 
   it("shows conflict actions for dirty buffer and can keep local edits", async () => {

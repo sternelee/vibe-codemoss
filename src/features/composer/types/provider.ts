@@ -9,12 +9,12 @@ export const STORAGE_KEYS = {
   GEMINI_CUSTOM_MODELS: 'gemini-custom-models',
 } as const;
 
-export const MODEL_ID_PATTERN = /^[a-zA-Z0-9._\-/:\[\]]+$/;
+export const MODEL_ID_PATTERN = /^[a-zA-Z0-9._/:[\]-]+$/;
 
 export function isValidModelId(id: string): boolean {
   if (!id || typeof id !== 'string') return false;
   const trimmed = id.trim();
-  if (trimmed.length === 0 || trimmed.length > 256) return false;
+  if (trimmed.length === 0 || trimmed.length > 128) return false;
   return MODEL_ID_PATTERN.test(trimmed);
 }
 

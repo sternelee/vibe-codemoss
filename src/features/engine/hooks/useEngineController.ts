@@ -12,6 +12,7 @@ import {
   getActiveEngine,
   getEngineModels,
   getOpenCodeCommandsList,
+  isWebServiceRuntime,
   switchEngine,
 } from "../../../services/tauri";
 import {
@@ -21,6 +22,7 @@ import {
 } from "../../models/constants";
 import {
   STORAGE_KEYS as PROVIDER_STORAGE_KEYS,
+  isValidModelId,
   validateCodexCustomModels,
 } from "../../composer/types/provider";
 
@@ -55,6 +57,24 @@ const ENGINE_DISPLAY_MAP: Record<
 };
 
 const GEMINI_VENDOR_UPDATED_EVENT = "mossx:gemini-vendor-updated";
+const WEB_RUNTIME_DEFAULT_ENGINE: EngineType = "codex";
+const WEB_RUNTIME_INITIAL_STATUSES: EngineStatus[] = [
+  {
+    engineType: "codex",
+    installed: true,
+    version: "web-service",
+    binPath: null,
+    features: {
+      streaming: true,
+      reasoning: true,
+      toolUse: true,
+      imageInput: true,
+      sessionContinuation: true,
+    },
+    models: [],
+    error: null,
+  },
+];
 const GEMINI_DEFAULT_MODEL_ID = "gemini-2.5-flash-lite";
 const GEMINI_PRESET_MODEL_IDS = [
   "gemini-2.5-flash-lite",
@@ -132,6 +152,76 @@ function readCustomGeminiModels(): EngineModelInfo[] {
   }
 }
 
+function readCustomClaudeModels(): EngineModelInfo[] {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return [];
+  }
+  try {
+    const raw = window.localStorage.getItem(PROVIDER_STORAGE_KEYS.CLAUDE_CUSTOM_MODELS);
+    if (!raw) {
+      return [];
+    }
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    const seenIds = new Set<string>();
+    const models: EngineModelInfo[] = [];
+    for (const entry of parsed) {
+      if (!entry || typeof entry !== "object") {
+        continue;
+      }
+      const idValue = (entry as { id?: unknown }).id;
+      if (typeof idValue !== "string") {
+        continue;
+      }
+      const id = idValue.trim();
+      if (!isValidModelId(id) || seenIds.has(id)) {
+        continue;
+      }
+      const labelValue = (entry as { label?: unknown }).label;
+      const descriptionValue = (entry as { description?: unknown }).description;
+      models.push({
+        id,
+        displayName:
+          typeof labelValue === "string" && labelValue.trim().length > 0
+            ? labelValue.trim()
+            : id,
+        description:
+          typeof descriptionValue === "string"
+            ? descriptionValue.trim()
+            : "",
+        isDefault: false,
+      });
+      seenIds.add(id);
+    }
+    return models;
+  } catch {
+    return [];
+  }
+}
+
+function mergeClaudeModelsPreserveDefault(
+  engineModels: EngineModelInfo[],
+  customModels: EngineModelInfo[],
+): EngineModelInfo[] {
+  if (customModels.length === 0) {
+    return engineModels;
+  }
+  const engineDefaultIds = new Set(
+    engineModels.filter((model) => model.isDefault).map((model) => model.id),
+  );
+  const patchedCustomModels = customModels.map((model) => ({
+    ...model,
+    isDefault: engineDefaultIds.has(model.id),
+  }));
+  const customIds = new Set(patchedCustomModels.map((model) => model.id));
+  return [
+    ...patchedCustomModels,
+    ...engineModels.filter((model) => !customIds.has(model.id)),
+  ];
+}
+
 /**
  * Convert EngineModelInfo to ModelOption format for UI compatibility
  */
@@ -155,13 +245,17 @@ export function useEngineController({
   onDebug,
 }: UseEngineControllerOptions) {
   // Engine detection state
-  const [engineStatuses, setEngineStatuses] = useState<EngineStatus[]>([]);
-  const [activeEngine, setActiveEngineState] = useState<EngineType>("claude");
+  const [engineStatuses, setEngineStatuses] = useState<EngineStatus[]>(() =>
+    isWebServiceRuntime() ? WEB_RUNTIME_INITIAL_STATUSES : [],
+  );
+  const [activeEngine, setActiveEngineState] = useState<EngineType>(() =>
+    isWebServiceRuntime() ? WEB_RUNTIME_DEFAULT_ENGINE : "claude",
+  );
   const [engineModels, setEngineModels] = useState<EngineModelInfo[]>([]);
   const [isDetecting, setIsDetecting] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [modelMapping, setModelMapping] = useState(getModelMapping);
-  const [geminiCustomModelsVersion, setGeminiCustomModelsVersion] = useState(0);
+  const [customModelsVersion, setCustomModelsVersion] = useState(0);
 
   // Track initialization
   const initRef = useRef(false);
@@ -405,7 +499,12 @@ export function useEngineController({
     if (activeEngine !== "claude") {
       return engineModels;
     }
-    return engineModels.map((model) => ({
+    const customClaudeModels = readCustomClaudeModels();
+    const mergedModels = mergeClaudeModelsPreserveDefault(
+      engineModels,
+      customClaudeModels,
+    );
+    return mergedModels.map((model) => ({
       ...model,
       displayName: applyMappingToDisplayName(
         model.displayName,
@@ -413,7 +512,7 @@ export function useEngineController({
         modelMapping,
       ),
     }));
-  }, [activeEngine, engineModels, geminiCustomModelsVersion, modelMapping]);
+  }, [activeEngine, engineModels, customModelsVersion, modelMapping]);
 
   /**
    * Convert engine models to ModelOption format for UI compatibility
@@ -426,8 +525,11 @@ export function useEngineController({
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === MODEL_STORAGE_KEYS.CLAUDE_MODEL_MAPPING) {
         setModelMapping(getModelMapping());
-      } else if (e.key === PROVIDER_STORAGE_KEYS.GEMINI_CUSTOM_MODELS) {
-        setGeminiCustomModelsVersion((value) => value + 1);
+      } else if (
+        e.key === PROVIDER_STORAGE_KEYS.GEMINI_CUSTOM_MODELS ||
+        e.key === PROVIDER_STORAGE_KEYS.CLAUDE_CUSTOM_MODELS
+      ) {
+        setCustomModelsVersion((value) => value + 1);
       }
     };
 
@@ -436,9 +538,10 @@ export function useEngineController({
       if (customEvent.detail?.key === MODEL_STORAGE_KEYS.CLAUDE_MODEL_MAPPING) {
         setModelMapping(getModelMapping());
       } else if (
-        customEvent.detail?.key === PROVIDER_STORAGE_KEYS.GEMINI_CUSTOM_MODELS
+        customEvent.detail?.key === PROVIDER_STORAGE_KEYS.GEMINI_CUSTOM_MODELS ||
+        customEvent.detail?.key === PROVIDER_STORAGE_KEYS.CLAUDE_CUSTOM_MODELS
       ) {
-        setGeminiCustomModelsVersion((value) => value + 1);
+        setCustomModelsVersion((value) => value + 1);
       }
     };
 

@@ -181,11 +181,62 @@ describe("history loaders", () => {
       expect.objectContaining({
         id: "gemini-tool-1",
         kind: "tool",
-        toolType: "write_file",
+        toolType: "fileChange",
         status: "completed",
         output: "done",
       }),
     );
+    expect(items[0]?.kind).toBe("tool");
+    if (items[0]?.kind === "tool") {
+      expect(items[0].changes).toEqual([
+        expect.objectContaining({
+          path: "src/a.ts",
+          kind: "modified",
+        }),
+      ]);
+    }
+  });
+
+  it("normalizes gemini EditFile history rows to fileChange cards", () => {
+    const items = parseGeminiHistoryMessages([
+      {
+        id: "gemini-edit-1",
+        kind: "tool",
+        toolType: "EditFile",
+        title: "EditFile",
+        toolInput: {
+          path: "src/App.tsx",
+          old_string: "const before = true;",
+          new_string: "const after = true;",
+        },
+      },
+      {
+        id: "gemini-edit-1-result",
+        kind: "tool",
+        toolType: "result",
+        title: "Result",
+        text: "updated",
+      },
+    ]);
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toEqual(
+      expect.objectContaining({
+        id: "gemini-edit-1",
+        kind: "tool",
+        toolType: "fileChange",
+        status: "completed",
+      }),
+    );
+    expect(items[0]?.kind).toBe("tool");
+    if (items[0]?.kind === "tool") {
+      expect(items[0].changes).toEqual([
+        expect.objectContaining({
+          path: "src/App.tsx",
+          kind: "modified",
+        }),
+      ]);
+    }
   });
 
   it("merges adjacent gemini reasoning rows while preserving tool boundaries", () => {
@@ -443,6 +494,107 @@ describe("history loaders", () => {
           toolType: "collabToolCall",
           title: "Collab: wait",
           detail: expect.stringContaining("agent-7"),
+        }),
+      ]),
+    );
+  });
+
+  it("reconstructs codex generic search tool calls from local function history", () => {
+    const items = parseCodexSessionHistory({
+      entries: [
+        {
+          type: "response_item",
+          payload: {
+            type: "function_call",
+            call_id: "search-1",
+            name: "search_query",
+            arguments: JSON.stringify({
+              search_query: [{ q: "site:developers.openai.com Codex AGENTS.md" }],
+            }),
+          },
+        },
+        {
+          type: "response_item",
+          payload: {
+            type: "function_call_output",
+            call_id: "search-1",
+            output: JSON.stringify({
+              items: [
+                {
+                  title: "OpenAI Codex AGENTS.md",
+                  url: "https://developers.openai.com/codex/guides/agents-md",
+                },
+              ],
+            }),
+          },
+        },
+      ],
+    });
+
+    expect(items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "search-1",
+          kind: "tool",
+          toolType: "mcpToolCall",
+          title: "Tool: codex / search_query",
+          detail: expect.stringContaining("site:developers.openai.com Codex AGENTS.md"),
+          output: expect.stringContaining("agents-md"),
+        }),
+      ]),
+    );
+  });
+
+  it("reconstructs codex web_search_call entries from local session history", () => {
+    const items = parseCodexSessionHistory({
+      entries: [
+        {
+          type: "response_item",
+          payload: {
+            type: "web_search_call",
+            status: "completed",
+            action: {
+              type: "search",
+              query: "OpenAI Codex CLI AGENTS.md default instructions file",
+              queries: [
+                "OpenAI Codex CLI AGENTS.md default instructions file",
+                "developers.openai.com/codex/guides/agents-md",
+              ],
+            },
+          },
+        },
+        {
+          type: "response_item",
+          payload: {
+            type: "web_search_call",
+            status: "completed",
+            action: {
+              type: "find_in_page",
+              url: "https://developers.openai.com/codex/guides/agents-md",
+              pattern: "searches for AGENTS.md",
+            },
+          },
+        },
+      ],
+    });
+
+    expect(items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "codex-web-search-1",
+          kind: "tool",
+          toolType: "mcpToolCall",
+          title: "Tool: codex / search_query",
+          detail: expect.stringContaining("OpenAI Codex CLI AGENTS.md"),
+          output: expect.stringContaining("\"queries\""),
+        }),
+        expect.objectContaining({
+          id: "codex-web-search-2",
+          kind: "tool",
+          toolType: "mcpToolCall",
+          title: "Tool: codex / search_query",
+          detail: expect.stringContaining("searches for AGENTS.md"),
+          output: expect.stringContaining("find_in_page"),
         }),
       ]),
     );

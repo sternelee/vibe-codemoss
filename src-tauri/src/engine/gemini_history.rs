@@ -115,15 +115,25 @@ fn build_path_variants(path: &str) -> Vec<String> {
     variants
 }
 
-fn matches_workspace_path(project_root: &str, workspace_path: &Path) -> bool {
+fn build_workspace_path_variants(workspace_path: &Path) -> Vec<String> {
     let workspace_raw = workspace_path.to_string_lossy().to_string();
-    let workspace_variants = build_path_variants(&workspace_raw);
+    let mut workspace_variants = build_path_variants(&workspace_raw);
+    if let Ok(canonical_workspace) = std::fs::canonicalize(workspace_path) {
+        let canonical_workspace_raw = canonical_workspace.to_string_lossy().to_string();
+        workspace_variants.extend(build_path_variants(&canonical_workspace_raw));
+    }
+    workspace_variants.sort();
+    workspace_variants.dedup();
+    workspace_variants
+}
+
+fn matches_workspace_path(project_root: &str, workspace_variants: &[String]) -> bool {
     if workspace_variants.is_empty() {
         return false;
     }
     let project_variants = build_path_variants(project_root);
     for candidate in project_variants {
-        for workspace in &workspace_variants {
+        for workspace in workspace_variants {
             if candidate == *workspace {
                 return true;
             }
@@ -271,7 +281,22 @@ fn resolve_project_root(
     projects_map.get(alias).cloned()
 }
 
-fn extract_text_from_value(value: &Value) -> Option<String> {
+fn first_non_empty_text<'a>(candidates: &[Option<&'a str>]) -> Option<&'a str> {
+    for candidate in candidates {
+        if let Some(text) = candidate {
+            let trimmed = text.trim();
+            if !trimmed.is_empty() {
+                return Some(trimmed);
+            }
+        }
+    }
+    None
+}
+
+fn extract_text_from_value_inner(value: &Value, depth: usize) -> Option<String> {
+    if depth > 6 {
+        return None;
+    }
     match value {
         Value::String(text) => {
             let trimmed = text.trim();
@@ -284,11 +309,7 @@ fn extract_text_from_value(value: &Value) -> Option<String> {
         Value::Array(items) => {
             let mut parts = Vec::new();
             for item in items {
-                if let Some(text) = item
-                    .get("text")
-                    .and_then(extract_text_from_value)
-                    .or_else(|| extract_text_from_value(item))
-                {
+                if let Some(text) = extract_text_from_value_inner(item, depth + 1) {
                     parts.push(text);
                 }
             }
@@ -298,13 +319,36 @@ fn extract_text_from_value(value: &Value) -> Option<String> {
                 Some(parts.join("\n"))
             }
         }
-        Value::Object(map) => map
-            .get("text")
-            .and_then(extract_text_from_value)
-            .or_else(|| map.get("message").and_then(extract_text_from_value))
-            .or_else(|| map.get("content").and_then(extract_text_from_value)),
+        Value::Object(map) => {
+            if let Some(text) = first_non_empty_text(&[
+                map.get("delta").and_then(|value| value.as_str()),
+                map.get("text").and_then(|value| value.as_str()),
+                map.get("message").and_then(|value| value.as_str()),
+                map.get("content").and_then(|value| value.as_str()),
+                map.get("output").and_then(|value| value.as_str()),
+                map.get("result").and_then(|value| value.as_str()),
+                map.get("response").and_then(|value| value.as_str()),
+            ]) {
+                return Some(text.to_string());
+            }
+            for key in [
+                "content", "message", "part", "parts", "result", "output", "response", "data",
+                "payload", "item", "items",
+            ] {
+                if let Some(nested) = map.get(key) {
+                    if let Some(text) = extract_text_from_value_inner(nested, depth + 1) {
+                        return Some(text);
+                    }
+                }
+            }
+            None
+        }
         _ => None,
     }
+}
+
+fn extract_text_from_value(value: &Value) -> Option<String> {
+    extract_text_from_value_inner(value, 0)
 }
 
 fn extract_message_text(message: &Value) -> Option<String> {
@@ -312,6 +356,11 @@ fn extract_message_text(message: &Value) -> Option<String> {
         .get("content")
         .and_then(extract_text_from_value)
         .or_else(|| message.get("message").and_then(extract_text_from_value))
+        .or_else(|| message.get("output").and_then(extract_text_from_value))
+        .or_else(|| message.get("result").and_then(extract_text_from_value))
+        .or_else(|| message.get("response").and_then(extract_text_from_value))
+        .or_else(|| message.get("payload").and_then(extract_text_from_value))
+        .or_else(|| message.get("data").and_then(extract_text_from_value))
 }
 
 fn extract_display_text(message: &Value) -> Option<String> {
@@ -1002,7 +1051,9 @@ fn parse_messages_from_value(value: &Value) -> GeminiSessionLoadResult {
                     }
                 }
 
-                if let Some(text) = extract_message_text(&raw) {
+                if let Some(text) =
+                    extract_display_text(&raw).or_else(|| extract_message_text(&raw))
+                {
                     if !text.trim().is_empty() {
                         push_timeline_message(
                             GeminiSessionMessage {
@@ -1067,6 +1118,10 @@ async fn resolve_workspace_session_files(
     custom_home: Option<&str>,
 ) -> Vec<(PathBuf, Value)> {
     let base_dir = resolve_gemini_base_dir(custom_home);
+    let workspace_variants = build_workspace_path_variants(workspace_path);
+    if workspace_variants.is_empty() {
+        return Vec::new();
+    }
     let files = collect_chat_files(&base_dir).await;
     let projects_map = load_projects_alias_map(&base_dir);
     let mut matched = Vec::new();
@@ -1078,7 +1133,7 @@ async fn resolve_workspace_session_files(
         let Some(project_root) = resolve_project_root(&base_dir, &alias, &projects_map) else {
             continue;
         };
-        if !matches_workspace_path(&project_root, workspace_path) {
+        if !matches_workspace_path(&project_root, &workspace_variants) {
             continue;
         }
         let Ok(value) = read_json(&file).await else {
@@ -1172,7 +1227,7 @@ pub async fn delete_gemini_session(
 
 #[cfg(test)]
 mod tests {
-    use super::parse_messages_from_value;
+    use super::{matches_workspace_path, parse_messages_from_value};
     use serde_json::json;
 
     #[test]
@@ -1371,6 +1426,66 @@ mod tests {
     }
 
     #[test]
+    fn parse_messages_extracts_assistant_text_from_nested_parts_payload() {
+        let value = json!({
+            "messages": [
+                {
+                    "type": "gemini",
+                    "id": "assistant-1",
+                    "content": {
+                        "parts": [
+                            {
+                                "type": "output_text",
+                                "text": "第一段正文"
+                            },
+                            {
+                                "type": "output_text",
+                                "text": "第二段正文"
+                            }
+                        ]
+                    }
+                }
+            ]
+        });
+
+        let parsed = parse_messages_from_value(&value);
+        let entries = parsed.messages;
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].kind, "message");
+        assert_eq!(entries[0].role, "assistant");
+        assert_eq!(entries[0].text, "第一段正文\n第二段正文");
+    }
+
+    #[test]
+    fn parse_messages_extracts_assistant_text_from_nested_message_payload() {
+        let value = json!({
+            "messages": [
+                {
+                    "type": "assistant",
+                    "id": "assistant-2",
+                    "message": {
+                        "payload": {
+                            "content": [
+                                {
+                                    "type": "output_text",
+                                    "text": "短正文片段"
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        });
+
+        let parsed = parse_messages_from_value(&value);
+        let entries = parsed.messages;
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].kind, "message");
+        assert_eq!(entries[0].role, "assistant");
+        assert_eq!(entries[0].text, "短正文片段");
+    }
+
+    #[test]
     fn parse_messages_normalizes_file_uri_image_sources() {
         let value = json!({
             "messages": [
@@ -1409,5 +1524,21 @@ mod tests {
             entries[1].images,
             Some(vec!["C:/Users/Chen/Pictures/a b.png".to_string()])
         );
+    }
+
+    #[test]
+    fn matches_workspace_path_accepts_canonical_workspace_variant() {
+        let workspace_variants = vec![
+            "/Users/demo/codeg".to_string(),
+            "/Users/demo/code/AI/github".to_string(),
+        ];
+        assert!(matches_workspace_path(
+            "/Users/demo/code/AI/github/mossx",
+            &workspace_variants
+        ));
+        assert!(!matches_workspace_path(
+            "/Users/demo/code/AI/githubish/mossx",
+            &workspace_variants
+        ));
     }
 }

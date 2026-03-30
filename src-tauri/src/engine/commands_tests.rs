@@ -1,7 +1,8 @@
 use super::{
     build_provider_prefill_query, delete_opencode_session_files,
     delete_opencode_session_from_datastore, extract_turn_result_text,
-    is_likely_foreign_model_for_gemini, is_likely_legacy_claude_model_id, merge_opencode_agents,
+    is_likely_foreign_model_for_gemini, is_likely_legacy_claude_model_id,
+    is_valid_claude_model_for_passthrough, merge_opencode_agents,
     next_gemini_routed_item_id, normalize_provider_key, opencode_data_candidate_roots,
     opencode_session_candidate_paths, parse_imported_session_id, parse_json_value,
     parse_opencode_agent_list, parse_opencode_auth_providers, parse_opencode_debug_config_agents,
@@ -107,6 +108,21 @@ fn opencode_model_guard_allows_provider_scoped_models() {
     assert!(!is_likely_legacy_claude_model_id("openai/gpt-5.3-codex"));
     assert!(!is_likely_legacy_claude_model_id("google/gemini-2.5-pro"));
     assert!(!is_likely_legacy_claude_model_id("123"));
+}
+
+#[test]
+fn claude_model_passthrough_accepts_custom_model_ids() {
+    assert!(is_valid_claude_model_for_passthrough("GLM-5.1"));
+    assert!(is_valid_claude_model_for_passthrough("anthropic/claude-sonnet-4-6"));
+    assert!(is_valid_claude_model_for_passthrough("cxn_test.model-v1"));
+}
+
+#[test]
+fn claude_model_passthrough_rejects_invalid_ids() {
+    assert!(!is_valid_claude_model_for_passthrough(""));
+    assert!(!is_valid_claude_model_for_passthrough("bad model with spaces"));
+    assert!(!is_valid_claude_model_for_passthrough("bad\nmodel"));
+    assert!(!is_valid_claude_model_for_passthrough(&"a".repeat(129)));
 }
 
 #[test]

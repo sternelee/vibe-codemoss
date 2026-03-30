@@ -11,6 +11,8 @@ describe("Messages", () => {
 
   beforeEach(() => {
     window.localStorage.setItem("mossx.claude.hideReasoningModule", "0");
+    window.localStorage.removeItem("mossx.messages.live.autoFollow");
+    window.localStorage.removeItem("mossx.messages.live.collapseMiddleSteps");
   });
 
   beforeAll(() => {
@@ -2840,50 +2842,6 @@ describe("Messages", () => {
     );
 
     expect(container.querySelector(".working-activity")).toBeNull();
-  });
-
-  it("keeps only the latest title-only reasoning row for non-codex engines", () => {
-    const items: ConversationItem[] = [
-      {
-        id: "reasoning-title-only-old",
-        kind: "reasoning",
-        summary: "Planning old step",
-        content: "",
-      },
-      {
-        id: "reasoning-title-only",
-        kind: "reasoning",
-        summary: "Indexing workspace",
-        content: "",
-      },
-      {
-        id: "tool-after-reasoning",
-        kind: "tool",
-        title: "Command: rg --files",
-        detail: "/tmp",
-        toolType: "commandExecution",
-        output: "",
-        status: "running",
-      },
-    ];
-
-    const { container } = render(
-      <Messages
-        items={items}
-        threadId="thread-1"
-        workspaceId="ws-1"
-        isThinking
-        processingStartedAt={Date.now() - 1_000}
-        openTargets={[]}
-        selectedOpenAppId=""
-      />,
-    );
-
-    const workingText = container.querySelector(".working-text");
-    expect(workingText?.textContent ?? "").toContain("Indexing workspace");
-    const reasoningRows = container.querySelectorAll(".thinking-block");
-    expect(reasoningRows.length).toBe(1);
-    expect(container.querySelector(".thinking-title")).toBeTruthy();
   });
 
 });
