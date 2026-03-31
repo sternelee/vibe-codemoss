@@ -1842,6 +1842,12 @@
   font-weight: 600;
 }
 
+.message .markdown-codeblock-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .message .markdown-codeblock-copy {
   border: 1px solid var(--border-strong);
   border-radius: 999px;

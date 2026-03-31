@@ -152,7 +152,7 @@ const defaultSettings: AppSettings = {
   composerFenceAutoWrapPasteMultiline: false,
   composerFenceAutoWrapPasteCodeLike: false,
   composerListContinuation: false,
-  composerCodeBlockCopyUseModifier: false,
+  composerCodeBlockCopyUseModifier: true,
   workspaceGroups: [],
   openAppTargets: DEFAULT_OPEN_APP_TARGETS,
   selectedOpenAppId: DEFAULT_OPEN_APP_ID,

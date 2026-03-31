@@ -692,7 +692,7 @@ function LinkBlock({ urls }: LinkBlockProps) {
 
 function CodeBlock({ className, value, copyUseModifier }: CodeBlockProps) {
   const { t } = useTranslation();
-  const [copied, setCopied] = useState(false);
+  const [copiedMode, setCopiedMode] = useState<"plain" | "fenced" | null>(null);
   const copyTimeoutRef = useRef<number | null>(null);
   const languageTag = extractLanguageTag(className);
   const languageLabel = languageTag ?? "Code";
@@ -712,15 +712,29 @@ function CodeBlock({ className, value, copyUseModifier }: CodeBlockProps) {
 
   const handleCopy = async (event: MouseEvent<HTMLButtonElement>) => {
     try {
-      const shouldFence = copyUseModifier ? event.altKey : true;
-      const nextValue = shouldFence ? fencedValue : value;
+      const nextValue = copyUseModifier && event.altKey ? fencedValue : value;
       await navigator.clipboard.writeText(nextValue);
-      setCopied(true);
+      setCopiedMode(nextValue === fencedValue ? "fenced" : "plain");
       if (copyTimeoutRef.current) {
         window.clearTimeout(copyTimeoutRef.current);
       }
       copyTimeoutRef.current = window.setTimeout(() => {
-        setCopied(false);
+        setCopiedMode(null);
+      }, 1200);
+    } catch {
+      // No-op: clipboard errors can occur in restricted contexts.
+    }
+  };
+
+  const handleCopyFenced = async () => {
+    try {
+      await navigator.clipboard.writeText(fencedValue);
+      setCopiedMode("fenced");
+      if (copyTimeoutRef.current) {
+        window.clearTimeout(copyTimeoutRef.current);
+      }
+      copyTimeoutRef.current = window.setTimeout(() => {
+        setCopiedMode(null);
       }, 1200);
     } catch {
       // No-op: clipboard errors can occur in restricted contexts.
@@ -731,15 +745,26 @@ function CodeBlock({ className, value, copyUseModifier }: CodeBlockProps) {
     <div className="markdown-codeblock">
       <div className="markdown-codeblock-header">
         <span className="markdown-codeblock-language">{languageLabel}</span>
-        <button
-          type="button"
-          className={`ghost markdown-codeblock-copy${copied ? " is-copied" : ""}`}
-          onClick={handleCopy}
-          aria-label={t("messages.copyCodeBlock")}
-          title={copied ? t("messages.copied") : t("messages.copy")}
-        >
-          {copied ? t("messages.copied") : t("messages.copy")}
-        </button>
+        <div className="markdown-codeblock-actions">
+          <button
+            type="button"
+            className={`ghost markdown-codeblock-copy${copiedMode === "plain" ? " is-copied" : ""}`}
+            onClick={handleCopy}
+            aria-label={t("messages.copyCodeBlock")}
+            title={copiedMode === "plain" ? t("messages.copied") : t("messages.copy")}
+          >
+            {copiedMode === "plain" ? t("messages.copied") : t("messages.copy")}
+          </button>
+          <button
+            type="button"
+            className={`ghost markdown-codeblock-copy${copiedMode === "fenced" ? " is-copied" : ""}`}
+            onClick={handleCopyFenced}
+            aria-label={t("messages.copyCodeBlockWithFence")}
+            title={copiedMode === "fenced" ? t("messages.copied") : t("messages.copyWithFence")}
+          >
+            {copiedMode === "fenced" ? t("messages.copied") : t("messages.copyWithFence")}
+          </button>
+        </div>
       </div>
       <pre>
         <code
