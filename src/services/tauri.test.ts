@@ -21,6 +21,7 @@ import {
   runSpecCommand,
   resetGitCommit,
   listWorkspaces,
+  reloadCodexRuntimeConfig,
   openWorkspaceIn,
   openNewWindow,
   readAgentMd,
@@ -106,6 +107,20 @@ describe("tauri invoke wrappers", () => {
     expect(invokeMock).toHaveBeenCalledWith("get_git_status", {
       workspaceId: "ws-1",
     });
+  });
+
+  it("invokes codex runtime reload command", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({
+      status: "applied",
+      stage: "swapped",
+      restartedSessions: 2,
+      message: null,
+    });
+
+    await reloadCodexRuntimeConfig();
+
+    expect(invokeMock).toHaveBeenCalledWith("reload_codex_runtime_config");
   });
 
   it("maps workspace_id to workspaceId for GitHub issues", async () => {

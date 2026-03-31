@@ -2057,6 +2057,10 @@
   margin-right: 2px;
 }
 
+.thread-source-badge {
+  display: none;
+}
+
 .thread-name {
   flex: 1;
   min-width: 0;

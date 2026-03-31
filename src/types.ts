@@ -115,6 +115,9 @@ export type ThreadSummary = {
   name: string;
   updatedAt: number;
   engineSource?: "codex" | "claude" | "gemini" | "opencode";
+  source?: string;
+  provider?: string;
+  sourceLabel?: string;
 };
 
 export type ReviewTarget =

@@ -13,11 +13,16 @@ import { CodexProviderDialog } from "./CodexProviderDialog";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import { CustomModelDialog } from "./CustomModelDialog";
 import { CurrentClaudeConfigCard } from "./CurrentClaudeConfigCard";
+import { CurrentCodexGlobalConfigCard } from "./CurrentCodexGlobalConfigCard";
 import { GeminiVendorPanel } from "./GeminiVendorPanel";
 import {
   consumeVendorModelManagerRequest,
   VENDOR_MODEL_MANAGER_REQUEST_EVENT,
 } from "../modelManagerRequest";
+import {
+  readGlobalCodexAuthJson,
+  readGlobalCodexConfigToml,
+} from "../../../services/tauri";
 import { EngineIcon } from "../../engine/components/EngineIcon";
 import { Tabs, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -29,6 +34,11 @@ const LEGACY_CLAUDE_MAPPING_KEYS = [
 const CODEX_PLUGIN_MODELS_MIGRATION_MARKER =
   "codemoss-codex-plugin-models-migrated-v1";
 type ModelDialogTarget = "claude" | "codex" | "gemini";
+type VendorSettingsPanelProps = {
+  codexReloadStatus: "idle" | "reloading" | "applied" | "failed";
+  codexReloadMessage: string | null;
+  handleReloadCodexRuntimeConfig: () => Promise<void>;
+};
 
 function collectProviderCustomModels(
   providers: CodexProviderConfig[],
@@ -57,12 +67,26 @@ function collectProviderCustomModels(
   return merged;
 }
 
-export function VendorSettingsPanel() {
+export function VendorSettingsPanel({
+  codexReloadStatus,
+  codexReloadMessage,
+  handleReloadCodexRuntimeConfig,
+}: VendorSettingsPanelProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<VendorTab>("claude");
   const [dialogTarget, setDialogTarget] = useState<ModelDialogTarget>("claude");
   const [modelDialogOpen, setModelDialogOpen] = useState(false);
   const [modelDialogAddMode, setModelDialogAddMode] = useState(false);
+  const [codexGlobalConfigContent, setCodexGlobalConfigContent] = useState("");
+  const [codexGlobalConfigExists, setCodexGlobalConfigExists] = useState(false);
+  const [codexGlobalConfigTruncated, setCodexGlobalConfigTruncated] = useState(false);
+  const [codexGlobalConfigLoading, setCodexGlobalConfigLoading] = useState(false);
+  const [codexGlobalConfigError, setCodexGlobalConfigError] = useState<string | null>(null);
+  const [codexAuthConfigContent, setCodexAuthConfigContent] = useState("");
+  const [codexAuthConfigExists, setCodexAuthConfigExists] = useState(false);
+  const [codexAuthConfigTruncated, setCodexAuthConfigTruncated] = useState(false);
+  const [codexAuthConfigLoading, setCodexAuthConfigLoading] = useState(false);
+  const [codexAuthConfigError, setCodexAuthConfigError] = useState<string | null>(null);
   const didRunLegacyMigrationRef = useRef(false);
   const didSeedCodexPluginModelsRef = useRef(false);
 
@@ -81,6 +105,45 @@ export function VendorSettingsPanel() {
   const closeModelDialog = useCallback(() => {
     setModelDialogOpen(false);
     setModelDialogAddMode(false);
+  }, []);
+
+  const loadCodexGlobalConfig = useCallback(async () => {
+    setCodexGlobalConfigLoading(true);
+    setCodexAuthConfigLoading(true);
+    setCodexGlobalConfigError(null);
+    setCodexAuthConfigError(null);
+    const [configResult, authResult] = await Promise.allSettled([
+      readGlobalCodexConfigToml(),
+      readGlobalCodexAuthJson(),
+    ]);
+
+    if (configResult.status === "fulfilled") {
+      setCodexGlobalConfigContent(configResult.value.content);
+      setCodexGlobalConfigExists(configResult.value.exists);
+      setCodexGlobalConfigTruncated(configResult.value.truncated);
+    } else {
+      const error = configResult.reason;
+      setCodexGlobalConfigError(
+        error instanceof Error ? error.message : String(error),
+      );
+      setCodexGlobalConfigContent("");
+      setCodexGlobalConfigExists(false);
+      setCodexGlobalConfigTruncated(false);
+    }
+    setCodexGlobalConfigLoading(false);
+
+    if (authResult.status === "fulfilled") {
+      setCodexAuthConfigContent(authResult.value.content);
+      setCodexAuthConfigExists(authResult.value.exists);
+      setCodexAuthConfigTruncated(authResult.value.truncated);
+    } else {
+      const error = authResult.reason;
+      setCodexAuthConfigError(error instanceof Error ? error.message : String(error));
+      setCodexAuthConfigContent("");
+      setCodexAuthConfigExists(false);
+      setCodexAuthConfigTruncated(false);
+    }
+    setCodexAuthConfigLoading(false);
   }, []);
 
   const applyPendingModelManagerRequest = useCallback(() => {
@@ -109,6 +172,10 @@ export function VendorSettingsPanel() {
       );
     };
   }, [applyPendingModelManagerRequest]);
+
+  useEffect(() => {
+    void loadCodexGlobalConfig();
+  }, [loadCodexGlobalConfig]);
 
   useEffect(() => {
     if (didRunLegacyMigrationRef.current) {
@@ -310,6 +377,60 @@ export function VendorSettingsPanel() {
 
         <TabsPanel value="codex">
           <div className="vendor-tab-content">
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={async () => {
+                  try {
+                    await handleReloadCodexRuntimeConfig();
+                  } finally {
+                    await loadCodexGlobalConfig();
+                  }
+                }}
+                disabled={codexReloadStatus === "reloading"}
+              >
+                {codexReloadStatus === "reloading"
+                  ? t("settings.codexRuntimeReloading")
+                  : t("settings.codexRuntimeReload")}
+              </Button>
+              <span
+                style={{
+                  fontSize: 13,
+                  color: "var(--text-secondary)",
+                  lineHeight: 1.4,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {t("settings.codexRuntimeReloadHint")}
+              </span>
+            </div>
+            {codexReloadStatus !== "idle" && (
+              <div className="settings-help">
+                {codexReloadStatus === "failed"
+                  ? t("settings.codexRuntimeReloadFailed")
+                  : t("settings.codexRuntimeReloadApplied")}
+                {codexReloadMessage ? `: ${codexReloadMessage}` : ""}
+              </div>
+            )}
+            {codex.codexProviderError && (
+              <div className="settings-help">
+                {t("settings.vendor.codexProviderActionFailed")}:{" "}
+                {codex.codexProviderError}
+              </div>
+            )}
+            <CurrentCodexGlobalConfigCard
+              configLoading={codexGlobalConfigLoading}
+              configContent={codexGlobalConfigContent}
+              configExists={codexGlobalConfigExists}
+              configTruncated={codexGlobalConfigTruncated}
+              configError={codexGlobalConfigError}
+              authLoading={codexAuthConfigLoading}
+              authContent={codexAuthConfigContent}
+              authExists={codexAuthConfigExists}
+              authTruncated={codexAuthConfigTruncated}
+              authError={codexAuthConfigError}
+            />
             <div
               className="vendor-plugin-model-entry"
               role="button"

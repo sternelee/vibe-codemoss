@@ -2,10 +2,10 @@ use super::{
     build_provider_prefill_query, delete_opencode_session_files,
     delete_opencode_session_from_datastore, extract_turn_result_text,
     is_likely_foreign_model_for_gemini, is_likely_legacy_claude_model_id,
-    is_valid_claude_model_for_passthrough, merge_opencode_agents,
-    next_gemini_routed_item_id, normalize_provider_key, opencode_data_candidate_roots,
-    opencode_session_candidate_paths, parse_imported_session_id, parse_json_value,
-    parse_opencode_agent_list, parse_opencode_auth_providers, parse_opencode_debug_config_agents,
+    is_valid_claude_model_for_passthrough, merge_opencode_agents, next_gemini_routed_item_id,
+    normalize_provider_key, opencode_data_candidate_roots, opencode_session_candidate_paths,
+    parse_imported_session_id, parse_json_value, parse_opencode_agent_list,
+    parse_opencode_auth_providers, parse_opencode_debug_config_agents,
     parse_opencode_help_commands, parse_opencode_mcp_servers, parse_opencode_session_list,
     parse_opencode_updated_at, provider_keys_match, EngineConfig, GeminiRenderLane,
     GeminiRenderRoutingState, OpenCodeAgentEntry,
@@ -113,14 +113,18 @@ fn opencode_model_guard_allows_provider_scoped_models() {
 #[test]
 fn claude_model_passthrough_accepts_custom_model_ids() {
     assert!(is_valid_claude_model_for_passthrough("GLM-5.1"));
-    assert!(is_valid_claude_model_for_passthrough("anthropic/claude-sonnet-4-6"));
+    assert!(is_valid_claude_model_for_passthrough(
+        "anthropic/claude-sonnet-4-6"
+    ));
     assert!(is_valid_claude_model_for_passthrough("cxn_test.model-v1"));
 }
 
 #[test]
 fn claude_model_passthrough_rejects_invalid_ids() {
     assert!(!is_valid_claude_model_for_passthrough(""));
-    assert!(!is_valid_claude_model_for_passthrough("bad model with spaces"));
+    assert!(!is_valid_claude_model_for_passthrough(
+        "bad model with spaces"
+    ));
     assert!(!is_valid_claude_model_for_passthrough("bad\nmodel"));
     assert!(!is_valid_claude_model_for_passthrough(&"a".repeat(129)));
 }

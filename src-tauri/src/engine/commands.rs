@@ -319,11 +319,7 @@ fn is_valid_claude_model_for_passthrough(model: &str) -> bool {
         return false;
     }
     trimmed.chars().all(|ch| {
-        ch.is_ascii_alphanumeric()
-            || matches!(
-                ch,
-                '-' | '_' | '.' | ':' | '/' | '[' | ']'
-            )
+        ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.' | ':' | '/' | '[' | ']')
     })
 }
 

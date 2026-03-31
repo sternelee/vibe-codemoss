@@ -149,4 +149,24 @@ describe("PinnedThreadList", () => {
     expect(badge?.textContent ?? "").toBe("");
     expect(badge?.classList.contains("proxy-status-badge--animated")).toBe(false);
   });
+
+  it("does not render codex source badge in pinned rows when metadata exists", () => {
+    render(
+      <PinnedThreadList
+        {...baseProps}
+        rows={[
+          {
+            thread: {
+              ...thread,
+              sourceLabel: "project/openai",
+            },
+            depth: 0,
+            workspaceId: "ws-1",
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.queryByText("project/openai")).toBeNull();
+  });
 });

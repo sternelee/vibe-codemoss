@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import type {
   AccessMode,
+  ConversationItem,
   MemoryContextInjectionMode,
   RateLimitSnapshot,
   ThreadTokenUsage,
@@ -60,6 +61,7 @@ import { isValidModelId } from "../../composer/types/provider";
 
 type SendMessageOptions = {
   skipPromptExpansion?: boolean;
+  skipOptimisticUserBubble?: boolean;
   model?: string | null;
   effort?: string | null;
   collaborationMode?: Record<string, unknown> | null;
@@ -72,6 +74,7 @@ type SendMessageOptions = {
     prompt?: string | null;
     icon?: string | null;
   } | null;
+  codexInvalidThreadRetryAttempted?: boolean;
 };
 
 const SPEC_ROOT_PRIORITY_MARKER = "[Spec Root Priority]";
@@ -900,26 +903,29 @@ export function useThreadMessaging({
       const wasProcessing =
         (threadStatusById[threadId]?.isProcessing ?? false) && steerEnabled;
       const shouldAddOptimisticUserBubble =
-        resolvedEngine === "codex" || wasProcessing;
+        !options?.skipOptimisticUserBubble &&
+        (resolvedEngine === "codex" || wasProcessing);
+      let optimisticUserItem: Extract<ConversationItem, { kind: "message" }> | null = null;
       if (shouldAddOptimisticUserBubble) {
         const optimisticText = visibleUserText;
         if (optimisticText || images.length > 0) {
+          optimisticUserItem = {
+            id: `optimistic-user-${Date.now()}-${Math.random()
+              .toString(36)
+              .slice(2, 8)}`,
+            kind: "message",
+            role: "user",
+            text: optimisticText,
+            images: images.length > 0 ? images : undefined,
+            collaborationMode: userCollaborationMode,
+            selectedAgentName,
+            selectedAgentIcon,
+          };
           dispatch({
             type: "upsertItem",
             workspaceId: workspace.id,
             threadId,
-            item: {
-              id: `optimistic-user-${Date.now()}-${Math.random()
-                .toString(36)
-                .slice(2, 8)}`,
-              kind: "message",
-              role: "user",
-              text: optimisticText,
-              images: images.length > 0 ? images : undefined,
-              collaborationMode: userCollaborationMode,
-              selectedAgentName,
-              selectedAgentIcon,
-            },
+            item: optimisticUserItem,
             hasCustomName: Boolean(getCustomName(workspace.id, threadId)),
           });
         }
@@ -1213,6 +1219,64 @@ export function useThreadMessaging({
         });
         const rpcError = extractRpcErrorMessage(response);
         if (rpcError) {
+          if (
+            resolvedEngine === "codex" &&
+            !options?.codexInvalidThreadRetryAttempted &&
+            isInvalidReviewThreadIdError(rpcError)
+          ) {
+            const reboundThreadId = await refreshThread(workspace.id, threadId);
+            if (reboundThreadId) {
+              onDebug?.({
+                id: `${Date.now()}-client-turn-start-thread-retry`,
+                timestamp: Date.now(),
+                source: "client",
+                label: "turn/start thread rebind retry",
+                payload: {
+                  workspaceId: workspace.id,
+                  originalThreadId: threadId,
+                  reboundThreadId,
+                  reboundChanged: reboundThreadId !== threadId,
+                  reason: rpcError,
+                },
+              });
+              if (reboundThreadId !== threadId) {
+                dispatch({
+                  type: "setActiveThreadId",
+                  workspaceId: workspace.id,
+                  threadId: reboundThreadId,
+                });
+                if (optimisticUserItem) {
+                  dispatch({
+                    type: "setThreadItems",
+                    threadId,
+                    items: (itemsByThread[threadId] ?? []).filter(
+                      (item) => item.id !== optimisticUserItem?.id,
+                    ),
+                  });
+                  dispatch({
+                    type: "upsertItem",
+                    workspaceId: workspace.id,
+                    threadId: reboundThreadId,
+                    item: optimisticUserItem,
+                    hasCustomName: Boolean(getCustomName(workspace.id, reboundThreadId)),
+                  });
+                }
+              }
+              markProcessing(threadId, false);
+              setActiveTurnId(threadId, null);
+              safeMessageActivity();
+              await sendMessageToThread(workspace, reboundThreadId, finalText, images, {
+                skipPromptExpansion: true,
+                skipOptimisticUserBubble: true,
+                model: modelForSend,
+                effort: resolvedEffort,
+                collaborationMode: sanitizedCollaborationMode,
+                accessMode: resolvedAccessMode,
+                codexInvalidThreadRetryAttempted: true,
+              });
+              return;
+            }
+          }
           const firstPacketTimeoutSeconds =
             resolveRecoverableCodexFirstPacketTimeout(resolvedEngine, rpcError);
           if (firstPacketTimeoutSeconds) {
@@ -1369,6 +1433,7 @@ export function useThreadMessaging({
       resolveThreadEngine,
       resolveOpenCodeAgent,
       resolveOpenCodeVariant,
+      refreshThread,
       safeMessageActivity,
       setActiveTurnId,
       i18n,

@@ -118,7 +118,66 @@ function mergeReasoningSnapshot(
   };
 }
 
+function normalizeComparableMessageText(value: string) {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function normalizeComparableMessageImages(item: Extract<ConversationItem, { kind: "message" }>) {
+  if (!Array.isArray(item.images) || item.images.length === 0) {
+    return "";
+  }
+  return item.images.join("\u0001");
+}
+
+function isKnownCodexAssistantMirrorEventPair(
+  existing: Extract<ConversationItem, { kind: "message" }>,
+  incoming: Extract<ConversationItem, { kind: "message" }>,
+) {
+  if (existing.role !== "assistant" || incoming.role !== "assistant") {
+    return false;
+  }
+  const isExistingResponseItem = existing.id.startsWith("codex-assistant-");
+  const isExistingEventMsg = existing.id.startsWith("codex-agent-message-");
+  const isIncomingResponseItem = incoming.id.startsWith("codex-assistant-");
+  const isIncomingEventMsg = incoming.id.startsWith("codex-agent-message-");
+  return (
+    (isExistingResponseItem && isIncomingEventMsg) ||
+    (isExistingEventMsg && isIncomingResponseItem)
+  );
+}
+
+function isAdjacentDuplicateMessage(
+  existing: ConversationItem | undefined,
+  incoming: Extract<ConversationItem, { kind: "message" }>,
+) {
+  if (!existing || existing.kind !== "message") {
+    return false;
+  }
+  if (existing.role !== incoming.role) {
+    return false;
+  }
+  const existingText = normalizeComparableMessageText(existing.text);
+  const incomingText = normalizeComparableMessageText(incoming.text);
+  if (!existingText || !incomingText || existingText !== incomingText) {
+    return false;
+  }
+  if (!isKnownCodexAssistantMirrorEventPair(existing, incoming)) {
+    return false;
+  }
+  return (
+    normalizeComparableMessageImages(existing) ===
+    normalizeComparableMessageImages(incoming)
+  );
+}
+
 function appendCodexHistoryItem(items: ConversationItem[], item: ConversationItem) {
+  if (item.kind === "message") {
+    if (isAdjacentDuplicateMessage(items[items.length - 1], item)) {
+      return;
+    }
+    items.push(item);
+    return;
+  }
   if (item.kind !== "reasoning") {
     items.push(item);
     return;
@@ -795,7 +854,7 @@ export function parseCodexSessionHistory(input: unknown): ConversationItem[] {
       if (payloadType === "message" && asString(payload.role).trim() === "assistant") {
         const message = buildAssistantMessageItem(payload, `codex-assistant-${index + 1}`);
         if (message) {
-          items.push(message);
+          appendCodexHistoryItem(items, message);
         }
       }
       return;
@@ -806,7 +865,7 @@ export function parseCodexSessionHistory(input: unknown): ConversationItem[] {
       if (payloadType === "user_message") {
         const message = buildUserMessageItem(payload, `codex-user-message-${index + 1}`);
         if (message) {
-          items.push(message);
+          appendCodexHistoryItem(items, message);
         }
         return;
       }
@@ -817,7 +876,7 @@ export function parseCodexSessionHistory(input: unknown): ConversationItem[] {
           text: asString(payload.message ?? "").trim(),
         });
         if (message) {
-          items.push(message);
+          appendCodexHistoryItem(items, message);
         }
       }
       return;

@@ -2384,8 +2384,39 @@ export const Messages = memo(function Messages({
     reasoningMetaById,
   ]);
   const { timelineItems, collapsedMiddleStepCount } = useMemo(() => {
-    if (!isThinking || !collapseLiveMiddleStepsEnabled || visibleItems.length <= 2) {
+    if (!collapseLiveMiddleStepsEnabled || visibleItems.length <= 2) {
       return { timelineItems: visibleItems, collapsedMiddleStepCount: 0 };
+    }
+    if (!isThinking) {
+      const firstUserIndex = visibleItems.findIndex(
+        (item) => item.kind === "message" && item.role === "user",
+      );
+      if (firstUserIndex < 0) {
+        return { timelineItems: visibleItems, collapsedMiddleStepCount: 0 };
+      }
+      let lastMessageIndex = -1;
+      for (let index = visibleItems.length - 1; index >= 0; index -= 1) {
+        if (visibleItems[index]?.kind === "message") {
+          lastMessageIndex = index;
+          break;
+        }
+      }
+      if (lastMessageIndex <= firstUserIndex) {
+        return { timelineItems: visibleItems, collapsedMiddleStepCount: 0 };
+      }
+      const nextTimelineItems: ConversationItem[] = [];
+      let hiddenCount = 0;
+      for (let index = 0; index < visibleItems.length; index += 1) {
+        const item = visibleItems[index];
+        if (index < firstUserIndex || index > lastMessageIndex || item.kind === "message") {
+          nextTimelineItems.push(item);
+          continue;
+        }
+        hiddenCount += 1;
+      }
+      return hiddenCount > 0
+        ? { timelineItems: nextTimelineItems, collapsedMiddleStepCount: hiddenCount }
+        : { timelineItems: visibleItems, collapsedMiddleStepCount: 0 };
     }
     let lastUserIndex = -1;
     for (let index = visibleItems.length - 1; index >= 0; index -= 1) {

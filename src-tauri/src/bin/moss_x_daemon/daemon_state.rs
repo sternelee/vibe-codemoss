@@ -8,12 +8,17 @@ fn is_valid_claude_model_for_passthrough(model: &str) -> bool {
         return false;
     }
     trimmed.chars().all(|ch| {
-        ch.is_ascii_alphanumeric()
-            || matches!(
-                ch,
-                '-' | '_' | '.' | ':' | '/' | '[' | ']'
-            )
+        ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.' | ':' | '/' | '[' | ']')
     })
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct CodexRuntimeReloadResult {
+    status: String,
+    stage: String,
+    restarted_sessions: usize,
+    message: Option<String>,
 }
 
 impl DaemonState {
@@ -39,6 +44,7 @@ impl DaemonState {
             storage_path,
             settings_path,
             app_settings: Mutex::new(app_settings),
+            codex_runtime_reload_lock: Mutex::new(()),
             web_service_runtime: Mutex::new(web_service_runtime),
             event_sink,
             codex_login_cancels: Mutex::new(HashMap::new()),
@@ -417,6 +423,49 @@ impl DaemonState {
             *active = engine;
         }
         Ok(updated)
+    }
+
+    pub(super) async fn reload_codex_runtime_config(
+        &self,
+    ) -> Result<CodexRuntimeReloadResult, String> {
+        let _reload_guard = self.codex_runtime_reload_lock.lock().await;
+        let restarted_sessions = {
+            let sessions = self.sessions.lock().await;
+            sessions.len()
+        };
+        if restarted_sessions == 0 {
+            return Ok(CodexRuntimeReloadResult {
+                status: "applied".to_string(),
+                stage: "noop".to_string(),
+                restarted_sessions: 0,
+                message: Some("No connected Codex sessions to reload.".to_string()),
+            });
+        }
+
+        let client_version = env!("CARGO_PKG_VERSION").to_string();
+        settings_core::restart_codex_sessions_for_app_settings_change_core(
+            &self.workspaces,
+            &self.sessions,
+            &self.app_settings,
+            |entry, default_bin, codex_args, codex_home| {
+                spawn_with_client(
+                    self.event_sink.clone(),
+                    client_version.clone(),
+                    entry,
+                    default_bin,
+                    codex_args,
+                    codex_home,
+                )
+            },
+        )
+        .await?;
+
+        Ok(CodexRuntimeReloadResult {
+            status: "applied".to_string(),
+            stage: "swapped".to_string(),
+            restarted_sessions,
+            message: None,
+        })
     }
 
     pub(super) async fn sync_engine_configs(&self) {

@@ -89,7 +89,9 @@ export const ContextBar: React.FC<ContextBarProps> = memo(({
     readLocalBooleanFlag(MESSAGES_LIVE_COLLAPSE_MIDDLE_STEPS_FLAG_KEY, false),
   );
   const manualCompactionMinSpinMs = 1200;
-  const showLiveCanvasControls = Boolean(isLoading && showStatusPanelToggle);
+  const showLiveAutoFollowControl = Boolean(isLoading && showStatusPanelToggle);
+  const showCollapseMiddleStepsControl = Boolean((isLoading || hasMessages) && showStatusPanelToggle);
+  const showLiveCanvasControls = showLiveAutoFollowControl || showCollapseMiddleStepsControl;
 
   const handleAttachClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -516,34 +518,38 @@ export const ContextBar: React.FC<ContextBarProps> = memo(({
       <div className="context-tools-right">
         {showLiveCanvasControls && (
           <div className="context-live-canvas-controls" role="group" aria-label={t('messages.liveControls')}>
-            <button
-              type="button"
-              className={`context-tool-btn context-tool-btn--labeled context-live-canvas-btn context-live-canvas-btn--focus-follow has-tooltip${liveAutoFollowEnabled ? ' is-active' : ''}`}
-              onClick={handleToggleLiveAutoFollow}
-              data-tooltip={
-                liveAutoFollowEnabled ? t('messages.liveAutoFollowDisable') : t('messages.liveAutoFollowEnable')
-              }
-              aria-pressed={liveAutoFollowEnabled}
-            >
-              <Crosshair size={13} aria-hidden />
-              <span className="context-tool-label">{t('messages.liveAutoFollowToggle')}</span>
-              <span className="context-live-canvas-dot" aria-hidden />
-            </button>
-            <button
-              type="button"
-              className={`context-tool-btn context-tool-btn--labeled context-live-canvas-btn has-tooltip${collapseLiveMiddleStepsEnabled ? ' is-active' : ''}`}
-              onClick={handleToggleCollapseLiveMiddleSteps}
-              data-tooltip={
-                collapseLiveMiddleStepsEnabled
-                  ? t('messages.collapseMiddleStepsDisable')
-                  : t('messages.collapseMiddleStepsEnable')
-              }
-              aria-pressed={collapseLiveMiddleStepsEnabled}
-            >
-              <ListCollapse size={13} aria-hidden />
-              <span className="context-tool-label">{t('messages.collapseMiddleStepsToggle')}</span>
-              <span className="context-live-canvas-dot" aria-hidden />
-            </button>
+            {showLiveAutoFollowControl && (
+              <button
+                type="button"
+                className={`context-tool-btn context-tool-btn--labeled context-live-canvas-btn context-live-canvas-btn--focus-follow has-tooltip${liveAutoFollowEnabled ? ' is-active' : ''}`}
+                onClick={handleToggleLiveAutoFollow}
+                data-tooltip={
+                  liveAutoFollowEnabled ? t('messages.liveAutoFollowDisable') : t('messages.liveAutoFollowEnable')
+                }
+                aria-pressed={liveAutoFollowEnabled}
+              >
+                <Crosshair size={13} aria-hidden />
+                <span className="context-tool-label">{t('messages.liveAutoFollowToggle')}</span>
+                <span className="context-live-canvas-dot" aria-hidden />
+              </button>
+            )}
+            {showCollapseMiddleStepsControl && (
+              <button
+                type="button"
+                className={`context-tool-btn context-tool-btn--labeled context-live-canvas-btn has-tooltip${collapseLiveMiddleStepsEnabled ? ' is-active' : ''}`}
+                onClick={handleToggleCollapseLiveMiddleSteps}
+                data-tooltip={
+                  collapseLiveMiddleStepsEnabled
+                    ? t('messages.collapseMiddleStepsDisable')
+                    : t('messages.collapseMiddleStepsEnable')
+                }
+                aria-pressed={collapseLiveMiddleStepsEnabled}
+              >
+                <ListCollapse size={13} aria-hidden />
+                <span className="context-tool-label">{t('messages.collapseMiddleStepsToggle')}</span>
+                <span className="context-live-canvas-dot" aria-hidden />
+              </button>
+            )}
           </div>
         )}
 

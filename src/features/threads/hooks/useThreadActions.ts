@@ -265,6 +265,35 @@ function isArchivedThread(thread: Record<string, unknown>): boolean {
   return asNumber(thread.archivedAt ?? thread.archived_at) > 0;
 }
 
+function normalizeThreadMetaValue(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function resolveThreadSourceMeta(thread: Record<string, unknown>): Pick<
+  ThreadSummary,
+  "source" | "provider" | "sourceLabel"
+> {
+  const source =
+    normalizeThreadMetaValue(thread.source) ??
+    normalizeThreadMetaValue(thread.sessionSource);
+  const provider =
+    normalizeThreadMetaValue(thread.provider) ??
+    normalizeThreadMetaValue(thread.providerId) ??
+    normalizeThreadMetaValue(thread.sessionProvider);
+  const sourceLabel =
+    normalizeThreadMetaValue(thread.sourceLabel) ??
+    (source && provider ? `${source}/${provider}` : source ?? provider);
+  return {
+    source,
+    provider,
+    sourceLabel,
+  };
+}
+
 function shouldIncludeThreadEntry(thread: Record<string, unknown>): boolean {
   if (isArchivedThread(thread)) {
     return false;
@@ -431,25 +460,45 @@ export function useThreadActions({
   const latestThreadsByWorkspaceRef = useRef(threadsByWorkspace);
   latestThreadsByWorkspaceRef.current = threadsByWorkspace;
 
-  const extractThreadId = useCallback((response: Record<string, any>) => {
-    const candidates = [
-      response.result?.thread?.id,
-      response.result?.threadId,
-      response.result?.thread_id,
-      response.thread?.id,
-      response.threadId,
-      response.thread_id,
-    ];
-    for (const candidate of candidates) {
-      if (typeof candidate === "string" || typeof candidate === "number") {
-        const normalized = String(candidate).trim();
-        if (normalized) {
-          return normalized;
+  const extractThreadId = useCallback(
+    (response: Record<string, unknown> | null | undefined) => {
+      if (!response || typeof response !== "object") {
+        return "";
+      }
+      const responseRecord = response as Record<string, unknown>;
+      const result =
+        responseRecord.result && typeof responseRecord.result === "object"
+          ? (responseRecord.result as Record<string, unknown>)
+          : null;
+      const resultThread =
+        result?.thread && typeof result.thread === "object"
+          ? (result.thread as Record<string, unknown>)
+          : null;
+      const rootThread =
+        responseRecord.thread && typeof responseRecord.thread === "object"
+          ? (responseRecord.thread as Record<string, unknown>)
+          : null;
+
+      const candidates = [
+        resultThread?.id,
+        result?.threadId,
+        result?.thread_id,
+        rootThread?.id,
+        responseRecord.threadId,
+        responseRecord.thread_id,
+      ];
+      for (const candidate of candidates) {
+        if (typeof candidate === "string" || typeof candidate === "number") {
+          const normalized = String(candidate).trim();
+          if (normalized) {
+            return normalized;
+          }
         }
       }
-    }
-    return "";
-  }, []);
+      return "";
+    },
+    [],
+  );
 
   const startThreadForWorkspace = useCallback(
     async (workspaceId: string, options?: { activate?: boolean; engine?: "claude" | "codex" | "gemini" | "opencode" }) => {
@@ -922,7 +971,7 @@ export function useThreadActions({
         payload: { workspaceId, threadId },
       });
       try {
-        let response: Record<string, unknown>;
+        let response: Record<string, unknown> | null | undefined;
         if (threadId.startsWith("claude:")) {
           const workspacePath = workspacePathsByIdRef.current[workspaceId];
           if (!workspacePath) {
@@ -1216,11 +1265,13 @@ export function useThreadActions({
                 ? preview
                 : fallbackName;
             const engineSource = engineById.get(id) ?? ("codex" as const);
+            const sourceMeta = resolveThreadSourceMeta(thread);
             return {
               id,
               name,
               updatedAt: getThreadTimestamp(thread),
               engineSource,
+              ...sourceMeta,
             };
           })
           .filter((entry) => entry.id);
@@ -1537,7 +1588,12 @@ export function useThreadActions({
             : preview.length > 0
               ? preview
               : fallbackName;
-          additions.push({ id, name, updatedAt: getThreadTimestamp(thread) });
+          additions.push({
+            id,
+            name,
+            updatedAt: getThreadTimestamp(thread),
+            ...resolveThreadSourceMeta(thread),
+          });
           existingIds.add(id);
         });
 

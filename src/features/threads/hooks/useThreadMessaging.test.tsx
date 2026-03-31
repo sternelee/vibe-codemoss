@@ -130,6 +130,7 @@ describe("useThreadMessaging", () => {
       threadEngineById?: Record<string, "claude" | "codex" | "gemini" | "opencode" | undefined>;
       itemsByThread?: Record<string, ConversationItem[]>;
       startThreadForWorkspace?: ReturnType<typeof vi.fn>;
+      refreshThread?: ReturnType<typeof vi.fn>;
       dispatch?: ReturnType<typeof vi.fn>;
     } = {},
   ) {
@@ -149,6 +150,7 @@ describe("useThreadMessaging", () => {
     const startThreadForWorkspace =
       overrides.startThreadForWorkspace ??
       vi.fn(async () => ensuredThreadId);
+    const refreshThread = overrides.refreshThread ?? vi.fn(async () => null);
 
     const hook = renderHook(() =>
       useThreadMessaging({
@@ -180,7 +182,7 @@ describe("useThreadMessaging", () => {
         pushThreadErrorMessage,
         ensureThreadForActiveWorkspace: async () => ensuredThreadId,
         ensureThreadForWorkspace: async () => ensuredThreadId,
-        refreshThread: async () => null,
+        refreshThread,
         forkThreadForWorkspace: async () => null,
         updateThreadParent: vi.fn(),
         startThreadForWorkspace,
@@ -1091,6 +1093,144 @@ describe("useThreadMessaging", () => {
         }),
       }),
     );
+  });
+
+  it("retries codex send on refreshed thread when backend rejects legacy thread id", async () => {
+    vi.mocked(sendUserMessage)
+      .mockResolvedValueOnce({
+        error: {
+          message:
+            "invalid thread id: invalid character: expected an optional prefix of `urn:uuid:` followed by [0-9a-fA-F-], found `r` at 1",
+        },
+      } as never)
+      .mockResolvedValueOnce({
+        result: { turn: { id: "turn-rebound-1" } },
+      } as never);
+    const refreshThread = vi.fn(async () => "thread-rebound-1");
+    const startThreadForWorkspace = vi.fn(async () => "thread-rebound-1");
+    const dispatch = vi.fn();
+    const { result } = makeHook("codex", {
+      activeThreadId: "legacy-thread-id",
+      ensuredThreadId: "legacy-thread-id",
+      startThreadForWorkspace,
+      refreshThread,
+      dispatch,
+    });
+
+    await act(async () => {
+      await result.current.sendUserMessage("hello codex");
+    });
+
+    await waitFor(() => {
+      expect(refreshThread).toHaveBeenCalledWith("ws-1", "legacy-thread-id");
+      expect(startThreadForWorkspace).not.toHaveBeenCalled();
+      expect(sendUserMessage).toHaveBeenNthCalledWith(
+        1,
+        "ws-1",
+        "legacy-thread-id",
+        "hello codex",
+        expect.any(Object),
+      );
+      expect(sendUserMessage).toHaveBeenNthCalledWith(
+        2,
+        "ws-1",
+        "thread-rebound-1",
+        "hello codex",
+        expect.any(Object),
+      );
+      expect(dispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "setThreadItems",
+          threadId: "legacy-thread-id",
+        }),
+      );
+    });
+  });
+
+  it("does not create new codex thread when invalid legacy id cannot be refreshed", async () => {
+    vi.mocked(sendUserMessage).mockResolvedValueOnce({
+      error: {
+        message:
+          "invalid thread id: invalid character: expected an optional prefix of `urn:uuid:` followed by [0-9a-fA-F-], found `r` at 1",
+      },
+    } as never);
+    const refreshThread = vi.fn(async () => null);
+    const startThreadForWorkspace = vi.fn(async () => "thread-new-1");
+    const { result, pushThreadErrorMessage } = makeHook("codex", {
+      activeThreadId: "legacy-thread-id",
+      ensuredThreadId: "legacy-thread-id",
+      startThreadForWorkspace,
+      refreshThread,
+    });
+
+    await act(async () => {
+      await result.current.sendUserMessage("hello codex");
+    });
+
+    await waitFor(() => {
+      expect(refreshThread).toHaveBeenCalledWith("ws-1", "legacy-thread-id");
+      expect(startThreadForWorkspace).not.toHaveBeenCalled();
+      expect(sendUserMessage).toHaveBeenCalledTimes(1);
+      expect(pushThreadErrorMessage).toHaveBeenCalledWith(
+        "legacy-thread-id",
+        expect.any(String),
+      );
+    });
+  });
+
+  it("retries codex send once when refresh returns the same thread id", async () => {
+    vi.mocked(sendUserMessage)
+      .mockResolvedValueOnce({
+        error: {
+          message:
+            "invalid thread id: invalid character: expected an optional prefix of `urn:uuid:` followed by [0-9a-fA-F-], found `r` at 1",
+        },
+      } as never)
+      .mockResolvedValueOnce({
+        result: { turn: { id: "turn-retry-same-id" } },
+      } as never);
+    const refreshThread = vi.fn(async () => "legacy-thread-id");
+    const startThreadForWorkspace = vi.fn(async () => "thread-new-1");
+    const dispatch = vi.fn();
+    const { result } = makeHook("codex", {
+      activeThreadId: "legacy-thread-id",
+      ensuredThreadId: "legacy-thread-id",
+      startThreadForWorkspace,
+      refreshThread,
+      dispatch,
+    });
+
+    await act(async () => {
+      await result.current.sendUserMessage("hello codex");
+    });
+
+    await waitFor(() => {
+      expect(refreshThread).toHaveBeenCalledWith("ws-1", "legacy-thread-id");
+      expect(startThreadForWorkspace).not.toHaveBeenCalled();
+      expect(sendUserMessage).toHaveBeenCalledTimes(2);
+      expect(sendUserMessage).toHaveBeenNthCalledWith(
+        2,
+        "ws-1",
+        "legacy-thread-id",
+        "hello codex",
+        expect.any(Object),
+      );
+      const optimisticUserBubbleActions = dispatch.mock.calls.filter(
+        ([action]) =>
+          action &&
+          typeof action === "object" &&
+          "type" in action &&
+          (action as { type?: string }).type === "upsertItem" &&
+          "item" in action &&
+          (action as { item?: { kind?: string; role?: string; text?: string } }).item?.kind ===
+            "message" &&
+          (action as { item?: { kind?: string; role?: string; text?: string } }).item?.role ===
+            "user" &&
+          (action as { item?: { kind?: string; role?: string; text?: string } }).item?.text ===
+            "hello codex",
+      );
+      expect(optimisticUserBubbleActions).toHaveLength(1);
+    });
   });
 
   it("adds optimistic user bubble immediately for codex send", async () => {

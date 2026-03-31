@@ -390,7 +390,10 @@ fn get_claude_fallback_models() -> Vec<ModelInfo> {
 async fn get_claude_models(bin: &str, path_env: Option<&String>) -> Vec<ModelInfo> {
     let mut models = get_claude_fallback_models();
     apply_claude_model_overrides(&mut models, read_claude_model_overrides());
-    apply_cli_help_model_discovery(&mut models, get_claude_models_from_help(bin, path_env).await);
+    apply_cli_help_model_discovery(
+        &mut models,
+        get_claude_models_from_help(bin, path_env).await,
+    );
     ensure_default_model(&mut models);
     dedupe_models_preserve_order(models)
 }
@@ -471,19 +474,28 @@ fn read_claude_model_overrides_from_settings() -> Option<ClaudeModelOverrides> {
 
 fn apply_claude_model_overrides(models: &mut Vec<ModelInfo>, overrides: ClaudeModelOverrides) {
     if let Some(sonnet) = overrides.sonnet {
-        if let Some(model) = models.iter_mut().find(|model| model.alias.as_deref() == Some("sonnet")) {
+        if let Some(model) = models
+            .iter_mut()
+            .find(|model| model.alias.as_deref() == Some("sonnet"))
+        {
             model.id = sonnet;
             model.description = "Configured in ~/.claude/settings.json".to_string();
         }
     }
     if let Some(opus) = overrides.opus {
-        if let Some(model) = models.iter_mut().find(|model| model.alias.as_deref() == Some("opus")) {
+        if let Some(model) = models
+            .iter_mut()
+            .find(|model| model.alias.as_deref() == Some("opus"))
+        {
             model.id = opus;
             model.description = "Configured in ~/.claude/settings.json".to_string();
         }
     }
     if let Some(haiku) = overrides.haiku {
-        if let Some(model) = models.iter_mut().find(|model| model.alias.as_deref() == Some("haiku")) {
+        if let Some(model) = models
+            .iter_mut()
+            .find(|model| model.alias.as_deref() == Some("haiku"))
+        {
             model.id = haiku;
             model.description = "Configured in ~/.claude/settings.json".to_string();
         }

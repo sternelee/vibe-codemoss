@@ -234,4 +234,129 @@ describe("Messages live behavior", () => {
     expect(container.textContent ?? "").toContain("最终输出");
     expect(container.textContent ?? "").not.toContain("Command: rg --files");
   });
+
+  it("collapses middle steps in history mode when enabled", () => {
+    window.localStorage.setItem("mossx.messages.live.collapseMiddleSteps", "1");
+    const items: ConversationItem[] = [
+      {
+        id: "user-history-collapse",
+        kind: "message",
+        role: "user",
+        text: "请继续",
+      },
+      {
+        id: "reasoning-history-collapse",
+        kind: "reasoning",
+        summary: "分析中",
+        content: "",
+      },
+      {
+        id: "tool-history-collapse",
+        kind: "tool",
+        toolType: "commandExecution",
+        title: "Command: rg --files",
+        detail: "/tmp",
+        status: "completed",
+        output: "",
+      },
+      {
+        id: "assistant-history-collapse",
+        kind: "message",
+        role: "assistant",
+        text: "历史最终输出",
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(container.querySelector(".thinking-block")).toBeNull();
+    expect(container.textContent ?? "").toContain("历史最终输出");
+    expect(container.textContent ?? "").not.toContain("Command: rg --files");
+  });
+
+  it("collapses middle steps for all previous turns in history mode", () => {
+    window.localStorage.setItem("mossx.messages.live.collapseMiddleSteps", "1");
+    const items: ConversationItem[] = [
+      {
+        id: "user-history-turn-1",
+        kind: "message",
+        role: "user",
+        text: "第一个问题",
+      },
+      {
+        id: "reasoning-history-turn-1",
+        kind: "reasoning",
+        summary: "第一轮分析",
+        content: "",
+      },
+      {
+        id: "tool-history-turn-1",
+        kind: "tool",
+        toolType: "commandExecution",
+        title: "Command: ls",
+        detail: "/tmp",
+        status: "completed",
+        output: "",
+      },
+      {
+        id: "assistant-history-turn-1",
+        kind: "message",
+        role: "assistant",
+        text: "第一轮答案",
+      },
+      {
+        id: "user-history-turn-2",
+        kind: "message",
+        role: "user",
+        text: "第二个问题",
+      },
+      {
+        id: "reasoning-history-turn-2",
+        kind: "reasoning",
+        summary: "第二轮分析",
+        content: "",
+      },
+      {
+        id: "tool-history-turn-2",
+        kind: "tool",
+        toolType: "commandExecution",
+        title: "Command: rg --files",
+        detail: "/tmp",
+        status: "completed",
+        output: "",
+      },
+      {
+        id: "assistant-history-turn-2",
+        kind: "message",
+        role: "assistant",
+        text: "第二轮答案",
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(container.textContent ?? "").toContain("第一轮答案");
+    expect(container.textContent ?? "").toContain("第二轮答案");
+    expect(container.textContent ?? "").not.toContain("Command: ls");
+    expect(container.textContent ?? "").not.toContain("Command: rg --files");
+    expect(container.querySelector(".thinking-block")).toBeNull();
+  });
 });

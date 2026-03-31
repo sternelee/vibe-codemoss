@@ -774,6 +774,64 @@ describe("history loaders", () => {
     );
   });
 
+  it("dedupes adjacent codex assistant messages emitted by both response_item and event_msg", () => {
+    const items = parseCodexSessionHistory({
+      entries: [
+        {
+          type: "response_item",
+          payload: {
+            type: "message",
+            role: "assistant",
+            content: [{ type: "output_text", text: "同一条 assistant 文本" }],
+          },
+        },
+        {
+          type: "event_msg",
+          payload: {
+            type: "agent_message",
+            message: "同一条 assistant 文本",
+          },
+        },
+      ],
+    });
+
+    const assistantMessages = items.filter(
+      (item): item is Extract<(typeof items)[number], { kind: "message" }> =>
+        item.kind === "message" && item.role === "assistant",
+    );
+    expect(assistantMessages).toHaveLength(1);
+    expect(assistantMessages[0]?.text).toBe("同一条 assistant 文本");
+  });
+
+  it("keeps repeated assistant messages when they come from separate response_item events", () => {
+    const items = parseCodexSessionHistory({
+      entries: [
+        {
+          type: "response_item",
+          payload: {
+            type: "message",
+            role: "assistant",
+            content: [{ type: "output_text", text: "OK" }],
+          },
+        },
+        {
+          type: "response_item",
+          payload: {
+            type: "message",
+            role: "assistant",
+            content: [{ type: "output_text", text: "OK" }],
+          },
+        },
+      ],
+    });
+
+    const assistantMessages = items.filter(
+      (item): item is Extract<(typeof items)[number], { kind: "message" }> =>
+        item.kind === "message" && item.role === "assistant",
+    );
+    expect(assistantMessages).toHaveLength(2);
+  });
+
   it("merges codex local structured fallback when resumeThread only restores messages", async () => {
     const loader = createCodexHistoryLoader({
       workspaceId: "ws-codex-fallback",

@@ -254,6 +254,7 @@ struct DaemonState {
     storage_path: PathBuf,
     settings_path: PathBuf,
     app_settings: Mutex<AppSettings>,
+    codex_runtime_reload_lock: Mutex<()>,
     web_service_runtime: Mutex<WebServiceRuntime>,
     event_sink: DaemonEventSink,
     codex_login_cancels: Mutex<HashMap<String, oneshot::Sender<()>>>,
@@ -2228,6 +2229,10 @@ async fn handle_rpc_request(
                 serde_json::from_value(settings_value).map_err(|err| err.to_string())?;
             let updated = state.update_app_settings(settings).await?;
             serde_json::to_value(updated).map_err(|err| err.to_string())
+        }
+        "reload_codex_runtime_config" => {
+            let result = state.reload_codex_runtime_config().await?;
+            serde_json::to_value(result).map_err(|err| err.to_string())
         }
         "detect_engines" => {
             let statuses = state.detect_engines().await;

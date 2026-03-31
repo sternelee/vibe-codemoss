@@ -237,4 +237,23 @@ describe("ThreadList", () => {
     expect(badge?.textContent ?? "").toBe("");
     expect(badge?.classList.contains("proxy-status-badge--animated")).toBe(false);
   });
+
+  it("does not render codex source badge when source metadata exists", () => {
+    render(
+      <ThreadList
+        {...baseProps}
+        unpinnedRows={[
+          {
+            thread: {
+              ...thread,
+              sourceLabel: "custom/openai",
+            },
+            depth: 0,
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.queryByText("custom/openai")).toBeNull();
+  });
 });

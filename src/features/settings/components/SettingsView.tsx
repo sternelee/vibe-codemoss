@@ -75,6 +75,7 @@ import {
 import { clampUiScale } from "../../../utils/uiScale";
 import {
   getCodexConfigPath,
+  reloadCodexRuntimeConfig,
 } from "../../../services/tauri";
 import {
   DEFAULT_CODE_FONT_FAMILY,
@@ -136,6 +137,10 @@ import { CodexSection } from "./settings-view/sections/CodexSection";
 import { OtherSection } from "./settings-view/sections/OtherSection";
 import { DetachedExternalChangeToggles } from "./settings-view/sections/DetachedExternalChangeToggles";
 import { WebServiceSettings } from "./settings-view/sections/WebServiceSettings";
+import {
+  shortcutDraftKeyBySetting,
+  type ShortcutSettingKey,
+} from "./settings-view/settingsViewShortcuts";
 import {
   DICTATION_MODELS,
   SHOW_CODEX_ENTRY,
@@ -234,66 +239,6 @@ type CodexSection = SettingsSection | "codex" | "experimental" | "about";
 
 const TEMPORARILY_DISABLED_SIDEBAR_SECTIONS: ReadonlySet<CodexSection> =
   BASE_DISABLED_SIDEBAR_SECTIONS as ReadonlySet<CodexSection>;
-
-type ShortcutSettingKey =
-  | "composerModelShortcut"
-  | "composerAccessShortcut"
-  | "composerReasoningShortcut"
-  | "composerCollaborationShortcut"
-  | "interruptShortcut"
-  | "newAgentShortcut"
-  | "newWorktreeAgentShortcut"
-  | "newCloneAgentShortcut"
-  | "archiveThreadShortcut"
-  | "toggleProjectsSidebarShortcut"
-  | "toggleGitSidebarShortcut"
-  | "toggleGlobalSearchShortcut"
-  | "toggleDebugPanelShortcut"
-  | "toggleTerminalShortcut"
-  | "cycleAgentNextShortcut"
-  | "cycleAgentPrevShortcut"
-  | "cycleWorkspaceNextShortcut"
-  | "cycleWorkspacePrevShortcut";
-type ShortcutDraftKey =
-  | "model"
-  | "access"
-  | "reasoning"
-  | "collaboration"
-  | "interrupt"
-  | "newAgent"
-  | "newWorktreeAgent"
-  | "newCloneAgent"
-  | "archiveThread"
-  | "projectsSidebar"
-  | "gitSidebar"
-  | "globalSearch"
-  | "debugPanel"
-  | "terminal"
-  | "cycleAgentNext"
-  | "cycleAgentPrev"
-  | "cycleWorkspaceNext"
-  | "cycleWorkspacePrev";
-
-const shortcutDraftKeyBySetting: Record<ShortcutSettingKey, ShortcutDraftKey> = {
-  composerModelShortcut: "model",
-  composerAccessShortcut: "access",
-  composerReasoningShortcut: "reasoning",
-  composerCollaborationShortcut: "collaboration",
-  interruptShortcut: "interrupt",
-  newAgentShortcut: "newAgent",
-  newWorktreeAgentShortcut: "newWorktreeAgent",
-  newCloneAgentShortcut: "newCloneAgent",
-  archiveThreadShortcut: "archiveThread",
-  toggleProjectsSidebarShortcut: "projectsSidebar",
-  toggleGitSidebarShortcut: "gitSidebar",
-  toggleGlobalSearchShortcut: "globalSearch",
-  toggleDebugPanelShortcut: "debugPanel",
-  toggleTerminalShortcut: "terminal",
-  cycleAgentNextShortcut: "cycleAgentNext",
-  cycleAgentPrevShortcut: "cycleAgentPrev",
-  cycleWorkspaceNextShortcut: "cycleWorkspaceNext",
-  cycleWorkspacePrevShortcut: "cycleWorkspacePrev",
-};
 
 const USER_MSG_DARK_PRESETS = [
   { color: "#005fb8", label: "Default" },
@@ -422,6 +367,10 @@ export function SettingsView({
     status: "idle" | "running" | "done";
     result: CodexDoctorResult | null;
   }>({ status: "idle", result: null });
+  const [codexRuntimeReloadState, setCodexRuntimeReloadState] = useState<{
+    status: "idle" | "reloading" | "applied" | "failed";
+    message: string | null;
+  }>({ status: "idle", message: null });
   const {
     content: globalAgentsContent,
     exists: globalAgentsExists,
@@ -1401,6 +1350,24 @@ export function SettingsView({
       });
     }
   };
+
+  const handleReloadCodexRuntimeConfig = useCallback(async () => {
+    setCodexRuntimeReloadState({ status: "reloading", message: null });
+    try {
+      const result = await reloadCodexRuntimeConfig();
+      const defaultMessage = t("settings.codexRuntimeReloadAppliedCount", {
+        count: result.restartedSessions,
+      });
+      const message = result.message?.trim() || defaultMessage;
+      setCodexRuntimeReloadState({ status: "applied", message });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setCodexRuntimeReloadState({
+        status: "failed",
+        message,
+      });
+    }
+  }, [t]);
 
   const updateShortcut = async (key: ShortcutSettingKey, value: string | null) => {
     const draftKey = shortcutDraftKeyBySetting[key];
@@ -2497,7 +2464,11 @@ export function SettingsView({
               </section>
             )}
             {activeSection === "providers" && (
-              <VendorSettingsPanel />
+              <VendorSettingsPanel
+                codexReloadStatus={codexRuntimeReloadState.status}
+                codexReloadMessage={codexRuntimeReloadState.message}
+                handleReloadCodexRuntimeConfig={handleReloadCodexRuntimeConfig}
+              />
             )}
             {activeSection === "usage" && (
               <UsageSection

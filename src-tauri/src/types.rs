@@ -373,6 +373,10 @@ pub(crate) struct LocalUsageSessionSummary {
     pub(crate) cost: f64,
     #[serde(default)]
     pub(crate) summary: Option<String>,
+    #[serde(default)]
+    pub(crate) source: Option<String>,
+    #[serde(default)]
+    pub(crate) provider: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]

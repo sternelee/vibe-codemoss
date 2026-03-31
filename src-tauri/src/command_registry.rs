@@ -5,6 +5,7 @@ pub(crate) fn invoke_handler(
         crate::settings::get_app_settings,
         crate::settings::update_app_settings,
         crate::settings::get_codex_config_path,
+        crate::settings::reload_codex_runtime_config,
         crate::web_service::start_web_server,
         crate::web_service::stop_web_server,
         crate::web_service::get_web_server_status,
