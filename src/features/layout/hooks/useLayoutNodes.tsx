@@ -504,6 +504,7 @@ type LayoutNodesOptions = {
   selectedAgent: SelectedAgentOption | null;
   onSelectAgent: (agent: SelectedAgentOption | null) => void;
   onOpenAgentSettings: () => void;
+  onOpenPromptSettings: () => void;
   onOpenModelSettings: (providerId?: string) => void;
   opencodeVariantOptions: string[];
   selectedOpenCodeVariant: string | null;
@@ -1110,6 +1111,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       selectedAgent={composerSelectedAgent}
       onAgentSelect={options.onSelectAgent}
       onOpenAgentSettings={options.onOpenAgentSettings}
+      onOpenPromptSettings={options.onOpenPromptSettings}
       onOpenModelSettings={options.onOpenModelSettings}
       opencodeVariantOptions={options.opencodeVariantOptions}
       selectedOpenCodeVariant={options.selectedOpenCodeVariant}

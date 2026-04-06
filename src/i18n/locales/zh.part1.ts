@@ -1190,6 +1190,8 @@ const zhPart1 = {
       noPromptsDropdown: "暂无提示词",
       createPrompt: "创建提示词",
       createPromptHint: "点击跳转到提示词设置页面进行创建",
+      newPromptBadge: "新提示词",
+      usageCount: "使用 {{count}} 次",
       workspaceRequired: "请先选择一个工作区。",
       searchPlaceholder: "搜索名称、描述或路径…",
       scope: "作用域",

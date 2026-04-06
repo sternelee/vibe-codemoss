@@ -1212,6 +1212,8 @@ const enPart1 = {
       noPromptsDropdown: "No prompts",
       createPrompt: "Create Prompt",
       createPromptHint: "Click to go to prompt settings page to create",
+      newPromptBadge: "New prompt",
+      usageCount: "Used {{count}} times",
       workspaceRequired: "Please select a workspace first.",
       searchPlaceholder: "Search by name, description, or path…",
       scope: "Scope",

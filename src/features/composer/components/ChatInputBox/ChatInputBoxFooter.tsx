@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { TFunction } from 'i18next';
 import Circle from 'lucide-react/dist/esm/icons/circle';
 import CheckCircle2 from 'lucide-react/dist/esm/icons/check-circle-2';
@@ -251,7 +251,9 @@ export function ChatInputBoxFooter({
   };
   t: TFunction;
 }) {
+  const footerHostRef = useRef<HTMLDivElement>(null);
   const [expandedPreviewMemoryId, setExpandedPreviewMemoryId] = useState<string | null>(null);
+  const [promptDropdownWidth, setPromptDropdownWidth] = useState(820);
   const selectedManualMemoryIdSet = useMemo(
     () => new Set(selectedManualMemoryIds),
     [selectedManualMemoryIds],
@@ -299,6 +301,37 @@ export function ChatInputBoxFooter({
     setExpandedPreviewMemoryId((prev) => (prev === activeMemoryId ? prev : null));
   }, [activeMemoryId, memoryCompletion.isOpen]);
 
+  useLayoutEffect(() => {
+    const footerHost = footerHostRef.current;
+    if (!footerHost || typeof window === 'undefined') {
+      return;
+    }
+
+    const homeComposerHost = footerHost.closest('.home-chat-composer-host') as HTMLElement | null;
+    if (!homeComposerHost) {
+      setPromptDropdownWidth((prev) => (prev === 820 ? prev : 820));
+      return;
+    }
+
+    const syncPromptDropdownWidth = () => {
+      const hostWidth = homeComposerHost.getBoundingClientRect().width;
+      const nextWidth = Math.round(Math.max(420, Math.min(680, hostWidth * 0.76)));
+      setPromptDropdownWidth((prev) => (prev === nextWidth ? prev : nextWidth));
+    };
+
+    syncPromptDropdownWidth();
+
+    const resizeObserver =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(syncPromptDropdownWidth) : null;
+    resizeObserver?.observe(homeComposerHost);
+    window.addEventListener('resize', syncPromptDropdownWidth);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', syncPromptDropdownWidth);
+    };
+  }, []);
+
   const formatMemoryDate = useMemo(
     () =>
       (value?: number) => {
@@ -316,7 +349,7 @@ export function ChatInputBoxFooter({
   );
 
   return (
-    <>
+    <div ref={footerHostRef} style={{ display: 'contents' }}>
       {/* Bottom button area */}
       <ButtonArea
         disabled={disabled || isLoading}
@@ -581,7 +614,8 @@ export function ChatInputBoxFooter({
       <CompletionDropdown
         isVisible={promptCompletion.isOpen}
         position={promptCompletion.position}
-        width={400}
+        width={promptDropdownWidth}
+        className="completion-dropdown--prompt"
         items={promptCompletion.items}
         selectedIndex={promptCompletion.activeIndex}
         loading={promptCompletion.loading}
@@ -618,6 +652,6 @@ export function ChatInputBoxFooter({
         onKeepOriginal={promptEnhancer.onKeepOriginal}
         onClose={promptEnhancer.onClose}
       />
-    </>
+    </div>
   );
 }

@@ -16,6 +16,7 @@ import type {
   FileItem,
   ManualMemoryItem,
   PermissionMode,
+  PromptItem,
   SkillItem,
 } from './types.js';
 import { ChatInputBoxHeader } from './ChatInputBoxHeader.js';
@@ -56,7 +57,6 @@ import {
   promptToDropdownItem,
   preloadSlashCommands,
   type AgentItem,
-  type PromptItem,
 } from './providers/index.js';
 import { debounce } from './utils/debounce.js';
 import { setCursorOffset } from './utils/selectionUtils.js';
@@ -68,6 +68,8 @@ import {
 import type { CommitSnapshotOptions, UndoRedoSnapshot } from './hooks/useUndoRedoHistory.js';
 import { perfTimer } from '../../utils/debug.js';
 import { DEBOUNCE_TIMING } from '../../constants/performance.js';
+import { requestPromptCreation } from '../../../prompts/promptEvents';
+import { recordPromptUsage } from '../../../prompts/promptUsage';
 import './styles.css';
 
 const INCREMENTAL_UNDO_REDO_ENABLED = true;
@@ -194,6 +196,7 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
       fileCompletionProvider,
       commandCompletionProvider,
       skillCompletionProvider,
+      promptCompletionProvider,
       manualMemoryCompletionProvider,
       onSelectManualMemory,
       onSelectSkill,
@@ -483,7 +486,7 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
     // Prompt completion hook (! trigger)
     const promptCompletion = useCompletionDropdown<PromptItem>({
       trigger: '!',
-      provider: promptProvider,
+      provider: promptCompletionProvider ?? promptProvider,
       toDropdownItem: promptToDropdownItem,
       onSelect: (prompt, query) => {
         // Skip loading and empty state special items
@@ -496,6 +499,7 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
 
         // Handle create prompt
         if (prompt.id === '__create_new__') {
+          requestPromptCreation({ scope: 'workspace' });
           onOpenPromptSettings?.();
           // Clear ! trigger text from input box
           if (editableRef.current && query) {
@@ -515,6 +519,8 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
           }
           return;
         }
+
+        recordPromptUsage(prompt.id);
 
         // Insert prompt content at cursor position
         if (editableRef.current && query) {

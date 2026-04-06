@@ -102,6 +102,8 @@ export interface DropdownItemData {
   checked?: boolean;
   /** Associated data */
   data?: Record<string, unknown>;
+  /** Optional item class name */
+  className?: string;
 }
 
 /**
@@ -148,6 +150,22 @@ export interface SkillItem {
   source?: string;
   /** User-facing scope label */
   scopeLabel?: string;
+}
+
+/**
+ * Prompt item (for ! trigger)
+ */
+export interface PromptItem {
+  id: string;
+  name: string;
+  content: string;
+  description?: string;
+  scopeLabel?: string;
+  argumentHint?: string;
+  argumentHintLabel?: string;
+  usageCount?: number;
+  heatLevel?: 0 | 1 | 2 | 3;
+  kind?: "prompt" | "create" | "empty";
 }
 
 /**
@@ -625,6 +643,8 @@ export interface ChatInputBoxProps {
   commandCompletionProvider?: (query: string, signal: AbortSignal) => Promise<CommandItem[]>;
   /** Optional skill completion provider override (for $ skill insertion) */
   skillCompletionProvider?: (query: string, signal: AbortSignal) => Promise<SkillItem[]>;
+  /** Optional prompt completion provider override (for ! prompt insertion) */
+  promptCompletionProvider?: (query: string, signal: AbortSignal) => Promise<PromptItem[]>;
   /** Optional manual memory completion provider override (for @@ memory linking) */
   manualMemoryCompletionProvider?: (
     query: string,
