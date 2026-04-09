@@ -23,6 +23,7 @@ import { getDefaultInterruptShortcut } from "../../../utils/shortcuts";
 import { normalizeHexColor } from "../../../utils/colorUtils";
 
 const allowedThemes = new Set(["system", "light", "dark", "dim"]);
+const allowedCanvasWidthModes = new Set(["narrow", "wide"]);
 const allowedComposerSendShortcuts = new Set(["enter", "cmdEnter"]);
 const SEARCH_SHORTCUT_DISALLOWED = new Set(["cmd+p", "ctrl+p"]);
 const ALLOWED_NOTIFICATION_SOUND_IDS = new Set([
@@ -118,6 +119,7 @@ const defaultSettings: AppSettings = {
   lastComposerReasoningEffort: null,
   uiScale: UI_SCALE_DEFAULT,
   theme: "system",
+  canvasWidthMode: "narrow",
   userMsgColor: "",
   usageShowRemaining: false,
   showMessageAnchors: true,
@@ -199,6 +201,9 @@ function normalizeAppSettings(
       ? sanitizeUiScale(settings.uiScale)
       : clampUiScale(settings.uiScale),
     theme: allowedThemes.has(settings.theme) ? settings.theme : "system",
+    canvasWidthMode: allowedCanvasWidthModes.has(settings.canvasWidthMode)
+      ? settings.canvasWidthMode
+      : "narrow",
     userMsgColor: fallbackUserMsgColor,
     uiFontFamily: normalizeFontFamily(
       settings.uiFontFamily,

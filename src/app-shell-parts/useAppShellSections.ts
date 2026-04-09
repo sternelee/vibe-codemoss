@@ -2031,6 +2031,8 @@ export function useAppShellSections(ctx: any) {
   }${isMacDesktop ? " macos-desktop" : ""
   }${
     reduceTransparency ? " reduced-transparency" : ""
+  }${
+    appSettings.canvasWidthMode === "wide" ? " canvas-width-wide" : ""
   }${!isCompact && sidebarCollapsed ? " sidebar-collapsed" : ""}${
     !isCompact && rightPanelCollapsed ? " right-panel-collapsed" : ""
   }${shouldShowSidebarTopbarContent ? " sidebar-title-relocated" : ""}${

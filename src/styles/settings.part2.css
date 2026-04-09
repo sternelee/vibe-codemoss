@@ -2573,6 +2573,10 @@
   grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
 }
 
+.settings-section-basic .settings-field.settings-basic-item.settings-scale-item {
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 520px);
+}
+
 .settings-section-basic .settings-field.settings-basic-item > .settings-basic-field-header,
 .settings-section-basic .settings-field.settings-basic-item > .settings-field-label {
   grid-area: label;
@@ -2590,7 +2594,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .settings-section-basic .settings-scale-control .settings-select-wrap {
@@ -2599,12 +2603,21 @@
 }
 
 .settings-section-basic .settings-scale-control .settings-input--range {
-  flex: 1 1 140px;
-  min-width: 140px;
+  flex: 1 1 auto;
+  min-width: 120px;
+}
+
+.settings-section-basic .settings-scale-control .settings-scale-save {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.settings-section-basic .settings-scale-control .settings-scale-reset {
+  flex: 0 0 auto;
 }
 
 .settings-section-basic .settings-scale-value {
-  min-width: 54px;
+  min-width: 48px;
   text-align: right;
   font-size: 12px;
   color: var(--settings-basic-text-muted);

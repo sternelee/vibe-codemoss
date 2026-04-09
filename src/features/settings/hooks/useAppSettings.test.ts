@@ -35,6 +35,7 @@ describe("useAppSettings", () => {
       {
         uiScale: UI_SCALE_MAX + 1,
         theme: "nope" as unknown as AppSettings["theme"],
+        canvasWidthMode: "invalid" as unknown as AppSettings["canvasWidthMode"],
         userMsgColor: "#XYZXYZ",
         backendMode: "remote",
         remoteBackendHost: "example:1234",
@@ -50,6 +51,7 @@ describe("useAppSettings", () => {
 
     expect(result.current.settings.uiScale).toBe(UI_SCALE_DEFAULT);
     expect(result.current.settings.theme).toBe("system");
+    expect(result.current.settings.canvasWidthMode).toBe("narrow");
     expect(result.current.settings.userMsgColor).toBe("");
     expect(result.current.settings.uiFontFamily).toMatch(/^Monaco,/);
     expect(result.current.settings.codeFontFamily).toMatch(/^Monaco,/);

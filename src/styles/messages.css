@@ -27,6 +27,15 @@
   min-height: 100%;
 }
 
+.app.canvas-width-wide .messages-full {
+  max-width: none;
+}
+
+.app.canvas-width-wide .messages {
+  padding-left: 50px;
+  padding-right: 25px;
+}
+
 .messages-collapsed-indicator {
   padding: 8px 20px;
   text-align: center;

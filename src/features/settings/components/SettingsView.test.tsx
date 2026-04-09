@@ -106,6 +106,7 @@ const baseSettings: AppSettings = {
   lastComposerReasoningEffort: null,
   uiScale: 1,
   theme: "system",
+  canvasWidthMode: "narrow",
   userMsgColor: "",
   usageShowRemaining: false,
   showMessageAnchors: true,
@@ -469,6 +470,39 @@ describe("SettingsView Display", () => {
     await waitFor(() => {
       expect(onUpdateAppSettings).toHaveBeenCalledWith(
         expect.objectContaining({ theme: "dark" }),
+      );
+    });
+  });
+
+  it("updates the canvas width mode selection", async () => {
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    renderDisplaySection({ onUpdateAppSettings });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("radio", { name: "settings.canvasWidthWide" }));
+    });
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ canvasWidthMode: "wide" }),
+      );
+    });
+  });
+
+  it("switches canvas width mode from wide back to narrow", async () => {
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    renderDisplaySection({
+      onUpdateAppSettings,
+      appSettings: { canvasWidthMode: "wide" },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("radio", { name: "settings.canvasWidthNarrow" }));
+    });
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ canvasWidthMode: "narrow" }),
       );
     });
   });
