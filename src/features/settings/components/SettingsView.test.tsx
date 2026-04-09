@@ -8,7 +8,7 @@ import {
   within,
 } from "@testing-library/react";
 import type { ComponentProps } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppSettings, WorkspaceInfo } from "../../../types";
 import { pushErrorToast } from "../../../services/toasts";
 import { SettingsView } from "./SettingsView";
@@ -29,9 +29,21 @@ vi.mock("../../../services/toasts", () => ({
   pushErrorToast: vi.fn(),
 }));
 
+const queryLocalFontsMock = vi.fn().mockResolvedValue([
+  { family: "Monaco" },
+  { family: "Avenir" },
+  { family: "SF Pro Text" },
+]);
+
+beforeEach(() => {
+  queryLocalFontsMock.mockClear();
+  (window as any).queryLocalFonts = queryLocalFontsMock;
+});
+
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  delete (window as any).queryLocalFonts;
 });
 
 const workspaceA: WorkspaceInfo = {
@@ -378,6 +390,9 @@ describe("SettingsView Display", () => {
 
   it("updates user message color using reference-compatible format", async () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    const appRoot = document.createElement("div");
+    appRoot.className = "app reduced-transparency";
+    document.body.appendChild(appRoot);
     renderDisplaySection({ onUpdateAppSettings });
 
     fireEvent.click(screen.getByTestId("settings-user-msg-color-preset-6e40c9"));
@@ -387,6 +402,10 @@ describe("SettingsView Display", () => {
         expect.objectContaining({ userMsgColor: "#6e40c9" }),
       );
     });
+    expect(document.documentElement.style.getPropertyValue("--color-message-user-bg")).toBe(
+      "#6e40c9",
+    );
+    expect(appRoot.style.getPropertyValue("--color-message-user-bg")).toBe("#6e40c9");
 
     fireEvent.change(screen.getByTestId("settings-user-msg-color-hex-input"), {
       target: { value: "#cf222e" },
@@ -397,6 +416,10 @@ describe("SettingsView Display", () => {
         expect.objectContaining({ userMsgColor: "#cf222e" }),
       );
     });
+    expect(document.documentElement.style.getPropertyValue("--color-message-user-bg")).toBe(
+      "#cf222e",
+    );
+    expect(appRoot.style.getPropertyValue("--color-message-user-bg")).toBe("#cf222e");
 
     const callCountBeforeInvalid = onUpdateAppSettings.mock.calls.length;
     fireEvent.change(screen.getByTestId("settings-user-msg-color-hex-input"), {
@@ -404,6 +427,7 @@ describe("SettingsView Display", () => {
     });
 
     expect(onUpdateAppSettings).toHaveBeenCalledTimes(callCountBeforeInvalid);
+    appRoot.remove();
   });
 
   it("hides remaining limits, message anchors, and transparency toggles", () => {
@@ -453,17 +477,19 @@ describe("SettingsView Display", () => {
     });
   });
 
-  it("commits font family changes on blur and enter", async () => {
+  it("commits ui font selection and code font input changes", async () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     renderDisplaySection({ onUpdateAppSettings });
 
-    const uiFontInput = screen.getByLabelText("UI font family");
-    fireEvent.change(uiFontInput, { target: { value: "Avenir, sans-serif" } });
-    fireEvent.blur(uiFontInput);
+    const uiFontSelect = screen.getByTestId("settings-ui-font-select");
+    await waitFor(() => {
+      expect(within(uiFontSelect).getByRole("option", { name: "Avenir" })).toBeTruthy();
+    });
+    fireEvent.change(uiFontSelect, { target: { value: "Avenir" } });
 
     await waitFor(() => {
       expect(onUpdateAppSettings).toHaveBeenCalledWith(
-        expect.objectContaining({ uiFontFamily: "Avenir, sans-serif" }),
+        expect.objectContaining({ uiFontFamily: "Avenir" }),
       );
     });
 
@@ -477,6 +503,16 @@ describe("SettingsView Display", () => {
       expect(onUpdateAppSettings).toHaveBeenCalledWith(
         expect.objectContaining({ codeFontFamily: "JetBrains Mono, monospace" }),
       );
+    });
+  });
+
+  it("lists local ui fonts in the dropdown", async () => {
+    renderDisplaySection();
+
+    await waitFor(() => {
+      const uiFontSelect = screen.getByTestId("settings-ui-font-select");
+      expect(within(uiFontSelect).getByRole("option", { name: "Avenir" })).toBeTruthy();
+      expect(within(uiFontSelect).getByRole("option", { name: "Monaco" })).toBeTruthy();
     });
   });
 

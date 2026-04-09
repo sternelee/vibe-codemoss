@@ -2733,6 +2733,15 @@
   gap: 8px;
 }
 
+.settings-section-basic .settings-field-row .settings-select-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.settings-section-basic .settings-field-row .settings-select-wrap .settings-select {
+  width: 100%;
+}
+
 .settings-section-basic .settings-field-row .settings-input {
   min-width: 0;
 }
@@ -2814,6 +2823,10 @@
   justify-content: flex-end;
   gap: 8px;
   min-width: 0;
+  padding: 6px 8px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--settings-basic-divider) 88%, transparent);
+  background: color-mix(in srgb, var(--settings-basic-control) 52%, transparent);
 }
 
 .settings-section-basic .settings-color-custom-label {
@@ -2832,6 +2845,12 @@
   padding: 0 10px;
   white-space: nowrap;
   font-size: 12px;
+  min-width: 92px;
+}
+
+.settings-section-basic .settings-ui-font-reset {
+  min-width: 72px;
+  white-space: nowrap;
 }
 
 .settings-section-basic .settings-color-hint {

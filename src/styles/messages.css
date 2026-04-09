@@ -963,15 +963,34 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 14px;
-  height: 14px;
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
-  opacity: 0.9;
+  border-radius: 5px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, #ffffff 30%, transparent) 0%,
+    color-mix(in srgb, #ffffff 20%, transparent) 100%
+  );
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, #ffffff 36%, transparent),
+    0 0 0 1px color-mix(in srgb, #000000 16%, transparent);
 }
 
 .user-reference-card-icon .file-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-reference-card-icon .file-icon svg {
   width: 14px;
   height: 14px;
+  filter:
+    saturate(1.35)
+    contrast(1.35)
+    brightness(1.2)
+    drop-shadow(0 0 0.55px color-mix(in srgb, #000000 45%, transparent));
 }
 
 .user-reference-card-meta {

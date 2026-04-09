@@ -262,10 +262,152 @@ const USER_MSG_LIGHT_PRESETS = [
   { color: "#57606a", label: "Gray" },
 ] as const;
 
-import { normalizeHexColor, HEX_COLOR_PATTERN } from "../../../utils/colorUtils";
+import {
+  normalizeHexColor,
+  HEX_COLOR_PATTERN,
+  getContrastingTextColor,
+} from "../../../utils/colorUtils";
 
 const DEFAULT_DARK_USER_MSG = "#005fb8";
 const DEFAULT_LIGHT_USER_MSG = "#0078d4";
+
+const UI_FONT_DETECTION_CANDIDATES = [
+  "SF Pro Text",
+  "SF Pro Display",
+  "Helvetica Neue",
+  "Arial",
+  "Avenir",
+  "PingFang SC",
+  "Hiragino Sans GB",
+  "Microsoft YaHei",
+  "Segoe UI",
+  "Tahoma",
+  "Verdana",
+  "Trebuchet MS",
+  "Noto Sans",
+  "Noto Sans CJK SC",
+  "Source Han Sans SC",
+  "Inter",
+  "Roboto",
+  "Ubuntu",
+  "Fira Sans",
+  "Monaco",
+  "Menlo",
+  "Consolas",
+  "JetBrains Mono",
+  "Source Code Pro",
+] as const;
+
+const FONT_DETECTION_FALLBACKS = ["monospace", "sans-serif", "serif"] as const;
+
+function extractPrimaryFontFamily(value: string | null | undefined): string {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return "";
+  }
+  if (trimmed.startsWith("\"") || trimmed.startsWith("'")) {
+    const quote = trimmed[0];
+    const endIndex = trimmed.indexOf(quote, 1);
+    if (endIndex > 1) {
+      return trimmed.slice(1, endIndex).trim();
+    }
+  }
+  const commaIndex = trimmed.indexOf(",");
+  const primary = (commaIndex >= 0 ? trimmed.slice(0, commaIndex) : trimmed).trim();
+  return primary.replace(/^["']|["']$/g, "").trim();
+}
+
+function formatFontFamilySetting(fontName: string): string {
+  const normalized = fontName.trim().replace(/^["']|["']$/g, "").trim();
+  if (!normalized) {
+    return DEFAULT_UI_FONT_FAMILY;
+  }
+  return /\s/.test(normalized) ? `"${normalized}"` : normalized;
+}
+
+function detectInstalledFontsFromCandidates(candidates: readonly string[]): string[] {
+  if (typeof document === "undefined") {
+    return [];
+  }
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  if (!context) {
+    return [];
+  }
+  const sampleText = "mmmmmmmmmmlilililWWWWWWW1234567890中文";
+  const baseWidths = new Map<string, number>();
+  FONT_DETECTION_FALLBACKS.forEach((fallback) => {
+    context.font = `72px ${fallback}`;
+    baseWidths.set(fallback, context.measureText(sampleText).width);
+  });
+
+  const detected: string[] = [];
+  candidates.forEach((candidate) => {
+    const escaped = candidate.replace(/"/g, "\\\"");
+    const quoted = `"${escaped}"`;
+    const isAvailable = FONT_DETECTION_FALLBACKS.some((fallback) => {
+      context.font = `72px ${quoted}, ${fallback}`;
+      const width = context.measureText(sampleText).width;
+      const baseWidth = baseWidths.get(fallback);
+      return baseWidth != null && width !== baseWidth;
+    });
+    if (isAvailable) {
+      detected.push(candidate);
+    }
+  });
+
+  return detected;
+}
+
+async function listLocalUiFonts(): Promise<string[]> {
+  const discovered = new Set<string>();
+  try {
+    const localFonts = await (window as any).queryLocalFonts?.();
+    if (Array.isArray(localFonts)) {
+      localFonts.forEach((entry) => {
+        if (entry && typeof entry.family === "string" && entry.family.trim()) {
+          discovered.add(entry.family.trim());
+        }
+      });
+    }
+  } catch {
+    // Ignore Local Font Access errors and fallback to candidate detection.
+  }
+
+  if (discovered.size === 0) {
+    detectInstalledFontsFromCandidates(UI_FONT_DETECTION_CANDIDATES).forEach((font) => {
+      discovered.add(font);
+    });
+  }
+
+  return Array.from(discovered).sort((left, right) =>
+    left.localeCompare(right, undefined, { sensitivity: "base" }),
+  );
+}
+
+function applyUserMessageBubbleCssVars(color: string | null, textColor: string | null) {
+  if (typeof document === "undefined") {
+    return;
+  }
+  const targets: HTMLElement[] = [
+    document.documentElement,
+    ...(Array.from(document.querySelectorAll(".app")) as HTMLElement[]),
+  ];
+  targets.forEach((target) => {
+    if (color) {
+      target.style.setProperty("--surface-bubble-user", color);
+      target.style.setProperty("--color-message-user-bg", color);
+      if (textColor) {
+        target.style.setProperty("--color-message-user-text", textColor);
+      }
+      return;
+    }
+    target.style.removeProperty("--surface-bubble-user");
+    target.style.removeProperty("--color-message-user-bg");
+    target.style.removeProperty("--color-message-user-text");
+  });
+}
+
 export function SettingsView({
   workspaceGroups,
   groupedWorkspaces,
@@ -314,7 +456,11 @@ export function SettingsView({
   const [codexArgsDraft, setCodexArgsDraft] = useState(appSettings.codexArgs ?? "");
   const [remoteHostDraft, setRemoteHostDraft] = useState(appSettings.remoteBackendHost);
   const [remoteTokenDraft, setRemoteTokenDraft] = useState(appSettings.remoteBackendToken ?? "");
-  const [uiFontDraft, setUiFontDraft] = useState(appSettings.uiFontFamily);
+  const [uiFontDraft, setUiFontDraft] = useState(() =>
+    extractPrimaryFontFamily(appSettings.uiFontFamily) ||
+    extractPrimaryFontFamily(DEFAULT_UI_FONT_FAMILY),
+  );
+  const [uiFontOptions, setUiFontOptions] = useState<string[]>([]);
   const [codeFontDraft, setCodeFontDraft] = useState(appSettings.codeFontFamily);
   const [codeFontSizeDraft, setCodeFontSizeDraft] = useState(appSettings.codeFontSize);
   const [uiScaleDraft, setUiScaleDraft] = useState(clampUiScale(appSettings.uiScale));
@@ -441,6 +587,26 @@ export function SettingsView({
     resolvedAppearanceTheme === "light"
       ? DEFAULT_LIGHT_USER_MSG
       : DEFAULT_DARK_USER_MSG;
+  const defaultUiPrimaryFont = useMemo(
+    () => extractPrimaryFontFamily(DEFAULT_UI_FONT_FAMILY),
+    [],
+  );
+  const uiFontSelectOptions = useMemo(() => {
+    const options = new Set<string>(uiFontOptions);
+    const currentPrimary = extractPrimaryFontFamily(appSettings.uiFontFamily);
+    if (defaultUiPrimaryFont) {
+      options.add(defaultUiPrimaryFont);
+    }
+    if (currentPrimary) {
+      options.add(currentPrimary);
+    }
+    if (uiFontDraft) {
+      options.add(uiFontDraft);
+    }
+    return Array.from(options).sort((left, right) =>
+      left.localeCompare(right, undefined, { sensitivity: "base" }),
+    );
+  }, [appSettings.uiFontFamily, defaultUiPrimaryFont, uiFontDraft, uiFontOptions]);
   const selectedNotificationSound = useMemo(() => {
     const raw = appSettings.notificationSoundId?.trim();
     if (!raw) {
@@ -623,6 +789,24 @@ export function SettingsView({
   }, [t]);
 
   useEffect(() => {
+    let active = true;
+    void listLocalUiFonts()
+      .then((fonts) => {
+        if (active) {
+          setUiFontOptions(fonts);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setUiFontOptions([]);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (
       projectSessionWorkspaceId &&
       sessionWorkspaceOptions.some((workspace) => workspace.id === projectSessionWorkspaceId)
@@ -785,7 +969,10 @@ export function SettingsView({
   }, [appSettings.remoteBackendToken]);
 
   useEffect(() => {
-    setUiFontDraft(appSettings.uiFontFamily);
+    const nextPrimaryFont =
+      extractPrimaryFontFamily(appSettings.uiFontFamily) ||
+      extractPrimaryFontFamily(DEFAULT_UI_FONT_FAMILY);
+    setUiFontDraft(nextPrimaryFont);
   }, [appSettings.uiFontFamily]);
 
   useEffect(() => {
@@ -1038,20 +1225,32 @@ export function SettingsView({
     setUiScaleDraft(1);
   }, []);
 
-  const handleCommitUiFont = async () => {
-    const nextFont = normalizeFontFamily(
-      uiFontDraft,
-      DEFAULT_UI_FONT_FAMILY,
-    );
-    setUiFontDraft(nextFont);
-    if (nextFont === appSettings.uiFontFamily) {
-      return;
-    }
-    await onUpdateAppSettings({
-      ...appSettings,
-      uiFontFamily: nextFont,
-    });
-  };
+  const handleCommitUiFont = useCallback(
+    async (selectedFontName: string) => {
+      const normalizedFontName = selectedFontName.trim();
+      const nextFont = normalizeFontFamily(
+        formatFontFamilySetting(normalizedFontName),
+        DEFAULT_UI_FONT_FAMILY,
+      );
+      if (nextFont === appSettings.uiFontFamily) {
+        return;
+      }
+      await onUpdateAppSettings({
+        ...appSettings,
+        uiFontFamily: nextFont,
+      });
+    },
+    [appSettings, onUpdateAppSettings],
+  );
+
+  const handleUiFontSelectChange = useCallback(
+    (event: React.ChangeEvent<HTMLSelectElement>) => {
+      const nextFontName = event.target.value;
+      setUiFontDraft(nextFontName);
+      void handleCommitUiFont(nextFontName);
+    },
+    [handleCommitUiFont],
+  );
 
   const handleCommitCodeFont = async () => {
     const nextFont = normalizeFontFamily(
@@ -1083,6 +1282,10 @@ export function SettingsView({
   const handleSaveUserMsgColor = useCallback(
     async (nextColor: string) => {
       const normalized = normalizeHexColor(nextColor);
+      applyUserMessageBubbleCssVars(
+        normalized || null,
+        normalized ? getContrastingTextColor(normalized) : null,
+      );
       if (normalized === normalizedUserMsgColor) {
         return;
       }
@@ -2356,27 +2559,26 @@ export function SettingsView({
                           {t("settings.uiFontFamily")}
                         </label>
                         <div className="settings-field-row">
-                          <input
-                            id="ui-font-family"
-                            type="text"
-                            className="settings-input"
-                            value={uiFontDraft}
-                            onChange={(event) => setUiFontDraft(event.target.value)}
-                            onBlur={() => {
-                              void handleCommitUiFont();
-                            }}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter") {
-                                event.preventDefault();
-                                void handleCommitUiFont();
-                              }
-                            }}
-                          />
+                          <div className="settings-select-wrap">
+                            <select
+                              id="ui-font-family"
+                              className="settings-select"
+                              value={uiFontDraft}
+                              onChange={handleUiFontSelectChange}
+                              data-testid="settings-ui-font-select"
+                            >
+                              {uiFontSelectOptions.map((fontName) => (
+                                <option key={fontName} value={fontName}>
+                                  {fontName}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                           <button
                             type="button"
-                            className="ghost settings-button-compact"
+                            className="ghost settings-button-compact settings-ui-font-reset"
                             onClick={() => {
-                              setUiFontDraft(DEFAULT_UI_FONT_FAMILY);
+                              setUiFontDraft(defaultUiPrimaryFont);
                               void onUpdateAppSettings({
                                 ...appSettings,
                                 uiFontFamily: DEFAULT_UI_FONT_FAMILY,
