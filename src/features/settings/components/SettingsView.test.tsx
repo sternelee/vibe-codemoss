@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -12,6 +13,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppSettings, WorkspaceInfo } from "../../../types";
 import { pushErrorToast } from "../../../services/toasts";
 import { SettingsView } from "./SettingsView";
+
+vi.mock("@tauri-apps/api/app", () => ({
+  getVersion: vi.fn(() => new Promise<string>(() => {})),
+}));
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
   ask: vi.fn(),
@@ -29,14 +34,21 @@ vi.mock("../../../services/toasts", () => ({
   pushErrorToast: vi.fn(),
 }));
 
-const queryLocalFontsMock = vi.fn().mockResolvedValue([
+const mockedLocalFonts = [
   { family: "Monaco" },
   { family: "Avenir" },
   { family: "SF Pro Text" },
-]);
+] as const;
+
+const queryLocalFontsMock = vi.fn<() => Promise<Array<{ family: string }>>>(
+  () => new Promise<Array<{ family: string }>>(() => {}),
+);
 
 beforeEach(() => {
-  queryLocalFontsMock.mockClear();
+  queryLocalFontsMock.mockReset();
+  queryLocalFontsMock.mockImplementation(
+    () => new Promise<Array<{ family: string }>>(() => {}),
+  );
   (window as any).queryLocalFonts = queryLocalFontsMock;
 });
 
@@ -254,6 +266,12 @@ const renderComposerSection = (
   return { onUpdateAppSettings };
 };
 
+const flushSettingsViewEffects = async () => {
+  await act(async () => {
+    await Promise.resolve();
+  });
+};
+
 describe("SettingsView prompts workspace routing", () => {
   it("aligns prompt settings workspace picker to the active workspace when opened from prompts", async () => {
     render(
@@ -299,8 +317,9 @@ describe("SettingsView prompts workspace routing", () => {
 });
 
 describe("SettingsView Display", () => {
-  it("keeps codex, dictation, git, and experimental sidebar entries hidden", () => {
+  it("keeps codex, dictation, git, and experimental sidebar entries hidden", async () => {
     renderDisplaySection();
+    await flushSettingsViewEffects();
 
     expect(screen.queryByRole("button", { name: "Dictation" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Git" })).toBeNull();
@@ -430,8 +449,9 @@ describe("SettingsView Display", () => {
     appRoot.remove();
   });
 
-  it("hides remaining limits, message anchors, and transparency toggles", () => {
+  it("hides remaining limits, message anchors, and transparency toggles", async () => {
     renderDisplaySection();
+    await flushSettingsViewEffects();
 
     expect(screen.queryByText("Show remaining Codex limits")).toBeNull();
     expect(screen.queryByText("Show message anchors")).toBeNull();
@@ -479,6 +499,7 @@ describe("SettingsView Display", () => {
 
   it("commits ui font selection and code font input changes", async () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    queryLocalFontsMock.mockResolvedValue([...mockedLocalFonts]);
     renderDisplaySection({ onUpdateAppSettings });
 
     const uiFontSelect = screen.getByTestId("settings-ui-font-select");
@@ -507,6 +528,7 @@ describe("SettingsView Display", () => {
   });
 
   it("lists local ui fonts in the dropdown", async () => {
+    queryLocalFontsMock.mockResolvedValue([...mockedLocalFonts]);
     renderDisplaySection();
 
     await waitFor(() => {
