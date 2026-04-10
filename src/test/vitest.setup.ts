@@ -447,6 +447,7 @@ vi.mock("react-i18next", () => ({
         "threads.turnFailedWithMessage": "会话失败：{{message}}",
         "threads.turnFailedToStart": "会话启动失败。",
         "threads.turnFailedToStartWithMessage": "会话启动失败：{{message}}",
+        "messages.middleStepsCollapsedHint": "已折叠 {{count}} 条中间步骤（实时中）",
       };
       // Simple interpolation for test environment
       let template = translations[key] ?? key;

@@ -130,28 +130,36 @@ function extractThreadSizeBytes(record: Record<string, unknown>) {
   );
 }
 
+function normalizeGeminiSessionSummary(value: unknown): GeminiSessionSummary | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  const sessionId = asString(record.sessionId ?? record.session_id).trim();
+  if (!sessionId) {
+    return null;
+  }
+  const fileSizeBytes = extractThreadSizeBytes(record);
+  return {
+    sessionId,
+    firstMessage: asString(record.firstMessage ?? record.first_message).trim(),
+    updatedAt: asNumber(record.updatedAt ?? record.updated_at),
+    ...(fileSizeBytes !== undefined ? { fileSizeBytes } : {}),
+  };
+}
+
 function normalizeGeminiSessionSummaries(value: unknown): GeminiSessionSummary[] {
   if (!Array.isArray(value)) {
     return [];
   }
-  return value
-    .map((entry) => {
-      if (!entry || typeof entry !== "object") {
-        return null;
-      }
-      const record = entry as Record<string, unknown>;
-      const sessionId = asString(record.sessionId).trim();
-      if (!sessionId) {
-        return null;
-      }
-      return {
-        sessionId,
-        firstMessage: asString(record.firstMessage).trim(),
-        updatedAt: asNumber(record.updatedAt),
-        fileSizeBytes: extractThreadSizeBytes(record),
-      } satisfies GeminiSessionSummary;
-    })
-    .filter((entry): entry is GeminiSessionSummary => entry !== null);
+  const summaries: GeminiSessionSummary[] = [];
+  value.forEach((entry) => {
+    const summary = normalizeGeminiSessionSummary(entry);
+    if (summary) {
+      summaries.push(summary);
+    }
+  });
+  return summaries;
 }
 
 function mergeGeminiSessionSummaries(

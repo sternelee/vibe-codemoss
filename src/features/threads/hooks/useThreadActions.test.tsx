@@ -1491,6 +1491,47 @@ describe("useThreadActions", () => {
     });
   });
 
+  it("normalizes gemini session summaries with snake_case fields", async () => {
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [],
+        nextCursor: null,
+      },
+    });
+    vi.mocked(listClaudeSessions).mockResolvedValue([]);
+    vi.mocked(getOpenCodeSessionList).mockResolvedValue([]);
+    vi.mocked(listGeminiSessions).mockResolvedValue([
+      {
+        session_id: "ses_gemini_snake_1",
+        first_message: "Gemini Snake",
+        updated_at: 1_730_000_200_000,
+        file_size_bytes: 2_048,
+      },
+    ]);
+
+    const { result, dispatch } = renderActions();
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(workspace);
+    });
+
+    await waitFor(() => {
+      expect(dispatch).toHaveBeenCalledWith({
+        type: "setThreads",
+        workspaceId: "ws-1",
+        threads: [
+          {
+            id: "gemini:ses_gemini_snake_1",
+            name: "Gemini Snake",
+            updatedAt: 1_730_000_200_000,
+            sizeBytes: 2_048,
+            engineSource: "gemini",
+          },
+        ],
+      });
+    });
+  });
+
   it("routes opencode hard delete to backend adapter", async () => {
     const { result } = renderActions();
 
