@@ -3,7 +3,7 @@ use serde_json::{json, Map, Value};
 use std::collections::{HashMap, HashSet};
 use std::io::ErrorKind;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 use tauri::{AppHandle, Emitter, State};
@@ -82,6 +82,14 @@ const UNIFIED_CODEX_CURSOR_PREFIX: &str = "codex-unified:";
 const UNIFIED_CODEX_MAX_THREADS: usize = 5_000;
 const UNIFIED_CODEX_MAX_PAGES: usize = 200;
 const UNIFIED_CODEX_PAGE_SIZE: u32 = 200;
+const LOCAL_SESSION_SCAN_UNAVAILABLE_PARTIAL_SOURCE: &str = "local-session-scan-unavailable";
+
+static WORKSPACE_CODEX_SESSION_ID_CACHE: OnceLock<Mutex<HashMap<String, HashSet<String>>>> =
+    OnceLock::new();
+
+fn workspace_codex_session_id_cache() -> &'static Mutex<HashMap<String, HashSet<String>>> {
+    WORKSPACE_CODEX_SESSION_ID_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
 
 fn parse_unified_codex_cursor(cursor: Option<&str>) -> usize {
     let Some(cursor) = cursor.map(str::trim).filter(|value| !value.is_empty()) else {
@@ -227,10 +235,38 @@ fn codex_session_identifier_candidates(session: &LocalUsageSessionSummary) -> Ve
     ids
 }
 
+fn collect_codex_session_identifiers(local_sessions: &[LocalUsageSessionSummary]) -> HashSet<String> {
+    local_sessions
+        .iter()
+        .flat_map(codex_session_identifier_candidates)
+        .collect()
+}
+
+fn cache_workspace_session_identifiers(workspace_id: &str, session_ids: &HashSet<String>) {
+    let mut cache = workspace_codex_session_id_cache()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    if session_ids.is_empty() {
+        cache.remove(workspace_id);
+        return;
+    }
+    cache.insert(workspace_id.to_string(), session_ids.clone());
+}
+
+fn read_cached_workspace_session_identifiers(workspace_id: &str) -> HashSet<String> {
+    workspace_codex_session_id_cache()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .get(workspace_id)
+        .cloned()
+        .unwrap_or_default()
+}
+
 #[allow(dead_code)]
 fn merge_unified_codex_thread_entries(
     mut live_entries: Vec<Value>,
     local_sessions: &[LocalUsageSessionSummary],
+    workspace_session_ids: &HashSet<String>,
     workspace_path: &str,
     requested_limit: usize,
 ) -> Vec<Value> {
@@ -243,7 +279,12 @@ fn merge_unified_codex_thread_entries(
         };
         let mut entry = entry;
         if let Some(existing) = entry.as_object_mut() {
-            ensure_thread_entry_workspace_cwd(existing, workspace_path);
+            // Avoid force-marking ambiguous live rows as current workspace.
+            // Only backfill cwd when this row can be mapped to local workspace
+            // session identifiers (canonical id or aliases).
+            if workspace_session_ids.contains(&id) {
+                ensure_thread_entry_workspace_cwd(existing, workspace_path);
+            }
         }
         if let Some(existing_index) = id_to_index.get(&id).copied() {
             let existing_timestamp = thread_entry_timestamp(&merged_entries[existing_index]);
@@ -454,21 +495,42 @@ async fn build_unified_codex_thread_page(
         Vec::new()
     };
 
-    let local_sessions = load_local_codex_session_summaries(state, workspace_id, usize::MAX)
-        .await
-        .map(|(_, sessions)| sessions)
-        .unwrap_or_else(|error| {
+    let (local_sessions, workspace_session_ids, partial_source): (
+        Vec<LocalUsageSessionSummary>,
+        HashSet<String>,
+        Option<&str>,
+    ) = match load_local_codex_session_summaries(state, workspace_id, usize::MAX).await {
+        Ok((_, sessions)) => {
+            let session_ids = collect_codex_session_identifiers(&sessions);
+            cache_workspace_session_identifiers(workspace_id, &session_ids);
+            (sessions, session_ids, None)
+        }
+        Err(error) => {
             log::debug!(
                 "[list_threads] Local Codex session scan unavailable for {}: {}",
                 workspace_id,
                 error
             );
-            Vec::new()
-        });
+            let cached_ids = read_cached_workspace_session_identifiers(workspace_id);
+            if !cached_ids.is_empty() {
+                log::debug!(
+                    "[list_threads] Reusing {} cached Codex session ids for workspace {}",
+                    cached_ids.len(),
+                    workspace_id
+                );
+            }
+            (
+                Vec::new(),
+                cached_ids,
+                Some(LOCAL_SESSION_SCAN_UNAVAILABLE_PARTIAL_SOURCE),
+            )
+        }
+    };
 
     let merged_entries = merge_unified_codex_thread_entries(
         live_entries,
         &local_sessions,
+        &workspace_session_ids,
         &workspace_path,
         UNIFIED_CODEX_MAX_THREADS,
     );
@@ -488,7 +550,11 @@ async fn build_unified_codex_thread_page(
     } else {
         None
     };
-    Ok(build_unified_codex_thread_response(data, next_cursor, None))
+    Ok(build_unified_codex_thread_response(
+        data,
+        next_cursor,
+        partial_source,
+    ))
 }
 
 async fn load_local_codex_session_summaries(
@@ -2547,6 +2613,7 @@ mod tests {
     };
     use crate::types::{LocalUsageSessionSummary, LocalUsageUsageData};
     use serde_json::json;
+    use std::collections::HashSet;
 
     #[test]
     fn normalize_model_id_trims_and_filters_empty() {
@@ -2656,8 +2723,17 @@ mod tests {
             },
         ];
 
-        let merged =
-            merge_unified_codex_thread_entries(live_entries, &local_sessions, "/tmp/workspace", 10);
+        let workspace_session_ids: HashSet<String> = local_sessions
+            .iter()
+            .flat_map(super::codex_session_identifier_candidates)
+            .collect();
+        let merged = merge_unified_codex_thread_entries(
+            live_entries,
+            &local_sessions,
+            &workspace_session_ids,
+            "/tmp/workspace",
+            10,
+        );
 
         assert_eq!(merged.len(), 3);
         assert_eq!(merged[0]["id"], "thread-dup");
@@ -2699,8 +2775,17 @@ mod tests {
             file_size_bytes: Some(1_024),
         }];
 
-        let merged =
-            merge_unified_codex_thread_entries(live_entries, &local_sessions, "/tmp/workspace", 10);
+        let workspace_session_ids: HashSet<String> = local_sessions
+            .iter()
+            .flat_map(super::codex_session_identifier_candidates)
+            .collect();
+        let merged = merge_unified_codex_thread_entries(
+            live_entries,
+            &local_sessions,
+            &workspace_session_ids,
+            "/tmp/workspace",
+            10,
+        );
         assert_eq!(merged.len(), 1);
         assert_eq!(merged[0]["sizeBytes"], 1_024);
         assert_eq!(merged[0]["source"], "mossx");
@@ -2728,8 +2813,17 @@ mod tests {
             file_size_bytes: Some(2_048),
         }];
 
-        let merged =
-            merge_unified_codex_thread_entries(live_entries, &local_sessions, "/tmp/workspace", 10);
+        let workspace_session_ids: HashSet<String> = local_sessions
+            .iter()
+            .flat_map(super::codex_session_identifier_candidates)
+            .collect();
+        let merged = merge_unified_codex_thread_entries(
+            live_entries,
+            &local_sessions,
+            &workspace_session_ids,
+            "/tmp/workspace",
+            10,
+        );
 
         assert_eq!(merged.len(), 1);
         assert_eq!(merged[0]["id"], "rollout-2026-04-10T10-00-00-session-123");
@@ -2739,7 +2833,7 @@ mod tests {
     }
 
     #[test]
-    fn merge_unified_codex_thread_entries_backfills_workspace_cwd_for_live_rows() {
+    fn merge_unified_codex_thread_entries_does_not_backfill_cwd_for_unmapped_live_rows() {
         let live_entries = vec![json!({
             "id": "thread-live",
             "preview": "remote",
@@ -2750,12 +2844,75 @@ mod tests {
         let merged = merge_unified_codex_thread_entries(
             live_entries,
             &[],
+            &HashSet::new(),
             "/tmp/workspace",
             10,
         );
 
         assert_eq!(merged.len(), 1);
         assert_eq!(merged[0]["id"], "thread-live");
+        assert!(merged[0].get("cwd").is_none() || merged[0]["cwd"].is_null());
+    }
+
+    #[test]
+    fn merge_unified_codex_thread_entries_backfills_cwd_from_cached_workspace_ids() {
+        let live_entries = vec![json!({
+            "id": "thread-live",
+            "preview": "remote",
+            "updatedAt": 90,
+            "createdAt": 90
+        })];
+        let mut workspace_session_ids = HashSet::new();
+        workspace_session_ids.insert("thread-live".to_string());
+
+        let merged = merge_unified_codex_thread_entries(
+            live_entries,
+            &[],
+            &workspace_session_ids,
+            "/tmp/workspace",
+            10,
+        );
+
+        assert_eq!(merged.len(), 1);
+        assert_eq!(merged[0]["id"], "thread-live");
+        assert_eq!(merged[0]["cwd"], "/tmp/workspace");
+    }
+
+    #[test]
+    fn merge_unified_codex_thread_entries_backfills_workspace_cwd_for_mapped_live_rows() {
+        let live_entries = vec![json!({
+            "id": "rollout-2026-04-10T10-00-00-session-123",
+            "preview": "remote",
+            "updatedAt": 90,
+            "createdAt": 90
+        })];
+        let local_sessions = vec![LocalUsageSessionSummary {
+            session_id: "session-123".to_string(),
+            session_id_aliases: vec!["rollout-2026-04-10T10-00-00-session-123".to_string()],
+            timestamp: 110,
+            model: "openai/gpt-5".to_string(),
+            usage: LocalUsageUsageData::default(),
+            cost: 0.0,
+            summary: Some("local".to_string()),
+            source: Some("cli".to_string()),
+            provider: Some("openai".to_string()),
+            file_size_bytes: Some(2_048),
+        }];
+
+        let workspace_session_ids: HashSet<String> = local_sessions
+            .iter()
+            .flat_map(super::codex_session_identifier_candidates)
+            .collect();
+        let merged = merge_unified_codex_thread_entries(
+            live_entries,
+            &local_sessions,
+            &workspace_session_ids,
+            "/tmp/workspace",
+            10,
+        );
+
+        assert_eq!(merged.len(), 1);
+        assert_eq!(merged[0]["id"], "rollout-2026-04-10T10-00-00-session-123");
         assert_eq!(merged[0]["cwd"], "/tmp/workspace");
     }
 
