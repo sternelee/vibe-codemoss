@@ -26,6 +26,22 @@ mod file_ops;
 mod file_policy;
 #[path = "../git_utils.rs"]
 mod git_utils;
+// `local_usage.rs` is shared with the desktop Tauri app and references
+// `crate::state::AppState` in command wrappers. The daemon only reuses the
+// workspace-backed filesystem helpers, so a minimal stub keeps the shared
+// module compilable here without pulling the full desktop app state graph.
+mod state {
+    use std::collections::HashMap;
+    use tokio::sync::Mutex;
+
+    use crate::types::WorkspaceEntry;
+
+    pub(crate) struct AppState {
+        pub(crate) workspaces: Mutex<HashMap<String, WorkspaceEntry>>,
+    }
+}
+#[path = "../local_usage.rs"]
+mod local_usage;
 #[path = "../rules.rs"]
 mod rules;
 #[path = "../shared/mod.rs"]
@@ -2452,6 +2468,11 @@ async fn handle_rpc_request(
             let workspace_id = parse_string(&params, "workspaceId")?;
             let thread_id = parse_string(&params, "threadId")?;
             state.archive_thread(workspace_id, thread_id).await
+        }
+        "delete_codex_session" => {
+            let workspace_id = parse_string(&params, "workspaceId")?;
+            let session_id = parse_string(&params, "sessionId")?;
+            state.delete_codex_session(workspace_id, session_id).await
         }
         "send_user_message" => {
             let workspace_id = parse_string(&params, "workspaceId")?;

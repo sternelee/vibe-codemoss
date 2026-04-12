@@ -14,11 +14,11 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::{broadcast, Mutex, RwLock};
 
-use crate::app_paths;
 use super::events::EngineEvent;
 use super::gemini_history::{load_gemini_session, GeminiSessionMessage};
 use super::gemini_proxy_guard::apply_dead_loopback_proxy_guard;
 use super::{EngineConfig, EngineType, SendMessageParams};
+use crate::app_paths;
 
 const GEMINI_REASONING_HISTORY_SYNC_INTERVAL_MS: u64 = 900;
 const GEMINI_INLINE_IMAGE_MAX_BYTES: usize = 12 * 1024 * 1024;
@@ -805,7 +805,11 @@ impl GeminiSession {
         cmd.stderr(Stdio::piped());
         GeminiBuiltCommand {
             command: cmd,
-            prompt_stdin_payload: if prompt_via_stdin { Some(safe_text) } else { None },
+            prompt_stdin_payload: if prompt_via_stdin {
+                Some(safe_text)
+            } else {
+                None
+            },
         }
     }
 
@@ -1021,7 +1025,8 @@ impl GeminiSession {
                         match &unified_event {
                             EngineEvent::TextDelta { text, .. } => {
                                 if first_text_delta_ms.is_none() {
-                                    first_text_delta_ms = Some(turn_started_at.elapsed().as_millis());
+                                    first_text_delta_ms =
+                                        Some(turn_started_at.elapsed().as_millis());
                                 }
                                 response_text.push_str(text);
                             }
@@ -2194,7 +2199,6 @@ fn parse_gemini_event(workspace_id: &str, event: &Value) -> Option<EngineEvent> 
         }
     }
 }
-
 
 #[cfg(test)]
 #[path = "gemini_tests.rs"]

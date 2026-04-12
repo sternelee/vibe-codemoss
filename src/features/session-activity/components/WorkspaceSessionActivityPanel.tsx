@@ -264,14 +264,34 @@ function canExpandEvent(event: SessionActivityEvent) {
 
 function unwrapShellCommand(command: string) {
   let normalized = command.trim();
-  const shellWrapperPattern =
-    /^(?:\/\S+\/)?(?:bash|zsh|sh|fish)(?:\.exe)?\s+-lc\s+(?:(['"])([\s\S]+)\1|([\s\S]+))$/i;
+  const shellLaunchers = new Set([
+    "bash",
+    "zsh",
+    "sh",
+    "fish",
+    "bash.exe",
+    "zsh.exe",
+    "sh.exe",
+    "fish.exe",
+  ]);
+  const shellWrapperPattern = /^(.+?)\s+-lc\s+([\s\S]+)$/i;
   for (let iteration = 0; iteration < 3; iteration += 1) {
     const wrapperMatch = normalized.match(shellWrapperPattern);
     if (!wrapperMatch) {
       break;
     }
-    normalized = (wrapperMatch[2] ?? wrapperMatch[3] ?? "").trim();
+    const launcherRaw = (wrapperMatch[1] ?? "").trim();
+    const payloadRaw = (wrapperMatch[2] ?? "").trim();
+    const launcherUnquoted = launcherRaw.replace(/^['"]|['"]$/g, "");
+    const launcherBase = launcherUnquoted.split(/[\\/]/).pop()?.toLowerCase() ?? "";
+    if (!shellLaunchers.has(launcherBase)) {
+      break;
+    }
+    const payloadMatch = payloadRaw.match(/^(["'])([\s\S]*)\1$/);
+    const payload = (payloadMatch ? payloadMatch[2] : payloadRaw)
+      .replace(/\\{2,}(?=["'])/g, "\\")
+      .trim();
+    normalized = payload;
   }
   return normalized;
 }

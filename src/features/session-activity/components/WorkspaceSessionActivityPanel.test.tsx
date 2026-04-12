@@ -1226,6 +1226,34 @@ describe("WorkspaceSessionActivityPanel", () => {
     ).toBe("activityPanel.commandCategories.search · rg -n \\\"TODO\\\" src");
   });
 
+  it("normalizes wrapped Windows shell command and adds category in collapsed command title", () => {
+    const viewModel = createViewModel();
+    viewModel.timeline = viewModel.timeline.map((event) =>
+      event.kind === "command"
+        ? {
+            ...event,
+            commandDescription: "",
+            commandText:
+              "\"C:\\\\Program Files\\\\Git\\\\bin\\\\bash.exe\" -lc \"zsh -lc 'source ~/.zshrc && rg -n \\\\\\\"TODO\\\\\\\" src'\"",
+          }
+        : event,
+    );
+
+    const view = render(
+      <WorkspaceSessionActivityPanel
+        workspaceId="workspace-1"
+        viewModel={viewModel}
+        onOpenDiffPath={vi.fn()}
+        onSelectThread={vi.fn()}
+      />,
+    );
+
+    expect(
+      getEventNode(view.container, "command")?.querySelector(".session-activity-card-title")
+        ?.textContent,
+    ).toBe("activityPanel.commandCategories.search · rg -n \\\"TODO\\\" src");
+  });
+
   it("classifies wc command as read in collapsed command title", () => {
     const viewModel = createViewModel();
     viewModel.timeline = viewModel.timeline.map((event) =>
