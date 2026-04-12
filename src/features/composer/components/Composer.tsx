@@ -190,6 +190,9 @@ type ComposerProps = {
   fileReferenceMode?: "path" | "none";
   activeWorkspaceId?: string | null;
   activeThreadId?: string | null;
+  threadItemsByThread?: Record<string, ConversationItem[]>;
+  threadParentById?: Record<string, string>;
+  threadStatusById?: Record<string, { isProcessing?: boolean } | undefined>;
   plan?: TurnPlan | null;
   isPlanMode?: boolean;
   onOpenDiffPath?: (path: string) => void;
@@ -554,6 +557,9 @@ export const Composer = memo(function Composer({
   fileReferenceMode = "path",
   activeWorkspaceId = null,
   activeThreadId = null,
+  threadItemsByThread,
+  threadParentById,
+  threadStatusById,
   plan = null,
   isPlanMode = false,
   onRewind,
@@ -580,7 +586,13 @@ export const Composer = memo(function Composer({
     selectedEngine === "gemini";
   const { todoTotal, subagentTotal, fileChanges, commandTotal } = useStatusPanelData(
     performanceScopedItems,
-    { isCodexEngine },
+    {
+      isCodexEngine,
+      activeThreadId,
+      itemsByThread: threadItemsByThread,
+      threadParentById,
+      threadStatusById,
+    },
   );
   const hasStatusPanelActivity = useMemo(() => {
     const hasLegacyActivity =

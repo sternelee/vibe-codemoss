@@ -1074,6 +1074,10 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     commandTotal,
   } = useStatusPanelData(options.activeItems, {
     isCodexEngine: isStatusPanelCodexEngine,
+    activeThreadId: options.activeThreadId,
+    itemsByThread: options.threadItemsByThread,
+    threadParentById: options.threadParentById,
+    threadStatusById: options.threadStatusById,
   });
   const hasStatusPanelActivity =
     todoTotal > 0 ||
@@ -1090,6 +1094,10 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
   const composerNode = options.showComposer ? (
     <Composer
       items={options.activeItems}
+      activeThreadId={options.activeThreadId}
+      threadItemsByThread={options.threadItemsByThread}
+      threadParentById={options.threadParentById}
+      threadStatusById={options.threadStatusById}
       onSend={options.onSend}
       onQueue={options.onQueue}
       onStop={options.onStop}
@@ -1182,7 +1190,6 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       activeFileLineRange={options.activeComposerFileLineRange}
       fileReferenceMode={options.fileReferenceMode}
       activeWorkspaceId={options.activeWorkspaceId}
-      activeThreadId={options.activeThreadId}
       plan={options.plan}
       isPlanMode={options.isPlanMode}
       onOpenDiffPath={handleOpenDiffPath}
@@ -1585,6 +1592,10 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       plan={options.plan}
       isPlanMode={options.isPlanMode}
       isCodexEngine={isStatusPanelCodexEngine}
+      activeThreadId={options.activeThreadId}
+      itemsByThread={options.threadItemsByThread}
+      threadParentById={options.threadParentById}
+      threadStatusById={options.threadStatusById}
       onOpenDiffPath={handleOpenDiffPath}
       variant="dock"
     />

@@ -21,6 +21,10 @@ interface StatusPanelProps {
   plan?: TurnPlan | null;
   isPlanMode?: boolean;
   isCodexEngine?: boolean;
+  activeThreadId?: string | null;
+  itemsByThread?: Record<string, ConversationItem[]>;
+  threadParentById?: Record<string, string>;
+  threadStatusById?: Record<string, { isProcessing?: boolean } | undefined>;
   onOpenDiffPath?: (path: string) => void;
   variant?: "popover" | "dock";
 }
@@ -42,6 +46,10 @@ export const StatusPanel = memo(function StatusPanel({
   plan = null,
   isPlanMode = false,
   isCodexEngine = false,
+  activeThreadId = null,
+  itemsByThread,
+  threadParentById,
+  threadStatusById,
   onOpenDiffPath,
   variant = "popover",
 }: StatusPanelProps) {
@@ -58,9 +66,16 @@ export const StatusPanel = memo(function StatusPanel({
     hasRunningSubagent,
     totalAdditions,
     totalDeletions,
-  } = useStatusPanelData(items, { isCodexEngine });
+  } = useStatusPanelData(items, {
+    isCodexEngine,
+    activeThreadId,
+    itemsByThread,
+    threadParentById,
+    threadStatusById,
+  });
 
-  const showPlanTab = isPlanMode || Boolean(plan);
+  const hasPlanData = isPlanMode || Boolean(plan);
+  const showPlanTab = hasPlanData && !isCodexEngine;
   const [openTab, setOpenTab] = useState<TabType | null>(() =>
     resolvePreferredTab(variant, showPlanTab),
   );
@@ -68,10 +83,6 @@ export const StatusPanel = memo(function StatusPanel({
   const planTotal = plan?.steps.length ?? 0;
   const planCompleted =
     plan?.steps.filter((step) => step.status === "completed").length ?? 0;
-  const showInlinePlanTab = variant === "dock" ? showPlanTab : showPlanTab && !isCodexEngine;
-  const showPlanTabButton = variant === "dock"
-    ? showInlinePlanTab
-    : !isCodexEngine && showInlinePlanTab;
   const codexTaskItems = useMemo(() => {
     if (isCodexEngine && plan && plan.steps.length > 0) {
       return plan.steps.map((step) => {
@@ -123,17 +134,14 @@ export const StatusPanel = memo(function StatusPanel({
   }, [openTab, variant]);
 
   useEffect(() => {
-    if (variant !== "dock") {
+    if (openTab === "plan" && !showPlanTab) {
+      setOpenTab(resolvePreferredTab(variant, showPlanTab));
       return;
     }
-    if (openTab === "plan" && !showInlinePlanTab) {
-      setOpenTab("todo");
-      return;
+    if (variant === "dock" && !openTab) {
+      setOpenTab(resolvePreferredTab(variant, showPlanTab));
     }
-    if (!openTab) {
-      setOpenTab(resolvePreferredTab(variant, showInlinePlanTab));
-    }
-  }, [openTab, showInlinePlanTab, variant]);
+  }, [openTab, showPlanTab, variant]);
 
   const handleTabClick = useCallback(
     (tab: TabType) => {
@@ -150,7 +158,7 @@ export const StatusPanel = memo(function StatusPanel({
   if (!expanded) return null;
 
   const activeTab = variant === "dock"
-    ? openTab ?? resolvePreferredTab(variant, showInlinePlanTab)
+    ? openTab ?? resolvePreferredTab(variant, showPlanTab)
     : openTab;
   const contentNode = (
     <>
@@ -285,7 +293,7 @@ export const StatusPanel = memo(function StatusPanel({
               </button>
             )}
 
-            {showPlanTabButton && (
+            {showPlanTab && (
               <button
                 type="button"
                 className={`sp-tab${activeTab === "plan" ? " sp-tab-active" : ""}`}
@@ -419,7 +427,7 @@ export const StatusPanel = memo(function StatusPanel({
               </button>
             )}
 
-            {showPlanTabButton && (
+            {showPlanTab && (
               <button
                 type="button"
                 className={`sp-tab${activeTab === "plan" ? " sp-tab-active" : ""}`}
