@@ -408,11 +408,21 @@ const enPart2 = {
     // File preview
     noSelection: "No selection",
     imagePreview: "Image preview",
+    previewOutlineTitle: "Outline",
+    previewOutlineUntitled: "Untitled section",
     pdfPreviewTitle: "PDF preview",
     pdfPreviewPageCount: "{{count}} page(s)",
     pdfPreviewPageLabel: "Page {{page}}",
     pdfPreviewPagePlaceholder: "Page enters viewport to render.",
     pdfPreviewUnavailable: "PDF preview is unavailable for this file.",
+    pdfPreviewOutlineEmpty: "This PDF does not expose an internal outline.",
+    pdfPreviewToolbarLabel: "PDF preview toolbar",
+    pdfPreviewCollapseOutline: "Hide outline",
+    pdfPreviewExpandOutline: "Show outline",
+    pdfPreviewZoomOut: "Zoom out",
+    pdfPreviewZoomIn: "Zoom in",
+    pdfPreviewResetZoom: "Reset zoom",
+    pdfPreviewZoomValue: "{{percent}}%",
     pdfPreviewPageLimitHint:
       "Showing the first {{visibleCount}} of {{totalCount}} pages to keep preview bounded.",
     tabularPreviewTitle: "Table preview",
@@ -433,6 +443,8 @@ const enPart2 = {
     documentPreviewByteLength: "{{bytes}} bytes",
     documentPreviewTooLarge:
       "Document preview is limited to files up to {{maxMb}} MB. Open externally or shrink the document first.",
+    documentPreviewOutlineEmpty:
+      "No heading outline was detected. Use Word heading styles to expose a stable table of contents.",
     clearSelection: "Clear",
     addToChat: "Add to chat",
     selectionHintShiftClick: "Shift + click or drag + click",

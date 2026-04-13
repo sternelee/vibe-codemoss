@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   getDocument,
   type PDFDocumentLoadingTask,
@@ -6,6 +6,11 @@ import {
   type RenderTask,
 } from "pdfjs-dist";
 import { ensurePdfPreviewWorker } from "../utils/pdfPreviewRuntime";
+import { PreviewOutlineSidebar } from "./PreviewOutlineSidebar";
+import {
+  extractPdfPreviewOutline,
+  type PreviewOutlineItem,
+} from "../utils/filePreviewOutline";
 
 type FilePdfPreviewProps = {
   assetUrl: string | null;
@@ -17,12 +22,18 @@ type FilePdfPreviewProps = {
 type PdfPageCanvasProps = {
   pdfDocument: PDFDocumentProxy;
   pageNumber: number;
+  scale: number;
   t: (key: string, options?: Record<string, unknown>) => string;
 };
 
 const MAX_PDF_PREVIEW_PAGES = 200;
+const PDF_PAGE_WINDOW_OFFSET = 5;
+const DEFAULT_PDF_SCALE = 1.15;
+const MIN_PDF_SCALE = 0.75;
+const MAX_PDF_SCALE = 3;
+const PDF_SCALE_STEP = 0.1;
 
-function PdfPageCanvas({ pdfDocument, pageNumber, t }: PdfPageCanvasProps) {
+function PdfPageCanvas({ pdfDocument, pageNumber, scale, t }: PdfPageCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const pageRootRef = useRef<HTMLDivElement | null>(null);
   const [shouldRender, setShouldRender] = useState(pageNumber <= 2);
@@ -51,6 +62,7 @@ function PdfPageCanvas({ pdfDocument, pageNumber, t }: PdfPageCanvasProps) {
 
     let disposed = false;
     let renderTask: RenderTask | null = null;
+    setPageError(null);
 
     void (async () => {
       try {
@@ -58,7 +70,7 @@ function PdfPageCanvas({ pdfDocument, pageNumber, t }: PdfPageCanvasProps) {
         if (disposed || !canvasRef.current) {
           return;
         }
-        const viewport = page.getViewport({ scale: 1.15 });
+        const viewport = page.getViewport({ scale });
         const canvas = canvasRef.current;
         const context = canvas.getContext("2d");
         if (!context) {
@@ -90,10 +102,10 @@ function PdfPageCanvas({ pdfDocument, pageNumber, t }: PdfPageCanvasProps) {
       disposed = true;
       renderTask?.cancel();
     };
-  }, [pageNumber, pdfDocument, shouldRender]);
+  }, [pageNumber, pdfDocument, scale, shouldRender]);
 
   return (
-    <div ref={pageRootRef} className="fvp-pdf-page">
+    <div ref={pageRootRef} className="fvp-pdf-page" data-page-number={pageNumber}>
       <header className="fvp-pdf-page-header">
         <span>{t("files.pdfPreviewPageLabel", { page: pageNumber })}</span>
       </header>
@@ -114,10 +126,17 @@ export function FilePdfPreview({
   error,
   t,
 }: FilePdfPreviewProps) {
+  const previewRootRef = useRef<HTMLDivElement | null>(null);
+  const pendingScrollPageNumberRef = useRef<number | null>(null);
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
   const [numPages, setNumPages] = useState(0);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [isRuntimeLoading, setIsRuntimeLoading] = useState(false);
+  const [outlineItems, setOutlineItems] = useState<PreviewOutlineItem[]>([]);
+  const [activeOutlineItemId, setActiveOutlineItemId] = useState<string | null>(null);
+  const [pageWindowStart, setPageWindowStart] = useState(1);
+  const [isOutlineCollapsed, setIsOutlineCollapsed] = useState(false);
+  const [pdfScale, setPdfScale] = useState(DEFAULT_PDF_SCALE);
 
   useEffect(() => {
     if (!assetUrl) {
@@ -125,6 +144,11 @@ export function FilePdfPreview({
       setNumPages(0);
       setRuntimeError(null);
       setIsRuntimeLoading(false);
+      setOutlineItems([]);
+      setActiveOutlineItemId(null);
+      setPageWindowStart(1);
+      setIsOutlineCollapsed(false);
+      setPdfScale(DEFAULT_PDF_SCALE);
       return;
     }
 
@@ -133,6 +157,11 @@ export function FilePdfPreview({
     setNumPages(0);
     setRuntimeError(null);
     setIsRuntimeLoading(true);
+    setOutlineItems([]);
+    setActiveOutlineItemId(null);
+    setPageWindowStart(1);
+    setIsOutlineCollapsed(false);
+    setPdfScale(DEFAULT_PDF_SCALE);
     let disposed = false;
     let loadingTask: PDFDocumentLoadingTask | null = null;
     let loadedDocument: PDFDocumentProxy | null = null;
@@ -170,6 +199,112 @@ export function FilePdfPreview({
     };
   }, [assetUrl]);
 
+  useEffect(() => {
+    if (!pdfDocument) {
+      setOutlineItems([]);
+      setActiveOutlineItemId(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const nextOutlineItems = await extractPdfPreviewOutline(
+          pdfDocument,
+          t("files.previewOutlineUntitled"),
+        );
+        if (!cancelled) {
+          setOutlineItems(nextOutlineItems);
+        }
+      } catch {
+        if (!cancelled) {
+          setOutlineItems([]);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pdfDocument, t]);
+
+  const maxPageWindowStart = Math.max(1, numPages - MAX_PDF_PREVIEW_PAGES + 1);
+  const normalizedPageWindowStart = Math.min(pageWindowStart, maxPageWindowStart);
+  const visiblePageCount = Math.min(
+    MAX_PDF_PREVIEW_PAGES,
+    Math.max(0, numPages - normalizedPageWindowStart + 1),
+  );
+  const isPageCountTruncated = numPages > MAX_PDF_PREVIEW_PAGES;
+  const visiblePageNumbers = useMemo(
+    () => Array.from({ length: visiblePageCount }, (_, index) => normalizedPageWindowStart + index),
+    [normalizedPageWindowStart, visiblePageCount],
+  );
+
+  const scrollToRenderedPage = (pageNumber: number) => {
+    const pageNode = previewRootRef.current?.querySelector<HTMLElement>(
+      `[data-page-number="${pageNumber}"]`,
+    );
+    pageNode?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
+
+  const handleSelectOutlineItem = (item: PreviewOutlineItem) => {
+    if (item.target.kind !== "pdf-page") {
+      return;
+    }
+    const nextPageNumber = item.target.pageNumber;
+    if (!Number.isInteger(nextPageNumber) || nextPageNumber < 1 || nextPageNumber > numPages) {
+      return;
+    }
+    const nextWindowStart = Math.min(
+      Math.max(nextPageNumber - PDF_PAGE_WINDOW_OFFSET, 1),
+      maxPageWindowStart,
+    );
+
+    setActiveOutlineItemId(item.id);
+    pendingScrollPageNumberRef.current = nextPageNumber;
+    setPageWindowStart(nextWindowStart);
+
+    if (
+      nextWindowStart === normalizedPageWindowStart &&
+      nextPageNumber >= normalizedPageWindowStart &&
+      nextPageNumber < normalizedPageWindowStart + visiblePageCount
+    ) {
+      scrollToRenderedPage(nextPageNumber);
+      pendingScrollPageNumberRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    const pendingPageNumber = pendingScrollPageNumberRef.current;
+    if (!pendingPageNumber) {
+      return;
+    }
+    scrollToRenderedPage(pendingPageNumber);
+    pendingScrollPageNumberRef.current = null;
+  }, [visiblePageNumbers]);
+
+  const handleZoomOut = () => {
+    setPdfScale((currentScale) => Math.max(
+      MIN_PDF_SCALE,
+      Math.round((currentScale - PDF_SCALE_STEP) * 100) / 100,
+    ));
+  };
+
+  const handleZoomIn = () => {
+    setPdfScale((currentScale) => Math.min(
+      MAX_PDF_SCALE,
+      Math.round((currentScale + PDF_SCALE_STEP) * 100) / 100,
+    ));
+  };
+
+  const handleResetZoom = () => {
+    setPdfScale(DEFAULT_PDF_SCALE);
+  };
+
   if (isLoading || isRuntimeLoading) {
     return <div className="fvp-status">{t("files.loadingFile")}</div>;
   }
@@ -182,33 +317,87 @@ export function FilePdfPreview({
     return <div className="fvp-status">{t("files.pdfPreviewUnavailable")}</div>;
   }
 
-  const visiblePageCount = Math.min(numPages, MAX_PDF_PREVIEW_PAGES);
-  const isPageCountTruncated = numPages > MAX_PDF_PREVIEW_PAGES;
-
   return (
     <div className="fvp-preview-scroll">
-      <div className="fvp-pdf-preview">
-        <header className="fvp-preview-section-header">
-          <strong>{t("files.pdfPreviewTitle")}</strong>
-          <span>{t("files.pdfPreviewPageCount", { count: numPages })}</span>
-        </header>
-        {isPageCountTruncated ? (
-          <div className="fvp-preview-budget-hint">
-            {t("files.pdfPreviewPageLimitHint", {
-              visibleCount: visiblePageCount,
-              totalCount: numPages,
-            })}
-          </div>
+      <div className={`fvp-preview-shell${isOutlineCollapsed ? " is-outline-collapsed" : ""}`}>
+        {!isOutlineCollapsed ? (
+          <PreviewOutlineSidebar
+            title={t("files.previewOutlineTitle")}
+            emptyLabel={t("files.pdfPreviewOutlineEmpty")}
+            items={outlineItems}
+            activeItemId={activeOutlineItemId}
+            onSelectItem={handleSelectOutlineItem}
+          />
         ) : null}
-        <div className="fvp-pdf-pages">
-          {Array.from({ length: visiblePageCount }, (_, index) => (
-            <PdfPageCanvas
-              key={`pdf-page-${index + 1}`}
-              pdfDocument={pdfDocument}
-              pageNumber={index + 1}
-              t={t}
-            />
-          ))}
+        <div ref={previewRootRef} className="fvp-pdf-preview fvp-preview-main">
+          <header className="fvp-preview-section-header">
+            <div className="fvp-preview-section-title">
+              <strong>{t("files.pdfPreviewTitle")}</strong>
+              <span>{t("files.pdfPreviewPageCount", { count: numPages })}</span>
+            </div>
+            <div className="fvp-preview-toolbar" role="toolbar" aria-label={t("files.pdfPreviewToolbarLabel")}>
+              {outlineItems.length > 0 ? (
+                <button
+                  type="button"
+                  className="fvp-preview-toolbar-button"
+                  aria-label={t(
+                    isOutlineCollapsed
+                      ? "files.pdfPreviewExpandOutline"
+                      : "files.pdfPreviewCollapseOutline",
+                  )}
+                  onClick={() => setIsOutlineCollapsed((current) => !current)}
+                >
+                  {isOutlineCollapsed ? t("files.pdfPreviewExpandOutline") : t("files.pdfPreviewCollapseOutline")}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="fvp-preview-toolbar-button"
+                aria-label={t("files.pdfPreviewZoomOut")}
+                disabled={pdfScale <= MIN_PDF_SCALE}
+                onClick={handleZoomOut}
+              >
+                -
+              </button>
+              <button
+                type="button"
+                className="fvp-preview-toolbar-button fvp-preview-toolbar-value"
+                aria-label={t("files.pdfPreviewResetZoom")}
+                onClick={handleResetZoom}
+              >
+                {t("files.pdfPreviewZoomValue", { percent: Math.round(pdfScale * 100) })}
+              </button>
+              <button
+                type="button"
+                className="fvp-preview-toolbar-button"
+                aria-label={t("files.pdfPreviewZoomIn")}
+                disabled={pdfScale >= MAX_PDF_SCALE}
+                onClick={handleZoomIn}
+              >
+                +
+              </button>
+            </div>
+          </header>
+          {isPageCountTruncated ? (
+            <div className="fvp-preview-budget-hint">
+              {t("files.pdfPreviewPageLimitHint", {
+                visibleCount: visiblePageCount,
+                totalCount: numPages,
+                startPage: normalizedPageWindowStart,
+              })}
+            </div>
+          ) : null}
+          <div className="fvp-pdf-pages">
+            {visiblePageNumbers.map((pageNumber) => (
+              <PdfPageCanvas
+                key={`pdf-page-${pageNumber}`}
+                pdfDocument={pdfDocument}
+                pageNumber={pageNumber}
+                scale={pdfScale}
+                t={t}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </div>

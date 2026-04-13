@@ -393,11 +393,21 @@ const zhPart2 = {
     // 文件预览
     noSelection: "未选择",
     imagePreview: "图片预览",
+    previewOutlineTitle: "目录",
+    previewOutlineUntitled: "未命名章节",
     pdfPreviewTitle: "PDF 预览",
     pdfPreviewPageCount: "{{count}} 页",
     pdfPreviewPageLabel: "第 {{page}} 页",
     pdfPreviewPagePlaceholder: "滚动到可视区域后再渲染该页。",
     pdfPreviewUnavailable: "当前文件暂时无法提供 PDF 预览。",
+    pdfPreviewOutlineEmpty: "这个 PDF 没有暴露可用的内置目录。",
+    pdfPreviewToolbarLabel: "PDF 预览工具栏",
+    pdfPreviewCollapseOutline: "隐藏目录",
+    pdfPreviewExpandOutline: "显示目录",
+    pdfPreviewZoomOut: "缩小",
+    pdfPreviewZoomIn: "放大",
+    pdfPreviewResetZoom: "重置缩放",
+    pdfPreviewZoomValue: "{{percent}}%",
     pdfPreviewPageLimitHint:
       "为保证预览有界，只显示前 {{visibleCount}} / {{totalCount}} 页。",
     tabularPreviewTitle: "表格预览",
@@ -417,6 +427,8 @@ const zhPart2 = {
     documentPreviewByteLength: "{{bytes}} 字节",
     documentPreviewTooLarge:
       "文档预览当前只支持 {{maxMb}} MB 以内的文件。更大的文档请外部打开或先缩小内容。",
+    documentPreviewOutlineEmpty:
+      "没有检测到标题目录。若需要稳定目录，请在 Word 中使用 Heading 标题样式。",
     clearSelection: "清除",
     addToChat: "添加到聊天",
     selectionHintShiftClick: "Shift + 点击或拖动 + 点击",
