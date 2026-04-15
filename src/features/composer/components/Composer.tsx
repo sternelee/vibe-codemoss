@@ -338,6 +338,10 @@ function getFileNameFromPath(filePath: string): string {
   return parts[parts.length - 1] ?? filePath;
 }
 
+function normalizeRewindExportPath(filePath: string): string {
+  return filePath.trim().replace(/\\/g, "/");
+}
+
 function isLikelyFilePathToken(value: string): boolean {
   const normalized = value.trim();
   if (!normalized) {
@@ -1399,12 +1403,26 @@ export const Composer = memo(function Composer({
       if (!workspaceId || !sessionId) {
         throw new Error(t("rewind.storeUnavailable"));
       }
-      const uniquePaths = Array.from(
-        new Set(
-          preview.affectedFiles.map((file) => file.filePath).filter(Boolean),
-        ),
-      );
-      if (uniquePaths.length === 0) {
+      const filesByPath = new Map<
+        string,
+        { path: string; status?: OperationFileChangeSummary["status"] }
+      >();
+      for (const file of preview.affectedFiles) {
+        const path = normalizeRewindExportPath(file.filePath);
+        if (!path) {
+          continue;
+        }
+        const existing = filesByPath.get(path);
+        if (!existing) {
+          filesByPath.set(path, { path, status: file.status });
+          continue;
+        }
+        const currentStatus = existing.status ?? "M";
+        const incomingStatus = file.status ?? "M";
+        existing.status = resolvePreferredStatus(currentStatus, incomingStatus);
+      }
+      const exportFiles = Array.from(filesByPath.values());
+      if (exportFiles.length === 0) {
         throw new Error(t("rewind.filesEmpty"));
       }
       return exportRewindFiles({
@@ -1413,7 +1431,7 @@ export const Composer = memo(function Composer({
         sessionId,
         targetMessageId: preview.targetMessageId,
         conversationLabel: preview.conversationLabel,
-        files: uniquePaths.map((path) => ({ path })),
+        files: exportFiles,
       });
     },
     [activeWorkspaceId, t],

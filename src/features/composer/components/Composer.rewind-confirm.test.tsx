@@ -206,6 +206,58 @@ const REWIND_ITEMS_WITH_BASH_COMMAND_CHANGES: ConversationItem[] = [
   },
 ];
 
+const REWIND_ITEMS_WITH_WINDOWS_PATH_VARIANTS: ConversationItem[] = [
+  {
+    id: "user-win-path-1",
+    kind: "message",
+    role: "user",
+    text: "删除并调整同一 Windows 文件路径",
+  },
+  {
+    id: "assistant-win-path-1",
+    kind: "message",
+    role: "assistant",
+    text: "处理中",
+  },
+  {
+    id: "tool-win-path-modified",
+    kind: "tool",
+    toolType: "fileChange",
+    title: "Edit file",
+    detail: JSON.stringify({
+      input: {
+        file_path: "C:\\repo\\demo\\readme.md",
+      },
+    }),
+    status: "completed",
+    changes: [
+      {
+        path: "C:\\repo\\demo\\readme.md",
+        kind: "modified",
+        diff: "@@ -1,1 +1,1 @@\n-old\n+new",
+      },
+    ],
+  },
+  {
+    id: "tool-win-path-delete",
+    kind: "tool",
+    toolType: "fileChange",
+    title: "Delete file",
+    detail: JSON.stringify({
+      input: {
+        file_path: "C:/repo/demo/readme.md",
+      },
+    }),
+    status: "completed",
+    changes: [
+      {
+        path: "C:/repo/demo/readme.md",
+        kind: "delete",
+      },
+    ],
+  },
+];
+
 type ComposerHarnessProps = {
   items?: ConversationItem[];
   onRewind?: (userMessageId: string) => void | Promise<void>;
@@ -383,8 +435,8 @@ describe("Composer Claude rewind confirmation", () => {
         conversationLabel:
           "请把主按钮文案改成提交并发布，同时保留原来的颜色方案。",
         files: [
-          { path: "src/components/Button.tsx" },
-          { path: "src/components/Card.tsx" },
+          { path: "src/components/Button.tsx", status: "M" },
+          { path: "src/components/Card.tsx", status: "M" },
         ],
       });
     });
@@ -553,8 +605,8 @@ describe("Composer Claude rewind confirmation", () => {
         conversationLabel:
           "请把主按钮文案改成提交并发布，同时保留原来的颜色方案。",
         files: [
-          { path: "src/components/Button.tsx" },
-          { path: "src/components/Card.tsx" },
+          { path: "src/components/Button.tsx", status: "M" },
+          { path: "src/components/Card.tsx", status: "M" },
         ],
       });
     });
@@ -592,10 +644,79 @@ describe("Composer Claude rewind confirmation", () => {
         conversationLabel:
           "请把主按钮文案改成提交并发布，同时保留原来的颜色方案。",
         files: [
-          { path: "src/components/Button.tsx" },
-          { path: "src/components/Card.tsx" },
+          { path: "src/components/Button.tsx", status: "M" },
+          { path: "src/components/Card.tsx", status: "M" },
         ],
       });
+    });
+  });
+
+  it("exports rewind files with status metadata for delete/add/modify", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({
+      outputPath:
+        "/Users/demo/.ccgui/chat-diff/claude/2026-04-13/session-1/user-bash-1",
+      filesPath:
+        "/Users/demo/.ccgui/chat-diff/claude/2026-04-13/session-1/user-bash-1/files",
+      manifestPath:
+        "/Users/demo/.ccgui/chat-diff/claude/2026-04-13/session-1/user-bash-1/manifest.json",
+      exportId: "user-bash-1",
+      fileCount: 3,
+    });
+
+    render(<ComposerHarness items={REWIND_ITEMS_WITH_BASH_COMMAND_CHANGES} />);
+
+    fireEvent.click(screen.getByTestId("rewind-trigger"));
+    fireEvent.click(screen.getByTestId("claude-rewind-store-button"));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith(
+        "export_rewind_files",
+        expect.objectContaining({
+          workspaceId: "ws-1",
+          engine: "claude",
+          sessionId: "session-1",
+          targetMessageId: "user-bash-1",
+          conversationLabel: expect.stringContaining(".specify目录结构说明.md"),
+          files: [
+            {
+              path: "/Users/demo/repo/.specify目录结构说明.md",
+              status: "D",
+            },
+            { path: "/Users/demo/repo/abc.txt", status: "A" },
+            { path: "/Users/demo/repo/pom.xml", status: "M" },
+          ],
+        }),
+      );
+    });
+  });
+
+  it("normalizes windows path separators when storing rewind files", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({
+      outputPath:
+        "/Users/demo/.ccgui/chat-diff/claude/2026-04-13/session-1/user-win-path-1",
+      filesPath:
+        "/Users/demo/.ccgui/chat-diff/claude/2026-04-13/session-1/user-win-path-1/files",
+      manifestPath:
+        "/Users/demo/.ccgui/chat-diff/claude/2026-04-13/session-1/user-win-path-1/manifest.json",
+      exportId: "user-win-path-1",
+      fileCount: 1,
+    });
+
+    render(<ComposerHarness items={REWIND_ITEMS_WITH_WINDOWS_PATH_VARIANTS} />);
+
+    fireEvent.click(screen.getByTestId("rewind-trigger"));
+    fireEvent.click(screen.getByTestId("claude-rewind-store-button"));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith(
+        "export_rewind_files",
+        expect.objectContaining({
+          targetMessageId: "user-win-path-1",
+          files: [{ path: "C:/repo/demo/readme.md", status: "D" }],
+        }),
+      );
     });
   });
 
