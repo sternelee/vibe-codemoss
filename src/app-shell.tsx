@@ -108,6 +108,11 @@ import {
 import { SpecHub } from "./features/spec/components/SpecHub";
 import { SearchPalette } from "./features/search/components/SearchPalette";
 import { useUnifiedSearch } from "./features/search/hooks/useUnifiedSearch";
+import {
+  getHomeWorkspaceOptions,
+  resolveHomeWorkspaceId,
+} from "./features/home/utils/homeWorkspaceOptions";
+import { shouldHideHomeOnThreadActivation } from "./features/home/utils/homeVisibility";
 import { loadHistoryWithImportance } from "./features/composer/hooks/useInputHistoryStore";
 import { forceRefreshAgents } from "./features/composer/components/ChatInputBox/providers";
 import { recordSearchResultOpen } from "./features/search/ranking/recencyStore";
@@ -280,6 +285,16 @@ export function AppShell() {
   const workspacesByPath = useMemo(
     () => new Map(workspaces.map((workspace) => [workspace.path, workspace])),
     [workspaces],
+  );
+  const [homeOpen, setHomeOpen] = useState(true);
+  const homeWorkspaceOptions = useMemo(
+    () => getHomeWorkspaceOptions(groupedWorkspaces, workspaces),
+    [groupedWorkspaces, workspaces],
+  );
+  const homeWorkspaceDefaultId = homeWorkspaceOptions[0]?.id ?? null;
+  const homeWorkspaceSelectedId = useMemo(
+    () => resolveHomeWorkspaceId(activeWorkspaceId, homeWorkspaceOptions),
+    [activeWorkspaceId, homeWorkspaceOptions],
   );
   const {
     sidebarWidth,
@@ -1773,6 +1788,7 @@ export function AppShell() {
       exitDiffView();
       setAppMode("chat");
       setActiveTab("codex");
+      setHomeOpen(false);
       if (shouldCollapseRightPanel) {
         collapseRightPanel();
       }
@@ -1788,6 +1804,7 @@ export function AppShell() {
     [
       exitDiffView,
       collapseRightPanel,
+      setHomeOpen,
       setAppMode,
       selectWorkspace,
       setActiveEngine,
@@ -2019,14 +2036,43 @@ export function AppShell() {
   const showGitHistory = appMode === "gitHistory";
   const [selectedKanbanTaskId, setSelectedKanbanTaskId] = useState<string | null>(null);
   const [workspaceHomeWorkspaceId, setWorkspaceHomeWorkspaceId] = useState<string | null>(null);
-  const showHome = !activeWorkspace && !showKanban;
+  const showHome = (!activeWorkspace || homeOpen) && !showKanban;
   const showWorkspaceHome = Boolean(
     activeWorkspace &&
+      !showHome &&
       workspaceHomeWorkspaceId === activeWorkspace.id &&
       !activeThreadId &&
       appMode === "chat" &&
       (isCompact ? (isTablet ? tabletTab : activeTab) === "codex" : activeTab !== "spec"),
   );
+  useEffect(() => {
+    if (!showHome || activeWorkspaceId || !homeWorkspaceDefaultId) {
+      return;
+    }
+    setActiveWorkspaceId(homeWorkspaceDefaultId);
+    setActiveThreadId(null, homeWorkspaceDefaultId);
+  }, [
+    activeWorkspaceId,
+    homeWorkspaceDefaultId,
+    setActiveThreadId,
+    setActiveWorkspaceId,
+    showHome,
+  ]);
+  useEffect(() => {
+    if (
+      !shouldHideHomeOnThreadActivation({
+        homeOpen,
+        activeThreadId,
+      })
+    ) {
+      return;
+    }
+    setHomeOpen(false);
+  }, [
+    activeThreadId,
+    homeOpen,
+    setHomeOpen,
+  ]);
   const canInterrupt = activeThreadId
     ? threadStatusById[activeThreadId]?.isProcessing ?? false
     : false;
@@ -2919,7 +2965,7 @@ export function AppShell() {
     setIsPlanPanelDismissed, setIsSearchPaletteOpen, setKanbanViewState, setLiveEditPreviewEnabled, setOpenCodeAgentByThreadId, setOpenCodeAgents, setOpenCodeDefaultAgentByWorkspace, setOpenCodeDefaultVariantByWorkspace,
     setOpenCodeVariantByThreadId, setPrefillDraft, setReduceTransparency, setRightPanelWidth, setSearchContentFilters, setSearchPaletteQuery, setSearchPaletteSelectedIndex, setSearchScope,
     setSelectedCollaborationModeId, setSelectedCommitSha, setSelectedDiffPath, setSelectedEffort, setSelectedKanbanTaskId, setSelectedModelId, setSelectedPullRequest,
-    setWorkspaceHomeWorkspaceId, settingsHighlightTarget, settingsOpen, settingsSection, shouldForceResumeInCode, shouldImplementPlan, shouldLoadDiffs, shouldLoadGitHubPanelData,
+    setHomeOpen, setWorkspaceHomeWorkspaceId, settingsHighlightTarget, settingsOpen, settingsSection, shouldForceResumeInCode, shouldImplementPlan, shouldLoadDiffs, shouldLoadGitHubPanelData,
     showDebugButton, showGitHistory, showHome, showKanban, showNextReleaseNotes, showPresetStep, showPreviousReleaseNotes, showWorkspaceHome,
     sidebarCollapsed, sidebarWidth, skills, snapshot, startExport, startFast, startFork, startHeight,
     startImport, startLsp, startMcp, startMode, startResume, startReview, startShare, startSpecRoot,
@@ -2931,6 +2977,8 @@ export function AppShell() {
     updateCloneCopyName, updateCustomInstructions, updatePrompt, updateWorkspaceCodexBin, updateWorkspaceSettings, updateWorktreeBaseRef, updateWorktreeBranch, updateWorktreePublishToOrigin,
     updateWorktreeSetupScript, updatedAt, updaterState, useSuggestedCloneCopiesFolder, userInputRequests, validModel, viewportHeight, wasProcessing,
     workspace, workspaceActivity, workspaceDropTargetRef, workspaceFilesPollingEnabled, workspaceGroups, workspaceHomeWorkspaceId, workspaceId, workspaceNameByPath,
+    homeWorkspaceDefaultId,
+    homeWorkspaceSelectedId,
     workspacePath, workspaceSearchSources, workspaces, workspacesById, workspacesByPath, worktreeApplyError, worktreeApplyLoading, worktreeApplySuccess,
     worktreeCreateResult, worktreeLabel, worktreePrompt, worktreeRename, worktreeSetupScriptState,
     sessionRadarRunningSessions: sessionRadarFeed.runningSessions,

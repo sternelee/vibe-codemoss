@@ -4,10 +4,23 @@ import { describe, expect, it, vi } from "vitest";
 import type { WorkspaceInfo } from "../../../types";
 import { useSidebarMenus } from "./useSidebarMenus";
 
+const mockMenuPopup = vi.fn<
+  (items: Array<{ text: string; enabled?: boolean; action?: () => Promise<void> | void }>) => Promise<void>
+>();
+
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string) => {
       const dict: Record<string, string> = {
+        "threads.rename": "Rename",
+        "threads.autoName": "Auto name",
+        "threads.autoNaming": "Auto naming",
+        "threads.copyId": "Copy ID",
+        "threads.size": "Size",
+        "threads.syncFromServer": "Sync from server",
+        "threads.pin": "Pin",
+        "threads.unpin": "Unpin",
+        "threads.delete": "Delete",
         "sidebar.sessionActionsGroup": "New session",
         "sidebar.workspaceActionsGroup": "Workspace actions",
         "workspace.engineClaudeCode": "Claude Code",
@@ -22,6 +35,38 @@ vi.mock("react-i18next", () => ({
       return dict[key] ?? key;
     },
   }),
+}));
+
+vi.mock("@tauri-apps/api/menu", () => ({
+  Menu: {
+    new: vi.fn(
+      async ({
+        items,
+      }: {
+        items: Array<{ text: string; enabled?: boolean; action?: () => Promise<void> | void }>;
+      }) => ({
+        popup: vi.fn(async () => {
+          await mockMenuPopup(items);
+        }),
+      }),
+    ),
+  },
+  MenuItem: { new: vi.fn(async (options: Record<string, unknown>) => options) },
+}));
+
+vi.mock("@tauri-apps/api/window", () => ({
+  getCurrentWindow: () => ({ scaleFactor: () => 1 }),
+}));
+
+vi.mock("@tauri-apps/api/dpi", () => ({
+  LogicalPosition: class LogicalPosition {
+    x: number;
+    y: number;
+    constructor(x: number, y: number) {
+      this.x = x;
+      this.y = y;
+    }
+  },
 }));
 
 const workspace: WorkspaceInfo = {
@@ -110,5 +155,39 @@ describe("useSidebarMenus", () => {
 
     expect(handlers.onAddAgent).toHaveBeenCalledTimes(1);
     expect(handlers.onAddAgent).toHaveBeenCalledWith(workspace, "gemini");
+  });
+
+  it("inserts thread size between Copy ID and Delete in the thread context menu", async () => {
+    const handlers = createHandlers();
+    const { result } = renderHook(() => useSidebarMenus(handlers));
+
+    await act(async () => {
+      const event = {
+        clientX: 240,
+        clientY: 180,
+        preventDefault: vi.fn(),
+        stopPropagation: vi.fn(),
+      } as unknown as Parameters<typeof result.current.showThreadMenu>[0];
+      await result.current.showThreadMenu(
+        event,
+        "ws-1",
+        "thread-1",
+        true,
+        1536,
+      );
+    });
+
+    expect(mockMenuPopup).toHaveBeenCalledTimes(1);
+    const items = mockMenuPopup.mock.calls[0]?.[0] ?? [];
+    expect(items.map((item) => item.text)).toEqual([
+      "Rename",
+      "Auto name",
+      "Sync from server",
+      "Pin",
+      "Copy ID",
+      "Size: 1.5 KB",
+      "Delete",
+    ]);
+    expect(items[5]?.enabled).toBe(false);
   });
 });

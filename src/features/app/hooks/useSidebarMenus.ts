@@ -5,6 +5,7 @@ import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import type { EngineType, WorkspaceInfo } from "../../../types";
+import { formatByteSize } from "../../../utils/formatting";
 
 export type WorkspaceMenuIconKind =
   | "engine-claude"
@@ -97,6 +98,7 @@ export function useSidebarMenus({
       workspaceId: string,
       threadId: string,
       canPin: boolean,
+      sizeBytes?: number,
     ) => {
       event.preventDefault();
       event.stopPropagation();
@@ -155,6 +157,15 @@ export function useSidebarMenus({
         );
       }
       items.push(copyItem);
+      const sizeLabel = formatByteSize(sizeBytes);
+      if (sizeLabel) {
+        items.push(
+          await MenuItem.new({
+            text: `${t("threads.size")}: ${sizeLabel}`,
+            enabled: false,
+          }),
+        );
+      }
       const deleteItem = await MenuItem.new({
         text: t("threads.delete"),
         action: () => onDeleteThread(workspaceId, threadId),

@@ -21,16 +21,6 @@
   --sidebar-default-badge-text: #ffffff;
   --sidebar-default-badge-border: rgba(59, 130, 246, 0.62);
   --sidebar-default-badge-bg: rgba(59, 130, 246, 0.24);
-  --thread-size-color-under-1m: #8f7f86;
-  --thread-size-color-1m: #a26e76;
-  --thread-size-color-2m: #b55f68;
-  --thread-size-color-4m: #c84e5b;
-  --thread-size-color-8m: #d83f50;
-  --thread-size-color-10m: #e33245;
-  --thread-size-color-15m: #ec263a;
-  --thread-size-color-25m: #f21930;
-  --thread-size-color-50m: #fb0d26;
-  --thread-size-color-100m: #ff0018;
   padding: 0 var(--sidebar-padding) 12px;
   background: var(--surface-sidebar);
   backdrop-filter: none;
@@ -55,16 +45,6 @@
   --sidebar-default-badge-text: #1d4ed8;
   --sidebar-default-badge-border: rgba(37, 99, 235, 0.42);
   --sidebar-default-badge-bg: rgba(37, 99, 235, 0.12);
-  --thread-size-color-under-1m: #75656c;
-  --thread-size-color-1m: #88575f;
-  --thread-size-color-2m: #9a4951;
-  --thread-size-color-4m: #ac3d46;
-  --thread-size-color-8m: #bc333d;
-  --thread-size-color-10m: #c82a35;
-  --thread-size-color-15m: #d1212e;
-  --thread-size-color-25m: #d81827;
-  --thread-size-color-50m: #df0f20;
-  --thread-size-color-100m: #e40018;
 }
 
 @media (prefers-color-scheme: light) {
@@ -78,16 +58,6 @@
     --sidebar-default-badge-text: #1d4ed8;
     --sidebar-default-badge-border: rgba(37, 99, 235, 0.42);
     --sidebar-default-badge-bg: rgba(37, 99, 235, 0.12);
-    --thread-size-color-under-1m: #75656c;
-    --thread-size-color-1m: #88575f;
-    --thread-size-color-2m: #9a4951;
-    --thread-size-color-4m: #ac3d46;
-    --thread-size-color-8m: #bc333d;
-    --thread-size-color-10m: #c82a35;
-    --thread-size-color-15m: #d1212e;
-    --thread-size-color-25m: #d81827;
-    --thread-size-color-50m: #df0f20;
-    --thread-size-color-100m: #e40018;
   }
 }
 
@@ -99,6 +69,8 @@
   background: var(--surface-topbar);
   box-sizing: border-box;
   -webkit-app-region: drag;
+  position: relative;
+  z-index: 3;
 }
 
 .app.windows-desktop .sidebar-topbar-placeholder {
@@ -111,11 +83,11 @@
   height: 100%;
   min-width: 0;
   width: 100%;
-  padding: 10px var(--main-panel-padding) 8px;
-  padding-left: calc(
-    var(--main-panel-padding) + var(--titlebar-inset-left, 0px)
-  );
-  -webkit-app-region: no-drag;
+  justify-content: flex-end;
+  padding: 0;
+  -webkit-app-region: drag;
+  position: relative;
+  box-sizing: border-box;
 }
 
 .sidebar-topbar-content .topbar-leading {
@@ -155,6 +127,53 @@
   left: auto;
   right: 0;
   z-index: 20;
+}
+
+.sidebar-titlebar-toggle {
+  --sidebar-titlebar-toggle-inline-gap: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: auto;
+  min-width: 0;
+  margin-left: auto;
+  padding-right: var(--sidebar-titlebar-toggle-inline-gap);
+  -webkit-app-region: no-drag;
+}
+
+.sidebar-titlebar-toggle.is-layout-swapped {
+  justify-content: flex-start;
+  margin-left: 0;
+  margin-right: auto;
+  padding-left: var(--sidebar-titlebar-toggle-inline-gap);
+  padding-right: 0;
+}
+
+.sidebar-titlebar-toggle .main-header-action {
+  width: var(--titlebar-toggle-size, 28px);
+  height: var(--titlebar-toggle-size, 28px);
+  padding: 0;
+  border-radius: 10px;
+  -webkit-app-region: no-drag;
+}
+
+.sidebar-titlebar-toggle
+  .main-header-action:not(.open-app-action):not(.open-app-toggle) {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  box-shadow: none;
+}
+
+.sidebar-titlebar-toggle
+  .main-header-action:not(.open-app-action):not(.open-app-toggle):hover:not(
+    :disabled
+  ),
+.sidebar-titlebar-toggle
+  .main-header-action:not(.open-app-action):not(.open-app-toggle):focus-visible {
+  background: transparent;
+  color: var(--text-stronger);
+  box-shadow: none;
 }
 
 .sidebar,
@@ -593,25 +612,6 @@
   min-height: 30px;
 }
 
-.sidebar-primary-nav-badge {
-  color: #ef4444;
-  font-size: 9px;
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: 0.01em;
-  pointer-events: none;
-  text-transform: lowercase;
-  transform: translateY(-4px);
-  white-space: nowrap;
-}
-
-.sidebar-primary-nav-text-with-badge {
-  min-width: 0;
-  display: inline-flex;
-  align-items: flex-start;
-  gap: 4px;
-}
-
 .sidebar-primary-nav-item:hover,
 .sidebar-primary-nav-item:focus-visible {
   background: var(--surface-hover);
@@ -698,13 +698,8 @@
   order: 0;
 }
 
-.app.layout-desktop.layout-swapped .sidebar-primary-nav .sidebar-primary-nav-item > .sidebar-primary-nav-text,
-.app.layout-desktop.layout-swapped .sidebar-primary-nav .sidebar-primary-nav-item > .sidebar-primary-nav-text-with-badge {
+.app.layout-desktop.layout-swapped .sidebar-primary-nav .sidebar-primary-nav-item > .sidebar-primary-nav-text {
   order: 1;
-}
-
-.app.layout-desktop.layout-swapped .sidebar-primary-nav .sidebar-primary-nav-item > .sidebar-primary-nav-text-with-badge {
-  justify-content: flex-start;
 }
 
 .app.layout-desktop.layout-swapped .sidebar-primary-nav .sidebar-primary-nav-item > .sidebar-primary-nav-shortcut {
@@ -1151,32 +1146,6 @@
   white-space: nowrap;
 }
 
-.workspace-session-signal {
-  min-width: 16px;
-  height: 16px;
-  padding: 0 5px;
-  border-radius: 999px;
-  font-size: 9.5px;
-  font-weight: 700;
-  line-height: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-variant-numeric: tabular-nums;
-}
-
-.workspace-session-signal.is-running {
-  color: var(--sidebar-session-running-text);
-  border: 1px solid var(--sidebar-session-running-border);
-  background: var(--sidebar-session-running-bg);
-}
-
-.workspace-session-signal.is-recent {
-  color: var(--sidebar-session-recent-text);
-  border: 1px solid var(--sidebar-session-recent-border);
-  background: var(--sidebar-session-recent-bg);
-}
-
 .workspace-actions {
   display: flex;
   align-items: center;
@@ -1312,11 +1281,11 @@
 }
 
 .sidebar-workspace-menu-item-icon-engine-codex {
-  color: #10a37f;
+  color: currentColor;
 }
 
 .sidebar-workspace-menu-item-icon-engine-opencode {
-  color: #3b82f6;
+  color: currentColor;
 }
 
 .sidebar-workspace-menu-item-icon-engine-gemini {
@@ -1789,32 +1758,6 @@
   opacity: 0.9;
 }
 
-.worktree-session-signal {
-  min-width: 14px;
-  height: 14px;
-  padding: 0 4px;
-  border-radius: 999px;
-  font-size: 9px;
-  font-weight: 700;
-  line-height: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-variant-numeric: tabular-nums;
-}
-
-.worktree-session-signal.is-running {
-  color: var(--sidebar-session-running-text);
-  border: 1px solid var(--sidebar-session-running-border);
-  background: var(--sidebar-session-running-bg);
-}
-
-.worktree-session-signal.is-recent {
-  color: var(--sidebar-session-recent-text);
-  border: 1px solid var(--sidebar-session-recent-border);
-  background: var(--sidebar-session-recent-bg);
-}
-
 .worktree-actions {
   display: inline-flex;
   align-items: center;
@@ -2229,59 +2172,11 @@
   flex-shrink: 0;
 }
 
-.thread-size,
 .thread-time {
   font-size: 12px;
   color: var(--text-faint);
   font-weight: 350;
   font-variant-numeric: tabular-nums;
-}
-
-.thread-size {
-  opacity: 0.98;
-  color: var(--thread-size-color-under-1m);
-  font-weight: 500;
-  letter-spacing: 0.01em;
-}
-
-.thread-size.thread-size-tier-under-1m {
-  color: var(--thread-size-color-under-1m);
-}
-
-.thread-size.thread-size-tier-1m {
-  color: var(--thread-size-color-1m);
-}
-
-.thread-size.thread-size-tier-2m {
-  color: var(--thread-size-color-2m);
-}
-
-.thread-size.thread-size-tier-4m {
-  color: var(--thread-size-color-4m);
-}
-
-.thread-size.thread-size-tier-8m {
-  color: var(--thread-size-color-8m);
-}
-
-.thread-size.thread-size-tier-10m {
-  color: var(--thread-size-color-10m);
-}
-
-.thread-size.thread-size-tier-15m {
-  color: var(--thread-size-color-15m);
-}
-
-.thread-size.thread-size-tier-25m {
-  color: var(--thread-size-color-25m);
-}
-
-.thread-size.thread-size-tier-50m {
-  color: var(--thread-size-color-50m);
-}
-
-.thread-size.thread-size-tier-100m {
-  color: var(--thread-size-color-100m);
 }
 
 .thread-time {
@@ -2293,11 +2188,6 @@
   color: #ff9f43;
   font-weight: 500;
   white-space: nowrap;
-}
-
-.thread-row:hover .thread-size {
-  opacity: 1;
-  filter: saturate(1.08) brightness(1.04);
 }
 
 .thread-row:hover .thread-time {

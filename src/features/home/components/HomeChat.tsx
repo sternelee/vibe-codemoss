@@ -1,18 +1,19 @@
-import { startTransition, type ReactNode, useState } from "react";
+import { useDeferredValue, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import Check from "lucide-react/dist/esm/icons/check";
+import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
+import Folder from "lucide-react/dist/esm/icons/folder";
+import FolderPlus from "lucide-react/dist/esm/icons/folder-plus";
+import GitBranch from "lucide-react/dist/esm/icons/git-branch";
+import Search from "lucide-react/dist/esm/icons/search";
 import { useTranslation } from "react-i18next";
+import type { EngineType } from "../../../types";
+import type { WorkspaceKind } from "../../../types";
 import {
-  ChevronRight,
-  Sparkles,
-} from "lucide-react";
-import appIcon from "../../../../icon.png";
-import {
-  createHomeChatQuickActions,
-  createHomeChatTemplateTabs,
-  getHomeChatPlaceholderMessage,
-  type HomeChatTranslate,
-  type HomeChatTemplatePreview,
-  type HomeChatTemplateTabId,
-} from "./homeChatContent";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "../../../components/ui/popover";
+import { EngineIcon } from "../../engine/components/EngineIcon";
 
 type LatestAgentRun = {
   message: string;
@@ -28,214 +29,247 @@ type HomeChatProps = {
   latestAgentRuns: LatestAgentRun[];
   isLoadingLatestAgents: boolean;
   onSelectThread: (workspaceId: string, threadId: string) => void;
+  workspaces: Array<{
+    id: string;
+    name: string;
+    path?: string;
+    kind?: WorkspaceKind;
+    worktree?: {
+      branch: string;
+    } | null;
+  }>;
+  selectedWorkspaceId?: string | null;
+  onSelectWorkspace: (workspaceId: string) => void;
+  onAddWorkspace?: () => void;
   composerNode?: ReactNode;
+  selectedEngine?: EngineType;
+  selectedBranchName?: string | null;
 };
 
-function buildCardPreview(preview: HomeChatTemplatePreview) {
-  return (
-    <span className={`home-chat-template-art is-${preview}`} aria-hidden="true">
-      <span className="home-chat-template-art-topline" />
-      <span className="home-chat-template-art-body" />
-      <span className="home-chat-template-art-footer" />
-      <span className="home-chat-template-art-orb" />
-      <span className="home-chat-template-art-grid" />
-      <span className="home-chat-template-art-accent" />
-    </span>
-  );
+function getEngineLabel(engine: EngineType): string {
+  switch (engine) {
+    case "claude":
+      return "Claude";
+    case "gemini":
+      return "Gemini";
+    case "opencode":
+      return "OpenCode";
+    case "codex":
+    default:
+      return "Codex";
+  }
 }
 
 export function HomeChat({
   latestAgentRuns: _latestAgentRuns,
   isLoadingLatestAgents: _isLoadingLatestAgents,
   onSelectThread: _onSelectThread,
+  workspaces,
+  selectedWorkspaceId = null,
+  onSelectWorkspace,
+  onAddWorkspace,
   composerNode,
+  selectedEngine = "codex",
+  selectedBranchName = null,
 }: HomeChatProps) {
   const { t } = useTranslation();
-  const [activeTabId, setActiveTabId] = useState<HomeChatTemplateTabId>("templates");
-  const [activePlaceholderLabel, setActivePlaceholderLabel] = useState<string | null>(null);
-
-  const translate: HomeChatTranslate = (key, value) => {
-    if (typeof value === "string") {
-      return t(key, value);
-    }
-    return t(key, value);
-  };
-
-  const quickActions = createHomeChatQuickActions(translate);
-  const templateTabs = createHomeChatTemplateTabs(translate);
-
-  const activeTab =
-    templateTabs.find((tab) => tab.id === activeTabId) ?? templateTabs[0] ?? null;
-
-  const placeholderMessage = getHomeChatPlaceholderMessage(translate, activePlaceholderLabel);
-
-  const handlePlaceholderActivate = (label: string) => {
-    setActivePlaceholderLabel(label);
-  };
-
-  const handleTabChange = (tabId: HomeChatTemplateTabId) => {
-    startTransition(() => {
-      setActiveTabId(tabId);
-      setActivePlaceholderLabel(null);
+  const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
+  const [workspaceQuery, setWorkspaceQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const workspacePanelId = useId();
+  const workspaceSearchId = useId();
+  const engineLabel = getEngineLabel(selectedEngine);
+  const selectedWorkspace = workspaces.find((workspace) => workspace.id === selectedWorkspaceId)
+    ?? workspaces[0]
+    ?? null;
+  const deferredWorkspaceQuery = useDeferredValue(workspaceQuery.trim().toLowerCase());
+  const branchLabel = selectedWorkspace
+    ? selectedBranchName?.trim() || selectedWorkspace.worktree?.branch || t("workspace.unknownBranch")
+    : null;
+  const branchDescriptor = selectedWorkspace?.kind === "worktree"
+    ? t("workspace.homeBranchLabelWorktree")
+    : t("workspace.homeBranchLabelMain");
+  const resolvedWorkspaceId = selectedWorkspace?.id ?? workspaces[0]?.id ?? "";
+  const filteredWorkspaces = deferredWorkspaceQuery.length === 0
+    ? workspaces
+    : workspaces.filter((workspace) => {
+      const name = workspace.name.toLowerCase();
+      const path = workspace.path?.toLowerCase() ?? "";
+      return name.includes(deferredWorkspaceQuery) || path.includes(deferredWorkspaceQuery);
     });
-  };
+
+  useEffect(() => {
+    if (!workspaceMenuOpen) {
+      setWorkspaceQuery("");
+      return;
+    }
+
+    searchInputRef.current?.focus();
+  }, [workspaceMenuOpen]);
+
+  function handleWorkspaceSelect(workspaceId: string) {
+    onSelectWorkspace(workspaceId);
+    setWorkspaceMenuOpen(false);
+    setWorkspaceQuery("");
+  }
+
+  function handleAddWorkspace() {
+    setWorkspaceMenuOpen(false);
+    setWorkspaceQuery("");
+    onAddWorkspace?.();
+  }
 
   return (
     <div className="home-chat">
       <div className="home-chat-shell">
-        <div className="home-chat-orb home-chat-orb-left" aria-hidden="true" />
-        <div className="home-chat-orb home-chat-orb-right" aria-hidden="true" />
-
         <header className="home-chat-hero">
-          <button
-            type="button"
-            className="home-chat-announcement"
-            aria-disabled="true"
-            onClick={() => {
-              handlePlaceholderActivate(t("homeChat.announcementText"));
-            }}
+          <div
+            className="home-chat-engine-mark"
+            role="img"
+            aria-label={engineLabel}
           >
-            <span className="home-chat-announcement-tag">
-              {t("homeChat.announcementTag", "New")}
-            </span>
-            <span className="home-chat-announcement-text">
-              {t(
-                "homeChat.announcementText",
-                "Explore templates, workflows, and starter prompts",
-              )}
-            </span>
-            <span className="home-chat-announcement-action">
-              {t("homeChat.announcementAction", "Discover")}
-              <ChevronRight size={14} aria-hidden="true" />
-            </span>
-          </button>
+            <EngineIcon
+              engine={selectedEngine}
+              size={50}
+              className="home-chat-engine-icon"
+            />
+          </div>
 
           <div className="home-chat-headline">
             <h1 className="home-chat-title">
-              <span className="home-chat-title-line">
-                {t("homeChat.titleLineOne", "Press Enter")}
-              </span>
-              <span className="home-chat-title-line is-accent">
-                {t("homeChat.titleLineTwo", "Build Apps Faster")}
-              </span>
+              {t("homeChat.minimalTitle", "Create anything")}
             </h1>
 
-            <p className="home-chat-subtitle">
-              {t(
-                "homeChat.subtitle",
-                "Keep your current composer, add visual structure, and stage what comes next.",
-              )}
-            </p>
+            {selectedWorkspace ? (
+              <div
+                className="home-chat-workspace-summary"
+                title={selectedWorkspace.name}
+              >
+                <div className="home-chat-workspace-select" title={selectedWorkspace.name}>
+                  <Popover open={workspaceMenuOpen} onOpenChange={setWorkspaceMenuOpen}>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="home-chat-workspace-select-trigger"
+                        aria-label={t("homeChat.workspaceSelectLabel", "Workspace")}
+                        aria-expanded={workspaceMenuOpen}
+                        aria-controls={workspacePanelId}
+                      >
+                        <span className="home-chat-workspace-select-label">
+                          {selectedWorkspace.name}
+                        </span>
+                        <ChevronDown
+                          size={16}
+                          aria-hidden
+                          className="home-chat-workspace-select-trigger-icon"
+                          data-open={workspaceMenuOpen ? "true" : undefined}
+                        />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      align="center"
+                      className="home-chat-workspace-picker-popover"
+                      onOpenAutoFocus={(event) => event.preventDefault()}
+                      side="bottom"
+                      sideOffset={8}
+                    >
+                      <div className="home-chat-workspace-picker">
+                        <label className="home-chat-workspace-picker-search" htmlFor={workspaceSearchId}>
+                          <Search size={16} aria-hidden className="home-chat-workspace-picker-search-icon" />
+                          <input
+                            ref={searchInputRef}
+                            id={workspaceSearchId}
+                            type="text"
+                            value={workspaceQuery}
+                            onChange={(event) => setWorkspaceQuery(event.target.value)}
+                            className="home-chat-workspace-picker-search-input"
+                            placeholder={t("homeChat.workspaceSearchPlaceholder", "Search projects")}
+                            autoComplete="off"
+                            spellCheck={false}
+                          />
+                        </label>
+
+                        <div
+                          id={workspacePanelId}
+                          className="home-chat-workspace-picker-list"
+                          role="list"
+                          aria-label={t("homeChat.workspaceSelectLabel", "Workspace")}
+                        >
+                          {filteredWorkspaces.length > 0 ? (
+                            filteredWorkspaces.map((workspace) => {
+                              const isSelected = workspace.id === resolvedWorkspaceId;
+
+                              return (
+                                <button
+                                  key={workspace.id}
+                                  type="button"
+                                  className="home-chat-workspace-picker-item"
+                                  data-selected={isSelected ? "true" : undefined}
+                                  onClick={() => handleWorkspaceSelect(workspace.id)}
+                                >
+                                  <Folder
+                                    size={16}
+                                    aria-hidden
+                                    className="home-chat-workspace-picker-item-icon"
+                                  />
+                                  <span className="home-chat-workspace-picker-item-label">
+                                    {workspace.name}
+                                  </span>
+                                  {isSelected ? (
+                                    <Check
+                                      size={16}
+                                      aria-hidden
+                                      className="home-chat-workspace-picker-item-check"
+                                    />
+                                  ) : null}
+                                </button>
+                              );
+                            })
+                          ) : (
+                            <div className="home-chat-workspace-picker-empty">
+                              {t("homeChat.workspaceNoMatch", "No projects found")}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="home-chat-workspace-picker-divider" />
+
+                        <button
+                          type="button"
+                          className="home-chat-workspace-picker-add"
+                          onClick={handleAddWorkspace}
+                        >
+                          <FolderPlus
+                            size={16}
+                            aria-hidden
+                            className="home-chat-workspace-picker-add-icon"
+                          />
+                          <span>{t("homeChat.addWorkspaceAction", "Add new project")}</span>
+                        </button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                {branchLabel ? (
+                  <div className="home-chat-workspace-branch">
+                    <GitBranch size={18} aria-hidden className="home-chat-workspace-branch-icon" />
+                    <span className="home-chat-workspace-branch-label">{branchDescriptor}</span>
+                    <span className="home-chat-workspace-branch-value">({branchLabel})</span>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </header>
 
         <section className="home-chat-stage">
-          <div className="home-chat-stage-frame">
-            <div className="home-chat-stage-glow" aria-hidden="true" />
-            <section
-              className="home-chat-composer-panel"
-              aria-label={t("home.newConversation", "New Conversation")}
-            >
-              <div className="home-chat-composer-host">{composerNode}</div>
-            </section>
-          </div>
-
-          <div className="home-chat-quick-actions-block">
-            <div className="home-chat-quick-actions-header">
-              <span>{t("homeChat.quickActions", "Quick actions")}</span>
-            </div>
-            <div className="home-chat-quick-actions">
-              {quickActions.map((action) => {
-                const Icon = action.icon;
-                return (
-                  <button
-                    key={action.id}
-                    type="button"
-                    className="home-chat-quick-action"
-                    aria-disabled="true"
-                    onClick={() => {
-                      handlePlaceholderActivate(action.label);
-                    }}
-                  >
-                    <span className="home-chat-quick-action-icon">
-                      <Icon size={16} aria-hidden="true" />
-                    </span>
-                    <span className="home-chat-quick-action-label">{action.label}</span>
-                    <span className="home-chat-quick-action-chip">
-                      {t("homeChat.comingSoon", "Coming soon")}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <p className="home-chat-placeholder-note" role="status" aria-live="polite">
-            {placeholderMessage}
-          </p>
+          <section
+            className="home-chat-composer-panel"
+            aria-label={t("home.newConversation", "New Conversation")}
+          >
+            <div className="home-chat-composer-host">{composerNode}</div>
+          </section>
         </section>
-
-        <section className="home-chat-gallery" aria-label={t("homeChat.quickActions", "Quick actions")}>
-          <div className="home-chat-gallery-header">
-            <div className="home-chat-gallery-tabs" role="tablist" aria-label="Home landing tabs">
-              {templateTabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  role="tab"
-                  className={`home-chat-gallery-tab${
-                    tab.id === activeTabId ? " is-active" : ""
-                  }`}
-                  aria-selected={tab.id === activeTabId}
-                  onClick={() => {
-                    handleTabChange(tab.id);
-                  }}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="home-chat-gallery-viewport">
-            <div className="home-chat-gallery-track">
-              {activeTab?.cards.map((card) => (
-                <button
-                  key={card.id}
-                  type="button"
-                  className={`home-chat-template-card is-${card.preview}`}
-                  aria-disabled="true"
-                  aria-label={`${card.title}: ${card.description}`}
-                  onClick={() => {
-                    handlePlaceholderActivate(card.title);
-                  }}
-                >
-                  <span className="home-chat-template-card-preview">
-                    {buildCardPreview(card.preview)}
-                  </span>
-                  <span className="home-chat-template-card-body">
-                    <span className="home-chat-template-card-meta">
-                      <span className="home-chat-template-card-meta-icon">
-                        <Sparkles size={12} aria-hidden="true" />
-                      </span>
-                      <span className="home-chat-template-card-chip">
-                        {t("homeChat.comingSoon", "Coming soon")}
-                      </span>
-                    </span>
-                    <span className="home-chat-template-card-title">{card.title}</span>
-                    <span className="home-chat-template-card-description">
-                      {card.description}
-                    </span>
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <img className="home-chat-bg-icon" src={appIcon} alt="" aria-hidden="true" />
-        <div className="home-chat-grid" aria-hidden="true" />
-        <div className="home-chat-noise" aria-hidden="true" />
       </div>
     </div>
   );

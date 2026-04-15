@@ -161,7 +161,6 @@ const enPart1 = {
     exitSoloMode: "Exit SOLO mode",
     quickNewThread: "Home",
     quickAutomation: "Panel",
-    quickAutomationBadge: "new task!",
     quickSearch: "Search",
     quickSkills: "Skills",
     releaseNotes: "Release Notes",
@@ -207,6 +206,7 @@ const enPart1 = {
 
   homeChat: {
     badge: "Workspace-aware chat home",
+    minimalTitle: "Create anything",
     announcementTag: "New",
     announcementText: "Explore landing templates, workflow cards, and starter prompts",
     announcementAction: "Discover",
@@ -218,6 +218,9 @@ const enPart1 = {
     promptPlaceholder:
       "Describe your goal, for example: Generate release notes for this repository and include risk checks.",
     pathResolving: "Resolving default project path...",
+    workspaceSearchPlaceholder: "Search projects",
+    addWorkspaceAction: "Add new project",
+    workspaceNoMatch: "No projects found",
     quickActions: "Quick actions",
     placeholderHint: "These entry points are visual placeholders for now.",
     placeholderSelected: "{{label}} is coming soon.",
@@ -2393,6 +2396,7 @@ const enPart1 = {
     reloadThreads: "Reload threads",
     syncFromServer: "Sync from server",
     copyId: "Copy ID",
+    size: "Size",
     deleteWorktree: "Delete worktree",
     renameThread: "Rename thread",
     currentName: "Current name:",

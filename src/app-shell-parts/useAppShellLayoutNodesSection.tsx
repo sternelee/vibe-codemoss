@@ -44,7 +44,7 @@ export function useAppShellLayoutNodesSection(ctx: any) {
     handleOpenRenameWorktree, handleOpenSearchPalette, handleOpenSpecHub, handleOpenTaskConversation, handleOpenWorkspaceFile, handleOpenWorkspaceHome, handlePickGitRoot, handlePointerMove,
     handlePointerUp, handlePush, handleRefreshAccountRateLimits, handleRenamePromptCancel, handleRenamePromptChange, handleRenamePromptConfirm, handleRenameThread, handleRenameWorktreeCancel,
     handleRenameWorktreeChange, handleRenameWorktreeConfirm, handleResize, handleRevealActiveWorkspace, handleRevealGeneralPrompts, handleRevealWorkspacePrompts, handleRevertAllGitChanges, handleRevertGitFile,
-    handleReviewPromptKeyDown, handleRewindFromMessage, handleSearchPaletteMoveSelection, handleSelectAgent, handleSelectCommit, handleSelectDiff, handleSelectDiffForPanel, handleSelectModel, handleSelectOpenAppId,
+    handleReviewPromptKeyDown, handleRewindFromMessage, handleSearchPaletteMoveSelection, handleSelectAgent, handleSelectCommit, handleSelectDiff, handleSelectDiffForPanel, handleSelectHomeWorkspace, handleSelectModel, handleSelectOpenAppId,
     handleSelectOpenCodeAgent, handleSelectOpenCodeVariant, handleSelectPullRequest, handleSelectSearchResult, handleSelectWorkspaceInstance, handleSelectWorkspacePathForGitHistory, handleSend, handleSendPrompt,
     handleSendPromptToNewAgent, handleSelectStatusPanelSubagent, handleSetAccessMode, handleSetGitRoot, handleStageGitAll, handleStageGitFile, handleStartGuidedConversation, handleStartWorkspaceConversation, handleSwitchAccount, handleFuseQueued,
     handleSync, handleTestNotificationSound, handleToggleDictation, handleToggleRuntimeConsole, handleToggleSearchContentFilter, handleToggleSearchPalette, handleToggleTerminal, handleToggleTerminalPanel,
@@ -84,7 +84,7 @@ export function useAppShellLayoutNodesSection(ctx: any) {
     setHighlightedCommitIndex, setHighlightedPresetIndex, setIsEditorFileMaximized, setIsPanelLocked, setIsPlanPanelDismissed, setIsSearchPaletteOpen, setKanbanViewState, setLiveEditPreviewEnabled,
     setOpenCodeAgentByThreadId, setOpenCodeAgents, setOpenCodeDefaultAgentByWorkspace, setOpenCodeDefaultVariantByWorkspace, setOpenCodeVariantByThreadId, setPrefillDraft, setReduceTransparency, setRightPanelWidth,
     setSearchContentFilters, setSearchPaletteQuery, setSearchPaletteSelectedIndex, setSearchScope, setSelectedAgent, setSelectedCollaborationModeId, setSelectedCommitSha, setSelectedComposerKanbanPanelId,
-    setSelectedDiffPath, setSelectedEffort, setSelectedKanbanTaskId, setSelectedModelId, setSelectedPullRequest, setWorkspaceHomeWorkspaceId, settingsHighlightTarget, settingsOpen,
+    setSelectedDiffPath, setSelectedEffort, setSelectedKanbanTaskId, setSelectedModelId, setSelectedPullRequest, setHomeOpen, setWorkspaceHomeWorkspaceId, settingsHighlightTarget, settingsOpen,
     settingsSection, shouldForceResumeInCode, shouldImplementPlan, shouldLoadDiffs, shouldLoadGitHubPanelData, shouldMountSpecHub, shouldShowSidebarTopbarContent, showComposer,
     showDebugButton, showGitDetail, showGitHistory, showHome, showKanban, showNextReleaseNotes, showPresetStep, showPreviousReleaseNotes,
     showSpecHub, showWorkspaceHome, sidebarCollapsed, sidebarToggleProps, sidebarWidth, skills, slashToken, snapshot,
@@ -182,14 +182,13 @@ export function useAppShellLayoutNodesSection(ctx: any) {
     onAddWorkspace: handleAddWorkspace,
     onSelectHome: () => {
       closeSettings();
-      resetPullRequestSelection();
-      setWorkspaceHomeWorkspaceId(null);
-      selectHome();
+      handleOpenHomeChat();
     },
     onSelectWorkspace: (workspaceId) => {
       closeSettings();
       exitDiffView();
       resetPullRequestSelection();
+      setHomeOpen(false);
       setWorkspaceHomeWorkspaceId(null);
       setCenterMode("chat");
       setActiveWorkspaceId(workspaceId);
@@ -226,6 +225,7 @@ export function useAppShellLayoutNodesSection(ctx: any) {
       closeSettings();
       exitDiffView();
       resetPullRequestSelection();
+      setHomeOpen(false);
       setWorkspaceHomeWorkspaceId(null);
       setCenterMode("chat");
       setAppMode("chat");
@@ -239,6 +239,7 @@ export function useAppShellLayoutNodesSection(ctx: any) {
         setActiveEngine(thread.engineSource);
       }
     },
+    onSelectHomeWorkspace: handleSelectHomeWorkspace,
     onDeleteThread: async (workspaceId, threadId) => {
       openDeleteThreadPrompt(workspaceId, threadId);
     },

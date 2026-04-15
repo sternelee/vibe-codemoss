@@ -721,7 +721,17 @@ export function MainHeader({
           className="main-header-session-tabs-slot"
           data-tauri-drag-region="false"
         >
-          {sessionTabsNode}
+          <div
+            className="main-header-session-tabs-interactive"
+            data-tauri-drag-region="false"
+          >
+            {sessionTabsNode}
+          </div>
+          <div
+            className="main-header-session-tabs-drag-lane"
+            data-tauri-drag-region
+            aria-hidden="true"
+          />
         </div>
       ) : null}
       <div className="main-header-actions">

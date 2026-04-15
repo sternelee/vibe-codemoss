@@ -8,6 +8,11 @@ import { RuntimeConsoleDock } from "../features/app/components/RuntimeConsoleDoc
 import { SidebarCollapseButton, TitlebarExpandControls } from "../features/layout/components/SidebarToggleControls";
 import { KanbanView } from "../features/kanban/components/KanbanView";
 import { GitHistoryPanel } from "../features/git-history/components/GitHistoryPanel";
+import {
+  shouldShowFloatingTitlebarSidebarToggle,
+  shouldShowMainTopbarSidebarToggle,
+  shouldShowSidebarTopbarSidebarToggle,
+} from "../features/layout/utils/sidebarTogglePlacement";
 import { WorkspaceHome } from "../features/workspaces/components/WorkspaceHome";
 import { SpecHub } from "../features/spec/components/SpecHub";
 import { SearchPalette } from "../features/search/components/SearchPalette";
@@ -175,7 +180,25 @@ export function renderAppShell(ctx: any) {
     />
   );
 
-  const desktopTopbarLeftNodeWithToggle = !isCompact && !isSoloMode ? (
+  const showSidebarTopbarSidebarToggle = shouldShowSidebarTopbarSidebarToggle({
+    isCompact,
+    isMacDesktop,
+    isSoloMode,
+    sidebarCollapsed,
+  });
+  const showMainTopbarSidebarToggle = shouldShowMainTopbarSidebarToggle({
+    isCompact,
+    isMacDesktop,
+    isSoloMode,
+    sidebarCollapsed,
+  });
+  const showFloatingTitlebarSidebarToggle =
+    shouldShowFloatingTitlebarSidebarToggle({
+      showHome,
+      showMainTopbarSidebarToggle,
+    });
+
+  const desktopTopbarLeftNodeWithToggle = showMainTopbarSidebarToggle ? (
     <div className="topbar-leading">
       <SidebarCollapseButton {...sidebarToggleProps} />
       {desktopTopbarLeftNode}
@@ -183,11 +206,21 @@ export function renderAppShell(ctx: any) {
   ) : (
     desktopTopbarLeftNode
   );
-  const sidebarNodeWithTopbar = shouldShowSidebarTopbarContent &&
+  const sidebarTopbarToggleNode = showSidebarTopbarSidebarToggle ? (
+    <div
+      className={`sidebar-titlebar-toggle${
+        sidebarToggleProps.isLayoutSwapped ? " is-layout-swapped" : ""
+      }`}
+      data-tauri-drag-region="false"
+    >
+      <SidebarCollapseButton {...sidebarToggleProps} />
+    </div>
+  ) : null;
+  const sidebarNodeWithTopbar = sidebarTopbarToggleNode &&
     isValidElement(sidebarNode)
     ? cloneElement(
         sidebarNode as React.ReactElement<{ topbarNode?: React.ReactNode }>,
-        { topbarNode: desktopTopbarLeftNodeWithToggle },
+        { topbarNode: sidebarTopbarToggleNode },
       )
     : sidebarNode;
   const runtimeConsoleDockNode = (
@@ -244,7 +277,10 @@ export function renderAppShell(ctx: any) {
       }
     >
       <div className="drag-strip" id="titlebar" data-tauri-drag-region />
-      <TitlebarExpandControls {...sidebarToggleProps} />
+      <TitlebarExpandControls
+        {...sidebarToggleProps}
+        showSidebarTitlebarToggle={showFloatingTitlebarSidebarToggle}
+      />
       {shouldLoadGitHubPanelData ? (
         <Suspense fallback={null}>
           <GitHubPanelData

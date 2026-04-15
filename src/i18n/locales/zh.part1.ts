@@ -161,7 +161,6 @@ const zhPart1 = {
     exitSoloMode: "退出 SOLO 模式",
     quickNewThread: "首页",
     quickAutomation: "面板模式",
-    quickAutomationBadge: "new task!",
     quickSearch: "搜索",
     quickSkills: "技能",
     releaseNotes: "版本记录",
@@ -207,6 +206,7 @@ const zhPart1 = {
 
   homeChat: {
     badge: "Workspace-aware chat home",
+    minimalTitle: "创造任何东西",
     announcementTag: "New",
     announcementText: "探索首页模板、流程卡片与启动提示",
     announcementAction: "查看",
@@ -216,6 +216,9 @@ const zhPart1 = {
     subtitle: "保留你当前的输入框体验，用更完整的首页节奏把想法组织起来，然后进入真实执行。",
     promptPlaceholder: "描述你的目标，例如：帮我为这个仓库生成一版发布说明，并附上风险检查。",
     pathResolving: "正在解析默认项目路径…",
+    workspaceSearchPlaceholder: "Search projects",
+    addWorkspaceAction: "添加新项目",
+    workspaceNoMatch: "未找到项目",
     quickActions: "快捷能力",
     placeholderHint: "这些入口当前为视觉占位，真实功能稍后接入。",
     placeholderSelected: "{{label}} 即将上线。",
@@ -2348,6 +2351,7 @@ const zhPart1 = {
     reloadThreads: "重新加载对话",
     syncFromServer: "从服务器同步",
     copyId: "复制 ID",
+    size: "大小",
     deleteWorktree: "删除工作树",
     renameThread: "重命名对话",
     currentName: "当前名称：",

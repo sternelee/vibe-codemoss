@@ -242,6 +242,8 @@ export function useAppShellSections(ctx: any) {
     handleArchiveActiveThread,
     appSettings,
     groupedWorkspaces,
+    homeWorkspaceDefaultId,
+    homeWorkspaceSelectedId,
     getThreadRows,
     getPinTimestamp,
     activeWorkspaceIdRef,
@@ -259,6 +261,7 @@ export function useAppShellSections(ctx: any) {
     handleToggleSearchPalette,
     composerSendLabel,
     refreshAccountRateLimits,
+    setHomeOpen,
     showHome,
     showKanban,
     showGitHistory,
@@ -716,6 +719,7 @@ export function useAppShellSections(ctx: any) {
     (workspaceId: string, threadId: string) => {
       exitDiffView();
       resetPullRequestSelection();
+      setHomeOpen(false);
       setWorkspaceHomeWorkspaceId(null);
       setAppMode("chat");
       setActiveTab("codex");
@@ -732,6 +736,10 @@ export function useAppShellSections(ctx: any) {
       exitDiffView,
       collapseRightPanel,
       resetPullRequestSelection,
+      setActiveTab,
+      setAppMode,
+      setHomeOpen,
+      setWorkspaceHomeWorkspaceId,
       selectWorkspace,
       setActiveEngine,
       setActiveThreadId,
@@ -745,6 +753,7 @@ export function useAppShellSections(ctx: any) {
         return;
       }
       try {
+        setHomeOpen(false);
         setWorkspaceHomeWorkspaceId(null);
         if (!activeWorkspace.connected) {
           await connectWorkspace(activeWorkspace);
@@ -772,8 +781,11 @@ export function useAppShellSections(ctx: any) {
       collapseRightPanel,
       connectWorkspace,
       isCompact,
+      setHomeOpen,
+      setActiveTab,
       setActiveEngine,
       setActiveThreadId,
+      setWorkspaceHomeWorkspaceId,
       startThreadForWorkspace,
     ],
   );
@@ -793,6 +805,7 @@ export function useAppShellSections(ctx: any) {
         return;
       }
       try {
+        setHomeOpen(false);
         setWorkspaceHomeWorkspaceId(null);
         if (!activeWorkspace.connected) {
           await connectWorkspace(activeWorkspace);
@@ -822,8 +835,11 @@ export function useAppShellSections(ctx: any) {
       connectWorkspace,
       isCompact,
       sendUserMessageToThread,
+      setHomeOpen,
+      setActiveTab,
       setActiveEngine,
       setActiveThreadId,
+      setWorkspaceHomeWorkspaceId,
       startThreadForWorkspace,
     ],
   );
@@ -2037,11 +2053,12 @@ export function useAppShellSections(ctx: any) {
     setAppMode("chat");
     setCenterMode("chat");
     setActiveTab((current) => (current === "spec" ? "codex" : "spec"));
-  }, [closeSettings]);
+  }, [closeSettings, setActiveTab, setAppMode, setCenterMode]);
 
   const handleOpenWorkspaceHome = useCallback(() => {
     exitDiffView();
     resetPullRequestSelection();
+    setHomeOpen(false);
     setAppMode("chat");
     setCenterMode("chat");
     setActiveTab("codex");
@@ -2057,6 +2074,11 @@ export function useAppShellSections(ctx: any) {
     activeWorkspaceId,
     exitDiffView,
     resetPullRequestSelection,
+    setActiveTab,
+    setAppMode,
+    setCenterMode,
+    setHomeOpen,
+    setWorkspaceHomeWorkspaceId,
     selectHome,
     selectWorkspace,
     setActiveThreadId,
@@ -2068,17 +2090,54 @@ export function useAppShellSections(ctx: any) {
     setWorkspaceHomeWorkspaceId(null);
     setAppMode("chat");
     setCenterMode("chat");
+    setHomeOpen(true);
+    if (homeWorkspaceSelectedId) {
+      setActiveWorkspaceId(homeWorkspaceSelectedId);
+      setActiveThreadId(null, homeWorkspaceSelectedId);
+      return;
+    }
     selectHome();
   }, [
     exitDiffView,
+    homeWorkspaceSelectedId,
     resetPullRequestSelection,
     selectHome,
+    setAppMode,
+    setCenterMode,
+    setActiveThreadId,
+    setActiveWorkspaceId,
+    setHomeOpen,
+    setWorkspaceHomeWorkspaceId,
+  ]);
+
+  const handleSelectHomeWorkspace = useCallback((workspaceId: string) => {
+    if (!workspaceId) {
+      return;
+    }
+    exitDiffView();
+    resetPullRequestSelection();
+    setWorkspaceHomeWorkspaceId(null);
+    setAppMode("chat");
+    setCenterMode("chat");
+    setHomeOpen(true);
+    setActiveWorkspaceId(workspaceId);
+    setActiveThreadId(null, workspaceId);
+  }, [
+    exitDiffView,
+    resetPullRequestSelection,
+    setAppMode,
+    setCenterMode,
+    setActiveThreadId,
+    setActiveWorkspaceId,
+    setHomeOpen,
+    setWorkspaceHomeWorkspaceId,
   ]);
 
   const handleOpenKanbanMode = useCallback(() => {
+    setHomeOpen(false);
     setAppMode("kanban");
     closeSettings();
-  }, [closeSettings, setAppMode]);
+  }, [closeSettings, setAppMode, setHomeOpen]);
 
   usePrimaryModeShortcuts({
     isEnabled: true,
@@ -2212,6 +2271,7 @@ export function useAppShellSections(ctx: any) {
     handleOpenSpecHub,
     handleOpenWorkspaceHome,
     handleOpenHomeChat,
+    handleSelectHomeWorkspace,
     handleRefreshAccountRateLimits,
     dropOverlayActive,
     dropOverlayText,

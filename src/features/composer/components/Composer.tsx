@@ -216,6 +216,7 @@ type ComposerProps = {
   isPlanMode?: boolean;
   onOpenDiffPath?: (path: string) => void;
   onRewind?: (userMessageId: string) => void | Promise<void>;
+  showStatusPanelToggleOverride?: boolean;
   statusPanelExpandedOverride?: boolean;
   onToggleStatusPanelOverride?: () => void;
 };
@@ -885,6 +886,7 @@ export const Composer = memo(function Composer({
   isPlanMode = false,
   onOpenDiffPath,
   onRewind,
+  showStatusPanelToggleOverride,
   statusPanelExpandedOverride,
   onToggleStatusPanelOverride,
 }: ComposerProps) {
@@ -1308,6 +1310,8 @@ export const Composer = memo(function Composer({
   const handleToggleStatusPanel = useCallback(() => {
     setStatusPanelExpanded((prev) => !prev);
   }, []);
+  const resolvedShowStatusPanelToggle =
+    showStatusPanelToggleOverride ?? showStatusPanel;
   const resolvedStatusPanelExpanded =
     statusPanelExpandedOverride ?? statusPanelExpanded;
   const resolvedToggleStatusPanel =
@@ -1885,7 +1889,7 @@ export const Composer = memo(function Composer({
               onRewind={handleRewind}
               showRewindEntry={canRewindSession}
               statusPanelExpanded={resolvedStatusPanelExpanded}
-              showStatusPanelToggle={showStatusPanel}
+              showStatusPanelToggle={resolvedShowStatusPanelToggle}
               onToggleStatusPanel={resolvedToggleStatusPanel}
             />
           </>
