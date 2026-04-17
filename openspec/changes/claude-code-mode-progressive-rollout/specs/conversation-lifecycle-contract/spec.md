@@ -57,3 +57,17 @@ Claude synthetic approval handling MUST preserve both live continuity and restar
 - **WHEN** multiple Claude approvals are pending for the same turn
 - **THEN** the conversation MUST remain resumable until every pending approval is answered
 - **AND** intermediate approvals MUST NOT prematurely finalize the turn
+
+### Requirement: Claude Inline Approval Surface MUST Stay Decision-Oriented
+
+Claude synthetic approvals MUST remain readable and decision-oriented in the shared conversation surface rather than degrading into generic notices or raw content dumps.
+
+#### Scenario: inline approval renders as a distinct approval card near the active turn tail
+- **WHEN** Claude synthetic approval is rendered inline inside the message canvas
+- **THEN** the UI MUST present it as a visually distinct approval card with clear approval affordance
+- **AND** the inline placement MUST anchor near the bottom of the active conversation flow instead of occupying the top reading entry
+
+#### Scenario: approval detail hides large raw content fields by default
+- **WHEN** Claude synthetic approval payload contains large raw body fields such as `content`, `diff`, `patch`, or equivalent rewritten text
+- **THEN** the inline approval detail MUST hide those raw fields by default
+- **AND** the card MUST continue surfacing compact decision-critical metadata such as path, command summary, tool label, or approval note

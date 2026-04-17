@@ -38,7 +38,8 @@
   - [x] E.1.b 补齐嵌套 `toolUseResult` / `tool_use_result` error payload、顶层 string error 与缺失 `is_error` 标记时的 shell/native command permission shape 识别
   - [ ] E.1.c 评估哪些非文件工具可以安全进入下一阶段 synthetic bridge
     - 当前评估见 `openspec/docs/claude-mode-rollout-non-file-approval-bridge-evaluation-2026-04-17.md`
-    - 当前结论：generic `Bash/shell/native command` 不建议进入 bridge；下一阶段优先扩展 `Edit/Rewrite/MultiEdit/NotebookEdit` 这类结构化 file-change tool 的本地 apply
+    - 当前结论：generic `Bash/shell/native command` 不建议进入 bridge；结构化 file-change tool 已补齐 `Edit/Rewrite/MultiEdit/Delete` 本地 apply，`NotebookEdit` 仍待评估
+  - [x] E.1.d 收敛 Claude inline approval surface：审批卡增强结构识别、移到底部承接，并隐藏大段正文类字段
 - [x] E.2 校验并对齐 `acceptEdits` 的真实 CLI 语义
 - [ ] E.3 在语义确认后开放 Claude `acceptEdits`
 
@@ -54,6 +55,8 @@
   - `default` 触发单文件审批、批量审批、审批后继续执行
   - 历史重开后仍能恢复 `File changes` 卡片
   - `default` 命中 command execution / shell 权限阻塞时进入 `modeBlocked` 诊断
+  - inline approval 卡片位于消息幕布底部，且视觉上明显区别于普通 toast
+  - approval detail 默认不展示 `content` / patch / diff 正文
   - `acceptEdits` 在开放前保持禁用
 
 ## 2. 回滚策略

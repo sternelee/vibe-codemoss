@@ -58,6 +58,11 @@
 - 把 plan mode 退出后的用户可见承接写入 rollout 基线：
   - `ExitPlanMode` 工具卡片使用可折叠的平面卡片承接
   - 原始计划内容按 Markdown 渲染，便于人工回归与后续实现切换
+- 把 Claude synthetic approval 的当前可见 UI 基线写入 rollout：
+  - 审批卡继续复用现有 approval surface，不新增 Claude 专属行为链
+  - 审批卡需要具备明确的审批识别结构（icon / badge / summary band），避免退化成普通 toast
+  - inline 审批卡在消息幕布中应贴底部承接，而不是占据顶部阅读入口
+  - 审批详情默认隐藏大段 `content` / patch / diff 文本，只保留必要摘要与路径/命令信息
 
 ## 技术方案对比与取舍
 
@@ -80,6 +85,7 @@
 - Claude approval-dependent mode 已从“future bridge”升级为“已有 synthetic approval bridge，但能力有边界”。
 - Conversation lifecycle 必须承认 synthetic approval resume marker、历史恢复和多次审批后的继续执行。
 - Plan 阶段结束后的承接卡片必须具备稳定、可回归的基础可读性，避免计划存在但用户无法高效消费。
+- Claude approval surface 的展示必须保持“信息可决策、噪音可控”的基线，避免审批卡在视觉上不明显或被大段正文淹没。
 
 ## 验收标准
 
@@ -98,6 +104,10 @@
 - Claude 遇到非文件工具权限阻塞时：
   - 已识别的 command execution / shell denial 必须进入 `modeBlocked` 诊断链
   - 用户必须能看到明确的恢复方向，而不是只看到模糊失败文本
+- Claude approval UI 在 inline 场景下：
+  - 必须以显著的审批卡样式呈现，而不是弱提示条
+  - 必须放在消息幕布底部承接当前 turn
+  - 不得默认展开大段文件正文或 patch 内容干扰审批决策
 - approval reducer 不得只按单一 `request_id` 删除，必须避免多审批并发误删
 - `npm run check:large-files:gate` 必须继续通过，`claude.rs` 不得重新越过 3000 行门槛
 

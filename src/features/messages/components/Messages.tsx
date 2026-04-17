@@ -2813,7 +2813,6 @@ export const Messages = memo(function Messages({
         onScroll={updateAutoScroll}
       >
         <div className="messages-full">
-          {approvalNode}
           {shouldCollapseHistoryItems && (
             <div
               className="messages-collapsed-indicator"
@@ -2864,6 +2863,7 @@ export const Messages = memo(function Messages({
               {t("messages.emptyThread")}
             </div>
           )}
+          {approvalNode}
           <div ref={bottomRef} />
         </div>
       </div>

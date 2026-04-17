@@ -11,6 +11,8 @@
 - `--resume` continuity 是否真实存在
 - history replay / structured `File changes` 卡片是否不回退
 - `modeBlocked` 诊断链是否给出正确恢复方向
+- inline approval card 的位置与视觉识别是否符合当前 rollout 基线
+- approval detail 是否默认隐藏大段正文类字段，避免噪音淹没审批决策
 - `acceptEdits` 在当前 rollout 是否仍保持禁用
 
 ## 已有自动化覆盖与手测关系
@@ -50,7 +52,9 @@
 | V4-05 | 审批后继续执行 | 在 `default` 场景批准文件后，继续观察 Claude 回复 | 不停在“已批准”；同一线程内继续给出后续执行结果 |
 | V4-06 | history replay 恢复 `File changes` | 完成一次 `default` 文件审批链后关闭并重开线程 | 历史里显示结构化 `File changes` 卡片，而不是 `<ccgui-approval-resume>` 原始 marker |
 | V4-07 | command/shell 阻塞进入 `modeBlocked` | 选择 `Claude -> default`，请求执行明显需要命令权限的 Bash/shell 操作 | 不出现假 file approval；界面显示 `modeBlocked` 诊断，建议切 `full-access` 或改写为受支持文件工具 |
-| V4-08 | `acceptEdits` 仍禁用 | 打开 Claude mode selector | `acceptEdits` 选项存在但 disabled，点击无效 |
+| V4-08 | inline approval 卡片贴底承接 | 在 `default` 场景触发 approval 后观察消息幕布 | 审批卡出现在消息幕布底部而不是顶部；不打断顶部阅读入口；视觉上明显是审批卡而非普通 toast |
+| V4-09 | approval detail 隐藏正文噪音 | 在 `default` 场景请求改写较长内容文件或触发含正文 payload 的 file change | 审批卡展示路径/工具/摘要，但不直接展示大段 `content` / `patch` / `diff` / rewritten text |
+| V4-10 | `acceptEdits` 仍禁用 | 打开 Claude mode selector | `acceptEdits` 选项存在但 disabled，点击无效 |
 
 ## 场景细化
 
@@ -165,7 +169,41 @@
   - 切换 `full-access`
   - 或改写为受支持文件工具
 
-### V4-08 `acceptEdits` 仍禁用
+### V4-08 inline approval 卡片贴底承接
+
+建议复用：
+
+- `V4-03`
+- 或 `V4-04`
+
+检查点：
+
+- approval card 出现在当前消息幕布底部，而不是顶部
+- card 靠近当前 turn 尾部承接
+- 视觉上存在明确审批结构，例如 icon / badge / summary band
+- 不应看起来像普通弱提示条
+
+### V4-09 approval detail 隐藏正文噪音
+
+建议输入：
+
+```text
+请在当前 workspace 下创建 tmp/claude-hidden-body.txt，写入一段 30 行以上的测试文本；完成前如果需要审批请等待我确认。
+```
+
+或：
+
+```text
+请把 tmp/claude-hidden-body.txt 改写成另一段明显不同的长文本内容。
+```
+
+检查点：
+
+- approval card 中能看到路径、工具名、必要说明
+- 看不到大段 `content`、`patch`、`diff`、`new_string` 等正文直接铺开
+- 审批决策所需信息仍足够，不会因为隐藏正文而变成“完全看不懂要批什么”
+
+### V4-10 `acceptEdits` 仍禁用
 
 检查点：
 
@@ -177,11 +215,13 @@
 
 以下条件全部满足，`V.4` 才能勾选完成：
 
-1. `V4-01` 到 `V4-08` 全部通过。
+1. `V4-01` 到 `V4-10` 全部通过。
 2. 没有出现 raw marker 泄漏。
 3. 没有出现审批后线程中断但文件已写入的半成功状态。
 4. 没有把 command denial 错误映射成 file approval。
-5. `acceptEdits` 仍保持禁用，不出现产品层偷开。
+5. inline approval 卡片位置与视觉识别符合当前 rollout 基线。
+6. approval detail 默认不会被大段正文类字段淹没。
+7. `acceptEdits` 仍保持禁用，不出现产品层偷开。
 
 ## 失败分流
 
