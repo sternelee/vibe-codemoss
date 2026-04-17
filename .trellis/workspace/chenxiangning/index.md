@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 13
+- **Total Sessions**: 14
 - **Last Active**: 2026-04-18
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~706 | Active |
+| `journal-1.md` | ~778 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 14 | 2026-04-18 | 完善 Claude 计划模式切换与执行审批链路 | `8ea4647a` | `feature/vvvv0.4.3` |
 | 13 | 2026-04-18 | runtime orchestrator pool console proposal | `d09485a4` | `feature/vvvv0.4.3` |
 | 12 | 2026-04-18 | Claude 默认审批桥接边界与审批卡展示收口 | `66eab13c15f60de2ed95a8b67fe20d44ce273a7b` | `feature/vvvv0.4.3` |
 | 11 | 2026-04-17 | 修复：Trellis record 门禁支持自动初始化 developer | `f945aca` | `feature/vvvv0.4.3` |

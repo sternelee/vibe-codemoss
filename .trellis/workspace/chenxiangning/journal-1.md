@@ -704,3 +704,75 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 14: 完善 Claude 计划模式切换与执行审批链路
+
+**Date**: 2026-04-18
+**Task**: 完善 Claude 计划模式切换与执行审批链路
+**Branch**: `feature/vvvv0.4.3`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标
+- 修复 Claude 在 plan 模式下点击执行后的模式切换与执行审批衔接问题。
+- 保证 ExitPlanMode handoff 卡片展示稳定、用户选择可追溯，并增强 mode selector 的切换感知。
+- 完成本轮工作区代码 review，补齐边界条件并消除 large-file 治理告警。
+
+主要改动
+- 修正 Rust 侧 claude file-change permission denied fallback，将其映射回 approval request，而不是 modeBlocked，并补充对应测试。
+- 在 app-shell、threads hooks、messages/toolBlocks 链路中补齐 ExitPlanMode handoff 逻辑，支持 plan -> code/default/full-access 的正确切换与后续审批续接。
+- 新增 collaborationModeSync helper 与测试，确保 thread-scoped collaboration mode 在 claude/codex 下同步一致。
+- 优化 ExitPlanMode 卡片：保留首张卡、去除重复卡、保留已选按钮状态、支持复制 plan markdown，并避免 streaming/loading 时展开状态抖动。
+- 为 composer 的 mode selector 增加整块闪烁提示，并处理重复触发时动画重播的边界情况。
+- 抽离 messagesExitPlan helper，将 Messages.tsx 压回 large-file 阈值内。
+- 更新 openspec proposal/design/tasks/spec 以及手工测试矩阵，记录本轮 rollout 行为与验证结果。
+
+涉及模块
+- src-tauri/src/engine/claude.rs
+- src-tauri/src/engine/claude/tests_core.rs
+- src/app-shell.tsx
+- src/app-shell-parts/utils.ts
+- src/app-shell-parts/useAppShellLayoutNodesSection.tsx
+- src/app-shell-parts/collaborationModeSync.test.ts
+- src/features/messages/components/**
+- src/features/threads/hooks/**
+- src/features/composer/components/ChatInputBox/**
+- src/features/layout/hooks/useLayoutNodes.tsx
+- src/styles/tool-blocks.css
+- src/i18n/locales/en.part1.ts
+- src/i18n/locales/zh.part1.ts
+- openspec/changes/claude-code-mode-progressive-rollout/**
+- openspec/docs/claude-mode-rollout-v4-manual-test-matrix-2026-04-17.md
+
+验证结果
+- npx vitest run src/features/composer/components/ChatInputBox/selectors/ModeSelect.test.tsx src/app-shell-parts/collaborationModeSync.test.ts src/features/messages/components/Messages.test.tsx
+- npm run check:large-files
+- 以上检查均已通过；Messages.tsx large-file 告警已消除。
+
+后续事项
+- 建议继续补一组更高层的集成验证，覆盖 ExitPlanMode 选择后到 approval modal 出现的完整线程链路。
+- 若后续继续扩展 Messages/toolBlocks，可考虑按 handoff/tool rendering 继续拆分，避免再次触发 large-file 治理阈值。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8ea4647a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
