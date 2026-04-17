@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 2
+- **Total Sessions**: 3
 - **Last Active**: 2026-04-17
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~112 | Active |
+| `journal-1.md` | ~166 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 3 | 2026-04-17 | 强化 Trellis 提交后记录门禁并补齐 Claude rollout 提案 | `1e3d02c` | `feature/vvvv0.4.2-1` |
 | 2 | 2026-04-17 | 补充 Trellis 多用户记录规则 | `aa312af` | `feature/vvvv0.4.2-1` |
 | 1 | 2026-04-17 | Claude 默认模式审批桥与 Trellis 记录门禁 | `0952e66`, `52be7e3` | `feature/vvvv0.4.2-1` |
 <!-- @@@/auto:session-history -->

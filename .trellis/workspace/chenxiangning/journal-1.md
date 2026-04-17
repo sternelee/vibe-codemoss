@@ -110,3 +110,57 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 3: 强化 Trellis 提交后记录门禁并补齐 Claude rollout 提案
+
+**Date**: 2026-04-17
+**Task**: 强化 Trellis 提交后记录门禁并补齐 Claude rollout 提案
+**Branch**: `feature/vvvv0.4.2-1`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| 模块 | 变更 |
+|------|------|
+| AGENTS.md | 将 commit 后必须执行 Trellis session record 提升为 AI commit workflow invariant，并声明适用于所有 Git commit workflow。 |
+| .trellis/workflow.md | 将 Record session 写成 successful commit 后的 mandatory step，防止 AI 在 commit 后直接结束流程。 |
+| OpenSpec Proposal | 补充 command execution / shell 权限阻塞当前进入 modeBlocked 诊断链的事实，避免提案继续停留在旧阶段。 |
+| OpenSpec Design | 记录 ExitPlanMode 计划卡片与命令审批诊断链的设计边界、风险与验证矩阵。 |
+| OpenSpec Tasks | 将 E.1 细化为 command denial 已完成部分与后续 payload / bridge 收敛任务，并扩充 V.4 手测矩阵。 |
+
+**任务目标**:
+- 修复 AI 成功提交后未自动继续执行 Trellis record-session 的工作流缺口。
+- 保证后续任何 AI commit 都能按团队预期自动进入 session record。
+- 将 claude-code-mode-progressive-rollout 的 proposal/design/tasks 补齐到与当前实现状态一致。
+
+**验证结果**:
+- 已执行 `openspec validate --changes "claude-code-mode-progressive-rollout" --strict`，结果通过。
+- 已确认仓库不存在 post-commit hook 自动记录机制，问题根因是 AI workflow 未把 record-session 作为 commit 后强制后继步骤。
+- 已核对 `AGENTS.md` 与 `.trellis/workflow.md` 中的规则文本，确认项目内门禁一致。
+
+**后续事项**:
+- 下次 AI 若再次执行 `git commit`，应直接继续执行 record-session；如仍遗漏，说明调用方未读取仓库规则或未遵守全局 git-flow / AGENTS 约束。
+- 当前仓库内业务与提案补齐已提交；全局 `~/.codex/AGENTS.md` 与 `~/.codex/skills/git-flow/SKILL.md` 的兜底规则属于本机环境增强，不在本仓库提交范围内。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1e3d02c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
