@@ -1158,7 +1158,7 @@ const enPart1 = {
       "When switching provider/source externally, click this button in the client to refresh.",
     runtimePoolTitle: "Runtime Pool Console",
     runtimePoolDescription:
-      "Inspect managed Codex and Claude Code runtimes with lease, eviction, attribution, and manual control surfaced in one place.",
+      "Inspect managed Codex and Claude Code runtime instances with lease, eviction, attribution, and manual control surfaced in one place. These metrics describe runtime instances, not chat thread counts.",
     runtimePanelTitle: "Runtime Pool",
     runtimePanelDescription:
       "A dedicated panel for runtime orchestration. Use it to inspect pool health, tune capacity, and manually intervene when a runtime drifts.",
@@ -1180,18 +1180,18 @@ const enPart1 = {
     runtimeOrphanSweepOnLaunch: "Sweep orphan runtimes on next launch",
     runtimeOrphanSweepOnLaunchDesc:
       "Scan startup ledger state and attempt cleanup for orphaned runtimes left behind by abnormal exits.",
-    runtimeBudgetTitle: "Codex Capacity & Warm Budget",
+    runtimeBudgetTitle: "Codex Runtime Instance Budget",
     runtimeBudgetDescription:
-      "These budget settings currently apply only to managed Codex runtimes. Claude Code remains observable and manageable in the pool, but is not controlled by this capacity section.",
-    runtimeMaxHot: "Codex hot limit",
+      "These budget settings apply only to managed Codex runtime instances and do not limit how many chat threads you can create. Claude Code remains observable and manageable in the pool, but is not controlled by this capacity section. Multiple Codex conversations may still reuse the same runtime.",
+    runtimeMaxHot: "Codex hot instance limit",
     runtimeMaxHotHelp:
-      "Maximum number of instantly reusable Codex runtimes. Higher is faster, but costs more memory.",
-    runtimeMaxWarm: "Codex warm limit",
+      "Maximum number of instantly reusable Codex runtime instances, not chat sessions. Higher is faster, but costs more memory.",
+    runtimeMaxWarm: "Codex warm instance limit",
     runtimeMaxWarmHelp:
-      "Maximum number of idle Codex warm runtimes kept around for quicker recovery from cold.",
-    runtimeWarmTtl: "Codex Warm TTL (seconds)",
+      "Maximum number of idle Codex runtime instances kept warm for quicker recovery from cold.",
+    runtimeWarmTtl: "Warm instance retention (seconds)",
     runtimeWarmTtlHelp:
-      "How long an unused Codex warm runtime can stay alive before it is cooled back to cold.",
+      "How long an idle Codex runtime instance can stay warm before it is released back to cold.",
     runtimePoolSummary: "Runtime pool summary",
     runtimeSummaryLine:
       "Total {{total}} · Acquired {{acquired}} · Streaming {{streaming}} · Idle {{idle}} · Evictable {{evictable}} · Pinned {{pinned}}",
@@ -1200,14 +1200,15 @@ const enPart1 = {
     runtimeRowsTitle: "Active runtimes",
     runtimeRowsDescription:
       "Each row is one managed runtime with its workspace, state, process details, and last activity.",
+    runtimeRowDetailsSummary: "Show details",
     runtimeEngineObservationTitle: "Active engine sessions / process observability",
     runtimeEngineObservationDescription:
       "Split observability by engine and show Codex / Claude separately to pinpoint where background processes come from.",
     runtimeEngineCodex: "Codex",
     runtimeEngineClaude: "Claude",
-    runtimeBudgetHotBadge: "Hot {{count}}",
-    runtimeBudgetWarmBadge: "Warm {{count}}",
-    runtimeBudgetTtlBadge: "TTL {{count}}s",
+    runtimeBudgetHotBadge: "Hot inst {{count}}",
+    runtimeBudgetWarmBadge: "Warm inst {{count}}",
+    runtimeBudgetTtlBadge: "Warm {{count}}s",
     runtimeSessionCountLabel: "Sessions:",
     runtimeRootProcessCountLabel: "Root processes:",
     runtimeProcessTreeCountLabel: "Process tree total:",
@@ -1244,10 +1245,14 @@ const enPart1 = {
     runtimePoolEmpty: "No managed runtime is active right now.",
     runtimeEmptyDescription:
       "This usually means there is no active Codex session, or the pool has already cooled idle runtimes back to cold.",
-    runtimePin: "Pin",
-    runtimeUnpin: "Unpin",
-    runtimeRelease: "Release",
-    runtimeClose: "Close",
+    runtimePin: "Keep warm",
+    runtimeUnpin: "Allow auto release",
+    runtimeRelease: "Release to cold",
+    runtimeClose: "Close now",
+    runtimePinHelp: "Keep warm: prevent automatic eviction when you expect to return soon.",
+    runtimeUnpinHelp: "Allow auto release: let this instance follow normal eviction rules again.",
+    runtimeReleaseHelp: "Release to cold: stop keeping this instance warm. It will restart on next use.",
+    runtimeCloseHelp: "Close now: stop this runtime immediately. If it is still running work, that work will be interrupted.",
     running: "Running...",
     codexLooksGood: "Codex looks good",
     codexIssueDetected: "Codex issue detected",
