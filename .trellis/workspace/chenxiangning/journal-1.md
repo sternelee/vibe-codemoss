@@ -1424,3 +1424,62 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 26: review 修复 runtime/workspaces 边界问题
+
+**Date**: 2026-04-19
+**Task**: review 修复 runtime/workspaces 边界问题
+**Branch**: `feature/vvvv0.4.3`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标:
+- 对 86ec28024648682570a03cc069f95ab77be9b1a5 之后的提交执行全面 review，并直接修复确认问题。
+
+主要改动:
+- 修复 workspace 启动恢复在 active workspace 失败时阻断其余 workspace 恢复、且失败项后续不再重试的问题。
+- 修复 runtime ledger 原子写在 Windows 下覆盖已有文件时可能失败的问题，补齐覆盖式写盘测试。
+- 将 runtime pool 预算字段的 clamp/sanitize 下沉到 Rust source-of-truth，覆盖设置更新与启动读盘两条路径。
+
+涉及模块:
+- src/features/workspaces/hooks/useWorkspaceRestore*
+- src-tauri/src/runtime/mod.rs
+- src-tauri/src/storage.rs
+- src-tauri/src/shared/settings_core.rs
+- src-tauri/src/types.rs
+
+验证结果:
+- npx vitest run src/features/workspaces/hooks/useWorkspaceRestore.test.tsx src/features/settings/hooks/useAppSettings.test.ts src/features/messages/components/runtimeReconnect.test.ts src/features/messages/components/Messages.runtime-reconnect.test.tsx
+- cargo test --manifest-path src-tauri/Cargo.toml write_json_atomically_replaces_existing_file -- --nocapture
+- cargo test --manifest-path src-tauri/Cargo.toml sanitize_runtime_pool_settings -- --nocapture
+- cargo test --manifest-path src-tauri/Cargo.toml read_settings_sanitizes_runtime_pool_budget_fields -- --nocapture
+- npm run typecheck
+- npm run check:large-files
+- npm run lint（仅存在仓库既有 react-hooks warnings，无新增 error）
+
+后续事项:
+- 仓库里仍有既有 lint warnings，可后续单独治理。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `441b680b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
