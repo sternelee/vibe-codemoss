@@ -360,3 +360,66 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 42: Codex 配置边界收口与设置页跨平台修复
+
+**Date**: 2026-04-20
+**Task**: Codex 配置边界收口与设置页跨平台修复
+**Branch**: `feature/vv0.4.4`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+## 任务目标
+- 完成 OpenSpec 变更 codex-config-flag-boundary-cleanup 的实现落地。
+- 对当前工作区代码进行 review，重点检查配置边界、空值/历史值处理、Windows/macOS 兼容性与 large-file 风险。
+- 发现问题后直接修复并回写提案状态。
+
+## 主要改动
+- Rust `src-tauri/src/codex/config.rs`：移除 collab、collaboration_modes、steer、collaboration_mode_enforcement 四个 private flags 的外部 config 读写入口，仅保留 `unified_exec` passthrough。
+- Rust `src-tauri/src/shared/settings_core.rs`：读取设置时忽略外部历史 private flags，强制 `experimental_collab_enabled = false`；更新/恢复设置时仅同步 `unified_exec`；新增 `CODEX_HOME` 测试守卫，避免环境变量污染测试。
+- Frontend `src/features/settings/hooks/useAppSettings.ts`：统一将 `experimentalCollabEnabled` 归一为 inert legacy 字段。
+- Frontend `src/features/settings/components/SettingsView.tsx`：移除 Multi-agent 假开关；明确 desktop-local 与 official config 边界；将“打开官方 Codex 配置”入口改为平台感知文案（Finder / Explorer / File Manager）。
+- i18n 与测试：更新 `en.part1.ts`、`zh.part1.ts`、`vitest.setup.ts`；补充设置页定向回归测试；OpenSpec `tasks.md` 回写实现与验证结果。
+
+## 涉及模块
+- codex config bridge
+- shared settings core
+- settings frontend / i18n / vitest
+- openspec change tasks
+
+## 验证结果
+- `npm run typecheck` 通过
+- `npm run lint` 通过（0 error，保留仓库既有 `react-hooks/exhaustive-deps` warnings）
+- `npm run check:large-files:near-threshold` 通过；`SettingsView.tsx` 仍处 near-threshold 监控区但未超过 3000 行 hard gate
+- `cargo test --manifest-path src-tauri/Cargo.toml settings_core` 通过
+- `cargo test --manifest-path src-tauri/Cargo.toml get_app_settings_core_ignores_private_external_feature_flags` 通过
+- `cargo test --manifest-path src-tauri/Cargo.toml update_app_settings_core_only_syncs_unified_exec_to_external_config` 通过
+- `npx vitest run src/features/settings/components/SettingsView.test.tsx -t "removes the dead multi-agent toggle and explains local-vs-official ownership" src/features/collaboration/hooks/useCollaborationModes.test.tsx` 通过
+
+## 后续事项
+- `SettingsView.tsx` 已接近 large-file near-threshold，后续继续叠加功能前应优先拆分 Experimental/Config 相关 section。
+- 仓库仍有既有 lint warnings，未在本次提交中处理。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `924bb0a6` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
