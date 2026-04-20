@@ -1,11 +1,12 @@
 use super::*;
-use tokio::time::Duration;
+use tokio::time::{timeout, Duration};
 
 mod git;
 
 const SESSION_HEALTH_PROBE_TIMEOUT_SECS: u64 = 3;
 const DELETE_ARCHIVE_TIMEOUT_MS: u64 = 2_000;
 const LIST_THREADS_LIVE_TIMEOUT_MS: u64 = 1_500;
+const CLAUDE_MANUAL_COMPACT_TIMEOUT_SECS: u64 = 120;
 
 fn is_valid_claude_model_for_passthrough(model: &str) -> bool {
     let trimmed = model.trim();
@@ -27,6 +28,112 @@ pub(super) struct CodexRuntimeReloadResult {
 }
 
 impl DaemonState {
+    fn emit_manual_compaction_event(&self, workspace_id: &str, method: &str, params: Value) {
+        self.event_sink.emit_app_server_event(AppServerEvent {
+            workspace_id: workspace_id.to_string(),
+            message: json!({
+                "method": method,
+                "params": params,
+            }),
+        });
+    }
+
+    async fn compact_claude_thread(
+        &self,
+        workspace_id: String,
+        thread_id: String,
+    ) -> Result<Value, String> {
+        let session_id = thread_id
+            .strip_prefix("claude:")
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| format!("Claude thread id is invalid: {thread_id}"))?
+            .to_string();
+
+        let workspace_path = {
+            let workspaces = self.workspaces.lock().await;
+            workspaces
+                .get(&workspace_id)
+                .map(|entry| PathBuf::from(&entry.path))
+                .ok_or_else(|| "Workspace not found".to_string())?
+        };
+
+        let session = self
+            .engine_manager
+            .get_claude_session(&workspace_id, &workspace_path)
+            .await;
+
+        self.emit_manual_compaction_event(
+            &workspace_id,
+            "thread/compacting",
+            json!({
+                "threadId": &thread_id,
+                "thread_id": &thread_id,
+                "auto": false,
+                "manual": true,
+            }),
+        );
+
+        let turn_id = format!("claude-compact-{}", uuid::Uuid::new_v4());
+        let params = engine::SendMessageParams {
+            text: "/compact".to_string(),
+            images: None,
+            continue_session: true,
+            session_id: Some(session_id),
+            ..Default::default()
+        };
+
+        let compact_result = timeout(
+            Duration::from_secs(CLAUDE_MANUAL_COMPACT_TIMEOUT_SECS),
+            session.send_message(params, &turn_id),
+        )
+        .await
+        .map_err(|_| {
+            format!(
+                "Claude /compact timed out after {} seconds",
+                CLAUDE_MANUAL_COMPACT_TIMEOUT_SECS
+            )
+        })?;
+
+        match compact_result {
+            Ok(result_text) => {
+                self.emit_manual_compaction_event(
+                    &workspace_id,
+                    "thread/compacted",
+                    json!({
+                        "threadId": &thread_id,
+                        "thread_id": &thread_id,
+                        "turnId": &turn_id,
+                        "turn_id": &turn_id,
+                        "auto": false,
+                        "manual": true,
+                    }),
+                );
+                Ok(json!({
+                    "threadId": &thread_id,
+                    "turnId": &turn_id,
+                    "text": result_text,
+                    "status": "completed",
+                    "engine": "claude",
+                }))
+            }
+            Err(error) => {
+                self.emit_manual_compaction_event(
+                    &workspace_id,
+                    "thread/compactionFailed",
+                    json!({
+                        "threadId": &thread_id,
+                        "thread_id": &thread_id,
+                        "auto": false,
+                        "manual": true,
+                        "reason": error,
+                    }),
+                );
+                Err(error)
+            }
+        }
+    }
+
     async fn ensure_codex_session_for_workspace(&self, workspace_id: &str) -> Result<(), String> {
         let existing_session = {
             let sessions = self.sessions.lock().await;
@@ -2031,6 +2138,9 @@ impl DaemonState {
         workspace_id: String,
         thread_id: String,
     ) -> Result<Value, String> {
+        if thread_id.trim().starts_with("claude:") {
+            return self.compact_claude_thread(workspace_id, thread_id).await;
+        }
         codex_core::thread_compact_core(&self.sessions, workspace_id, thread_id).await
     }
 
