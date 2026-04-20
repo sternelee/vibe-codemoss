@@ -767,3 +767,61 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 49: Hide recent conversations from landing views
+
+**Date**: 2026-04-20
+**Task**: Hide recent conversations from landing views
+**Branch**: `feature/vvvv0.4.5`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+## 任务目标
+- 移除首页入口暴露的最近对话列表，保持首页只保留欢迎区、项目入口和工作区摘要。
+
+## 主要改动
+- 删除 `Home` 首页的 recent conversations 渲染和对应样式。
+- 收窄 `WorkspaceHome` 为纯工作区摘要布局，不再在首页露出最近会话入口。
+- 更新相关单元测试，改为校验 hero 和主操作按钮。
+- 清理删除 recent 区块后遗留的 dead CSS。
+
+## 涉及模块
+- `src/features/home/components/Home.tsx`
+- `src/features/home/components/Home.test.tsx`
+- `src/features/workspaces/components/WorkspaceHome.tsx`
+- `src/features/workspaces/components/WorkspaceHome.test.tsx`
+- `src/styles/home.css`
+- `src/styles/home-chat.css`
+- `src/styles/workspace-home.css`
+
+## 验证结果
+- `npx vitest run src/features/home/components/HomeChat.test.tsx src/features/workspaces/components/WorkspaceHome.test.tsx src/features/home/components/Home.test.tsx src/features/home/components/HomeChat.interactions.test.tsx` 通过。
+- `npm run typecheck` 通过。
+- `npm run lint` 无 error；仓库内仍有既存 `react-hooks/exhaustive-deps` warnings。
+
+## 后续事项
+- 若后续确认首页不再消费 recent thread 数据，可继续从上层调用链移除 `latestAgentRuns` / `recentThreads` 的首页传递。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `406e26eb` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
