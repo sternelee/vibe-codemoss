@@ -70,3 +70,62 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 70: 统一 runtime 实例保留时长默认值与上限
+
+**Date**: 2026-04-21
+**Task**: 统一 runtime 实例保留时长默认值与上限
+**Branch**: `feature/f-v0.4.6`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标:
+- 调整 Runtime Pool Console 中 Codex Warm 实例保留时长配置
+- 将默认值统一为 7200 秒，将最大值统一为 14400 秒
+- 消除 frontend 与 backend 默认值、输入约束、持久化清洗之间的配置漂移
+
+主要改动:
+- 更新 frontend app settings 默认值与 normalize 兜底逻辑，统一 codexWarmTtlSeconds 为 7200/14400
+- 更新 RuntimePoolSection 的本地草稿默认值、保存时 clamp 逻辑与输入 max 属性
+- 更新 backend AppSettings 默认值与 sanitize_runtime_pool_settings 上限，避免落库后被旧约束回收
+- 同步调整 SettingsView 与 runtimePoolSection 工具测试，以及 Rust sanitize 测试期望
+
+涉及模块:
+- src/features/settings/hooks/useAppSettings.ts
+- src/features/settings/components/settings-view/sections/RuntimePoolSection.tsx
+- src/features/settings/components/settings-view/sections/runtimePoolSection.utils.test.ts
+- src/features/settings/components/SettingsView.test.tsx
+- src-tauri/src/types.rs
+
+验证结果:
+- 通过: npx vitest run src/features/settings/components/settings-view/sections/runtimePoolSection.utils.test.ts src/features/settings/components/SettingsView.test.tsx
+- 通过: npm run typecheck
+- 通过: cargo test --manifest-path src-tauri/Cargo.toml app_settings_sanitize_runtime_pool_settings_clamps_budget_fields
+- 通过: cargo test --manifest-path src-tauri/Cargo.toml read_settings_sanitizes_runtime_pool_values
+
+后续事项:
+- 若产品侧还希望限制更精细的输入体验，可补充输入框 help 文案，直接展示 7200 秒默认值与 14400 秒上限
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `cf87cb3be0666158a508cfc3a9fcb6f85363aae6` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
