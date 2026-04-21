@@ -427,3 +427,65 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 76: 归档已验证 OpenSpec 提案并回写主 specs
+
+**Date**: 2026-04-21
+**Task**: 归档已验证 OpenSpec 提案并回写主 specs
+**Branch**: `feature/f-v0.4.6`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标:
+- 将 5 个已验证完成的 OpenSpec change 回写到主 specs，并完成归档。
+
+主要改动:
+- 将 align-unified-exec-defaults-and-overrides、harden-codex-runtime-exit-recovery、pin-live-user-question-bubble、fix-realtime-completion-sound-once、fix-explored-card-auto-collapse-after-stage 的 delta specs 合并回 openspec/specs。
+- 新增主 spec: codex-unified-exec-override-governance、codex-long-task-runtime-protection、conversation-live-user-bubble-pinning、conversation-completion-notification-sound。
+- 更新主 spec: codex-external-config-runtime-reload、conversation-runtime-stability、runtime-pool-console、conversation-stream-activity-presence。
+- 将上述 5 个 change 归档到 openspec/changes/archive/2026-04-21-*。
+- 单独提交业务变更 commit: chore(openspec): archive verified proposal backfills。
+
+涉及模块:
+- openspec/changes/archive/**
+- openspec/specs/**
+- .trellis/workspace/chenxiangning/**
+
+验证结果:
+- openspec validate codex-external-config-runtime-reload --strict: passed
+- openspec validate codex-unified-exec-override-governance --strict: passed
+- openspec validate codex-long-task-runtime-protection --strict: passed
+- openspec validate conversation-runtime-stability --strict: passed
+- openspec validate runtime-pool-console --strict: passed
+- openspec validate conversation-live-user-bubble-pinning --strict: passed
+- openspec validate conversation-completion-notification-sound --strict: passed
+- openspec validate conversation-stream-activity-presence --strict: passed
+- openspec validate --specs --strict: 存在仓库既有失败项 conversation-user-path-reference-cards，与本次回写无关。
+
+后续事项:
+- 如需继续清理 active OpenSpec change，可再筛选剩余可归档项。
+- 当前工作区仍有未提交的 frontend/backend 在制改动，本次未混入 openspec 归档提交。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `bd480ff2258459dd5956e30c29e9c00a185ae112` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

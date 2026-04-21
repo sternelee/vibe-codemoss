@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-3.md`
-- **Total Sessions**: 75
+- **Total Sessions**: 76
 - **Last Active**: 2026-04-21
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-3.md` | ~429 | Active |
+| `journal-3.md` | ~491 | Active |
 | `journal-2.md` | ~1960 | Archived |
 | `journal-1.md` | ~1990 | Archived |
 <!-- @@@/auto:active-documents -->
@@ -31,6 +31,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 76 | 2026-04-21 | 归档已验证 OpenSpec 提案并回写主 specs | `bd480ff2258459dd5956e30c29e9c00a185ae112` | `feature/f-v0.4.6` |
 | 75 | 2026-04-21 | 归档历史吸顶用户气泡任务 | `b5222086` | `feature/f-v0.4.6` |
 | 74 | 2026-04-21 | 归档历史用户气泡吸顶变更 | `b1623543` | `feature/f-v0.4.6` |
 | 73 | 2026-04-21 | 修复历史吸顶长气泡重叠问题 | `e73ebbd5` | `feature/f-v0.4.6` |
