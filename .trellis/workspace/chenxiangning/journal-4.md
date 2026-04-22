@@ -1052,3 +1052,65 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 121: Split settings, composer, and git history style shards
+
+**Date**: 2026-04-23
+**Task**: Split settings, composer, and git history style shards
+**Branch**: `feature/v-0.4.8`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标:
+- 清理 settings/composer/git-history 样式 hard debt
+- 按自然 section/namespace 拆分 CSS shard，保持 selector contract 和 cascade 稳定
+
+主要改动:
+- 将 settings vendor panels 与 basic redesign section 抽到独立 shard
+- 将 composer rewind modal 命名空间抽到 composer.rewind-modal.css
+- 将 git history branch compare 命名空间抽到 git-history.branch-compare.css
+- 为三轮样式拆分补齐对应 Trellis PRD 与 OpenSpec artifacts
+
+涉及模块:
+- src/styles/settings*
+- src/styles/composer*
+- src/styles/git-history*
+- .trellis/tasks/04-23-split-settings-css-panel-sections
+- .trellis/tasks/04-23-split-composer-rewind-modal-styles
+- .trellis/tasks/04-23-split-git-history-branch-compare-styles
+- openspec/changes/split-settings-css-panel-sections
+- openspec/changes/split-composer-rewind-modal-styles
+- openspec/changes/split-git-history-branch-compare-styles
+
+验证结果:
+- npm run check:large-files:gate 通过
+- settings/composer/git-history 样式 hard debt 已全部清零
+- OpenSpec change 状态均为 4/4 artifacts complete
+
+后续事项:
+- 继续提交 runtime session lifecycle 与 git branch command modularization
+- 在最终一轮刷新 baseline/watchlist 文档
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4c2e28ee` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
