@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-4.md`
-- **Total Sessions**: 116
+- **Total Sessions**: 117
 - **Last Active**: 2026-04-22
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-4.md` | ~816 | Active |
+| `journal-4.md` | ~882 | Active |
 | `journal-3.md` | ~1972 | Archived |
 | `journal-2.md` | ~1960 | Archived |
 | `journal-1.md` | ~1990 | Archived |
@@ -32,6 +32,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 117 | 2026-04-22 | 同步 OpenSpec 提案并归档已完成变更 | `73b9256c` | `feature/v-0.4.8` |
 | 116 | 2026-04-22 | 补写 v0.4.7 changelog 消息区修复说明 | `042f7853` | `feature/v-0.4.7` |
 | 115 | 2026-04-22 | 修复 codex 最终消息 markdown 结构块重复 | `c3b99dba` | `feature/v-0.4.7` |
 | 114 | 2026-04-22 | 收口 assistant 最终回复近似重复段落去重 | `6c0d1606` | `feature/v-0.4.7` |

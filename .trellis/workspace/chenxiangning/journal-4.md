@@ -814,3 +814,69 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 117: 同步 OpenSpec 提案并归档已完成变更
+
+**Date**: 2026-04-22
+**Task**: 同步 OpenSpec 提案并归档已完成变更
+**Branch**: `feature/v-0.4.8`
+
+### Summary
+
+回写 active proposals 的代码核对状态，归档两个已完成 change，并同步 README/project 快照。
+
+### Main Changes
+
+任务目标:
+- 检查 openspec/changes 下 active proposals 是否与当前代码现实一致。
+- 将已满足条件的 change 执行 sync + archive。
+- 同步 openspec README / project context 的仓库快照与活跃变更列表。
+
+主要改动:
+- 回写 `add-codex-computer-use-plugin-bridge` proposal，补充 2026-04-22 代码核对状态。
+- 回写 `fix-claude-doctor-settings-alignment` proposal，补充 doctor/settings/remote parity 的代码核对状态。
+- 补齐 `fix-opencode-auto-probe-churn` proposal 与 tasks 收尾，并完成归档。
+- 归档 `fix-claude-chat-canvas-cross-platform-blanking`，同步 `conversation-render-surface-stability` 与 `conversation-stream-activity-presence` 主 spec。
+- 更新 `openspec/README.md`、`openspec/project.md` 的 specs/archive/active 数量、active changes 列表和 2026-04-22 update history。
+
+涉及模块:
+- `openspec/changes/add-codex-computer-use-plugin-bridge/proposal.md`
+- `openspec/changes/fix-claude-doctor-settings-alignment/proposal.md`
+- `openspec/changes/archive/2026-04-22-fix-claude-chat-canvas-cross-platform-blanking/`
+- `openspec/changes/archive/2026-04-22-fix-opencode-auto-probe-churn/`
+- `openspec/specs/conversation-render-surface-stability/spec.md`
+- `openspec/specs/conversation-stream-activity-presence/spec.md`
+- `openspec/specs/opencode-mode-ux/spec.md`
+- `openspec/README.md`
+- `openspec/project.md`
+
+验证结果:
+- `openspec validate --changes --strict --no-interactive` 通过。
+- `npx vitest run src/features/app/hooks/useSidebarMenus.test.tsx src/features/engine/hooks/useEngineController.test.tsx src/features/app/components/Sidebar.test.tsx` 通过，55/55 tests passed。
+- `npm run typecheck` 通过。
+- `npm run lint` 通过，无新增 errors；保留仓库既有 warnings。
+
+后续事项:
+- `add-codex-computer-use-plugin-bridge` 仍待手测矩阵与 rollback checklist 闭环。
+- `fix-claude-doctor-settings-alignment` 仍待最终质量门禁、手测与 apply-ready 收尾。
+- 其余 active change 仍保持 proposal / planning 状态，未进入归档条件。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `73b9256c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
