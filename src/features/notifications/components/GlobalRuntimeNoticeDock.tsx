@@ -57,15 +57,14 @@ function resolveSeverityLabel(
 
 function resolveMinimizedIndicatorState(
   status: GlobalRuntimeNoticeDockStatus,
-  hasNoticeItems: boolean,
 ): MinimizedIndicatorState {
   if (status === "has-error") {
     return "has-error";
   }
-  if (status === "idle" && !hasNoticeItems) {
-    return "idle";
+  if (status === "streaming") {
+    return "has-notice";
   }
-  return "has-notice";
+  return "idle";
 }
 
 export function GlobalRuntimeNoticeDock({
@@ -80,7 +79,7 @@ export function GlobalRuntimeNoticeDock({
   const statusLabel = resolveStatusLabel(t, status);
   const isMinimized = visibility === "minimized";
   const hasNoticeItems = notices.length > 0;
-  const minimizedIndicatorState = resolveMinimizedIndicatorState(status, hasNoticeItems);
+  const minimizedIndicatorState = resolveMinimizedIndicatorState(status);
 
   const renderedRows = useMemo(
     () =>

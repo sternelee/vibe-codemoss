@@ -42,7 +42,21 @@ describe("GlobalRuntimeNoticeDock", () => {
   it("renders a green dot when minimized and truly idle", () => {
     render(
       <GlobalRuntimeNoticeDock
-        notices={[]}
+        notices={[
+          {
+            id: "notice-idle",
+            severity: "info",
+            category: "runtime",
+            messageKey: "runtimeNotice.runtime.ready",
+            messageParams: {
+              workspace: "Repo A",
+              engine: "Codex",
+            },
+            timestampMs: Date.now(),
+            repeatCount: 1,
+            dedupeKey: "runtime:repo-a:ready",
+          },
+        ]}
         visibility="minimized"
         status="idle"
         onExpand={vi.fn()}
@@ -53,6 +67,38 @@ describe("GlobalRuntimeNoticeDock", () => {
 
     expect(document.querySelector(".global-runtime-notice-dock-indicator-dot")).toBeTruthy();
     expect(document.querySelector(".global-runtime-notice-dock-indicator-mark")).toBeNull();
+  });
+
+  it("keeps the minimized exclamation when the dock has errors", () => {
+    render(
+      <GlobalRuntimeNoticeDock
+        notices={[
+          {
+            id: "notice-error",
+            severity: "error",
+            category: "runtime",
+            messageKey: "runtimeNotice.runtime.quarantined",
+            messageParams: {
+              workspace: "Repo A",
+              engine: "Codex",
+            },
+            timestampMs: Date.now(),
+            repeatCount: 1,
+            dedupeKey: "runtime:repo-a:quarantined",
+          },
+        ]}
+        visibility="minimized"
+        status="has-error"
+        onExpand={vi.fn()}
+        onMinimize={vi.fn()}
+        onClear={vi.fn()}
+      />,
+    );
+
+    expect(document.querySelector(".global-runtime-notice-dock-indicator-mark")?.textContent).toBe(
+      "!",
+    );
+    expect(document.querySelector(".global-runtime-notice-dock-indicator-dot")).toBeNull();
   });
 
   it("renders the expanded empty state contract", () => {
