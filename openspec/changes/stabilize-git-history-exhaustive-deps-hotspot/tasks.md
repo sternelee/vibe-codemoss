@@ -21,6 +21,9 @@
 - [x] 4.2 Remove the push/pull/sync preview warning set by completing dialog bootstrap, preview loader, preview details effect, and confirm-handler dependencies without changing preview behavior.
 - [x] 4.3 Re-run `npm run lint`, `npm run typecheck`, and targeted `git-history` preview tests to validate the `P1` batch.
 
-## 5. Deferred follow-up batches
+## 5. P2 interaction remediation
 
-- [ ] 5.1 Schedule a dedicated `P2` batch for branch diff loaders, context-menu focus handlers, and resize interactions only after confirming targeted test coverage.
+- [x] 5.1 Remove the branch diff loader warning set by completing branch compare/worktree diff loader and diff-details dependencies without changing preview behavior.
+- [x] 5.2 Remove the commit action and menu warning set by completing revert/cherry-pick/reset, context-menu focus, and branch-context action dependencies without changing interaction behavior.
+- [x] 5.3 Remove the resize/layout warning set by completing desktop split and details splitter dependencies without changing interaction behavior.
+- [x] 5.4 Re-run `npm run lint`, `npm run typecheck`, and targeted `git-history` interaction tests to validate the `P2` batch.

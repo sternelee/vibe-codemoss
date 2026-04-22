@@ -1497,7 +1497,14 @@ export function useGitHistoryPanelInteractions(scope: any) {
         selectedDiffError: null,
       });
     }
-  }, [closeBranchContextMenu, currentBranch, localizeKnownGitError, workspaceId]);
+  }, [
+    closeBranchContextMenu,
+    currentBranch,
+    getGitWorktreeDiffAgainstBranch,
+    localizeKnownGitError,
+    setBranchDiffState,
+    workspaceId,
+  ]);
 
   const handleCompareWithCurrentBranch = useCallback(async (targetBranch: string) => {
     if (!workspaceId || !targetBranch) {
@@ -1560,7 +1567,15 @@ export function useGitHistoryPanelInteractions(scope: any) {
         selectedCommitError: null,
       });
     }
-  }, [closeBranchContextMenu, currentBranch, localizeKnownGitError, workspaceId]);
+  }, [
+    closeBranchContextMenu,
+    currentBranch,
+    getGitBranchCompareCommits,
+    localizeKnownGitError,
+    setBranchDiffState,
+    setComparePreviewFileKey,
+    workspaceId,
+  ]);
 
   const handleSelectWorktreeDiffFile = useCallback(
     async (branch: string, compareBranch: string, file: Pick<GitCommitDiff, "path" | "status">) => {
@@ -1635,7 +1650,13 @@ export function useGitHistoryPanelInteractions(scope: any) {
         });
       }
     },
-    [localizeKnownGitError, workspaceId],
+    [
+      branchDiffCacheRef,
+      getGitWorktreeDiffFileAgainstBranch,
+      localizeKnownGitError,
+      setBranchDiffState,
+      workspaceId,
+    ],
   );
 
   const handleSelectBranchCompareCommit = useCallback(
@@ -1715,7 +1736,14 @@ export function useGitHistoryPanelInteractions(scope: any) {
         });
       }
     },
-    [localizeKnownGitError, workspaceId],
+    [
+      branchCompareDetailsCacheRef,
+      getGitCommitDetails,
+      localizeKnownGitError,
+      setBranchDiffState,
+      setComparePreviewFileKey,
+      workspaceId,
+    ],
   );
 
   const handleRevertSelectedCommit = useCallback(async (commitSha?: string | null) => {
@@ -1734,7 +1762,7 @@ export function useGitHistoryPanelInteractions(scope: any) {
       return;
     }
     await runOperation("revert", () => revertCommit(workspaceId, targetSha));
-  }, [runOperation, selectedCommitSha, t, workspaceId]);
+  }, [ask, revertCommit, runOperation, selectedCommitSha, t, workspaceId]);
 
   const handleCherryPickCommit = useCallback(async (commitSha?: string | null) => {
     const targetSha = commitSha ?? selectedCommitSha;
@@ -1742,7 +1770,7 @@ export function useGitHistoryPanelInteractions(scope: any) {
       return;
     }
     await runOperation("cherry-pick", () => cherryPickCommit(workspaceId, targetSha));
-  }, [runOperation, selectedCommitSha, workspaceId]);
+  }, [cherryPickCommit, runOperation, selectedCommitSha, workspaceId]);
 
   const handleCopyCommitRevision = useCallback(
     async (commitSha?: string | null) => {
@@ -1837,7 +1865,7 @@ export function useGitHistoryPanelInteractions(scope: any) {
     }
     setResetDialogOpen(false);
     await runOperation("reset", () => resetGitCommit(workspaceId, resetTargetSha, resetMode));
-  }, [resetMode, resetTargetSha, runOperation, t, workspaceId]);
+  }, [ask, resetGitCommit, resetMode, resetTargetSha, runOperation, setResetDialogOpen, t, workspaceId]);
 
   const handleFileTreeDirToggle = useCallback((path: string) => {
     setExpandedDirs((prev) => {
@@ -1849,7 +1877,7 @@ export function useGitHistoryPanelInteractions(scope: any) {
       }
       return next;
     });
-  }, []);
+  }, [setExpandedDirs]);
 
   const handlePushPreviewDirToggle = useCallback((path: string) => {
     setPushPreviewExpandedDirs((prev) => {
@@ -1861,13 +1889,13 @@ export function useGitHistoryPanelInteractions(scope: any) {
       }
       return next;
     });
-  }, []);
+  }, [setPushPreviewExpandedDirs]);
 
   const closeWorktreePreview = useCallback(() => {
     setWorktreePreviewFile(null);
     setWorktreePreviewError(null);
     setWorktreePreviewLoading(false);
-  }, []);
+  }, [setWorktreePreviewError, setWorktreePreviewFile, setWorktreePreviewLoading]);
 
   const handleOpenWorktreePreview = useCallback(
     async (path: string) => {
@@ -1919,7 +1947,15 @@ export function useGitHistoryPanelInteractions(scope: any) {
         setWorktreePreviewLoading(false);
       }
     },
-    [onOpenDiffPath, workspaceId],
+    [
+      getGitDiffs,
+      getGitStatus,
+      onOpenDiffPath,
+      setWorktreePreviewError,
+      setWorktreePreviewFile,
+      setWorktreePreviewLoading,
+      workspaceId,
+    ],
   );
 
   const resetTargetCommit = useMemo(() => {
@@ -2135,10 +2171,22 @@ export function useGitHistoryPanelInteractions(scope: any) {
       },
     ];
   }, [
+    Download,
+    FileText,
+    FolderTree,
+    GitBranch,
+    GitMerge,
+    Pencil,
+    Plus,
+    RefreshCw,
+    Repeat,
+    Trash2,
+    Upload,
     branchContextMenu,
     closeBranchContextMenu,
     createBranchSourceOptions.length,
     currentBranch,
+    fetchGit,
     handleCheckoutAndRebaseCurrent,
     handleCheckoutBranch,
     handleCompareWithCurrentBranch,
@@ -2150,6 +2198,7 @@ export function useGitHistoryPanelInteractions(scope: any) {
     handleOpenRenameBranchDialog,
     handleShowDiffWithWorktree,
     operationLoading,
+    pullGit,
     runOperation,
     t,
     workspaceId,
@@ -2200,7 +2249,7 @@ export function useGitHistoryPanelInteractions(scope: any) {
         focusIndex(enabledItems.length - 1);
       }
     },
-    [],
+    [branchContextMenuRef],
   );
 
   useEffect(() => {
@@ -2220,7 +2269,7 @@ export function useGitHistoryPanelInteractions(scope: any) {
     return () => {
       window.cancelAnimationFrame(rafId);
     };
-  }, [branchContextActions, branchContextMenu]);
+  }, [branchContextActions, branchContextMenu, branchContextMenuRef]);
 
   const branchContextMenuStyle = useMemo<CSSProperties | undefined>(() => {
     if (!branchContextMenu) {
@@ -2255,7 +2304,7 @@ export function useGitHistoryPanelInteractions(scope: any) {
         Math.max(padding, viewportHeight - estimatedMenuHeight - padding),
       ),
     };
-  }, [branchContextActions, branchContextMenu]);
+  }, [branchContextActions, branchContextMenu, clamp]);
 
   const buildCommitActions = useCallback(
     (targetSha: string | null): CommitActionDescriptor[] => {
@@ -2320,7 +2369,7 @@ export function useGitHistoryPanelInteractions(scope: any) {
         },
       ];
     },
-    [operationLoading, t],
+    [DISABLE_HISTORY_COMMIT_ACTIONS, operationLoading, t],
   );
 
   const contextCommitActions = useMemo(
@@ -2403,7 +2452,7 @@ export function useGitHistoryPanelInteractions(scope: any) {
         commitSha,
       });
     },
-    [],
+    [setBranchContextMenu, setCommitContextMenu, setCommitContextMoreOpen, setSelectedCommitSha],
   );
 
   useEffect(() => {
@@ -2414,14 +2463,14 @@ export function useGitHistoryPanelInteractions(scope: any) {
     return () => {
       window.removeEventListener("resize", handleWindowResize);
     };
-  }, []);
+  }, [COMPACT_LAYOUT_BREAKPOINT, setDesktopSplitLayout]);
 
   const getCurrentDefaultColumnWidths = useCallback(() => {
     const containerWidth =
       workbenchGridRef.current?.getBoundingClientRect().width ??
       (typeof window !== "undefined" ? window.innerWidth : 1600);
     return getDefaultColumnWidths(containerWidth);
-  }, []);
+  }, [getDefaultColumnWidths, workbenchGridRef]);
 
   useEffect(() => {
     if (!desktopSplitLayout) {
@@ -2431,7 +2480,13 @@ export function useGitHistoryPanelInteractions(scope: any) {
     setOverviewWidth(defaults.overviewWidth);
     setBranchesWidth(defaults.branchesWidth);
     setCommitsWidth(defaults.commitsWidth);
-  }, [desktopSplitLayout, getCurrentDefaultColumnWidths]);
+  }, [
+    desktopSplitLayout,
+    getCurrentDefaultColumnWidths,
+    setBranchesWidth,
+    setCommitsWidth,
+    setOverviewWidth,
+  ]);
 
   const beginVerticalResize = useCallback(
     (event: MouseEvent<HTMLDivElement>, onDeltaChange: (deltaX: number) => void) => {
@@ -2489,7 +2544,19 @@ export function useGitHistoryPanelInteractions(scope: any) {
         setOverviewWidth(nextWidth);
       });
     },
-    [beginVerticalResize, branchesWidth, commitsWidth, desktopSplitLayout, overviewWidth],
+    [
+      DETAILS_MIN_WIDTH,
+      OVERVIEW_MIN_WIDTH,
+      VERTICAL_SPLITTER_SIZE,
+      beginVerticalResize,
+      branchesWidth,
+      clamp,
+      commitsWidth,
+      desktopSplitLayout,
+      overviewWidth,
+      setOverviewWidth,
+      workbenchGridRef,
+    ],
   );
 
   const handleBranchesSplitResizeStart = useCallback(
@@ -2509,7 +2576,7 @@ export function useGitHistoryPanelInteractions(scope: any) {
         setCommitsWidth(pairWidth - nextBranchesWidth);
       });
     },
-    [beginVerticalResize, branchesWidth, commitsWidth, desktopSplitLayout],
+    [BRANCHES_MIN_WIDTH, COMMITS_MIN_WIDTH, beginVerticalResize, branchesWidth, clamp, commitsWidth, desktopSplitLayout, setBranchesWidth, setCommitsWidth],
   );
 
   const handleCommitsSplitResizeStart = useCallback(
@@ -2538,7 +2605,7 @@ export function useGitHistoryPanelInteractions(scope: any) {
         setCommitsWidth(nextCommitsWidth);
       });
     },
-    [beginVerticalResize, branchesWidth, commitsWidth, desktopSplitLayout],
+    [COMMITS_MIN_WIDTH, DETAILS_MIN_WIDTH, VERTICAL_SPLITTER_SIZE, beginVerticalResize, branchesWidth, clamp, commitsWidth, desktopSplitLayout, mainGridRef, setCommitsWidth],
   );
 
   const handleDetailsSplitResizeStart = useCallback((event: MouseEvent<HTMLDivElement>) => {
@@ -2569,7 +2636,7 @@ export function useGitHistoryPanelInteractions(scope: any) {
     window.addEventListener("mouseup", onMouseUp);
     document.body.style.cursor = "row-resize";
     document.body.style.userSelect = "none";
-  }, []);
+  }, [DETAILS_SPLIT_MAX, DETAILS_SPLIT_MIN, detailsBodyRef, setDetailsSplitRatio]);
 
   const workbenchGridStyle = desktopSplitLayout
     ? {
