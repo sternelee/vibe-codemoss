@@ -1913,3 +1913,63 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 136: 收敛 threads exhaustive-deps 告警
+
+**Date**: 2026-04-23
+**Task**: 收敛 threads exhaustive-deps 告警
+**Branch**: `feature/v-0.4.8`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：处理 `threads` 域剩余的 `react-hooks/exhaustive-deps` 热点，收敛 5 个 hook 中的 10 条 warning，并为这轮治理建立 OpenSpec/Trellis 追踪。
+
+主要改动：
+- 新建 OpenSpec change `stabilize-threads-exhaustive-deps-hotspot` 与对应 Trellis PRD，定义 `P0 missing deps` 与 `P1 factory callback stabilization` 两批治理边界。
+- 在 `useQueuedSend.ts`、`useThreadItemEvents.ts`、`useThreadTurnEvents.ts`、`useThreadActions.ts` 中补齐普通缺失依赖。
+- 在 `useThreadActions.ts` 与 `useThreadActionsSessionRuntime.ts` 中把 `useCallback(factory(...))` 替换为 `useMemo(() => factory(...), deps)`。
+- 更新 change tasks，将两批任务全部标记完成。
+
+涉及模块：
+- `src/features/threads/hooks/useQueuedSend.ts`
+- `src/features/threads/hooks/useThreadActions.ts`
+- `src/features/threads/hooks/useThreadActionsSessionRuntime.ts`
+- `src/features/threads/hooks/useThreadItemEvents.ts`
+- `src/features/threads/hooks/useThreadTurnEvents.ts`
+- `openspec/changes/stabilize-threads-exhaustive-deps-hotspot/**`
+- `.trellis/tasks/04-23-stabilize-threads-exhaustive-deps-hotspot/prd.md`
+
+验证结果：
+- 目标 5 个 hook warning：`10 -> 0`
+- 仓库 `react-hooks/exhaustive-deps` warning：`16 -> 6`
+- `npx vitest run src/features/threads/hooks/useQueuedSend.test.tsx src/features/threads/hooks/useThreadActions.test.tsx src/features/threads/hooks/useThreadActions.rewind.test.tsx src/features/threads/hooks/useThreadActions.codex-rewind.test.tsx src/features/threads/hooks/useThreadActions.shared-native-compat.test.tsx src/features/threads/hooks/useThreadItemEvents.test.ts src/features/threads/hooks/useThreadTurnEvents.test.tsx` 通过（204 tests）
+- `npm run lint` 通过（0 errors, 6 warnings）
+- `npm run typecheck` 通过
+
+后续事项：
+- `stabilize-threads-exhaustive-deps-hotspot` 已满足归档条件，可直接执行 OpenSpec archive。
+- 仓库只剩 6 条 warning，下一步可考虑做最后一轮 leaf-file 收尾。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `01ae0e63` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
