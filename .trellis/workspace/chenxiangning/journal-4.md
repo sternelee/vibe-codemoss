@@ -1696,3 +1696,57 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 132: 收敛 git-history 第三批 exhaustive-deps 告警
+
+**Date**: 2026-04-23
+**Task**: 收敛 git-history 第三批 exhaustive-deps 告警
+**Branch**: `feature/v-0.4.8`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：完成 OpenSpec change `stabilize-git-history-exhaustive-deps-hotspot` 的 P2 批次，实现 git-history 最后一组 branch diff、commit actions、context menu 与 resize 相关 `react-hooks/exhaustive-deps` warning 收口。
+
+主要改动：
+- 在 `useGitHistoryPanelInteractions.tsx` 中补齐 branch diff loader、commit actions、branch context menu、desktop split / details splitter 等依赖数组。
+- 更新 `openspec/changes/stabilize-git-history-exhaustive-deps-hotspot/tasks.md`，将 P2 四项任务全部勾完成。
+- 更新 `.trellis/tasks/04-23-stabilize-git-history-exhaustive-deps-hotspot/prd.md`，把目标、要求和验收标准同步到 P2 交互批次。
+
+涉及模块：
+- `src/features/git-history/components/git-history-panel/hooks/useGitHistoryPanelInteractions.tsx`
+- `openspec/changes/stabilize-git-history-exhaustive-deps-hotspot/tasks.md`
+- `.trellis/tasks/04-23-stabilize-git-history-exhaustive-deps-hotspot/prd.md`
+
+验证结果：
+- 目标文件 warning：`24 -> 0`
+- 仓库 `react-hooks/exhaustive-deps` warning：`49 -> 25`
+- `npm run lint` 通过（0 errors, 25 warnings）
+- `npm run typecheck` 通过
+- `npx vitest run src/features/git-history/components/GitHistoryPanel.test.tsx src/features/git-history/components/git-history-panel/components/GitHistoryPanelPickers.test.tsx` 通过（34 tests）
+
+后续事项：
+- `stabilize-git-history-exhaustive-deps-hotspot` 现已完成三批治理，可直接进入 OpenSpec archive。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `33a0472c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

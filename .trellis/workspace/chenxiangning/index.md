@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-4.md`
-- **Total Sessions**: 131
+- **Total Sessions**: 132
 - **Last Active**: 2026-04-23
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-4.md` | ~1698 | Active |
+| `journal-4.md` | ~1752 | Active |
 | `journal-3.md` | ~1972 | Archived |
 | `journal-2.md` | ~1960 | Archived |
 | `journal-1.md` | ~1990 | Archived |
@@ -32,6 +32,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 132 | 2026-04-23 | 收敛 git-history 第三批 exhaustive-deps 告警 | `33a0472c` | `feature/v-0.4.8` |
 | 131 | 2026-04-23 | 收敛 git-history 第二批 exhaustive-deps 告警 | `3479d297` | `feature/v-0.4.8` |
 | 130 | 2026-04-23 | 收敛 git-history 首批 exhaustive-deps 告警 | `d135ad6e` | `feature/v-0.4.8` |
 | 129 | 2026-04-23 | 归档 exhaustive-deps 治理 OpenSpec 变更 | `c9496469` | `feature/v-0.4.8` |
