@@ -3,9 +3,7 @@
 ## Purpose
 
 定义 mossx 客户端如何以最小侵入方式桥接本机已安装的官方 `computer-use@openai-bundled` plugin，并在不复制官方 helper 的前提下表达可用性与桥接边界。
-
 ## Requirements
-
 ### Requirement: Bridge MUST Discover Official Computer Use Plugin from Local Codex State
 
 系统 MUST 能从本机官方 Codex 安装态中发现 `computer-use@openai-bundled` 的存在性、启用状态与基础元数据，而不是依赖手工硬编码配置。
@@ -64,20 +62,6 @@
 - **THEN** 现有 Codex、MCP、设置与工作区功能 MUST 继续按当前版本工作
 - **AND** MUST NOT 因 bridge 被禁用而出现新的错误路径
 
-### Requirement: Phase 1 Bridge MUST Remain Status-Only
-
-在当前 change 范围内，系统 MUST 将 Computer Use bridge 限定为 status-only capability，MUST NOT 把 helper invoke / activation bridge 当作本期交付。
-
-#### Scenario: phase 1 exposes discovery without invoke
-- **WHEN** Phase 1 交付完成
-- **THEN** 系统 MUST 提供 discovery、status model、platform adapter 与 availability surface
-- **AND** MUST NOT 因为存在 future activation lane 而把 helper invoke 视为已支持
-
-#### Scenario: unknown helper bridgeability keeps phase 1 non-executable
-- **WHEN** 官方 helper 是否可被当前宿主稳定桥接仍未被验证
-- **THEN** 系统 MUST 保持 status-only contract
-- **AND** MUST NOT 暴露误导性的立即执行能力
-
 ### Requirement: Availability Status Contract MUST Be Deterministic
 
 系统 MUST 对 `ready / blocked / unavailable / unsupported` 的判定使用固定优先级，并共享最小 blocked reason 枚举。
@@ -128,3 +112,31 @@ Phase 1 fixed blocked reason set:
 - **WHEN** 后端返回已知 blocked reason
 - **THEN** 该值 MUST 属于 Phase 1 fixed blocked reason set
 - **AND** 实现 MUST NOT 临时返回 spec 未定义的新 reason
+
+### Requirement: Bridge MUST Support Explicit Activation After Discovery
+
+在 discovery 已经确认官方安装态之后，系统 MUST 允许 `macOS` 用户通过显式 activation lane 验证 helper bridgeability，而不是永久停留在 `helper_bridge_unverified`。
+
+#### Scenario: eligible blocked macOS host can enter activation lane
+- **WHEN** 当前平台为 `macOS`，bridge status 已确认官方 app/plugin/helper 存在，但仍因 `helper_bridge_unverified`、`permission_required` 或 `approval_required` 处于 `blocked`
+- **THEN** 系统 MUST 允许用户显式触发 activation/probe
+- **AND** MUST 返回结构化 activation result，而不是只刷新原有 blocked 文案
+
+#### Scenario: successful activation updates current-session bridge truth
+- **WHEN** activation/probe 在当前 app session 内成功验证宿主可桥接官方 helper
+- **THEN** 后续 bridge status 读取 MUST 不再继续携带 `helper_bridge_unverified`
+- **AND** 仅当不存在其他 blocked reason 时，系统才可以将 status 收敛为 `ready`
+
+### Requirement: Bridge MUST Keep Implicit Invocation Disabled Outside Activation Lane
+
+即使进入第二阶段，系统仍然 MUST 禁止在 activation lane 之外隐式调用官方 helper。
+
+#### Scenario: ordinary status refresh remains read-only
+- **WHEN** 用户刷新 Computer Use 状态，或系统重新读取 bridge status
+- **THEN** 系统 MUST 继续执行只读 discovery
+- **AND** MUST NOT 因状态刷新自动触发 activation/probe
+
+#### Scenario: non-computer-use workflows do not invoke helper
+- **WHEN** 用户执行普通设置保存、聊天发送、线程恢复、MCP 管理或其他无关主流程
+- **THEN** 系统 MUST NOT 触发官方 helper invoke
+- **AND** MUST NOT 因第二阶段接线而污染现有主流程
