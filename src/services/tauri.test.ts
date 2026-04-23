@@ -54,6 +54,7 @@ import {
   exportRewindFiles,
   getComputerUseBridgeStatus,
   runComputerUseActivationProbe,
+  runComputerUseHostContractDiagnostics,
   getWorkspaceSessionProjectionSummary,
   listGlobalCodexSessions,
   listProjectRelatedCodexSessions,
@@ -242,6 +243,51 @@ describe("tauri invoke wrappers", () => {
     await runComputerUseActivationProbe();
 
     expect(invokeMock).toHaveBeenCalledWith("run_computer_use_activation_probe");
+  });
+
+  it("invokes computer use host-contract diagnostics command", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({
+      kind: "requires_official_parent",
+      bridgeStatus: {
+        featureEnabled: true,
+        activationEnabled: true,
+        status: "blocked",
+        platform: "macos",
+        codexAppDetected: true,
+        pluginDetected: true,
+        pluginEnabled: true,
+        blockedReasons: ["helper_bridge_unverified"],
+        guidanceCodes: ["verify_helper_bridge"],
+        codexConfigPath: "/Users/demo/.codex/config.toml",
+        pluginManifestPath: "/Users/demo/.codex/plugins/cache/openai-bundled/computer-use/1/.codex-plugin/plugin.json",
+        helperPath: "/Applications/Codex.app/Contents/Resources/plugins/openai-bundled/plugins/computer-use/Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient",
+        helperDescriptorPath: "/Applications/Codex.app/Contents/Resources/plugins/openai-bundled/plugins/computer-use/.mcp.json",
+        marketplacePath: "/Applications/Codex.app/Contents/Resources/plugins/openai-bundled/.agents/plugins/marketplace.json",
+        diagnosticMessage: null,
+      },
+      evidence: {
+        helperPath: "/Applications/Codex.app/Contents/Resources/plugins/openai-bundled/plugins/computer-use/Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient",
+        helperDescriptorPath: "/Applications/Codex.app/Contents/Resources/plugins/openai-bundled/plugins/computer-use/.mcp.json",
+        currentHostPath:
+          "/Applications/ThirdPartyHost.app/Contents/MacOS/third-party-host",
+        handoffMethod: "direct_exec_skipped_nested_app_bundle",
+        codesignSummary: "codesign exited with status 0",
+        spctlSummary: "spctl exited with status 0",
+        durationMs: 4,
+        stdoutSnippet: null,
+        stderrSnippet: "Authority=Developer ID Application",
+      },
+      durationMs: 4,
+      diagnosticMessage:
+        "Computer Use helper appears to require the official Codex parent contract.",
+    });
+
+    await runComputerUseHostContractDiagnostics();
+
+    expect(invokeMock).toHaveBeenCalledWith(
+      "run_computer_use_host_contract_diagnostics",
+    );
   });
 
   it("maps rewind export params to export_rewind_files", async () => {

@@ -11,9 +11,11 @@ import {
 import type {
   ComputerUseActivationFailureKind,
   ComputerUseActivationOutcome,
+  ComputerUseActivationResult,
   ComputerUseBlockedReason,
   ComputerUseBridgeStatus,
   ComputerUseGuidanceCode,
+  ComputerUseHostContractDiagnosticsKind,
 } from "../../../types";
 import {
   ENABLE_COMPUTER_USE_BRIDGE,
@@ -21,6 +23,7 @@ import {
 } from "../constants";
 import { useComputerUseActivation } from "../hooks/useComputerUseActivation";
 import { useComputerUseBridgeStatus } from "../hooks/useComputerUseBridgeStatus";
+import { useComputerUseHostContractDiagnostics } from "../hooks/useComputerUseHostContractDiagnostics";
 
 function statusKey(status: NonNullable<ComputerUseBridgeStatus["status"]>) {
   return `settings.computerUse.status.${status}`;
@@ -42,11 +45,15 @@ function activationFailureKey(failureKind: ComputerUseActivationFailureKind) {
   return `settings.computerUse.activation.failure.${failureKind}`;
 }
 
+function hostContractKindKey(kind: ComputerUseHostContractDiagnosticsKind) {
+  return `settings.computerUse.hostContract.kind.${kind}`;
+}
+
 function booleanLabel(value: boolean, t: (key: string) => string) {
   return value ? t("settings.computerUse.value.yes") : t("settings.computerUse.value.no");
 }
 
-function renderPathRow(label: string, value: string | null | undefined) {
+function renderCodeRow(label: string, value: string | null | undefined) {
   if (!value) {
     return null;
   }
@@ -58,8 +65,15 @@ function renderPathRow(label: string, value: string | null | undefined) {
   );
 }
 
-function shouldShowActivationAction(status: ComputerUseBridgeStatus | null) {
+function shouldShowActivationAction(
+  status: ComputerUseBridgeStatus | null,
+  activationResult: ComputerUseActivationResult | null,
+) {
   if (!ENABLE_COMPUTER_USE_BRIDGE_ACTIVATION || !status) {
+    return false;
+  }
+
+  if (activationResult?.failureKind === "host_incompatible") {
     return false;
   }
 
@@ -72,6 +86,26 @@ function shouldShowActivationAction(status: ComputerUseBridgeStatus | null) {
     status.pluginEnabled &&
     Boolean(status.helperPath) &&
     status.blockedReasons.includes("helper_bridge_unverified")
+  );
+}
+
+function shouldShowHostContractDiagnosticsAction(
+  status: ComputerUseBridgeStatus | null,
+  activationResult: ComputerUseActivationResult | null,
+) {
+  if (!ENABLE_COMPUTER_USE_BRIDGE_ACTIVATION || !status || !activationResult) {
+    return false;
+  }
+
+  return (
+    activationResult.failureKind === "host_incompatible" &&
+    status.activationEnabled &&
+    status.platform === "macos" &&
+    status.status === "blocked" &&
+    status.codexAppDetected &&
+    status.pluginDetected &&
+    status.pluginEnabled &&
+    Boolean(status.helperPath)
   );
 }
 
@@ -91,9 +125,26 @@ export function ComputerUseStatusCard() {
   } = useComputerUseActivation({
     enabled: ENABLE_COMPUTER_USE_BRIDGE && activationEnabled,
   });
+  const {
+    result: hostContractResult,
+    isRunning: isDiagnosingHostContract,
+    error: hostContractError,
+    diagnose: diagnoseHostContract,
+    reset: resetHostContractDiagnostics,
+  } = useComputerUseHostContractDiagnostics({
+    enabled: ENABLE_COMPUTER_USE_BRIDGE && activationEnabled,
+  });
 
-  const effectiveStatus = activationResult?.bridgeStatus ?? status;
-  const showActivationAction = shouldShowActivationAction(effectiveStatus);
+  const effectiveStatus =
+    hostContractResult?.bridgeStatus ?? activationResult?.bridgeStatus ?? status;
+  const showActivationAction = shouldShowActivationAction(
+    effectiveStatus,
+    activationResult,
+  );
+  const showHostContractDiagnosticsAction = shouldShowHostContractDiagnosticsAction(
+    effectiveStatus,
+    activationResult,
+  );
 
   const detailRows = useMemo(() => {
     if (!effectiveStatus) {
@@ -140,13 +191,29 @@ export function ComputerUseStatusCard() {
                 variant="default"
                 size="sm"
                 onClick={() => {
+                  resetHostContractDiagnostics();
                   void activate();
                 }}
-                disabled={isLoading || isActivating}
+                disabled={isLoading || isActivating || isDiagnosingHostContract}
               >
                 {isActivating
                   ? t("settings.computerUse.activation.running")
                   : t("settings.computerUse.activation.verify")}
+              </Button>
+            ) : null}
+            {showHostContractDiagnosticsAction ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  void diagnoseHostContract();
+                }}
+                disabled={isLoading || isActivating || isDiagnosingHostContract}
+              >
+                {isDiagnosingHostContract
+                  ? t("settings.computerUse.hostContract.running")
+                  : t("settings.computerUse.hostContract.run")}
               </Button>
             ) : null}
             <Button
@@ -155,9 +222,10 @@ export function ComputerUseStatusCard() {
               size="sm"
               onClick={() => {
                 resetActivation();
+                resetHostContractDiagnostics();
                 void refresh();
               }}
-              disabled={isLoading || isActivating}
+              disabled={isLoading || isActivating || isDiagnosingHostContract}
             >
               {isLoading ? t("settings.computerUse.loading") : t("settings.computerUse.refresh")}
             </Button>
@@ -174,6 +242,12 @@ export function ComputerUseStatusCard() {
         {activationError ? (
           <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
             {t("settings.computerUse.activation.failedToRun")}: {activationError}
+          </div>
+        ) : null}
+
+        {hostContractError ? (
+          <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+            {t("settings.computerUse.hostContract.failedToRun")}: {hostContractError}
           </div>
         ) : null}
 
@@ -261,6 +335,71 @@ export function ComputerUseStatusCard() {
               </div>
             ) : null}
 
+            {hostContractResult ? (
+              <div className="space-y-3 rounded-md border px-3 py-3">
+                <div className="space-y-1">
+                  <div className="text-sm font-medium">
+                    {t("settings.computerUse.hostContract.resultTitle")}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {t("settings.computerUse.hostContract.diagnosticOnlyNotice")}
+                  </div>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <div className="text-xs font-medium text-muted-foreground">
+                      {t("settings.computerUse.hostContract.kindLabel")}
+                    </div>
+                    <div className="text-sm">
+                      {t(hostContractKindKey(hostContractResult.kind))}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-xs font-medium text-muted-foreground">
+                      {t("settings.computerUse.hostContract.duration")}
+                    </div>
+                    <div className="text-sm">{hostContractResult.durationMs}ms</div>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="text-xs font-medium text-muted-foreground">
+                    {t("settings.computerUse.hostContract.diagnosticMessage")}
+                  </div>
+                  <code className="block break-all rounded bg-muted px-2 py-1 text-xs">
+                    {hostContractResult.diagnosticMessage}
+                  </code>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  {renderCodeRow(
+                    t("settings.computerUse.hostContract.handoffMethod"),
+                    hostContractResult.evidence.handoffMethod,
+                  )}
+                  {renderCodeRow(
+                    t("settings.computerUse.hostContract.currentHostPath"),
+                    hostContractResult.evidence.currentHostPath,
+                  )}
+                  {renderCodeRow(
+                    t("settings.computerUse.hostContract.codesignSummary"),
+                    hostContractResult.evidence.codesignSummary,
+                  )}
+                  {renderCodeRow(
+                    t("settings.computerUse.hostContract.spctlSummary"),
+                    hostContractResult.evidence.spctlSummary,
+                  )}
+                  {renderCodeRow(
+                    t("settings.computerUse.hostContract.stdoutSnippet"),
+                    hostContractResult.evidence.stdoutSnippet,
+                  )}
+                  {renderCodeRow(
+                    t("settings.computerUse.hostContract.stderrSnippet"),
+                    hostContractResult.evidence.stderrSnippet,
+                  )}
+                </div>
+              </div>
+            ) : null}
+
             {effectiveStatus.blockedReasons.length > 0 ? (
               <div className="space-y-2">
                 <div className="text-sm font-medium">
@@ -288,23 +427,23 @@ export function ComputerUseStatusCard() {
             ) : null}
 
             <div className="space-y-3">
-              {renderPathRow(
+              {renderCodeRow(
                 t("settings.computerUse.codexConfigPath"),
                 effectiveStatus.codexConfigPath,
               )}
-              {renderPathRow(
+              {renderCodeRow(
                 t("settings.computerUse.marketplacePath"),
                 effectiveStatus.marketplacePath,
               )}
-              {renderPathRow(
+              {renderCodeRow(
                 t("settings.computerUse.pluginManifestPath"),
                 effectiveStatus.pluginManifestPath,
               )}
-              {renderPathRow(
+              {renderCodeRow(
                 t("settings.computerUse.helperDescriptorPath"),
                 effectiveStatus.helperDescriptorPath,
               )}
-              {renderPathRow(
+              {renderCodeRow(
                 t("settings.computerUse.helperPath"),
                 effectiveStatus.helperPath,
               )}

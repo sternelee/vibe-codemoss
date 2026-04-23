@@ -11,6 +11,7 @@ pub(crate) fn invoke_handler(
         crate::settings::reload_codex_runtime_config,
         crate::computer_use::get_computer_use_bridge_status,
         crate::computer_use::run_computer_use_activation_probe,
+        crate::computer_use::run_computer_use_host_contract_diagnostics,
         crate::runtime::get_runtime_pool_snapshot,
         crate::runtime::mutate_runtime_pool,
         crate::runtime::ensure_runtime_ready,

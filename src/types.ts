@@ -259,6 +259,33 @@ export type ComputerUseActivationResult = {
   exitCode: number | null;
 };
 
+export type ComputerUseHostContractDiagnosticsKind =
+  | "requires_official_parent"
+  | "handoff_unavailable"
+  | "handoff_verified"
+  | "manual_permission_required"
+  | "unknown";
+
+export type ComputerUseHostContractEvidence = {
+  helperPath: string | null;
+  helperDescriptorPath: string | null;
+  currentHostPath: string | null;
+  handoffMethod: string;
+  codesignSummary: string | null;
+  spctlSummary: string | null;
+  durationMs: number;
+  stdoutSnippet: string | null;
+  stderrSnippet: string | null;
+};
+
+export type ComputerUseHostContractDiagnosticsResult = {
+  kind: ComputerUseHostContractDiagnosticsKind;
+  bridgeStatus: ComputerUseBridgeStatus;
+  evidence: ComputerUseHostContractEvidence;
+  durationMs: number;
+  diagnosticMessage: string;
+};
+
 export type AppSettings = {
   claudeBin: string | null;
   codexBin: string | null;

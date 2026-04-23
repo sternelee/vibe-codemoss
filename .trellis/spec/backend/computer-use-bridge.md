@@ -33,6 +33,15 @@ pub(crate) async fn run_computer_use_activation_probe(
 ) -> Result<ComputerUseActivationResult, String>
 ```
 
+### Host-contract diagnostics command
+
+```rust
+#[tauri::command]
+pub(crate) async fn run_computer_use_host_contract_diagnostics(
+    state: State<'_, AppState>,
+) -> Result<ComputerUseHostContractDiagnosticsResult, String>
+```
+
 ### Core types
 
 ```rust
@@ -85,6 +94,26 @@ enum ComputerUseActivationFailureKind {
     NonZeroExit,
     Unknown,
 }
+
+enum ComputerUseHostContractDiagnosticsKind {
+    RequiresOfficialParent,
+    HandoffUnavailable,
+    HandoffVerified,
+    ManualPermissionRequired,
+    Unknown,
+}
+
+struct ComputerUseHostContractEvidence {
+    helper_path: Option<String>,
+    helper_descriptor_path: Option<String>,
+    current_host_path: Option<String>,
+    handoff_method: String,
+    codesign_summary: Option<String>,
+    spctl_summary: Option<String>,
+    duration_ms: u64,
+    stdout_snippet: Option<String>,
+    stderr_snippet: Option<String>,
+}
 ```
 
 ## Contracts
@@ -104,6 +133,12 @@ enum ComputerUseActivationFailureKind {
   - MUST 有硬超时
   - MUST 支持 `MOSSX_DISABLE_COMPUTER_USE_ACTIVATION=1|true|yes|on` 回退到 `activation_disabled`
   - MUST NOT 接入聊天发送、设置保存、MCP 管理等普通主流程
+- `run_computer_use_host_contract_diagnostics` 是 `host_incompatible` 后的显式 evidence lane：
+  - MUST 与 activation probe 复用同一 single-flight lock，避免并发 helper investigation
+  - MUST 支持同一 activation kill switch，关闭后只返回 diagnostics disabled 结果
+  - MUST 只读采集 helper path、descriptor path、current host path、handoff method、`codesign` / `spctl` bounded summary
+  - MUST NOT direct exec nested `.app/Contents/MacOS/...` helper
+  - MUST NOT 写入官方 Codex App、plugin cache、helper bundle、系统权限或 approval 配置
 
 ### Status precedence
 
@@ -124,9 +159,11 @@ enum ComputerUseActivationFailureKind {
   - MUST 拒绝空 `command`、非数组 `args`、非字符串 arg，避免用损坏 descriptor 拼出错误 launch contract
   - helper present 判定 MUST 使用 `is_file()`，不能把目录存在误判成可执行 helper
   - nested `.app/Contents/MacOS/...` helper 在非官方 Codex parent host 下 MUST 走 diagnostics-only fallback，返回 `host_incompatible`，不得直接 exec 反复触发系统 crash report
+  - host-contract diagnostics 遇到 nested helper MUST 返回 `requires_official_parent` 或等价证据分类，不得把 direct exec 当成诊断手段
 - `Windows`：
   - MUST 固定返回 `unsupported`
   - MUST NOT 尝试解析任何 `macOS` bundle/helper 路径
+  - MUST NOT 执行 activation probe 或 host-contract diagnostics
 
 ### Ready gate
 
@@ -155,6 +192,9 @@ enum ComputerUseActivationFailureKind {
 | app approvals 未验证 | `blocked` | `approval_required` |
 | activation kill switch 关闭 | activation result `failed` | `activation_disabled` |
 | nested helper 不能由当前 host 直接执行 | activation result `failed` | `host_incompatible` |
+| host-contract diagnostics 识别 nested helper + 非官方 parent | diagnostics result | `requires_official_parent` |
+| helper bridge 已验证但权限/approval 仍未确认 | diagnostics result | `manual_permission_required` |
+| 非 macOS host 调用 host diagnostics | diagnostics result | `unknown`，且不执行 helper |
 | 多 server descriptor 缺少 `computer-use` key | `blocked` | `helper_missing` 或保留前置状态 |
 | descriptor command 为空 / args 非字符串 | `blocked` | `helper_missing` 或保留前置状态 |
 
@@ -186,6 +226,8 @@ enum ComputerUseActivationFailureKind {
   - descriptor 多 server 时优先 `computer-use`，ambiguous/invalid descriptor 不启动 helper
   - kill switch truthy values
   - nested app-bundle helper diagnostics-only fallback
+  - host-contract diagnostics kind 序列化为 snake_case，payload 字段序列化为 camelCase
+  - host-contract diagnostics 对 Windows / unsupported host 保持 non-executable
 
 ## Wrong vs Correct
 

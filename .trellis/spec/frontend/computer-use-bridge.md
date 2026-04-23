@@ -23,6 +23,8 @@
 
 ```ts
 export async function getComputerUseBridgeStatus(): Promise<ComputerUseBridgeStatus>
+export async function runComputerUseActivationProbe(): Promise<ComputerUseActivationResult>
+export async function runComputerUseHostContractDiagnostics(): Promise<ComputerUseHostContractDiagnosticsResult>
 ```
 
 ### Shared type
@@ -66,6 +68,29 @@ export type ComputerUseActivationResult = {
   stderrSnippet: string | null;
   exitCode: number | null;
 };
+
+export type ComputerUseHostContractDiagnosticsResult = {
+  kind:
+    | "requires_official_parent"
+    | "handoff_unavailable"
+    | "handoff_verified"
+    | "manual_permission_required"
+    | "unknown";
+  bridgeStatus: ComputerUseBridgeStatus;
+  evidence: {
+    helperPath: string | null;
+    helperDescriptorPath: string | null;
+    currentHostPath: string | null;
+    handoffMethod: string;
+    codesignSummary: string | null;
+    spctlSummary: string | null;
+    durationMs: number;
+    stdoutSnippet: string | null;
+    stderrSnippet: string | null;
+  };
+  durationMs: number;
+  diagnosticMessage: string;
+};
 ```
 
 ## Contracts
@@ -79,8 +104,10 @@ export type ComputerUseActivationResult = {
   - card 不应渲染
 - activation lane MUST 额外同时受 `ENABLE_COMPUTER_USE_BRIDGE_ACTIVATION` 与 backend `status.activationEnabled` 控制。
 - `useComputerUseActivation` MUST 防止同一 render tick 内重复调用 service；不能只依赖 React state 更新后的 disabled button。
+- `useComputerUseHostContractDiagnostics` MUST 防止同一 render tick 内重复调用 service，并在 lane disabled / refresh 时清理 stale result。
 - status / activation hooks MUST 使用 request id、mounted guard 或等价机制忽略 stale async response。
 - 手动刷新 status 前 MUST 清除旧 activation result，避免 stale probe result 覆盖刷新后的真实 status。
+- 手动刷新 status 前也 MUST 清除旧 host-contract diagnostics result，避免 stale evidence 覆盖刷新后的真实状态。
 
 ### UI behavior
 
@@ -99,6 +126,9 @@ export type ComputerUseActivationResult = {
   - `status = "blocked"`
   - app/plugin/helper 前置条件齐全
   - `blockedReasons` 包含 `helper_bridge_unverified`
+- host-contract diagnostics affordance 只允许在 activation result 明确返回 `failureKind = "host_incompatible"` 后显示。
+- `host_incompatible` 后 SHOULD 隐藏重复 activation CTA，并引导用户进入 host-contract diagnostics；diagnostics 不得自动链式运行。
+- host-contract diagnostics result MUST 明确展示 diagnostic-only notice，不得暗示 conversation runtime 已启用。
 - Phase 1 文案 MUST 明确说明：
   - 这是 `status-only`
   - 不调用官方 helper
@@ -119,8 +149,11 @@ export type ComputerUseActivationResult = {
 | feature flag off | 不渲染 card |
 | `activationEnabled=false` | 不渲染 activation CTA，显示 Phase 1 notice |
 | activation result present then user refreshes | 先 reset activation result，再刷新 status |
+| host-contract result present then user refreshes | 先 reset host-contract result，再刷新 status |
 | repeated activation calls before re-render | service 只被调用一次 |
+| repeated host-contract diagnostics calls before re-render | service 只被调用一次 |
 | out-of-order status refresh responses | 只保留最新 refresh 结果 |
+| `host_incompatible` activation result | 展示 host-contract diagnostics CTA，隐藏重复 activation CTA |
 
 ## Good / Base / Bad Cases
 
@@ -143,6 +176,7 @@ export type ComputerUseActivationResult = {
 
 - `npx vitest run src/features/computer-use/components/ComputerUseStatusCard.test.tsx`
 - `npx vitest run src/features/computer-use/hooks/useComputerUseActivation.test.tsx`
+- `npx vitest run src/features/computer-use/hooks/useComputerUseHostContractDiagnostics.test.tsx`
 - `npx vitest run src/features/computer-use/hooks/useComputerUseBridgeStatus.test.tsx`
 - `npx vitest run src/services/tauri.test.ts`
 - 必测断言：
@@ -151,7 +185,9 @@ export type ComputerUseActivationResult = {
   - error surface 渲染
   - `getComputerUseBridgeStatus` 调用正确 command name
   - activation CTA gating、result rendering、refresh reset
+  - host-contract CTA gating、evidence rendering、refresh reset
   - activation duplicate trigger guard
+  - host-contract duplicate trigger guard
   - status stale response guard
 
 ## Wrong vs Correct

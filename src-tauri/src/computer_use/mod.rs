@@ -20,6 +20,7 @@ const COMPUTER_USE_MCP_SERVER_NAME: &str = "computer-use";
 const COMPUTER_USE_ACTIVATION_TIMEOUT_MS: u64 = 5_000;
 const COMPUTER_USE_ACTIVATION_HELP_ARG: &str = "--help";
 const COMPUTER_USE_ACTIVATION_SNIPPET_LIMIT: usize = 240;
+const COMPUTER_USE_HOST_CONTRACT_COMMAND_TIMEOUT_MS: u64 = 1_500;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -113,6 +114,40 @@ pub(crate) struct ComputerUseActivationResult {
     pub(crate) exit_code: Option<i32>,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum ComputerUseHostContractDiagnosticsKind {
+    RequiresOfficialParent,
+    HandoffUnavailable,
+    HandoffVerified,
+    ManualPermissionRequired,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ComputerUseHostContractEvidence {
+    pub(crate) helper_path: Option<String>,
+    pub(crate) helper_descriptor_path: Option<String>,
+    pub(crate) current_host_path: Option<String>,
+    pub(crate) handoff_method: String,
+    pub(crate) codesign_summary: Option<String>,
+    pub(crate) spctl_summary: Option<String>,
+    pub(crate) duration_ms: u64,
+    pub(crate) stdout_snippet: Option<String>,
+    pub(crate) stderr_snippet: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ComputerUseHostContractDiagnosticsResult {
+    pub(crate) kind: ComputerUseHostContractDiagnosticsKind,
+    pub(crate) bridge_status: ComputerUseBridgeStatus,
+    pub(crate) evidence: ComputerUseHostContractEvidence,
+    pub(crate) duration_ms: u64,
+    pub(crate) diagnostic_message: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ComputerUseActivationVerification {
     helper_identity: ComputerUseActivationIdentity,
@@ -176,6 +211,13 @@ struct ComputerUseHelperLaunchSpec {
     command_path: PathBuf,
     args: Vec<String>,
     current_dir: PathBuf,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ComputerUseHostCommandEvidence {
+    summary: String,
+    stdout_snippet: Option<String>,
+    stderr_snippet: Option<String>,
 }
 
 #[tauri::command]
@@ -325,6 +367,103 @@ pub(crate) async fn run_computer_use_activation_probe(
         diagnostic_message,
         probe_execution.stderr_snippet,
         probe_execution.exit_code,
+    ))
+}
+
+#[tauri::command]
+pub(crate) async fn run_computer_use_host_contract_diagnostics(
+    state: State<'_, crate::state::AppState>,
+) -> Result<ComputerUseHostContractDiagnosticsResult, String> {
+    let started_at = Instant::now();
+    let activation_verification = state
+        .computer_use_activation_verification
+        .lock()
+        .await
+        .clone();
+    let context = tokio::task::spawn_blocking(move || {
+        resolve_activation_context(activation_verification.as_ref())
+    })
+    .await
+    .map_err(|error| {
+        format!("failed to join computer use host contract preflight task: {error}")
+    })?;
+
+    if !computer_use_activation_enabled() {
+        return Ok(build_host_contract_result(
+            ComputerUseHostContractDiagnosticsKind::Unknown,
+            context.bridge_status,
+            build_host_contract_evidence(
+                &context.adapter_result.snapshot,
+                current_host_path(),
+                "skipped_activation_disabled".to_string(),
+                None,
+                None,
+                started_at.elapsed().as_millis() as u64,
+                None,
+                None,
+            ),
+            started_at.elapsed().as_millis() as u64,
+            "Computer Use host-contract diagnostics are disabled by host flag.".to_string(),
+        ));
+    }
+
+    let _probe_guard = match state.computer_use_activation_lock.try_lock() {
+        Ok(guard) => guard,
+        Err(_) => {
+            return Ok(build_host_contract_result(
+                ComputerUseHostContractDiagnosticsKind::Unknown,
+                context.bridge_status,
+                build_host_contract_evidence(
+                    &context.adapter_result.snapshot,
+                    current_host_path(),
+                    "skipped_already_running".to_string(),
+                    None,
+                    None,
+                    started_at.elapsed().as_millis() as u64,
+                    None,
+                    None,
+                ),
+                started_at.elapsed().as_millis() as u64,
+                "A Computer Use activation or host-contract diagnostics run is already running."
+                    .to_string(),
+            ));
+        }
+    };
+
+    let helper_path = context.adapter_result.snapshot.helper_path.clone();
+    let (codesign_evidence, spctl_evidence) =
+        collect_host_contract_command_evidence(helper_path.as_deref()).await;
+    let current_host_path = current_host_path();
+    let duration_ms = started_at.elapsed().as_millis() as u64;
+    let kind = classify_host_contract_diagnostics(
+        &context.bridge_status,
+        helper_path.as_deref(),
+        current_host_path.as_deref(),
+    );
+    let evidence = build_host_contract_evidence(
+        &context.adapter_result.snapshot,
+        current_host_path,
+        host_contract_handoff_method(kind, helper_path.as_deref()).to_string(),
+        Some(codesign_evidence.summary),
+        Some(spctl_evidence.summary),
+        duration_ms,
+        first_available_snippet([
+            codesign_evidence.stdout_snippet,
+            spctl_evidence.stdout_snippet,
+        ]),
+        first_available_snippet([
+            codesign_evidence.stderr_snippet,
+            spctl_evidence.stderr_snippet,
+        ]),
+    );
+    let diagnostic_message = host_contract_diagnostic_message(kind);
+
+    Ok(build_host_contract_result(
+        kind,
+        context.bridge_status,
+        evidence,
+        duration_ms,
+        diagnostic_message.to_string(),
     ))
 }
 
@@ -610,6 +749,231 @@ fn build_activation_result(
         stderr_snippet,
         exit_code,
     }
+}
+
+fn build_host_contract_result(
+    kind: ComputerUseHostContractDiagnosticsKind,
+    bridge_status: ComputerUseBridgeStatus,
+    evidence: ComputerUseHostContractEvidence,
+    duration_ms: u64,
+    diagnostic_message: String,
+) -> ComputerUseHostContractDiagnosticsResult {
+    ComputerUseHostContractDiagnosticsResult {
+        kind,
+        bridge_status,
+        evidence,
+        duration_ms,
+        diagnostic_message,
+    }
+}
+
+fn build_host_contract_evidence(
+    snapshot: &ComputerUseDetectionSnapshot,
+    current_host_path: Option<String>,
+    handoff_method: String,
+    codesign_summary: Option<String>,
+    spctl_summary: Option<String>,
+    duration_ms: u64,
+    stdout_snippet: Option<String>,
+    stderr_snippet: Option<String>,
+) -> ComputerUseHostContractEvidence {
+    ComputerUseHostContractEvidence {
+        helper_path: snapshot.helper_path.clone(),
+        helper_descriptor_path: snapshot.helper_descriptor_path.clone(),
+        current_host_path,
+        handoff_method,
+        codesign_summary,
+        spctl_summary,
+        duration_ms,
+        stdout_snippet,
+        stderr_snippet,
+    }
+}
+
+fn classify_host_contract_diagnostics(
+    bridge_status: &ComputerUseBridgeStatus,
+    helper_path: Option<&str>,
+    current_host_path: Option<&str>,
+) -> ComputerUseHostContractDiagnosticsKind {
+    if bridge_status.platform != "macos" {
+        return ComputerUseHostContractDiagnosticsKind::Unknown;
+    }
+
+    if bridge_status
+        .blocked_reasons
+        .contains(&ComputerUseBlockedReason::PermissionRequired)
+        || bridge_status
+            .blocked_reasons
+            .contains(&ComputerUseBlockedReason::ApprovalRequired)
+    {
+        if !bridge_status
+            .blocked_reasons
+            .contains(&ComputerUseBlockedReason::HelperBridgeUnverified)
+        {
+            return ComputerUseHostContractDiagnosticsKind::ManualPermissionRequired;
+        }
+    }
+
+    let Some(path) = helper_path.map(Path::new) else {
+        return ComputerUseHostContractDiagnosticsKind::Unknown;
+    };
+
+    if path_looks_like_nested_app_binary(path) {
+        if current_host_path
+            .map(|path| path.contains("/Codex.app/"))
+            .unwrap_or(false)
+        {
+            return ComputerUseHostContractDiagnosticsKind::HandoffVerified;
+        }
+
+        return ComputerUseHostContractDiagnosticsKind::RequiresOfficialParent;
+    }
+
+    ComputerUseHostContractDiagnosticsKind::HandoffUnavailable
+}
+
+fn host_contract_handoff_method(
+    kind: ComputerUseHostContractDiagnosticsKind,
+    helper_path: Option<&str>,
+) -> &'static str {
+    match kind {
+        ComputerUseHostContractDiagnosticsKind::RequiresOfficialParent
+            if helper_path
+                .map(Path::new)
+                .is_some_and(path_looks_like_nested_app_binary) =>
+        {
+            "direct_exec_skipped_nested_app_bundle"
+        }
+        ComputerUseHostContractDiagnosticsKind::HandoffVerified => {
+            "current_host_matches_official_codex_parent"
+        }
+        ComputerUseHostContractDiagnosticsKind::ManualPermissionRequired => {
+            "manual_permission_or_approval_review"
+        }
+        ComputerUseHostContractDiagnosticsKind::HandoffUnavailable => {
+            "official_handoff_not_detected"
+        }
+        ComputerUseHostContractDiagnosticsKind::Unknown => "not_applicable",
+        ComputerUseHostContractDiagnosticsKind::RequiresOfficialParent => {
+            "requires_official_parent"
+        }
+    }
+}
+
+fn host_contract_diagnostic_message(kind: ComputerUseHostContractDiagnosticsKind) -> &'static str {
+    match kind {
+        ComputerUseHostContractDiagnosticsKind::RequiresOfficialParent => {
+            "Computer Use helper appears to require the official Codex parent contract. The nested helper was not directly executed."
+        }
+        ComputerUseHostContractDiagnosticsKind::HandoffUnavailable => {
+            "No supported official handoff method was detected for this helper from the current host."
+        }
+        ComputerUseHostContractDiagnosticsKind::HandoffVerified => {
+            "Current host path appears to satisfy the official Codex parent boundary. This is diagnostic evidence only, not runtime enablement."
+        }
+        ComputerUseHostContractDiagnosticsKind::ManualPermissionRequired => {
+            "Helper bridge identity is no longer the primary blocker; manual permissions or app approvals still need review."
+        }
+        ComputerUseHostContractDiagnosticsKind::Unknown => {
+            "Computer Use host-contract diagnostics could not classify the current state from available evidence."
+        }
+    }
+}
+
+fn current_host_path() -> Option<String> {
+    std::env::current_exe().ok().and_then(path_to_string)
+}
+
+async fn collect_host_contract_command_evidence(
+    helper_path: Option<&str>,
+) -> (
+    ComputerUseHostCommandEvidence,
+    ComputerUseHostCommandEvidence,
+) {
+    let Some(path) = helper_path else {
+        return (
+            skipped_host_command_evidence("codesign", "helper path unavailable"),
+            skipped_host_command_evidence("spctl", "helper path unavailable"),
+        );
+    };
+
+    let codesign = run_host_contract_command("codesign", &["-dv", "--verbose=2", path]).await;
+    let spctl = run_host_contract_command("spctl", &["--assess", "--type", "execute", path]).await;
+    (codesign, spctl)
+}
+
+async fn run_host_contract_command(program: &str, args: &[&str]) -> ComputerUseHostCommandEvidence {
+    let mut command = crate::utils::async_command(program);
+    command
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true);
+
+    let child = match command.spawn() {
+        Ok(child) => child,
+        Err(error) => {
+            return ComputerUseHostCommandEvidence {
+                summary: format!("{program} unavailable: {error}"),
+                stdout_snippet: None,
+                stderr_snippet: None,
+            };
+        }
+    };
+
+    let output = match tokio::time::timeout(
+        Duration::from_millis(COMPUTER_USE_HOST_CONTRACT_COMMAND_TIMEOUT_MS),
+        child.wait_with_output(),
+    )
+    .await
+    {
+        Ok(Ok(output)) => output,
+        Ok(Err(error)) => {
+            return ComputerUseHostCommandEvidence {
+                summary: format!("{program} failed while waiting for output: {error}"),
+                stdout_snippet: None,
+                stderr_snippet: None,
+            };
+        }
+        Err(_) => {
+            return ComputerUseHostCommandEvidence {
+                summary: format!(
+                    "{program} timed out after {}ms",
+                    COMPUTER_USE_HOST_CONTRACT_COMMAND_TIMEOUT_MS
+                ),
+                stdout_snippet: None,
+                stderr_snippet: None,
+            };
+        }
+    };
+
+    let exit_code = output.status.code().unwrap_or(-1);
+    let stdout_snippet = output_snippet(&String::from_utf8_lossy(&output.stdout));
+    let stderr_snippet = output_snippet(&String::from_utf8_lossy(&output.stderr));
+    let summary_detail = stderr_snippet
+        .as_deref()
+        .or(stdout_snippet.as_deref())
+        .map(|snippet| format!(": {snippet}"))
+        .unwrap_or_default();
+
+    ComputerUseHostCommandEvidence {
+        summary: format!("{program} exited with status {exit_code}{summary_detail}"),
+        stdout_snippet,
+        stderr_snippet,
+    }
+}
+
+fn skipped_host_command_evidence(program: &str, reason: &str) -> ComputerUseHostCommandEvidence {
+    ComputerUseHostCommandEvidence {
+        summary: format!("{program} skipped: {reason}"),
+        stdout_snippet: None,
+        stderr_snippet: None,
+    }
+}
+
+fn first_available_snippet<const N: usize>(snippets: [Option<String>; N]) -> Option<String> {
+    snippets.into_iter().find_map(|snippet| snippet)
 }
 
 async fn run_helper_bridge_probe(
@@ -1210,6 +1574,111 @@ mod tests {
         assert!(!activation_disabled_env_value(None));
         assert!(!activation_disabled_env_value(Some("false".to_string())));
         assert!(!activation_disabled_env_value(Some("0".to_string())));
+    }
+
+    #[test]
+    fn host_contract_classifies_nested_helper_as_requiring_official_parent() {
+        let status = blocked_bridge_status(vec![
+            ComputerUseBlockedReason::HelperBridgeUnverified,
+            ComputerUseBlockedReason::PermissionRequired,
+            ComputerUseBlockedReason::ApprovalRequired,
+        ]);
+
+        let kind = classify_host_contract_diagnostics(
+            &status,
+            status.helper_path.as_deref(),
+            Some("/Applications/ThirdPartyHost.app/Contents/MacOS/third-party-host"),
+        );
+
+        assert_eq!(
+            kind,
+            ComputerUseHostContractDiagnosticsKind::RequiresOfficialParent
+        );
+        assert_eq!(
+            host_contract_handoff_method(kind, status.helper_path.as_deref()),
+            "direct_exec_skipped_nested_app_bundle"
+        );
+    }
+
+    #[test]
+    fn host_contract_can_report_official_parent_or_manual_permission_state() {
+        let nested_status =
+            blocked_bridge_status(vec![ComputerUseBlockedReason::HelperBridgeUnverified]);
+        let verified_kind = classify_host_contract_diagnostics(
+            &nested_status,
+            nested_status.helper_path.as_deref(),
+            Some("/Applications/Codex.app/Contents/MacOS/Codex"),
+        );
+        assert_eq!(
+            verified_kind,
+            ComputerUseHostContractDiagnosticsKind::HandoffVerified
+        );
+
+        let permission_status = blocked_bridge_status(vec![
+            ComputerUseBlockedReason::PermissionRequired,
+            ComputerUseBlockedReason::ApprovalRequired,
+        ]);
+        let permission_kind = classify_host_contract_diagnostics(
+            &permission_status,
+            permission_status.helper_path.as_deref(),
+            Some("/Applications/ThirdPartyHost.app/Contents/MacOS/third-party-host"),
+        );
+        assert_eq!(
+            permission_kind,
+            ComputerUseHostContractDiagnosticsKind::ManualPermissionRequired
+        );
+    }
+
+    #[test]
+    fn host_contract_keeps_unsupported_platform_non_executable() {
+        let mut status = blocked_bridge_status(vec![ComputerUseBlockedReason::PlatformUnsupported]);
+        status.platform = "windows".to_string();
+        status.status = ComputerUseAvailabilityStatus::Unsupported;
+
+        let kind = classify_host_contract_diagnostics(
+            &status,
+            status.helper_path.as_deref(),
+            Some("C:\\Program Files\\ThirdPartyHost\\third-party-host.exe"),
+        );
+
+        assert_eq!(kind, ComputerUseHostContractDiagnosticsKind::Unknown);
+        assert_eq!(host_contract_handoff_method(kind, None), "not_applicable");
+    }
+
+    #[test]
+    fn host_contract_result_serializes_snake_and_camel_case_contract() {
+        let status = blocked_bridge_status(vec![
+            ComputerUseBlockedReason::HelperBridgeUnverified,
+            ComputerUseBlockedReason::PermissionRequired,
+        ]);
+        let evidence = ComputerUseHostContractEvidence {
+            helper_path: status.helper_path.clone(),
+            helper_descriptor_path: status.helper_descriptor_path.clone(),
+            current_host_path: Some(
+                "/Applications/ThirdPartyHost.app/Contents/MacOS/third-party-host".to_string(),
+            ),
+            handoff_method: "direct_exec_skipped_nested_app_bundle".to_string(),
+            codesign_summary: Some("codesign exited with status 0".to_string()),
+            spctl_summary: Some("spctl exited with status 0".to_string()),
+            duration_ms: 4,
+            stdout_snippet: None,
+            stderr_snippet: Some("Authority=Developer ID Application".to_string()),
+        };
+        let result = build_host_contract_result(
+            ComputerUseHostContractDiagnosticsKind::RequiresOfficialParent,
+            status,
+            evidence,
+            4,
+            "diagnostic".to_string(),
+        );
+
+        let payload = serde_json::to_value(result).expect("serialize host contract result");
+        assert_eq!(payload["kind"], "requires_official_parent");
+        assert_eq!(
+            payload["evidence"]["handoffMethod"],
+            "direct_exec_skipped_nested_app_bundle"
+        );
+        assert_eq!(payload["evidence"]["durationMs"], 4);
     }
 
     #[test]

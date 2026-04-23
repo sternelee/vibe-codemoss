@@ -5,6 +5,7 @@ import { ComputerUseStatusCard } from "./ComputerUseStatusCard";
 
 const useComputerUseBridgeStatusMock = vi.fn();
 const useComputerUseActivationMock = vi.fn();
+const useComputerUseHostContractDiagnosticsMock = vi.fn();
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -20,6 +21,11 @@ vi.mock("../hooks/useComputerUseBridgeStatus", () => ({
 vi.mock("../hooks/useComputerUseActivation", () => ({
   useComputerUseActivation: (...args: unknown[]) =>
     useComputerUseActivationMock(...args),
+}));
+
+vi.mock("../hooks/useComputerUseHostContractDiagnostics", () => ({
+  useComputerUseHostContractDiagnostics: (...args: unknown[]) =>
+    useComputerUseHostContractDiagnosticsMock(...args),
 }));
 
 function blockedMacStatus() {
@@ -58,6 +64,14 @@ describe("ComputerUseStatusCard", () => {
   beforeEach(() => {
     useComputerUseBridgeStatusMock.mockReset();
     useComputerUseActivationMock.mockReset();
+    useComputerUseHostContractDiagnosticsMock.mockReset();
+    useComputerUseHostContractDiagnosticsMock.mockReturnValue({
+      result: null,
+      isRunning: false,
+      error: null,
+      diagnose: vi.fn(),
+      reset: vi.fn(),
+    });
   });
 
   it("renders blocked reasons and activation action for eligible macos state", () => {
@@ -98,6 +112,11 @@ describe("ComputerUseStatusCard", () => {
       }),
     );
     expect(activateMock).toHaveBeenCalledTimes(1);
+    expect(
+      screen.queryByRole("button", {
+        name: "settings.computerUse.hostContract.run",
+      }),
+    ).toBeNull();
   });
 
   it("renders error state when bridge loading fails", () => {
@@ -153,6 +172,9 @@ describe("ComputerUseStatusCard", () => {
     expect(useComputerUseActivationMock).toHaveBeenCalledWith({
       enabled: false,
     });
+    expect(useComputerUseHostContractDiagnosticsMock).toHaveBeenCalledWith({
+      enabled: false,
+    });
   });
 
   it("renders activation probe result and hides stale helper bridge blocker", () => {
@@ -203,6 +225,123 @@ describe("ComputerUseStatusCard", () => {
         name: "settings.computerUse.activation.verify",
       }),
     ).toBeNull();
+  });
+
+  it("shows host-contract diagnostics only after host incompatible activation result", () => {
+    const diagnoseMock = vi.fn();
+
+    useComputerUseBridgeStatusMock.mockReturnValue({
+      status: blockedMacStatus(),
+      isLoading: false,
+      error: null,
+      refresh: vi.fn(),
+    });
+    useComputerUseActivationMock.mockReturnValue({
+      result: {
+        outcome: "failed",
+        failureKind: "host_incompatible",
+        bridgeStatus: blockedMacStatus(),
+        durationMs: 1,
+        diagnosticMessage: "direct exec skipped",
+        stderrSnippet: "skipped direct helper launch",
+        exitCode: null,
+      },
+      isRunning: false,
+      error: null,
+      activate: vi.fn(),
+      reset: vi.fn(),
+    });
+    useComputerUseHostContractDiagnosticsMock.mockReturnValue({
+      result: null,
+      isRunning: false,
+      error: null,
+      diagnose: diagnoseMock,
+      reset: vi.fn(),
+    });
+
+    render(<ComputerUseStatusCard />);
+
+    expect(
+      screen.queryByRole("button", {
+        name: "settings.computerUse.activation.verify",
+      }),
+    ).toBeNull();
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "settings.computerUse.hostContract.run",
+      }),
+    );
+    expect(diagnoseMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders host-contract diagnostics evidence as diagnostic-only result", () => {
+    useComputerUseBridgeStatusMock.mockReturnValue({
+      status: blockedMacStatus(),
+      isLoading: false,
+      error: null,
+      refresh: vi.fn(),
+    });
+    useComputerUseActivationMock.mockReturnValue({
+      result: {
+        outcome: "failed",
+        failureKind: "host_incompatible",
+        bridgeStatus: blockedMacStatus(),
+        durationMs: 1,
+        diagnosticMessage: "direct exec skipped",
+        stderrSnippet: "skipped direct helper launch",
+        exitCode: null,
+      },
+      isRunning: false,
+      error: null,
+      activate: vi.fn(),
+      reset: vi.fn(),
+    });
+    useComputerUseHostContractDiagnosticsMock.mockReturnValue({
+      result: {
+        kind: "requires_official_parent",
+        bridgeStatus: blockedMacStatus(),
+        durationMs: 4,
+        diagnosticMessage:
+          "Computer Use helper appears to require the official Codex parent contract.",
+        evidence: {
+          helperPath: blockedMacStatus().helperPath,
+          helperDescriptorPath: blockedMacStatus().helperDescriptorPath,
+          currentHostPath:
+            "/Applications/ThirdPartyHost.app/Contents/MacOS/third-party-host",
+          handoffMethod: "direct_exec_skipped_nested_app_bundle",
+          codesignSummary: "codesign exited with status 0",
+          spctlSummary: "spctl exited with status 0",
+          durationMs: 4,
+          stdoutSnippet: null,
+          stderrSnippet: "Authority=Developer ID Application",
+        },
+      },
+      isRunning: false,
+      error: null,
+      diagnose: vi.fn(),
+      reset: vi.fn(),
+    });
+
+    render(<ComputerUseStatusCard />);
+
+    expect(
+      screen.getByText("settings.computerUse.hostContract.resultTitle"),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        "settings.computerUse.hostContract.kind.requires_official_parent",
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.getByText("direct_exec_skipped_nested_app_bundle"),
+    ).toBeTruthy();
+    expect(screen.getByText("codesign exited with status 0")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "settings.computerUse.hostContract.diagnosticOnlyNotice",
+      ),
+    ).toBeTruthy();
   });
 
   it("clears stale activation result before manual status refresh", () => {
@@ -284,6 +423,11 @@ describe("ComputerUseStatusCard", () => {
     expect(
       screen.queryByRole("button", {
         name: "settings.computerUse.activation.verify",
+      }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", {
+        name: "settings.computerUse.hostContract.run",
       }),
     ).toBeNull();
   });

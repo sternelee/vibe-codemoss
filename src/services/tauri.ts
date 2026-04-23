@@ -43,6 +43,7 @@ export {
 export {
   getComputerUseBridgeStatus,
   runComputerUseActivationProbe,
+  runComputerUseHostContractDiagnostics,
 } from "./tauri/computerUse";
 export { runClaudeDoctor, runCodexDoctor } from "./tauri/doctor";
 export type {
@@ -50,6 +51,9 @@ export type {
   ComputerUseActivationOutcome,
   ComputerUseActivationResult,
   ComputerUseBridgeStatus,
+  ComputerUseHostContractDiagnosticsKind,
+  ComputerUseHostContractDiagnosticsResult,
+  ComputerUseHostContractEvidence,
 } from "../types";
 export {
   cancelDictation,
