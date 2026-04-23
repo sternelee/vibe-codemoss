@@ -216,6 +216,7 @@ export type ComputerUseGuidanceCode =
 
 export type ComputerUseBridgeStatus = {
   featureEnabled: boolean;
+  activationEnabled: boolean;
   status: ComputerUseAvailabilityStatus;
   platform: string;
   codexAppDetected: boolean;
@@ -229,6 +230,33 @@ export type ComputerUseBridgeStatus = {
   helperDescriptorPath: string | null;
   marketplacePath: string | null;
   diagnosticMessage: string | null;
+};
+
+export type ComputerUseActivationOutcome =
+  | "verified"
+  | "blocked"
+  | "failed";
+
+export type ComputerUseActivationFailureKind =
+  | "activation_disabled"
+  | "unsupported_platform"
+  | "ineligible_host"
+  | "host_incompatible"
+  | "already_running"
+  | "remaining_blockers"
+  | "timeout"
+  | "launch_failed"
+  | "non_zero_exit"
+  | "unknown";
+
+export type ComputerUseActivationResult = {
+  outcome: ComputerUseActivationOutcome;
+  failureKind: ComputerUseActivationFailureKind | null;
+  bridgeStatus: ComputerUseBridgeStatus;
+  durationMs: number;
+  diagnosticMessage: string | null;
+  stderrSnippet: string | null;
+  exitCode: number | null;
 };
 
 export type AppSettings = {

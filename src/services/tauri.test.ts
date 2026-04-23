@@ -53,6 +53,7 @@ import {
   engineInterrupt,
   exportRewindFiles,
   getComputerUseBridgeStatus,
+  runComputerUseActivationProbe,
   getWorkspaceSessionProjectionSummary,
   listGlobalCodexSessions,
   listProjectRelatedCodexSessions,
@@ -189,6 +190,7 @@ describe("tauri invoke wrappers", () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({
       featureEnabled: true,
+      activationEnabled: true,
       status: "blocked",
       platform: "macos",
       codexAppDetected: true,
@@ -207,6 +209,39 @@ describe("tauri invoke wrappers", () => {
     await getComputerUseBridgeStatus();
 
     expect(invokeMock).toHaveBeenCalledWith("get_computer_use_bridge_status");
+  });
+
+  it("invokes computer use activation probe command", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({
+      outcome: "blocked",
+      failureKind: "host_incompatible",
+      bridgeStatus: {
+        featureEnabled: true,
+        activationEnabled: true,
+        status: "blocked",
+        platform: "macos",
+        codexAppDetected: true,
+        pluginDetected: true,
+        pluginEnabled: true,
+        blockedReasons: ["permission_required", "approval_required"],
+        guidanceCodes: ["grant_system_permissions", "review_allowed_apps"],
+        codexConfigPath: "/Users/demo/.codex/config.toml",
+        pluginManifestPath: "/Users/demo/.codex/plugins/cache/openai-bundled/computer-use/1/.codex-plugin/plugin.json",
+        helperPath: "/Applications/Codex.app/Contents/Resources/plugins/openai-bundled/plugins/computer-use/Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient",
+        helperDescriptorPath: "/Applications/Codex.app/Contents/Resources/plugins/openai-bundled/plugins/computer-use/.mcp.json",
+        marketplacePath: "/Applications/Codex.app/Contents/Resources/plugins/openai-bundled/.agents/plugins/marketplace.json",
+        diagnosticMessage: null,
+      },
+      durationMs: 312,
+      diagnosticMessage: "helper bridge verified",
+      stderrSnippet: null,
+      exitCode: 0,
+    });
+
+    await runComputerUseActivationProbe();
+
+    expect(invokeMock).toHaveBeenCalledWith("run_computer_use_activation_probe");
   });
 
   it("maps rewind export params to export_rewind_files", async () => {

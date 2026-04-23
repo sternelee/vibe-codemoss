@@ -38,7 +38,7 @@ pub(super) fn detect(mut snapshot: ComputerUseDetectionSnapshot) -> PlatformAdap
                 .helper_path
                 .as_ref()
                 .map(PathBuf::from)
-                .is_some_and(|path| path.exists());
+                .is_some_and(|path| path.is_file());
         }
     }
 

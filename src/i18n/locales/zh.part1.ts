@@ -336,7 +336,8 @@ const zhPart1 = {
     doctorAttempted: "已尝试",
     computerUse: {
       title: "Computer Use Bridge",
-      description: "仅读取官方 Codex Computer Use 安装状态，不调用 helper。",
+      description:
+        "读取官方 Codex Computer Use 安装状态，并在满足条件的 macOS 宿主上执行显式、有界的 helper bridge 验证。",
       refresh: "刷新状态",
       loading: "正在加载 bridge 状态…",
       loadFailed: "加载 Computer Use bridge 状态失败",
@@ -355,6 +356,37 @@ const zhPart1 = {
       helperPath: "Helper 二进制路径",
       diagnosticMessage: "诊断消息",
       phaseOneNotice: "Phase 1 仅提供状态诊断，不会调用官方 helper。",
+      phaseTwoNotice:
+        "Phase 2 只验证当前宿主能否安全桥接官方 helper。本阶段仍不会自动确认权限或 approval 阻塞。",
+      activation: {
+        verify: "验证 helper bridge",
+        running: "验证中…",
+        resultTitle: "Activation probe 结果",
+        failedToRun: "运行 Computer Use activation probe 失败",
+        outcomeLabel: "Probe 结果",
+        failureKind: "失败分类",
+        duration: "Probe 耗时",
+        exitCode: "退出码",
+        diagnosticMessage: "Probe 诊断",
+        stderrSnippet: "Helper stderr",
+        outcome: {
+          verified: "已验证",
+          blocked: "仍被剩余前置条件阻塞",
+          failed: "Probe 失败",
+        },
+        failure: {
+          activation_disabled: "宿主开关已关闭 activation lane。",
+          unsupported_platform: "Activation 仅在 macOS 上可用。",
+          ineligible_host: "当前宿主仍缺少必需前置条件。",
+          host_incompatible: "官方 helper 不能从当前宿主直接执行。",
+          already_running: "已有另一个 activation probe 正在运行。",
+          remaining_blockers: "Helper 验证已成功，但仍有其他阻塞项未解决。",
+          timeout: "Helper probe 已超时。",
+          launch_failed: "无法启动 helper probe。",
+          non_zero_exit: "Helper probe 以非零状态退出。",
+          unknown: "Helper probe 结束在未预期状态。",
+        },
+      },
       value: {
         yes: "是",
         no: "否",

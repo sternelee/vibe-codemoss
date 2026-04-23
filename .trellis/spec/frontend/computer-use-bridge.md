@@ -30,6 +30,7 @@ export async function getComputerUseBridgeStatus(): Promise<ComputerUseBridgeSta
 ```ts
 export type ComputerUseBridgeStatus = {
   featureEnabled: boolean;
+  activationEnabled: boolean;
   status: "ready" | "blocked" | "unavailable" | "unsupported";
   platform: string;
   codexAppDetected: boolean;
@@ -44,6 +45,27 @@ export type ComputerUseBridgeStatus = {
   marketplacePath: string | null;
   diagnosticMessage: string | null;
 };
+
+export type ComputerUseActivationResult = {
+  outcome: "verified" | "blocked" | "failed";
+  failureKind:
+    | "activation_disabled"
+    | "unsupported_platform"
+    | "ineligible_host"
+    | "host_incompatible"
+    | "already_running"
+    | "remaining_blockers"
+    | "timeout"
+    | "launch_failed"
+    | "non_zero_exit"
+    | "unknown"
+    | null;
+  bridgeStatus: ComputerUseBridgeStatus;
+  durationMs: number;
+  diagnosticMessage: string | null;
+  stderrSnippet: string | null;
+  exitCode: number | null;
+};
 ```
 
 ## Contracts
@@ -55,6 +77,10 @@ export type ComputerUseBridgeStatus = {
 - `ENABLE_COMPUTER_USE_BRIDGE` 关闭时：
   - hook 不应触发读取
   - card 不应渲染
+- activation lane MUST 额外同时受 `ENABLE_COMPUTER_USE_BRIDGE_ACTIVATION` 与 backend `status.activationEnabled` 控制。
+- `useComputerUseActivation` MUST 防止同一 render tick 内重复调用 service；不能只依赖 React state 更新后的 disabled button。
+- status / activation hooks MUST 使用 request id、mounted guard 或等价机制忽略 stale async response。
+- 手动刷新 status 前 MUST 清除旧 activation result，避免 stale probe result 覆盖刷新后的真实 status。
 
 ### UI behavior
 
@@ -66,6 +92,13 @@ export type ComputerUseBridgeStatus = {
   - blocked reasons
   - guidance
   - path diagnostics
+- activation affordance 只允许在以下条件全部满足时显示：
+  - feature flag 开启
+  - `activationEnabled = true`
+  - `platform = "macos"`
+  - `status = "blocked"`
+  - app/plugin/helper 前置条件齐全
+  - `blockedReasons` 包含 `helper_bridge_unverified`
 - Phase 1 文案 MUST 明确说明：
   - 这是 `status-only`
   - 不调用官方 helper
@@ -84,6 +117,10 @@ export type ComputerUseBridgeStatus = {
 | `unsupported` on Windows | 渲染 unsupported 状态、platform_unsupported reason、unsupported_platform guidance |
 | hook error | 渲染 load failed error surface |
 | feature flag off | 不渲染 card |
+| `activationEnabled=false` | 不渲染 activation CTA，显示 Phase 1 notice |
+| activation result present then user refreshes | 先 reset activation result，再刷新 status |
+| repeated activation calls before re-render | service 只被调用一次 |
+| out-of-order status refresh responses | 只保留最新 refresh 结果 |
 
 ## Good / Base / Bad Cases
 
@@ -105,12 +142,17 @@ export type ComputerUseBridgeStatus = {
 ## Tests Required
 
 - `npx vitest run src/features/computer-use/components/ComputerUseStatusCard.test.tsx`
+- `npx vitest run src/features/computer-use/hooks/useComputerUseActivation.test.tsx`
+- `npx vitest run src/features/computer-use/hooks/useComputerUseBridgeStatus.test.tsx`
 - `npx vitest run src/services/tauri.test.ts`
 - 必测断言：
   - blocked reasons + guidance 渲染
   - unsupported Windows surface 渲染
   - error surface 渲染
   - `getComputerUseBridgeStatus` 调用正确 command name
+  - activation CTA gating、result rendering、refresh reset
+  - activation duplicate trigger guard
+  - status stale response guard
 
 ## Wrong vs Correct
 

@@ -321,7 +321,7 @@ const enPart1 = {
     computerUse: {
       title: "Computer Use Bridge",
       description:
-        "Read the official Codex Computer Use installation state without invoking the helper.",
+        "Read the official Codex Computer Use installation state and run an explicit bounded helper verification on eligible macOS hosts.",
       refresh: "Refresh status",
       loading: "Loading bridge status…",
       loadFailed: "Failed to load Computer Use bridge status",
@@ -341,6 +341,37 @@ const enPart1 = {
       diagnosticMessage: "Diagnostic message",
       phaseOneNotice:
         "Phase 1 is status-only. This surface diagnoses availability and does not invoke the official helper.",
+      phaseTwoNotice:
+        "Phase 2 only verifies that the host can safely bridge the official helper. Permission and approval blockers remain guidance-only in this phase.",
+      activation: {
+        verify: "Verify helper bridge",
+        running: "Verifying…",
+        resultTitle: "Activation probe result",
+        failedToRun: "Failed to run Computer Use activation probe",
+        outcomeLabel: "Probe outcome",
+        failureKind: "Failure classification",
+        duration: "Probe duration",
+        exitCode: "Exit code",
+        diagnosticMessage: "Probe diagnostic",
+        stderrSnippet: "Helper stderr",
+        outcome: {
+          verified: "Verified",
+          blocked: "Blocked by remaining prerequisites",
+          failed: "Probe failed",
+        },
+        failure: {
+          activation_disabled: "The activation lane is disabled by host flag.",
+          unsupported_platform: "Activation is only available on macOS.",
+          ineligible_host: "The current host is still missing required prerequisites.",
+          host_incompatible: "The official helper cannot be directly executed from this host.",
+          already_running: "Another activation probe is already running.",
+          remaining_blockers: "Helper verification succeeded, but additional blockers remain.",
+          timeout: "The helper probe timed out.",
+          launch_failed: "The helper probe could not be started.",
+          non_zero_exit: "The helper probe exited with a non-zero status.",
+          unknown: "The helper probe ended in an unexpected state.",
+        },
+      },
       value: {
         yes: "Yes",
         no: "No",

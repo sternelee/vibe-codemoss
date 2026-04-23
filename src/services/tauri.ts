@@ -40,9 +40,17 @@ export {
   restoreCodexUnifiedExecOfficialDefault,
   setCodexUnifiedExecOfficialOverride,
 } from "./tauri/settings";
-export { getComputerUseBridgeStatus } from "./tauri/computerUse";
+export {
+  getComputerUseBridgeStatus,
+  runComputerUseActivationProbe,
+} from "./tauri/computerUse";
 export { runClaudeDoctor, runCodexDoctor } from "./tauri/doctor";
-export type { ComputerUseBridgeStatus } from "../types";
+export type {
+  ComputerUseActivationFailureKind,
+  ComputerUseActivationOutcome,
+  ComputerUseActivationResult,
+  ComputerUseBridgeStatus,
+} from "../types";
 export {
   cancelDictation,
   cancelDictationDownload,
