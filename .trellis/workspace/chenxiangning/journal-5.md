@@ -1239,3 +1239,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 158: 接入 Codex CLI Computer Use 插件缓存链路
+
+**Date**: 2026-04-23
+**Task**: 接入 Codex CLI Computer Use 插件缓存链路
+**Branch**: `feature/v-0.4.8`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5ecae8d6` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

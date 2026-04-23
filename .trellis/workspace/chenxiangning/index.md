@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-5.md`
-- **Total Sessions**: 157
+- **Total Sessions**: 158
 - **Last Active**: 2026-04-23
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-5.md` | ~1241 | Active |
+| `journal-5.md` | ~1274 | Active |
 | `journal-4.md` | ~1975 | Archived |
 | `journal-3.md` | ~1972 | Archived |
 | `journal-2.md` | ~1960 | Archived |
@@ -33,6 +33,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 158 | 2026-04-23 | 接入 Codex CLI Computer Use 插件缓存链路 | `5ecae8d6` | `feature/v-0.4.8` |
 | 157 | 2026-04-23 | Computer Use parent contract 阻塞状态产品化 | `c3b1e9be` | `feature/v-0.4.8` |
 | 156 | 2026-04-23 | 归档 Linux AppImage Wayland 启动修复提案 | `e684bfe7` | `feature/v-0.4.8` |
 | 155 | 2026-04-23 | Computer Use 官方 parent handoff 只读发现 | `e34808e9` | `feature/v-0.4.8` |
