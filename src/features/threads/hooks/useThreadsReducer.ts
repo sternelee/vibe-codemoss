@@ -52,6 +52,13 @@ import {
   normalizeComparableUserText,
   normalizeUserImages,
 } from "../utils/queuedHandoffBubble";
+import {
+  isOptimisticGeneratedImagePlaceholder,
+} from "../utils/generatedImagePlaceholder";
+import {
+  replaceMatchingOptimisticGeneratedImagePlaceholder,
+  shouldPreserveOptimisticGeneratedImagePlaceholder,
+} from "../utils/generatedImagePlaceholderMatching";
 
 const REDUCER_NOOP_GUARD_ENABLED = isReducerNoopGuardEnabled();
 const INCREMENTAL_DERIVATION_ENABLED = isIncrementalDerivationEnabled();
@@ -302,10 +309,24 @@ function mergeThreadItemsPreservingOptimisticUsers(
     }
   }
 
+  const incomingIds = new Set(mergedItems.map((item) => item.id));
+
+  if (isProcessing) {
+    const preservedOptimisticGeneratedImages = localItems.filter((item) =>
+      shouldPreserveOptimisticGeneratedImagePlaceholder(
+        item,
+        mergedItems,
+        incomingIds,
+      ),
+    );
+    if (preservedOptimisticGeneratedImages.length > 0) {
+      mergedItems = [...mergedItems, ...preservedOptimisticGeneratedImages];
+    }
+  }
+
   if (isProcessing) {
     // Keep locally generated requestUserInput submitted records visible while
     // the thread is still processing and backend snapshot may lag.
-    const incomingIds = new Set(mergedItems.map((item) => item.id));
     const preservedSubmittedItems = localItems.filter(
       (item) =>
         item.kind === "tool" &&
@@ -544,6 +565,7 @@ export type ThreadAction =
       item: ConversationItem;
       hasCustomName?: boolean;
     }
+  | { type: "clearOptimisticGeneratedImagePlaceholders"; threadId: string }
   | { type: "evictThreadItems"; threadIds: string[] }
   | { type: "setThreadItems"; threadId: string; items: ConversationItem[] }
   | {
@@ -1758,6 +1780,24 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         }
       }
       let nextItem = ensureUniqueReviewId(list, item);
+      if (
+        nextItem.kind === "generatedImage" &&
+        !isOptimisticGeneratedImagePlaceholder(nextItem)
+      ) {
+        const replacedList = replaceMatchingOptimisticGeneratedImagePlaceholder(
+          list,
+          nextItem,
+        );
+        if (replacedList) {
+          return {
+            ...state,
+            itemsByThread: {
+              ...state.itemsByThread,
+              [action.threadId]: prepareThreadItems(replacedList),
+            },
+          };
+        }
+      }
       if (nextItem.kind === "reasoning") {
         const segmentedReasoningId = resolveLiveReasoningItemId(
           state,
@@ -1896,6 +1936,22 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
           [action.threadId]: updatedItems,
         },
         threadsByWorkspace: nextThreadsByWorkspace,
+      };
+    }
+    case "clearOptimisticGeneratedImagePlaceholders": {
+      const list = state.itemsByThread[action.threadId] ?? [];
+      const filtered = list.filter(
+        (item) => !isOptimisticGeneratedImagePlaceholder(item),
+      );
+      if (filtered.length === list.length) {
+        return state;
+      }
+      return {
+        ...state,
+        itemsByThread: {
+          ...state.itemsByThread,
+          [action.threadId]: prepareThreadItems(filtered),
+        },
       };
     }
     case "setThreadItems": {

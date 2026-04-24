@@ -768,6 +768,7 @@ describe("useAppServerEvents", () => {
           params: {
             threadId: "opencode-pending-1",
             sessionId: "ses_1",
+            turnId: "turn-1",
             engine: "opencode",
           },
         },
@@ -779,6 +780,7 @@ describe("useAppServerEvents", () => {
       "opencode-pending-1",
       "ses_1",
       "opencode",
+      "turn-1",
     );
 
     await act(async () => {
@@ -1514,6 +1516,81 @@ describe("useAppServerEvents", () => {
       delta: "snapshot text",
     });
     expect(handlers.onItemUpdated).not.toHaveBeenCalled();
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("routes codex/raw native image generation events when thread id is present", async () => {
+    const handlers: Handlers = {
+      onItemStarted: vi.fn(),
+    };
+    const { root } = await mount(handlers, {
+      useNormalizedRealtimeAdapters: true,
+    });
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-codex",
+        message: {
+          method: "codex/raw",
+          params: {
+            threadId: "thread-codex-image",
+            type: "event_msg",
+            payload: {
+              type: "image_generation_end",
+              call_id: "ig-raw-fallback-1",
+              status: "generating",
+              revised_prompt: "搬砖工人的卡通图",
+            },
+          },
+        },
+      });
+    });
+
+    expect(handlers.onItemStarted).toHaveBeenCalledWith(
+      "ws-codex",
+      "thread-codex-image",
+      expect.objectContaining({
+        id: "ig-raw-fallback-1",
+        type: "image_generation_end",
+        call_id: "ig-raw-fallback-1",
+      }),
+    );
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("does not guess active codex thread for raw image generation events without thread identity", async () => {
+    const handlers: Handlers = {
+      onItemStarted: vi.fn(),
+      getActiveCodexThreadId: vi.fn(() => "thread-codex-image-disabled"),
+    };
+    const { root } = await mount(handlers);
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-codex",
+        message: {
+          method: "codex/raw",
+          params: {
+            type: "event_msg",
+            payload: {
+              type: "image_generation_call",
+              call_id: "ig-raw-disabled-1",
+              status: "generating",
+              revised_prompt: "一张狮虎搏杀的电影级海报",
+            },
+          },
+        },
+      });
+    });
+
+    expect(handlers.onItemStarted).not.toHaveBeenCalled();
+    expect(handlers.getActiveCodexThreadId).not.toHaveBeenCalled();
 
     await act(async () => {
       root.unmount();

@@ -113,6 +113,20 @@ export type ConversationItem =
     }
   | {
       id: string;
+      kind: "generatedImage";
+      engineSource?: EngineType;
+      status: "processing" | "completed" | "degraded";
+      sourceToolName?: string;
+      promptText?: string;
+      fallbackText?: string;
+      anchorUserMessageId?: string;
+      images: {
+        src: string;
+        localPath?: string | null;
+      }[];
+    }
+  | {
+      id: string;
       kind: "tool";
       toolType: string;
       engineSource?: EngineType;

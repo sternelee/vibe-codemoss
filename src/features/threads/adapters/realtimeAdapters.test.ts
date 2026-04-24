@@ -222,6 +222,65 @@ describe("realtime adapters", () => {
     }
   });
 
+  it("maps codex native image_generation_end snapshot with call_id fallback", () => {
+    const event = codexRealtimeAdapter.mapEvent({
+      workspaceId: "ws-image",
+      message: {
+        method: "item/completed",
+        params: {
+          threadId: "thread-image",
+          item: {
+            type: "image_generation_end",
+            call_id: "ig-native-realtime-1",
+            status: "completed",
+            revised_prompt: "古风人物插画",
+            saved_path: "/Users/demo/.codex/generated_images/ig_realtime.png",
+          },
+        },
+      },
+    });
+    expect(event).toBeTruthy();
+    expect(event?.engine).toBe("codex");
+    expect(event?.operation).toBe("itemCompleted");
+    expect(event?.item.kind).toBe("generatedImage");
+    expect(event?.item.id).toBe("ig-native-realtime-1");
+    if (event?.item.kind === "generatedImage") {
+      expect(event.item.promptText).toContain("古风人物");
+      expect(event.item.images[0]?.localPath).toBe(
+        "/Users/demo/.codex/generated_images/ig_realtime.png",
+      );
+    }
+  });
+
+  it("maps codex/raw native generating image payload into a processing generated image event", () => {
+    const event = codexRealtimeAdapter.mapEvent({
+      workspaceId: "ws-image",
+      message: {
+        method: "codex/raw",
+        params: {
+          threadId: "thread-image",
+          type: "event_msg",
+          payload: {
+            type: "image_generation_end",
+            call_id: "ig-native-raw-1",
+            status: "generating",
+            revised_prompt: "搬砖工人的卡通插画",
+          },
+        },
+      },
+    });
+    expect(event).toBeTruthy();
+    expect(event?.engine).toBe("codex");
+    expect(event?.operation).toBe("itemStarted");
+    expect(event?.item.kind).toBe("generatedImage");
+    expect(event?.item.id).toBe("ig-native-raw-1");
+    if (event?.item.kind === "generatedImage") {
+      expect(event.item.status).toBe("processing");
+      expect(event.item.promptText).toContain("搬砖工人");
+      expect(event.item.images).toHaveLength(0);
+    }
+  });
+
   it("maps opencode text:delta to assistant delta and ignores heartbeat", () => {
     const deltaEvent = opencodeRealtimeAdapter.mapEvent({
       workspaceId: "ws-3",

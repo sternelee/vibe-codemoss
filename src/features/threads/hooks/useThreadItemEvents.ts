@@ -9,6 +9,10 @@ import {
   applyPendingClaudeMcpOutputNoticeToAgentCompleted,
   applyPendingClaudeMcpOutputNoticeToAgentDelta,
 } from "../utils/claudeMcpRuntimeSnapshot";
+import {
+  createOptimisticGeneratedImagePlaceholder,
+  extractOptimisticGeneratedImagePrompt,
+} from "../utils/generatedImagePlaceholder";
 
 const CLAUDE_STREAM_DEBUG_FLAG_KEY = "ccgui.debug.claude.stream";
 
@@ -186,6 +190,20 @@ export function useThreadItemEvents({
   const pendingRealtimeDeltaOpsRef = useRef<RealtimeDeltaOperation[]>([]);
   const realtimeFlushTimerRef = useRef<number | null>(null);
   const isFlushingRealtimeDeltaOpsRef = useRef(false);
+  const optimisticGeneratedImageKeysRef = useRef<Set<string>>(new Set());
+
+  const clearOptimisticGeneratedImageKeys = useCallback((threadId?: string) => {
+    if (!threadId) {
+      optimisticGeneratedImageKeysRef.current.clear();
+      return;
+    }
+    const threadPrefix = `${threadId}\u0000`;
+    optimisticGeneratedImageKeysRef.current = new Set(
+      Array.from(optimisticGeneratedImageKeysRef.current).filter(
+        (key) => !key.startsWith(threadPrefix),
+      ),
+    );
+  }, []);
 
   const normalizeToolIdentifier = useCallback((value: string) => {
     return value.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -401,6 +419,55 @@ export function useThreadItemEvents({
     [applyRealtimeDeltaOperation, flushRealtimeDeltaOps, safeMessageActivity],
   );
 
+  const maybeStageOptimisticGeneratedImagePlaceholder = useCallback(
+    ({
+      workspaceId,
+      threadId,
+      itemId,
+      text,
+      flushPendingRealtimeDeltas = false,
+    }: {
+      workspaceId: string;
+      threadId: string;
+      itemId: string;
+      text: string;
+      flushPendingRealtimeDeltas?: boolean;
+    }) => {
+      const promptText = extractOptimisticGeneratedImagePrompt(text);
+      if (!promptText) {
+        return;
+      }
+      const normalizedItemId = itemId.trim() || "assistant-imagegen-intent";
+      const placeholderKey = `${threadId}\u0000${normalizedItemId}`;
+      if (optimisticGeneratedImageKeysRef.current.has(placeholderKey)) {
+        return;
+      }
+      if (flushPendingRealtimeDeltas) {
+        flushRealtimeDeltaOps();
+      }
+      optimisticGeneratedImageKeysRef.current.add(placeholderKey);
+      dispatch({
+        type: "ensureThread",
+        workspaceId,
+        threadId,
+        engine: inferEngineFromThreadId(threadId),
+      });
+      dispatch({ type: "incrementAgentSegment", threadId });
+      dispatch({
+        type: "upsertItem",
+        workspaceId,
+        threadId,
+        item: createOptimisticGeneratedImagePlaceholder({
+          threadId,
+          itemId: normalizedItemId,
+          promptText,
+        }),
+        hasCustomName: Boolean(getCustomName(workspaceId, threadId)),
+      });
+    },
+    [dispatch, flushRealtimeDeltaOps, getCustomName],
+  );
+
   useEffect(
     () => () => {
       flushRealtimeDeltaOps();
@@ -409,8 +476,9 @@ export function useThreadItemEvents({
         realtimeFlushTimerRef.current = null;
       }
       pendingRealtimeDeltaOpsRef.current = [];
+      clearOptimisticGeneratedImageKeys();
     },
-    [flushRealtimeDeltaOps],
+    [clearOptimisticGeneratedImageKeys, flushRealtimeDeltaOps],
   );
 
   const handleItemUpdate = useCallback(
@@ -468,6 +536,10 @@ export function useThreadItemEvents({
         "collabAgentToolCall",
         "webSearch",
         "imageView",
+        "generatedImage",
+        "generated_image",
+        "image_generation_call",
+        "image_generation_end",
       ].includes(itemType);
       if (shouldMarkProcessing && shouldIncrementAgentSegment && isToolItem) {
         dispatch({ type: "incrementAgentSegment", threadId });
@@ -490,6 +562,12 @@ export function useThreadItemEvents({
             itemType,
             deltaLength: agentMessageSnapshotText.length,
             textPreview: createDebugPreview(agentMessageSnapshotText),
+          });
+          maybeStageOptimisticGeneratedImagePlaceholder({
+            workspaceId,
+            threadId,
+            itemId,
+            text: agentMessageSnapshotText,
           });
         }
         safeMessageActivity();
@@ -552,6 +630,9 @@ export function useThreadItemEvents({
           item: normalizedItem,
           hasCustomName: Boolean(getCustomName(workspaceId, threadId)),
         });
+        if (normalizedItem.kind === "generatedImage") {
+          clearOptimisticGeneratedImageKeys(threadId);
+        }
         if (
           !shouldMarkProcessing &&
           inferEngineFromThreadId(threadId) === "claude" &&
@@ -569,6 +650,7 @@ export function useThreadItemEvents({
     },
     [
       applyCollabThreadLinks,
+      clearOptimisticGeneratedImageKeys,
       dispatch,
       flushRealtimeDeltaOps,
       getCustomName,
@@ -656,6 +738,13 @@ export function useThreadItemEvents({
         itemId,
         delta: resolvedDelta,
       });
+      maybeStageOptimisticGeneratedImagePlaceholder({
+        workspaceId,
+        threadId,
+        itemId,
+        text: resolvedDelta,
+        flushPendingRealtimeDeltas: true,
+      });
       logClaudeStream("agent-delta", {
         workspaceId,
         threadId,
@@ -712,6 +801,12 @@ export function useThreadItemEvents({
         text: resolvedText,
         timestamp,
       });
+      maybeStageOptimisticGeneratedImagePlaceholder({
+        workspaceId,
+        threadId,
+        itemId,
+        text: resolvedText,
+      });
       recordThreadActivity(workspaceId, threadId, timestamp);
       safeMessageActivity();
       if (threadId !== activeThreadId) {
@@ -741,6 +836,7 @@ export function useThreadItemEvents({
       recordThreadActivity,
       safeMessageActivity,
       interruptedThreadsRef,
+      maybeStageOptimisticGeneratedImagePlaceholder,
     ],
   );
 
@@ -922,9 +1018,10 @@ export function useThreadItemEvents({
     onItemCompleted,
     onReasoningSummaryDelta,
     onReasoningSummaryBoundary,
-    onReasoningTextDelta,
-    onCommandOutputDelta,
-    onTerminalInteraction,
-    onFileChangeOutputDelta,
+      onReasoningTextDelta,
+      onCommandOutputDelta,
+      onTerminalInteraction,
+      onFileChangeOutputDelta,
+      clearOptimisticGeneratedImageKeys,
   };
 }

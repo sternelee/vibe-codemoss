@@ -16,6 +16,7 @@ import type { PresentationProfile } from "../presentation/presentationProfile";
 import { parseAgentTaskNotification } from "../utils/agentTaskNotification";
 import { CollapsibleUserTextBlock } from "./CollapsibleUserTextBlock";
 import { ImageLightbox, MessageImageGrid, type MessageImage } from "./MessageMediaBlocks";
+import { LocalImage } from "./LocalImage";
 import { Markdown } from "./Markdown";
 import { parseMemoryContextSummary } from "./messagesMemoryContext";
 import { parseReasoning } from "./messagesReasoning";
@@ -116,6 +117,11 @@ type ExploreRowProps = {
   onToggle: (id: string) => void;
 };
 
+type GeneratedImageRowProps = {
+  item: Extract<ConversationItem, { kind: "generatedImage" }>;
+  workspaceId?: string | null;
+};
+
 const LIVE_ASSISTANT_MARKDOWN_THROTTLE_MS = 48;
 
 function areMessageImagesEqual(
@@ -212,6 +218,32 @@ function shouldUsePlainTextStreamingSurface(
     isStreaming &&
     mitigationProfile?.renderPlainTextWhileStreaming === true
   );
+}
+
+function areGeneratedImageItemsEqual(
+  previous: Extract<ConversationItem, { kind: "generatedImage" }>,
+  next: Extract<ConversationItem, { kind: "generatedImage" }>,
+) {
+  if (previous === next) {
+    return true;
+  }
+  if (
+    previous.id !== next.id ||
+    previous.status !== next.status ||
+    previous.promptText !== next.promptText ||
+    previous.fallbackText !== next.fallbackText ||
+    previous.anchorUserMessageId !== next.anchorUserMessageId ||
+    previous.images.length !== next.images.length
+  ) {
+    return false;
+  }
+  return previous.images.every((image, index) => {
+    const nextImage = next.images[index];
+    return (
+      nextImage?.src === image.src &&
+      nextImage.localPath === image.localPath
+    );
+  });
 }
 
 export const WorkingIndicator = memo(function WorkingIndicator({
@@ -751,6 +783,128 @@ export const ReasoningRow = memo(function ReasoningRow({
     </div>
   );
 });
+
+export const GeneratedImageRow = memo(function GeneratedImageRow({
+  item,
+  workspaceId = null,
+}: GeneratedImageRowProps) {
+  const { t } = useTranslation();
+  const generatedImageTitle =
+    t("messages.generatedImageTitle") === "messages.generatedImageTitle"
+      ? "生成图片"
+      : t("messages.generatedImageTitle");
+  const generatedImageProcessingLabel =
+    t("messages.generatedImageProcessing") === "messages.generatedImageProcessing"
+      ? "制作中"
+      : t("messages.generatedImageProcessing");
+  const generatedImageCompletedLabel =
+    t("messages.generatedImageCompleted") === "messages.generatedImageCompleted"
+      ? "已完成"
+      : t("messages.generatedImageCompleted");
+  const generatedImageDegradedLabel =
+    t("messages.generatedImageDegraded") === "messages.generatedImageDegraded"
+      ? "已完成"
+      : t("messages.generatedImageDegraded");
+  const generatedImageProcessingHint =
+    t("messages.generatedImageProcessingHint") === "messages.generatedImageProcessingHint"
+      ? "这张图片仍在生成中，稍后会自动展示预览。"
+      : t("messages.generatedImageProcessingHint");
+  const generatedImageDegradedHint =
+    t("messages.generatedImageDegradedHint") === "messages.generatedImageDegradedHint"
+      ? "图片已生成完成，但当前预览恢复失败。"
+      : t("messages.generatedImageDegradedHint");
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const imageItems = useMemo(
+    () =>
+      item.images.map((image, index) => ({
+        src: image.src,
+        label:
+          t("messages.generatedImagePreviewLabel", {
+            index: index + 1,
+          }) === "messages.generatedImagePreviewLabel"
+            ? `打开生成图片 ${index + 1}`
+            : t("messages.generatedImagePreviewLabel", {
+                index: index + 1,
+              }),
+        localPath: image.localPath ?? null,
+      })),
+    [item.images, t],
+  );
+  const statusLabel =
+    item.status === "processing"
+      ? generatedImageProcessingLabel
+      : item.status === "completed"
+        ? generatedImageCompletedLabel
+        : generatedImageDegradedLabel;
+  const statusClassName =
+    item.status === "processing"
+      ? "is-processing"
+      : item.status === "completed"
+        ? "is-completed"
+        : "is-degraded";
+
+  return (
+    <div
+      className="message-generated-image-card"
+      data-generated-image-anchor={item.anchorUserMessageId ?? undefined}
+    >
+      <div className="message-generated-image-header">
+        <div className="message-generated-image-title-group">
+          <span className="message-generated-image-eyebrow">
+            {generatedImageTitle}
+          </span>
+          {item.promptText ? (
+            <div className="message-generated-image-prompt">{item.promptText}</div>
+          ) : null}
+        </div>
+        <span className={`message-generated-image-status ${statusClassName}`}>
+          {statusLabel}
+        </span>
+      </div>
+      {item.status === "processing" ? (
+        <div className="message-generated-image-hint">
+          {generatedImageProcessingHint}
+        </div>
+      ) : null}
+      {imageItems.length > 0 ? (
+        <div className="message-generated-image-grid" role="list">
+          {imageItems.map((image, index) => (
+            <button
+              key={`${item.id}-${index}`}
+              type="button"
+              className="message-generated-image-thumb"
+              onClick={() => setLightboxIndex(index)}
+              aria-label={image.label}
+            >
+              <LocalImage
+                src={image.src}
+                localPath={image.localPath}
+                workspaceId={workspaceId}
+                alt={image.label}
+                loading="lazy"
+              />
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {item.status === "degraded" ? (
+        <div className="message-generated-image-hint">
+          {item.fallbackText || generatedImageDegradedHint}
+        </div>
+      ) : null}
+      {lightboxIndex !== null && imageItems.length > 0 ? (
+        <ImageLightbox
+          images={imageItems.map(({ src, label }) => ({ src, label }))}
+          activeIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
+      ) : null}
+    </div>
+  );
+}, (previous, next) => (
+  previous.workspaceId === next.workspaceId
+  && areGeneratedImageItemsEqual(previous.item, next.item)
+));
 
 export const ReviewRow = memo(function ReviewRow({
   item,

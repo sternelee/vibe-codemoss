@@ -159,6 +159,78 @@ function createEvent({
   };
 }
 
+function normalizeRawCodexEntryType(value: string): "event_msg" | "response_item" | null {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "event_msg" || normalized === "response_item") {
+    return normalized;
+  }
+  return null;
+}
+
+function buildRawGeneratedImageSnapshot(
+  payload: Record<string, unknown>,
+): Record<string, unknown> {
+  const resolvedId = asString(
+    payload.id ?? payload.call_id ?? payload.callId ?? payload.item_id ?? payload.itemId ?? "",
+  ).trim();
+  return resolvedId ? { ...payload, id: resolvedId } : payload;
+}
+
+function mapCodexRawGeneratedImageEvent({
+  engine,
+  workspaceId,
+  threadId,
+  method,
+  params,
+  turnId,
+  timestampMs,
+}: {
+  engine: ConversationEngine;
+  workspaceId: string;
+  threadId: string;
+  method: string;
+  params: Record<string, unknown>;
+  turnId: string;
+  timestampMs: number;
+}): NormalizedThreadEvent | null {
+  if (engine !== "codex" || method !== "codex/raw") {
+    return null;
+  }
+  const rawEntryType = normalizeRawCodexEntryType(asString(params.type ?? ""));
+  if (!rawEntryType) {
+    return null;
+  }
+  const rawPayload = asRecord(params.payload);
+  if (Object.keys(rawPayload).length === 0) {
+    return null;
+  }
+  const rawItem = buildRawGeneratedImageSnapshot(rawPayload);
+  const converted = buildConversationItem(rawItem);
+  if (!converted || converted.kind !== "generatedImage") {
+    return null;
+  }
+  const operation =
+    rawEntryType === "event_msg"
+      ? converted.status === "processing"
+        ? "itemStarted"
+        : "itemUpdated"
+      : converted.status === "processing"
+        ? "itemUpdated"
+        : "itemCompleted";
+  return createEvent({
+    engine,
+    workspaceId,
+    threadId,
+    eventId: `${converted.id}:${rawEntryType}:${converted.status}`,
+    item: converted,
+    operation,
+    sourceMethod: method,
+    rawItem,
+    turnId,
+    timestampMs,
+  });
+}
+
 export function inferEngineFromThreadId(
   threadId: string,
 ): ConversationEngine {
@@ -193,6 +265,19 @@ export function mapCommonRealtimeEvent(
   const timestampMs = resolveTimestamp(params);
   if (!threadId) {
     return null;
+  }
+
+  const codexRawGeneratedImageEvent = mapCodexRawGeneratedImageEvent({
+    engine,
+    workspaceId,
+    threadId,
+    method,
+    params,
+    turnId,
+    timestampMs,
+  });
+  if (codexRawGeneratedImageEvent) {
+    return codexRawGeneratedImageEvent;
   }
 
   if (method === "processing/heartbeat") {
@@ -344,7 +429,7 @@ export function mapCommonRealtimeEvent(
     const rawItem = hydrateToolSnapshotWithEventParams(asRecord(params.item), params);
     const rawUsage = asRecord(params.usage);
     const itemType = asString(rawItem.type ?? "");
-    const itemId = asString(rawItem.id ?? "");
+    const itemId = asString(rawItem.id ?? rawItem.call_id ?? rawItem.callId ?? "");
     if (!itemType || !itemId) {
       return null;
     }

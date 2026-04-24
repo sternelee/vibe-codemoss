@@ -151,6 +151,147 @@ describe("useThreadItemEvents", () => {
     });
   });
 
+  it("treats native generated image starts as a new tool boundary and upserts a processing card", () => {
+    const generatedImageItem = {
+      id: "generated-image-1",
+      kind: "generatedImage",
+      status: "processing",
+      sourceToolName: "image_generation_call",
+      promptText: "搬砖工人的卡通图",
+      images: [],
+    };
+    vi.mocked(buildConversationItem).mockReturnValue(
+      generatedImageItem as unknown as ReturnType<typeof buildConversationItem>,
+    );
+    const { result, dispatch, markProcessing } = makeOptions();
+
+    act(() => {
+      result.current.onItemStarted("ws-1", "thread-1", {
+        type: "image_generation_call",
+        id: "generated-image-1",
+      });
+    });
+
+    expect(markProcessing).toHaveBeenCalledWith("thread-1", true);
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "incrementAgentSegment",
+      threadId: "thread-1",
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "upsertItem",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+      item: generatedImageItem,
+      hasCustomName: false,
+    });
+  });
+
+  it("stages an optimistic generated image placeholder when assistant delta announces imagegen skill", () => {
+    const { result, dispatch } = makeOptions();
+
+    act(() => {
+      result.current.onAgentMessageDelta({
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        itemId: "assistant-1",
+        delta: "使用 `imagegen` skill，直接生成一张成年女性肖像。",
+      });
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "incrementAgentSegment",
+      threadId: "thread-1",
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "upsertItem",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+      item: {
+        id: "optimistic-generated-image:thread-1:assistant-1",
+        kind: "generatedImage",
+        status: "processing",
+        sourceToolName: "imagegen-intent-placeholder",
+        promptText: "直接生成一张成年女性肖像。",
+        images: [],
+      },
+      hasCustomName: false,
+    });
+  });
+
+  it("stages an optimistic generated image placeholder from completed assistant commentary", () => {
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(2468);
+    const { result, dispatch } = makeOptions();
+
+    act(() => {
+      result.current.onAgentMessageCompleted({
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        itemId: "assistant-2",
+        text: "使用 imagegen skill，按你的约束重生成为完整头部出镜的东亚成年舞者形象。",
+      });
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "incrementAgentSegment",
+      threadId: "thread-1",
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "upsertItem",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+      item: {
+        id: "optimistic-generated-image:thread-1:assistant-2",
+        kind: "generatedImage",
+        status: "processing",
+        sourceToolName: "imagegen-intent-placeholder",
+        promptText: "按你的约束重生成为完整头部出镜的东亚成年舞者形象。",
+        images: [],
+      },
+      hasCustomName: false,
+    });
+
+    nowSpy.mockRestore();
+  });
+
+  it("releases optimistic generated image dedupe after a real generated image arrives", () => {
+    vi.mocked(buildConversationItem).mockReturnValue({
+      id: "generated-image-1",
+      kind: "generatedImage",
+      status: "completed",
+      sourceToolName: "image_generation_end",
+      promptText: "直接生成一张成年女性肖像。",
+      images: [{ src: "data:image/png;base64,AAA" }],
+    } as unknown as ReturnType<typeof buildConversationItem>);
+    const { result, dispatch } = makeOptions();
+
+    act(() => {
+      result.current.onAgentMessageDelta({
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        itemId: "assistant-1",
+        delta: "使用 `imagegen` skill，直接生成一张成年女性肖像。",
+      });
+      result.current.onItemCompleted("ws-1", "thread-1", {
+        type: "image_generation_end",
+        id: "generated-image-1",
+      });
+      result.current.onAgentMessageDelta({
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        itemId: "assistant-1",
+        delta: "使用 `imagegen` skill，直接生成一张成年女性肖像。",
+      });
+    });
+
+    const placeholderCalls = dispatch.mock.calls.filter(
+      ([action]) =>
+        action?.type === "upsertItem" &&
+        action.item?.kind === "generatedImage" &&
+        action.item?.sourceToolName === "imagegen-intent-placeholder",
+    );
+    expect(placeholderCalls).toHaveLength(2);
+  });
+
   it("routes agentMessage snapshots into assistant streaming delta updates", () => {
     const { result, dispatch, markProcessing, safeMessageActivity } = makeOptions();
 

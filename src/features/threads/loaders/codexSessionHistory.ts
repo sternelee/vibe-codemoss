@@ -570,6 +570,23 @@ function buildApplyPatchItem({
   });
 }
 
+function buildGeneratedImageHistoryItem(
+  payload: Record<string, unknown>,
+  fallbackId: string,
+) {
+  const resolvedId =
+    asString(payload.id ?? payload.call_id ?? payload.callId ?? "").trim() || fallbackId;
+  const resolvedType = asString(payload.type ?? "").trim();
+  return buildConversationItem({
+    ...payload,
+    id: resolvedId,
+    type:
+      resolvedType === "image_generation_end"
+        ? "image_generation_end"
+        : "image_generation_call",
+  });
+}
+
 function buildCollabToolCallItem(pending: PendingCollabToolCall) {
   if (!pending.callId.trim() || !pending.tool.trim()) {
     return null;
@@ -1013,6 +1030,20 @@ export function parseCodexSessionHistory(input: unknown): ConversationItem[] {
         return;
       }
 
+      if (
+        payloadType === "image_generation_call" ||
+        payloadType === "image_generation_end"
+      ) {
+        const generatedImage = buildGeneratedImageHistoryItem(
+          payload,
+          `codex-generated-image-${index + 1}`,
+        );
+        if (generatedImage) {
+          appendCodexHistoryItem(items, generatedImage);
+        }
+        return;
+      }
+
       if (payloadType === "function_call") {
         const functionName = asString(payload.name).trim();
         if (functionName === "exec_command") {
@@ -1114,6 +1145,19 @@ export function parseCodexSessionHistory(input: unknown): ConversationItem[] {
             messageTimestampById.set(message.id, entryTimestampMs);
           }
           appendCodexHistoryItem(items, message);
+        }
+        return;
+      }
+      if (
+        payloadType === "image_generation_end" ||
+        payloadType === "image_generation_call"
+      ) {
+        const generatedImage = buildGeneratedImageHistoryItem(
+          payload,
+          `codex-generated-image-${index + 1}`,
+        );
+        if (generatedImage) {
+          appendCodexHistoryItem(items, generatedImage);
         }
         return;
       }

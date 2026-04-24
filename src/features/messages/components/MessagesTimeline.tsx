@@ -31,6 +31,7 @@ import {
 import {
   DiffRow,
   ExploreRow,
+  GeneratedImageRow,
   MessageRow,
   ReasoningRow,
   ReviewRow,
@@ -329,6 +330,15 @@ export function MessagesTimeline({
           workspaceId={workspaceId}
           onOpenFileLink={openFileLink}
           onOpenFileLinkMenu={showFileLinkMenu}
+        />
+      );
+    }
+    if (item.kind === "generatedImage") {
+      return (
+        <GeneratedImageRow
+          key={`generated-image:${item.id}`}
+          item={item}
+          workspaceId={workspaceId}
         />
       );
     }
