@@ -7,9 +7,9 @@
 ## Current Status
 
 <!-- @@@auto:current-status -->
-- **Active File**: `journal-5.md`
-- **Total Sessions**: 146
-- **Last Active**: 2026-04-23
+- **Active File**: `journal-6.md`
+- **Total Sessions**: 174
+- **Last Active**: 2026-04-24
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,8 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-5.md` | ~588 | Active |
+| `journal-6.md` | ~183 | Active |
+| `journal-5.md` | ~1949 | Archived |
 | `journal-4.md` | ~1975 | Archived |
 | `journal-3.md` | ~1972 | Archived |
 | `journal-2.md` | ~1960 | Archived |
@@ -33,6 +34,34 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 174 | 2026-04-24 | 归档已验证的 Claude 稳定性提案 | `5c91e83d8311bf5b67d0de7c869e0a1a4314de68` | `feature/v-0.4.8` |
+| 173 | 2026-04-24 | 补充 v0.4.8 发布说明 | `55be1cdbea349c971585e82b361dbf97ce854456` | `feature/v-0.4.8` |
+| 172 | 2026-04-24 | 记录 Windows Claude 流式可见卡顿抢修 | `ef9876e8` | `feature/v-0.4.8` |
+| 171 | 2026-04-24 | 优化悬浮问题条样式与收起兼容性 | `efde3dec` | `feature/v-0.4.8` |
+| 170 | 2026-04-24 | 修正对话幕布 markdown 卡片渲染兼容性 | `4bbd01113b061d6c225924526a0c0948a36de6dd` | `feature/v-0.4.8` |
+| 169 | 2026-04-24 | 修复 Claude 空白幕布与终态重复 | `4b44af80` | `feature/v-0.4.8` |
+| 168 | 2026-04-24 | 拆分 useAppServerEvents 路由测试 | `97896a18` | `feature/v-0.4.8` |
+| 167 | 2026-04-24 | 修复 Claude 汇总长文实时流误路由 | `490ec5f973e729f81594f8afff82586317555aae` | `feature/v-0.4.8` |
+| 166 | 2026-04-24 | 修复 Claude 长文实时渲染与门禁回归 | `1571d17c` | `feature/v-0.4.8` |
+| 165 | 2026-04-24 | 修复 Claude Windows 实时输出卡顿 | `58676abee55f6b570fb6a1822216b0e0cb49b061` | `feature/v-0.4.8` |
+| 164 | 2026-04-24 | 归档 Codex 实时画布去重提案 | `dc88b4b2875f2bb81d0a74464deef6caff7bac24` | `feature/v-0.4.8` |
+| 163 | 2026-04-23 | 收紧 Codex 实时消息兜底边界 | `0eb05c319da360074bcba4c383a9c59992b4a94e` | `feature/v-0.4.8` |
+| 162 | 2026-04-23 | 补充 macOS Apple Events 权限声明 | `74ef35c7` | `feature/v-0.4.8` |
+| 161 | 2026-04-23 | 修复 Computer Use broker 非 Git workspace 拦截 | `235d04e4` | `feature/v-0.4.8` |
+| 160 | 2026-04-23 | 让 Computer Use broker 走 Codex CLI exec | `d17522c2` | `feature/v-0.4.8` |
+| 159 | 2026-04-23 | 接入 Codex CLI Computer Use broker | `8ba83421` | `feature/v-0.4.8` |
+| 158 | 2026-04-23 | 接入 Codex CLI Computer Use 插件缓存链路 | `5ecae8d6` | `feature/v-0.4.8` |
+| 157 | 2026-04-23 | Computer Use parent contract 阻塞状态产品化 | `c3b1e9be` | `feature/v-0.4.8` |
+| 156 | 2026-04-23 | 归档 Linux AppImage Wayland 启动修复提案 | `e684bfe7` | `feature/v-0.4.8` |
+| 155 | 2026-04-23 | Computer Use 官方 parent handoff 只读发现 | `e34808e9` | `feature/v-0.4.8` |
+| 154 | 2026-04-23 | Computer Use 宿主契约诊断链路 | `599eb605` | `feature/v-0.4.8` |
+| 153 | 2026-04-23 | 归档 Computer Use 阶段2并创建宿主契约调查提案 | `039d8b2d` | `feature/v-0.4.8` |
+| 152 | 2026-04-23 | 落地 Computer Use helper bridge 显式验证通道 | `62bfbff2` | `feature/v-0.4.8` |
+| 151 | 2026-04-23 | Propose Claude Windows streaming visibility fix | `a13e95724be38fa755bec57053f2d2f7763ecd20` | `feature/v-0.4.8` |
+| 150 | 2026-04-23 | 修复 Linux AppImage Wayland 启动兼容守卫 | `a77dd3d8` | `feature/v-0.4.8` |
+| 149 | 2026-04-23 | 强化中文提交与记录规则 | `d3c725f3` | `feature/v-0.4.8` |
+| 148 | 2026-04-23 | Recalibrate OpenSpec snapshot and strict validation | `e9e98dae` | `feature/v-0.4.8` |
+| 147 | 2026-04-23 | 归档 computer-use bridge 与 Claude doctor OpenSpec 变更 | `46cb7f75` | `feature/v-0.4.8` |
 | 146 | 2026-04-23 | 补充 v0.4.8 CHANGELOG 发布说明 | `52ea36e6adecdbbad62f94ce99d248aae0c41f1b` | `feature/v-0.4.8` |
 | 145 | 2026-04-23 | 修正 heavy-test-noise 环境告警统计 | `48ac9bee` | `feature/v-0.4.8` |
 | 144 | 2026-04-23 | 增加 heavy test 噪音 CI 门禁 | `bf288c25` | `feature/v-0.4.8` |
