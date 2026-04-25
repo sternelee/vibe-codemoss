@@ -51,7 +51,6 @@ const makeOptions = (overrides: SetupOverrides = {}) => {
     (threadId: string) => activeTurnIdByThread[threadId] ?? null,
   );
   const renamePendingMemoryCaptureKey = vi.fn();
-  const clearOptimisticGeneratedImageKeys = vi.fn();
   const pendingInterruptsRef = {
     current: new Set(overrides.pendingInterrupts ?? []),
   };
@@ -81,7 +80,6 @@ const makeOptions = (overrides: SetupOverrides = {}) => {
       resolvePendingThreadForTurn,
       getActiveTurnIdForThread,
       renamePendingMemoryCaptureKey,
-      clearOptimisticGeneratedImageKeys,
     }),
   );
 
@@ -104,7 +102,6 @@ const makeOptions = (overrides: SetupOverrides = {}) => {
     resolvePendingThreadForTurn,
     getActiveTurnIdForThread,
     renamePendingMemoryCaptureKey,
-    clearOptimisticGeneratedImageKeys,
     pendingInterruptsRef,
     interruptedThreadsRef,
   };
@@ -357,7 +354,6 @@ describe("useThreadTurnEvents", () => {
       markProcessing,
       setActiveTurnId,
       pendingInterruptsRef,
-      clearOptimisticGeneratedImageKeys,
     } =
       makeOptions({ pendingInterrupts: ["thread-1"] });
 
@@ -371,10 +367,9 @@ describe("useThreadTurnEvents", () => {
       status: "completed",
     });
     expect(dispatch).toHaveBeenCalledWith({
-      type: "clearOptimisticGeneratedImagePlaceholders",
+      type: "clearProcessingGeneratedImages",
       threadId: "thread-1",
     });
-    expect(clearOptimisticGeneratedImageKeys).toHaveBeenCalledWith("thread-1");
     expect(dispatch).toHaveBeenCalledWith({
       type: "settleThreadPlanInProgress",
       threadId: "thread-1",
@@ -1334,7 +1329,6 @@ describe("useThreadTurnEvents", () => {
       setActiveTurnId,
       pushThreadErrorMessage,
       safeMessageActivity,
-      clearOptimisticGeneratedImageKeys,
     } = makeOptions();
 
     act(() => {
@@ -1351,10 +1345,9 @@ describe("useThreadTurnEvents", () => {
       engine: "codex",
     });
     expect(dispatch).toHaveBeenCalledWith({
-      type: "clearOptimisticGeneratedImagePlaceholders",
+      type: "clearProcessingGeneratedImages",
       threadId: "thread-1",
     });
-    expect(clearOptimisticGeneratedImageKeys).toHaveBeenCalledWith("thread-1");
     expect(dispatch).toHaveBeenCalledWith({
       type: "finalizePendingToolStatuses",
       threadId: "thread-1",

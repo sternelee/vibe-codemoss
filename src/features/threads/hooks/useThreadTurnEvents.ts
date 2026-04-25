@@ -102,7 +102,6 @@ type UseThreadTurnEventsOptions = {
     oldThreadId: string,
     newThreadId: string,
   ) => void;
-  clearOptimisticGeneratedImageKeys?: (threadId: string) => void;
   onDebug?: (entry: DebugEntry) => void;
 };
 
@@ -127,7 +126,6 @@ export function useThreadTurnEvents({
   resolvePendingThreadForTurn,
   getActiveTurnIdForThread,
   renamePendingMemoryCaptureKey,
-  clearOptimisticGeneratedImageKeys,
   onDebug,
 }: UseThreadTurnEventsOptions) {
   const { t } = useTranslation();
@@ -279,9 +277,8 @@ export function useThreadTurnEvents({
         ? [threadId, aliasThreadId]
         : [threadId];
       targetThreadIds.forEach((targetThreadId) => {
-        clearOptimisticGeneratedImageKeys?.(targetThreadId);
         dispatch({
-          type: "clearOptimisticGeneratedImagePlaceholders",
+          type: "clearProcessingGeneratedImages",
           threadId: targetThreadId,
         });
         dispatch({ type: "markTerminalSettlement", threadId: targetThreadId });
@@ -312,7 +309,6 @@ export function useThreadTurnEvents({
       return true;
     },
     [
-      clearOptimisticGeneratedImageKeys,
       dispatch,
       getActiveTurnIdForThread,
       interruptedThreadsRef,
@@ -400,9 +396,8 @@ export function useThreadTurnEvents({
       }
 
       dispatch({ type: "ensureThread", workspaceId, threadId, engine: inferEngineFromThreadId(threadId) });
-      clearOptimisticGeneratedImageKeys?.(threadId);
       dispatch({
-        type: "clearOptimisticGeneratedImagePlaceholders",
+        type: "clearProcessingGeneratedImages",
         threadId,
       });
       dispatch({ type: "markTerminalSettlement", threadId });
@@ -426,9 +421,8 @@ export function useThreadTurnEvents({
       markReviewing(threadId, false);
       setActiveTurnId(threadId, null);
       if (aliasThreadId) {
-        clearOptimisticGeneratedImageKeys?.(aliasThreadId);
         dispatch({
-          type: "clearOptimisticGeneratedImagePlaceholders",
+          type: "clearProcessingGeneratedImages",
           threadId: aliasThreadId,
         });
         dispatch({
@@ -486,7 +480,6 @@ export function useThreadTurnEvents({
       safeMessageActivity();
     },
     [
-      clearOptimisticGeneratedImageKeys,
       dispatch,
       getActiveTurnIdForThread,
       interruptedThreadsRef,
@@ -531,9 +524,8 @@ export function useThreadTurnEvents({
       }
 
       dispatch({ type: "ensureThread", workspaceId, threadId, engine: inferEngineFromThreadId(threadId) });
-      clearOptimisticGeneratedImageKeys?.(threadId);
       dispatch({
-        type: "clearOptimisticGeneratedImagePlaceholders",
+        type: "clearProcessingGeneratedImages",
         threadId,
       });
       dispatch({ type: "markTerminalSettlement", threadId });
@@ -552,9 +544,8 @@ export function useThreadTurnEvents({
       markReviewing(threadId, false);
       setActiveTurnId(threadId, null);
       if (aliasThreadId) {
-        clearOptimisticGeneratedImageKeys?.(aliasThreadId);
         dispatch({
-          type: "clearOptimisticGeneratedImagePlaceholders",
+          type: "clearProcessingGeneratedImages",
           threadId: aliasThreadId,
         });
         dispatch({
@@ -607,7 +598,6 @@ export function useThreadTurnEvents({
       safeMessageActivity();
     },
     [
-      clearOptimisticGeneratedImageKeys,
       dispatch,
       getActiveTurnIdForThread,
       markProcessing,

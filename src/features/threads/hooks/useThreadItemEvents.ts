@@ -10,10 +10,6 @@ import {
   applyPendingClaudeMcpOutputNoticeToAgentCompleted,
   applyPendingClaudeMcpOutputNoticeToAgentDelta,
 } from "../utils/claudeMcpRuntimeSnapshot";
-import {
-  createOptimisticGeneratedImagePlaceholder,
-  extractOptimisticGeneratedImagePrompt,
-} from "../utils/generatedImagePlaceholder";
 
 const CLAUDE_STREAM_DEBUG_FLAG_KEY = "ccgui.debug.claude.stream";
 
@@ -220,20 +216,6 @@ export function useThreadItemEvents({
   );
   const normalizedRealtimeFlushTimerRef = useRef<number | null>(null);
   const isFlushingNormalizedRealtimeOpsRef = useRef(false);
-  const optimisticGeneratedImageKeysRef = useRef<Set<string>>(new Set());
-
-  const clearOptimisticGeneratedImageKeys = useCallback((threadId?: string) => {
-    if (!threadId) {
-      optimisticGeneratedImageKeysRef.current.clear();
-      return;
-    }
-    const threadPrefix = `${threadId}\u0000`;
-    optimisticGeneratedImageKeysRef.current = new Set(
-      Array.from(optimisticGeneratedImageKeysRef.current).filter(
-        (key) => !key.startsWith(threadPrefix),
-      ),
-    );
-  }, []);
 
   const normalizeToolIdentifier = useCallback((value: string) => {
     return value.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -449,55 +431,6 @@ export function useThreadItemEvents({
     [applyRealtimeDeltaOperation, flushRealtimeDeltaOps, safeMessageActivity],
   );
 
-  const maybeStageOptimisticGeneratedImagePlaceholder = useCallback(
-    ({
-      workspaceId,
-      threadId,
-      itemId,
-      text,
-      flushPendingRealtimeDeltas = false,
-    }: {
-      workspaceId: string;
-      threadId: string;
-      itemId: string;
-      text: string;
-      flushPendingRealtimeDeltas?: boolean;
-    }) => {
-      const promptText = extractOptimisticGeneratedImagePrompt(text);
-      if (!promptText) {
-        return;
-      }
-      const normalizedItemId = itemId.trim() || "assistant-imagegen-intent";
-      const placeholderKey = `${threadId}\u0000${normalizedItemId}`;
-      if (optimisticGeneratedImageKeysRef.current.has(placeholderKey)) {
-        return;
-      }
-      if (flushPendingRealtimeDeltas) {
-        flushRealtimeDeltaOps();
-      }
-      optimisticGeneratedImageKeysRef.current.add(placeholderKey);
-      dispatch({
-        type: "ensureThread",
-        workspaceId,
-        threadId,
-        engine: inferEngineFromThreadId(threadId),
-      });
-      dispatch({ type: "incrementAgentSegment", threadId });
-      dispatch({
-        type: "upsertItem",
-        workspaceId,
-        threadId,
-        item: createOptimisticGeneratedImagePlaceholder({
-          threadId,
-          itemId: normalizedItemId,
-          promptText,
-        }),
-        hasCustomName: Boolean(getCustomName(workspaceId, threadId)),
-      });
-    },
-    [dispatch, flushRealtimeDeltaOps, getCustomName],
-  );
-
   const dispatchNormalizedRealtimeEvent = useCallback(
     (
       normalizedEvent: NormalizedThreadEvent,
@@ -581,32 +514,11 @@ export function useThreadItemEvents({
     (
       normalizedEvent: NormalizedThreadEvent,
       options: {
-        flushPendingRealtimeDeltas?: boolean;
         skipMessageActivity?: boolean;
       } = {},
     ) => {
       if (normalizedEvent.rawItem) {
         applyCollabThreadLinks(normalizedEvent.threadId, normalizedEvent.rawItem);
-      }
-      if (
-        normalizedEvent.item.kind === "message" &&
-        normalizedEvent.item.role === "assistant"
-      ) {
-        const messageText =
-          normalizedEvent.delta ??
-          normalizedEvent.item.text;
-        maybeStageOptimisticGeneratedImagePlaceholder({
-          workspaceId: normalizedEvent.workspaceId,
-          threadId: normalizedEvent.threadId,
-          itemId: normalizedEvent.item.id,
-          text: messageText,
-          flushPendingRealtimeDeltas:
-            options.flushPendingRealtimeDeltas ??
-            normalizedEvent.operation === "appendAgentMessageDelta",
-        });
-      }
-      if (normalizedEvent.item.kind === "generatedImage") {
-        clearOptimisticGeneratedImageKeys(normalizedEvent.threadId);
       }
       if (
         normalizedEvent.operation === "completeAgentMessage" &&
@@ -626,8 +538,6 @@ export function useThreadItemEvents({
     },
     [
       applyCollabThreadLinks,
-      clearOptimisticGeneratedImageKeys,
-      maybeStageOptimisticGeneratedImagePlaceholder,
       onAgentMessageCompletedExternal,
       safeMessageActivity,
     ],
@@ -722,9 +632,8 @@ export function useThreadItemEvents({
       }
       pendingRealtimeDeltaOpsRef.current = [];
       pendingNormalizedRealtimeOpsRef.current.clear();
-      clearOptimisticGeneratedImageKeys();
     },
-    [clearOptimisticGeneratedImageKeys, flushNormalizedRealtimeOps, flushRealtimeDeltaOps],
+    [flushNormalizedRealtimeOps, flushRealtimeDeltaOps],
   );
 
   const handleItemUpdate = useCallback(
@@ -809,12 +718,6 @@ export function useThreadItemEvents({
             deltaLength: agentMessageSnapshotText.length,
             textPreview: createDebugPreview(agentMessageSnapshotText),
           });
-          maybeStageOptimisticGeneratedImagePlaceholder({
-            workspaceId,
-            threadId,
-            itemId,
-            text: agentMessageSnapshotText,
-          });
         }
         safeMessageActivity();
         return;
@@ -876,9 +779,6 @@ export function useThreadItemEvents({
           item: normalizedItem,
           hasCustomName: Boolean(getCustomName(workspaceId, threadId)),
         });
-        if (normalizedItem.kind === "generatedImage") {
-          clearOptimisticGeneratedImageKeys(threadId);
-        }
         if (
           !shouldMarkProcessing &&
           inferEngineFromThreadId(threadId) === "claude" &&
@@ -896,7 +796,6 @@ export function useThreadItemEvents({
     },
     [
       applyCollabThreadLinks,
-      clearOptimisticGeneratedImageKeys,
       dispatch,
       flushRealtimeDeltaOps,
       getCustomName,
@@ -906,7 +805,6 @@ export function useThreadItemEvents({
       logReasoningRoute,
       markProcessing,
       markReviewing,
-      maybeStageOptimisticGeneratedImagePlaceholder,
       onExitPlanModeToolCompleted,
       resolveCollaborationUiMode,
       safeMessageActivity,
@@ -985,13 +883,6 @@ export function useThreadItemEvents({
         itemId,
         delta: resolvedDelta,
       });
-      maybeStageOptimisticGeneratedImagePlaceholder({
-        workspaceId,
-        threadId,
-        itemId,
-        text: resolvedDelta,
-        flushPendingRealtimeDeltas: true,
-      });
       logClaudeStream("agent-delta", {
         workspaceId,
         threadId,
@@ -1004,7 +895,6 @@ export function useThreadItemEvents({
       enqueueRealtimeDeltaOperation,
       interruptedThreadsRef,
       logClaudeStream,
-      maybeStageOptimisticGeneratedImagePlaceholder,
     ],
   );
 
@@ -1053,12 +943,6 @@ export function useThreadItemEvents({
         text: resolvedText,
         timestamp,
       });
-      maybeStageOptimisticGeneratedImagePlaceholder({
-        workspaceId,
-        threadId,
-        itemId,
-        text: resolvedText,
-      });
       recordThreadActivity(workspaceId, threadId, timestamp);
       safeMessageActivity();
       if (threadId !== activeThreadId) {
@@ -1088,7 +972,6 @@ export function useThreadItemEvents({
       recordThreadActivity,
       safeMessageActivity,
       interruptedThreadsRef,
-      maybeStageOptimisticGeneratedImagePlaceholder,
     ],
   );
 
@@ -1317,10 +1200,9 @@ export function useThreadItemEvents({
     onNormalizedRealtimeEvent,
     onReasoningSummaryDelta,
     onReasoningSummaryBoundary,
-      onReasoningTextDelta,
-      onCommandOutputDelta,
-      onTerminalInteraction,
-      onFileChangeOutputDelta,
-      clearOptimisticGeneratedImageKeys,
+    onReasoningTextDelta,
+    onCommandOutputDelta,
+    onTerminalInteraction,
+    onFileChangeOutputDelta,
   };
 }

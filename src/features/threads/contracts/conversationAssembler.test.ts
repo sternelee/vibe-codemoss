@@ -936,6 +936,62 @@ describe("conversationAssembler", () => {
     ]);
   });
 
+  it("retargets generated image anchors when normalized realtime replaces an optimistic user id", () => {
+    let state = createState();
+    state = {
+      ...state,
+      items: [
+        {
+          id: "optimistic-user-1",
+          kind: "message",
+          role: "user",
+          text: "生成一张图，要美女",
+        },
+        {
+          id: "optimistic-generated-image:thread-1:optimistic-user-1",
+          kind: "generatedImage",
+          status: "processing",
+          sourceToolName: "image_generation_call",
+          promptText: "生成一张图，要美女",
+          anchorUserMessageId: "optimistic-user-1",
+          images: [],
+        },
+      ],
+    };
+
+    state = appendEvent(
+      state,
+      createEvent({
+        eventId: "evt-user-real-1",
+        item: {
+          id: "real-user-1",
+          kind: "message",
+          role: "user",
+          text: "生成一张图，要美女",
+        },
+        operation: "itemCompleted",
+      }),
+    );
+
+    expect(state.items).toEqual([
+      {
+        id: "real-user-1",
+        kind: "message",
+        role: "user",
+        text: "生成一张图，要美女",
+      },
+      {
+        id: "optimistic-generated-image:thread-1:optimistic-user-1",
+        kind: "generatedImage",
+        status: "processing",
+        sourceToolName: "image_generation_call",
+        promptText: "生成一张图，要美女",
+        anchorUserMessageId: "real-user-1",
+        images: [],
+      },
+    ]);
+  });
+
   it("uses whitelist to ignore acceptable realtime/history meta differences", () => {
     const base = createState();
     const realtime: ConversationState = {

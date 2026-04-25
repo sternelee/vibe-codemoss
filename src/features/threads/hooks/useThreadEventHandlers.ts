@@ -736,7 +736,6 @@ export function useThreadEventHandlers({
     onCommandOutputDelta,
     onTerminalInteraction,
     onFileChangeOutputDelta,
-    clearOptimisticGeneratedImageKeys,
   } = useThreadItemEvents({
     activeThreadId,
     dispatch,
@@ -787,7 +786,6 @@ export function useThreadEventHandlers({
     resolvePendingThreadForTurn,
     getActiveTurnIdForThread,
     renamePendingMemoryCaptureKey,
-    clearOptimisticGeneratedImageKeys,
     onDebug,
   });
 

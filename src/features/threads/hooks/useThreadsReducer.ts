@@ -53,13 +53,19 @@ import {
 import type { NormalizedThreadEvent } from "../contracts/conversationCurtainContracts";
 import { isOptimisticUserMessageId } from "../utils/queuedHandoffBubble";
 import {
-  isOptimisticGeneratedImagePlaceholder,
+  isProcessingGeneratedImageItem,
 } from "../utils/generatedImagePlaceholder";
 import {
-  replaceMatchingOptimisticGeneratedImagePlaceholder,
-  shouldPreserveOptimisticGeneratedImagePlaceholder,
+  replaceMatchingProcessingGeneratedImage,
+  shouldPreserveProcessingGeneratedImage,
 } from "../utils/generatedImagePlaceholderMatching";
 import { reduceNormalizedRealtimeEvent } from "./threadReducerNormalizedRealtime";
+import {
+  buildOptimisticUserReplacementMap,
+  insertGeneratedImagesAfterAnchors,
+  replaceOptimisticUserAndExtractAnchoredGeneratedImages,
+  retargetGeneratedImageAnchor,
+} from "./threadReducerOptimisticUserReconciliation";
 
 const REDUCER_NOOP_GUARD_ENABLED = isReducerNoopGuardEnabled();
 const INCREMENTAL_DERIVATION_ENABLED = isIncrementalDerivationEnabled();
@@ -90,6 +96,7 @@ type MessageItem = Extract<ConversationItem, { kind: "message" }>;
 type UserMessageItem = MessageItem & { role: "user" };
 type AssistantMessageItem = MessageItem & { role: "assistant" };
 type ToolConversationItem = Extract<ConversationItem, { kind: "tool" }>;
+type GeneratedImageItem = Extract<ConversationItem, { kind: "generatedImage" }>;
 
 function isUserMessageItem(item: ConversationItem | undefined): item is UserMessageItem {
   return item?.kind === "message" && item.role === "user";
@@ -109,42 +116,6 @@ function isOptimisticUserMessage(
   return isUserMessageItem(item) && isOptimisticUserMessageId(item.id);
 }
 
-function dropMatchingOptimisticUserMessage(
-  list: ConversationItem[],
-  incoming: UserMessageItem,
-) {
-  let matchedIndex = -1;
-  const optimisticIndexes: number[] = [];
-  for (let index = 0; index < list.length; index += 1) {
-    const item = list[index];
-    if (!item) {
-      continue;
-    }
-    if (!isOptimisticUserMessage(item)) {
-      continue;
-    }
-    optimisticIndexes.push(index);
-    if (isEquivalentUserObservation(item, incoming)) {
-      matchedIndex = index;
-      break;
-    }
-  }
-  if (matchedIndex >= 0) {
-    return [...list.slice(0, matchedIndex), ...list.slice(matchedIndex + 1)];
-  }
-  // Conservative fallback: when there is only one optimistic user bubble and no
-  // persisted real user messages yet, treat the first real user payload as its
-  // authoritative replacement even if raw text shape differs.
-  const hasRealUserMessage = list.some(
-    (item) => isUserMessageItem(item) && !isOptimisticUserMessage(item),
-  );
-  if (!hasRealUserMessage && optimisticIndexes.length === 1) {
-    const targetIndex = optimisticIndexes[0]!;
-    return [...list.slice(0, targetIndex), ...list.slice(targetIndex + 1)];
-  }
-  return list;
-}
-
 function findMatchingRealUserMessage(
   list: ConversationItem[],
   candidate: UserMessageItem,
@@ -159,6 +130,7 @@ function findMatchingRealUserMessage(
     return isEquivalentUserObservation(item, candidate);
   });
 }
+
 
 function mergeThreadItemsPreservingOptimisticUsers(
   localItems: ConversationItem[],
@@ -185,6 +157,10 @@ function mergeThreadItemsPreservingOptimisticUsers(
   const localUserSequence = toComparableUserMessageSequence(localItems);
   const incomingUserSequence = toComparableUserMessageSequence(incomingItems);
   const hasUserSequenceDrift = !areSameSequence(localUserSequence, incomingUserSequence);
+  const optimisticUserReplacementById = buildOptimisticUserReplacementMap(
+    localItems,
+    incomingItems,
+  );
   const localUserMessageMetadataBuckets = new Map<
     string,
     Array<Pick<UserMessageItem, "selectedAgentName" | "selectedAgentIcon">>
@@ -296,15 +272,26 @@ function mergeThreadItemsPreservingOptimisticUsers(
   const incomingIds = new Set(mergedItems.map((item) => item.id));
 
   if (isProcessing) {
-    const preservedOptimisticGeneratedImages = localItems.filter((item) =>
-      shouldPreserveOptimisticGeneratedImagePlaceholder(
-        item,
+    const preservedProcessingGeneratedImages = localItems
+      .map((item) =>
+        isProcessingGeneratedImageItem(item)
+          ? retargetGeneratedImageAnchor(item, optimisticUserReplacementById)
+          : item,
+      )
+      .filter(
+        (item): item is GeneratedImageItem =>
+          isProcessingGeneratedImageItem(item) &&
+          shouldPreserveProcessingGeneratedImage(
+            item,
+            mergedItems,
+            incomingIds,
+          ),
+      );
+    if (preservedProcessingGeneratedImages.length > 0) {
+      mergedItems = insertGeneratedImagesAfterAnchors(
         mergedItems,
-        incomingIds,
-      ),
-    );
-    if (preservedOptimisticGeneratedImages.length > 0) {
-      mergedItems = [...mergedItems, ...preservedOptimisticGeneratedImages];
+        preservedProcessingGeneratedImages,
+      );
     }
   }
 
@@ -556,7 +543,7 @@ export type ThreadAction =
       event: NormalizedThreadEvent;
       hasCustomName: boolean;
     }
-  | { type: "clearOptimisticGeneratedImagePlaceholders"; threadId: string }
+  | { type: "clearProcessingGeneratedImages"; threadId: string }
   | { type: "evictThreadItems"; threadIds: string[] }
   | { type: "setThreadItems"; threadId: string; items: ConversationItem[] }
   | {
@@ -1747,8 +1734,13 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
       const item = normalizeItem(action.item);
       const isUserMessage = isUserMessageItem(item);
       const isOptimisticUser = isUserMessage && isOptimisticUserMessageId(item.id);
+      let generatedImagesToReinsertAfterUser: GeneratedImageItem[] = [];
       if (isUserMessage && !isOptimisticUser) {
-        list = dropMatchingOptimisticUserMessage(list, item);
+        const optimisticReplacement =
+          replaceOptimisticUserAndExtractAnchoredGeneratedImages(list, item);
+        list = optimisticReplacement.items;
+        generatedImagesToReinsertAfterUser =
+          optimisticReplacement.generatedImagesToReinsert;
       }
       const hadUserMessage = isUserMessage
         ? list.some((entry) => entry.kind === "message" && entry.role === "user")
@@ -1773,9 +1765,9 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
       let nextItem = ensureUniqueReviewId(list, item);
       if (
         nextItem.kind === "generatedImage" &&
-        !isOptimisticGeneratedImagePlaceholder(nextItem)
+        !isProcessingGeneratedImageItem(nextItem)
       ) {
-        const replacedList = replaceMatchingOptimisticGeneratedImagePlaceholder(
+        const replacedList = replaceMatchingProcessingGeneratedImage(
           list,
           nextItem,
         );
@@ -1891,7 +1883,14 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
           nextItem = list[equivalentAssistantIndex] ?? nextItem;
         }
       }
-      const updatedItems = prepareThreadItems(upsertItem(list, nextItem));
+      let nextList = upsertItem(list, nextItem);
+      if (generatedImagesToReinsertAfterUser.length > 0) {
+        nextList = insertGeneratedImagesAfterAnchors(
+          nextList,
+          generatedImagesToReinsertAfterUser,
+        );
+      }
+      const updatedItems = prepareThreadItems(nextList);
       let nextThreadsByWorkspace = state.threadsByWorkspace;
       if (isUserMessage) {
         const threads = state.threadsByWorkspace[action.workspaceId] ?? [];
@@ -1935,10 +1934,10 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         action,
         maybeRenameThreadFromAgent,
       );
-    case "clearOptimisticGeneratedImagePlaceholders": {
+    case "clearProcessingGeneratedImages": {
       const list = state.itemsByThread[action.threadId] ?? [];
       const filtered = list.filter(
-        (item) => !isOptimisticGeneratedImagePlaceholder(item),
+        (item) => !isProcessingGeneratedImageItem(item),
       );
       if (filtered.length === list.length) {
         return state;

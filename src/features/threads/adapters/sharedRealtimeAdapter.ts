@@ -1,4 +1,5 @@
 import { buildConversationItem } from "../../../utils/threadItems";
+import { isGeneratedImageToolName } from "../../../utils/generatedImageArtifacts";
 import { hydrateToolSnapshotWithEventParams } from "./toolSnapshotHydration";
 import type { ConversationItem } from "../../../types";
 import type {
@@ -41,12 +42,58 @@ const REASONING_CONTENT_METHODS = new Set([
   "response.reasoning_text.done",
 ]);
 
+const MAX_PENDING_CODEX_IMAGEGEN_TOOL_CALLS = 200;
+const pendingCodexImagegenToolCalls = new Map<
+  string,
+  {
+    argumentsPayload: unknown;
+    toolName: string;
+  }
+>();
+
+function buildPendingCodexImagegenToolCallKey(
+  workspaceId: string,
+  threadId: string,
+  resolvedId: string,
+) {
+  return `${workspaceId}:${threadId}:${resolvedId}`;
+}
+
 function asString(value: unknown): string {
   return typeof value === "string" ? value : value ? String(value) : "";
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function stringifyUnknown(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (value == null) {
+    return "";
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function parseJsonLikeRecord(value: unknown): unknown {
+  if (typeof value !== "string") {
+    return value;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return {};
+  }
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return trimmed;
+  }
 }
 
 function resolveThreadId(params: Record<string, unknown>): string {
@@ -169,12 +216,75 @@ function normalizeRawCodexEntryType(value: string): "event_msg" | "response_item
 }
 
 function buildRawGeneratedImageSnapshot(
+  workspaceId: string,
+  threadId: string,
   payload: Record<string, unknown>,
-): Record<string, unknown> {
+): { phase: "started" | "completed" | "native"; item: Record<string, unknown> } {
+  const payloadType = asString(payload.type ?? "").trim();
   const resolvedId = asString(
     payload.id ?? payload.call_id ?? payload.callId ?? payload.item_id ?? payload.itemId ?? "",
   ).trim();
-  return resolvedId ? { ...payload, id: resolvedId } : payload;
+  if (payloadType === "function_call") {
+    const toolName = asString(payload.name ?? payload.tool ?? "").trim();
+    if (!resolvedId || !isGeneratedImageToolName(toolName)) {
+      return { phase: "native", item: resolvedId ? { ...payload, id: resolvedId } : payload };
+    }
+    const argumentsPayload = parseJsonLikeRecord(payload.arguments ?? payload.input ?? {});
+    const pendingKey = buildPendingCodexImagegenToolCallKey(
+      workspaceId,
+      threadId,
+      resolvedId,
+    );
+    pendingCodexImagegenToolCalls.set(pendingKey, {
+      argumentsPayload,
+      toolName,
+    });
+    if (pendingCodexImagegenToolCalls.size > MAX_PENDING_CODEX_IMAGEGEN_TOOL_CALLS) {
+      const oldestKey = pendingCodexImagegenToolCalls.keys().next().value;
+      if (oldestKey) {
+        pendingCodexImagegenToolCalls.delete(oldestKey);
+      }
+    }
+    return {
+      phase: "started",
+      item: {
+        type: "mcpToolCall",
+        id: resolvedId,
+        server: "codex",
+        tool: toolName,
+        arguments: argumentsPayload,
+        status: "in_progress",
+      },
+    };
+  }
+  if (payloadType === "function_call_output") {
+    const pendingKey = buildPendingCodexImagegenToolCallKey(
+      workspaceId,
+      threadId,
+      resolvedId,
+    );
+    const pendingCall = pendingCodexImagegenToolCalls.get(pendingKey);
+    if (!resolvedId || !pendingCall) {
+      return { phase: "native", item: resolvedId ? { ...payload, id: resolvedId } : payload };
+    }
+    pendingCodexImagegenToolCalls.delete(pendingKey);
+    return {
+      phase: "completed",
+      item: {
+        type: "mcpToolCall",
+        id: resolvedId,
+        server: "codex",
+        tool: pendingCall.toolName,
+        arguments: pendingCall.argumentsPayload,
+        status: "completed",
+        output: stringifyUnknown(payload.output ?? payload.result ?? payload.content ?? ""),
+      },
+    };
+  }
+  return {
+    phase: "native",
+    item: resolvedId ? { ...payload, id: resolvedId } : payload,
+  };
 }
 
 function mapCodexRawGeneratedImageEvent({
@@ -205,13 +315,22 @@ function mapCodexRawGeneratedImageEvent({
   if (Object.keys(rawPayload).length === 0) {
     return null;
   }
-  const rawItem = buildRawGeneratedImageSnapshot(rawPayload);
+  const rawSnapshot = buildRawGeneratedImageSnapshot(
+    workspaceId,
+    threadId,
+    rawPayload,
+  );
+  const rawItem = rawSnapshot.item;
   const converted = buildConversationItem(rawItem);
   if (!converted || converted.kind !== "generatedImage") {
     return null;
   }
   const operation =
-    rawEntryType === "event_msg"
+    rawSnapshot.phase === "started"
+      ? "itemStarted"
+      : rawSnapshot.phase === "completed"
+        ? "itemCompleted"
+        : rawEntryType === "event_msg"
       ? converted.status === "processing"
         ? "itemStarted"
         : "itemUpdated"
@@ -222,7 +341,7 @@ function mapCodexRawGeneratedImageEvent({
     engine,
     workspaceId,
     threadId,
-    eventId: `${converted.id}:${rawEntryType}:${converted.status}`,
+    eventId: `${converted.id}:${rawEntryType}:${rawSnapshot.phase}:${converted.status}`,
     item: converted,
     operation,
     sourceMethod: method,

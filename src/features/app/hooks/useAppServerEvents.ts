@@ -14,6 +14,7 @@ import {
   inferRealtimeAdapterEngine,
 } from "../../threads/adapters/realtimeAdapterRegistry";
 import { hydrateToolSnapshotWithEventParams } from "../../threads/adapters/toolSnapshotHydration";
+import { isGeneratedImageToolName } from "../../../utils/generatedImageArtifacts";
 import {
   rebindSharedSessionNativeThread,
   resolvePendingSharedSessionBindingForEngine,
@@ -419,9 +420,13 @@ function isCodexRawGeneratedImageEvent(
     return false;
   }
   const payloadType = asString(payload.type ?? "").trim().toLowerCase();
+  if (payloadType === "function_call") {
+    return isGeneratedImageToolName(asString(payload.name ?? payload.tool ?? ""));
+  }
   return (
     payloadType === "image_generation_call" ||
-    payloadType === "image_generation_end"
+    payloadType === "image_generation_end" ||
+    payloadType === "function_call_output"
   );
 }
 
@@ -902,8 +907,13 @@ export function useAppServerEvents(
         method,
         params,
       );
-      let sharedBridge = rawThreadId
-        ? resolveSharedSessionBindingByNativeThread(workspace_id, rawThreadId)
+      const fallbackGeneratedImageThreadId =
+        !rawThreadId && shouldForceNormalizedRealtimeRoute && rawMethodEngine === "codex"
+          ? handlers.getActiveCodexThreadId?.(workspace_id) ?? ""
+          : "";
+      const realtimeThreadId = rawThreadId || fallbackGeneratedImageThreadId;
+      let sharedBridge = realtimeThreadId
+        ? resolveSharedSessionBindingByNativeThread(workspace_id, realtimeThreadId)
         : null;
       const requestIdValue = message.id ?? params.requestId ?? params.request_id;
       const requestId =
@@ -1068,7 +1078,12 @@ export function useAppServerEvents(
                 threadIdOverride: sharedBridge.sharedThreadId,
               }
             : rawMethodEngine
-              ? { engineOverride: rawMethodEngine }
+              ? {
+                  engineOverride: rawMethodEngine,
+                  ...(fallbackGeneratedImageThreadId
+                    ? { threadIdOverride: fallbackGeneratedImageThreadId }
+                    : {}),
+                }
               : {}),
           threadAgentDeltaSeenRef,
           threadAgentCompletedSeenRef,

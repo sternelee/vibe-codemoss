@@ -3,7 +3,7 @@ import type { ThreadState } from "./useThreadsReducer";
 import { initialState, threadReducer } from "./useThreadsReducer";
 
 describe("threadReducer generated image placeholders", () => {
-  it("replaces optimistic generated image placeholder in place when the real image arrives", () => {
+  it("replaces processing generated image card in place when the real image arrives", () => {
     const base: ThreadState = {
       ...initialState,
       itemsByThread: {
@@ -18,7 +18,7 @@ describe("threadReducer generated image placeholders", () => {
             id: "optimistic-generated-image:thread-1:assistant-1",
             kind: "generatedImage",
             status: "processing",
-            sourceToolName: "imagegen-intent-placeholder",
+            sourceToolName: "image_generation_call",
             promptText: "直接生成一张成年女性肖像。",
             images: [],
           },
@@ -59,7 +59,7 @@ describe("threadReducer generated image placeholders", () => {
     ]);
   });
 
-  it("preserves optimistic generated image placeholder while processing snapshot has not caught up", () => {
+  it("preserves processing generated image card while processing snapshot has not caught up", () => {
     const base: ThreadState = {
       ...initialState,
       itemsByThread: {
@@ -74,7 +74,7 @@ describe("threadReducer generated image placeholders", () => {
             id: "optimistic-generated-image:thread-1:assistant-1",
             kind: "generatedImage",
             status: "processing",
-            sourceToolName: "imagegen-intent-placeholder",
+            sourceToolName: "image_generation_call",
             promptText: "直接生成一张成年女性肖像。",
             images: [],
           },
@@ -117,14 +117,137 @@ describe("threadReducer generated image placeholders", () => {
         id: "optimistic-generated-image:thread-1:assistant-1",
         kind: "generatedImage",
         status: "processing",
-        sourceToolName: "imagegen-intent-placeholder",
+        sourceToolName: "image_generation_call",
         promptText: "直接生成一张成年女性肖像。",
         images: [],
       },
     ]);
   });
 
-  it("clears optimistic generated image placeholders during terminal cleanup", () => {
+  it("replaces first-turn optimistic user bubble and retargets generated image placeholder", () => {
+    const base: ThreadState = {
+      ...initialState,
+      itemsByThread: {
+        "thread-1": [
+          {
+            id: "optimistic-user-1",
+            kind: "message",
+            role: "user",
+            text: "生成一张美女图 亚洲,大胸,白富美",
+          },
+          {
+            id: "optimistic-generated-image:thread-1:optimistic-user-1",
+            kind: "generatedImage",
+            status: "processing",
+            sourceToolName: "image_generation_call",
+            promptText: "生成一张美女图 亚洲,大胸,白富美",
+            anchorUserMessageId: "optimistic-user-1",
+            images: [],
+          },
+        ],
+      },
+      threadStatusById: {
+        "thread-1": {
+          isProcessing: true,
+          hasUnread: false,
+          isReviewing: false,
+          isContextCompacting: false,
+          processingStartedAt: Date.now(),
+          lastDurationMs: null,
+          heartbeatPulse: 1,
+        },
+      },
+    };
+
+    const next = threadReducer(base, {
+      type: "setThreadItems",
+      threadId: "thread-1",
+      items: [
+        {
+          id: "real-user-1",
+          kind: "message",
+          role: "user",
+          text: "生成一张美女图 亚洲,大胸,白富美",
+        },
+      ],
+    });
+
+    expect(next.itemsByThread["thread-1"]).toEqual([
+      {
+        id: "real-user-1",
+        kind: "message",
+        role: "user",
+        text: "生成一张美女图 亚洲,大胸,白富美",
+      },
+      {
+        id: "optimistic-generated-image:thread-1:optimistic-user-1",
+        kind: "generatedImage",
+        status: "processing",
+        sourceToolName: "image_generation_call",
+        promptText: "生成一张美女图 亚洲,大胸,白富美",
+        anchorUserMessageId: "real-user-1",
+        images: [],
+      },
+    ]);
+  });
+
+  it("does not append a third user bubble when the real first-turn user arrives by upsert", () => {
+    const base: ThreadState = {
+      ...initialState,
+      itemsByThread: {
+        "thread-1": [
+          {
+            id: "optimistic-user-1",
+            kind: "message",
+            role: "user",
+            text: "生成一张图, 要美女",
+          },
+          {
+            id: "optimistic-generated-image:thread-1:optimistic-user-1",
+            kind: "generatedImage",
+            status: "processing",
+            sourceToolName: "image_generation_call",
+            promptText: "生成一张图, 要美女",
+            anchorUserMessageId: "optimistic-user-1",
+            images: [],
+          },
+        ],
+      },
+    };
+
+    const next = threadReducer(base, {
+      type: "upsertItem",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+      item: {
+        id: "real-user-1",
+        kind: "message",
+        role: "user",
+        text: "生成一张图, 要美女",
+      },
+      hasCustomName: false,
+    });
+
+    expect(next.itemsByThread["thread-1"]).toEqual([
+      {
+        id: "real-user-1",
+        kind: "message",
+        role: "user",
+        text: "生成一张图, 要美女",
+      },
+      {
+        id: "optimistic-generated-image:thread-1:optimistic-user-1",
+        kind: "generatedImage",
+        status: "processing",
+        sourceToolName: "image_generation_call",
+        promptText: "生成一张图, 要美女",
+        anchorUserMessageId: "real-user-1",
+        images: [],
+      },
+    ]);
+  });
+
+  it("clears unresolved processing generated image cards during terminal cleanup", () => {
     const base: ThreadState = {
       ...initialState,
       itemsByThread: {
@@ -133,7 +256,7 @@ describe("threadReducer generated image placeholders", () => {
             id: "optimistic-generated-image:thread-1:assistant-1",
             kind: "generatedImage",
             status: "processing",
-            sourceToolName: "imagegen-intent-placeholder",
+            sourceToolName: "image_generation_call",
             promptText: "直接生成一张成年女性肖像。",
             images: [],
           },
@@ -150,7 +273,7 @@ describe("threadReducer generated image placeholders", () => {
     };
 
     const next = threadReducer(base, {
-      type: "clearOptimisticGeneratedImagePlaceholders",
+      type: "clearProcessingGeneratedImages",
       threadId: "thread-1",
     });
 
@@ -166,7 +289,7 @@ describe("threadReducer generated image placeholders", () => {
     ]);
   });
 
-  it("preserves a new optimistic placeholder while older completed images remain in the thread", () => {
+  it("preserves a new processing card while older completed images remain in the thread", () => {
     const base: ThreadState = {
       ...initialState,
       itemsByThread: {
@@ -190,7 +313,7 @@ describe("threadReducer generated image placeholders", () => {
             id: "optimistic-generated-image:thread-1:assistant-1",
             kind: "generatedImage",
             status: "processing",
-            sourceToolName: "imagegen-intent-placeholder",
+            sourceToolName: "image_generation_call",
             promptText: "直接生成一张成年女性肖像。",
             anchorUserMessageId: "user-new",
             images: [],
@@ -252,7 +375,7 @@ describe("threadReducer generated image placeholders", () => {
         id: "optimistic-generated-image:thread-1:assistant-1",
         kind: "generatedImage",
         status: "processing",
-        sourceToolName: "imagegen-intent-placeholder",
+        sourceToolName: "image_generation_call",
         promptText: "直接生成一张成年女性肖像。",
         anchorUserMessageId: "user-new",
         images: [],

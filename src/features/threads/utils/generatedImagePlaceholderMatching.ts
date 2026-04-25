@@ -1,14 +1,14 @@
 import type { ConversationItem } from "../../../types";
 import {
-  isOptimisticGeneratedImagePlaceholder,
-  scoreGeneratedImagePlaceholderMatch,
+  isProcessingGeneratedImageItem,
+  scoreGeneratedImageMatch,
 } from "./generatedImagePlaceholder";
 
-export function replaceMatchingOptimisticGeneratedImagePlaceholder(
+export function replaceMatchingProcessingGeneratedImage(
   list: ConversationItem[],
   incoming: Extract<ConversationItem, { kind: "generatedImage" }>,
 ) {
-  const optimisticPlaceholders = list
+  const processingImages = list
     .map((item, index) => ({ item, index }))
     .filter(
       (
@@ -16,15 +16,15 @@ export function replaceMatchingOptimisticGeneratedImagePlaceholder(
       ): entry is {
         item: Extract<ConversationItem, { kind: "generatedImage" }>;
         index: number;
-      } => isOptimisticGeneratedImagePlaceholder(entry.item),
+      } => isProcessingGeneratedImageItem(entry.item),
     );
-  if (optimisticPlaceholders.length === 0) {
+  if (processingImages.length === 0) {
     return null;
   }
   let matchedIndex = -1;
   let matchedScore = 0;
-  optimisticPlaceholders.forEach(({ item, index }) => {
-    const score = scoreGeneratedImagePlaceholderMatch(item, incoming);
+  processingImages.forEach(({ item, index }) => {
+    const score = scoreGeneratedImageMatch(item, incoming);
     if (score >= matchedScore) {
       matchedScore = score;
       matchedIndex = index;
@@ -33,14 +33,14 @@ export function replaceMatchingOptimisticGeneratedImagePlaceholder(
   const targetIndex =
     matchedScore > 0
       ? matchedIndex
-      : optimisticPlaceholders.length === 1
-        ? optimisticPlaceholders[0]!.index
+      : processingImages.length === 1
+        ? processingImages[0]!.index
         : -1;
   if (targetIndex < 0) {
     return null;
   }
   const target = list[targetIndex];
-  if (!isOptimisticGeneratedImagePlaceholder(target)) {
+  if (!isProcessingGeneratedImageItem(target)) {
     return null;
   }
   const next = [...list];
@@ -57,12 +57,12 @@ export function replaceMatchingOptimisticGeneratedImagePlaceholder(
   return next;
 }
 
-export function shouldPreserveOptimisticGeneratedImagePlaceholder(
+export function shouldPreserveProcessingGeneratedImage(
   item: ConversationItem,
   incomingItems: ConversationItem[],
   incomingIds: Set<string>,
 ) {
-  if (!isOptimisticGeneratedImagePlaceholder(item)) {
+  if (!isProcessingGeneratedImageItem(item)) {
     return false;
   }
   if (incomingIds.has(item.id)) {
@@ -73,12 +73,12 @@ export function shouldPreserveOptimisticGeneratedImagePlaceholder(
       candidate,
     ): candidate is Extract<ConversationItem, { kind: "generatedImage" }> =>
       candidate.kind === "generatedImage" &&
-      !isOptimisticGeneratedImagePlaceholder(candidate),
+      !isProcessingGeneratedImageItem(candidate),
   );
   if (incomingGeneratedImages.length === 0) {
     return true;
   }
   return !incomingGeneratedImages.some(
-    (candidate) => scoreGeneratedImagePlaceholderMatch(item, candidate) > 0,
+    (candidate) => scoreGeneratedImageMatch(item, candidate) > 0,
   );
 }

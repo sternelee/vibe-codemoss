@@ -4,6 +4,72 @@ import { initialState, threadReducer } from "./useThreadsReducer";
 import type { ThreadState } from "./useThreadsReducer";
 
 describe("threadReducer normalized realtime", () => {
+  it("reconciles first-turn image request user across generated image placeholder", () => {
+    const base: ThreadState = {
+      ...initialState,
+      itemsByThread: {
+        "thread-1": [
+          {
+            id: "optimistic-user-1",
+            kind: "message",
+            role: "user",
+            text: "生成一张图，要美女",
+          },
+          {
+            id: "optimistic-generated-image:thread-1:optimistic-user-1",
+            kind: "generatedImage",
+            status: "processing",
+            sourceToolName: "image_generation_call",
+            promptText: "生成一张图，要美女",
+            anchorUserMessageId: "optimistic-user-1",
+            images: [],
+          },
+        ],
+      },
+    };
+
+    const next = threadReducer(base, {
+      type: "applyNormalizedRealtimeEvent",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+      hasCustomName: false,
+      event: {
+        engine: "codex",
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        eventId: "evt-user-real-1",
+        itemKind: "message",
+        timestampMs: 1000,
+        operation: "itemCompleted",
+        sourceMethod: "item/completed",
+        item: {
+          id: "real-user-1",
+          kind: "message",
+          role: "user",
+          text: "生成一张图，要美女",
+        },
+      },
+    });
+
+    expect(next.itemsByThread["thread-1"]).toEqual([
+      {
+        id: "real-user-1",
+        kind: "message",
+        role: "user",
+        text: "生成一张图，要美女",
+      },
+      {
+        id: "optimistic-generated-image:thread-1:optimistic-user-1",
+        kind: "generatedImage",
+        status: "processing",
+        sourceToolName: "image_generation_call",
+        promptText: "生成一张图，要美女",
+        anchorUserMessageId: "real-user-1",
+        images: [],
+      },
+    ]);
+  });
+
   it("strips duplicated leading snapshot while preserving tail", () => {
     const snapshot = "你好！我是你的 AI 联合架构师。有什么可以帮你的吗？";
     const withEchoAndTail = `${snapshot}\n\n${snapshot}\n\n我还可以帮你排查线上问题。`;

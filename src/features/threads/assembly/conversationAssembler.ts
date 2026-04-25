@@ -23,6 +23,10 @@ type AssistantMessageItem = MessageConversationItem & { role: "assistant" };
 type UserMessageItem = MessageConversationItem & { role: "user" };
 type ReasoningConversationItem = Extract<ConversationItem, { kind: "reasoning" }>;
 type ToolConversationItem = Extract<ConversationItem, { kind: "tool" }>;
+type GeneratedImageConversationItem = Extract<
+  ConversationItem,
+  { kind: "generatedImage" }
+>;
 
 export const CONVERSATION_STATE_DIFF_WHITELIST = [
   "meta.heartbeatPulse",
@@ -146,6 +150,9 @@ function findEquivalentTrailingUserMessageIndex(
   for (let index = items.length - 1; index >= 0; index -= 1) {
     const candidate = items[index];
     if (!candidate) {
+      continue;
+    }
+    if (candidate.kind === "generatedImage") {
       continue;
     }
     if (!isUserMessageItem(candidate)) {
@@ -371,6 +378,31 @@ function areEquivalentReasoningSnapshotObservation(
   );
 }
 
+function retargetGeneratedImageAnchors(
+  items: ConversationItem[],
+  replacementByUserId: Map<string, string>,
+) {
+  if (replacementByUserId.size === 0) {
+    return items;
+  }
+  let didRetarget = false;
+  const nextItems = items.map((item) => {
+    if (item.kind !== "generatedImage") {
+      return item;
+    }
+    const replacementAnchorId = replacementByUserId.get(item.anchorUserMessageId ?? "");
+    if (!replacementAnchorId || replacementAnchorId === item.anchorUserMessageId) {
+      return item;
+    }
+    didRetarget = true;
+    return {
+      ...item,
+      anchorUserMessageId: replacementAnchorId,
+    } satisfies GeneratedImageConversationItem;
+  });
+  return didRetarget ? nextItems : items;
+}
+
 function upsertSnapshotItem(
   items: ConversationItem[],
   next: ConversationItem,
@@ -413,7 +445,14 @@ function upsertSnapshotItem(
     if (userIndex >= 0) {
       const existing = items[userIndex];
       if (isUserMessageItem(existing)) {
-        return replaceItemAtIndex(items, userIndex, {
+        const retargetedItems =
+          existing.id === normalizedNext.id
+            ? items
+            : retargetGeneratedImageAnchors(
+                items,
+                new Map([[existing.id, normalizedNext.id]]),
+              );
+        return replaceItemAtIndex(retargetedItems, userIndex, {
           ...existing,
           ...normalizedNext,
         });

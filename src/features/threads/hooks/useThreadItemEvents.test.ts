@@ -186,7 +186,7 @@ describe("useThreadItemEvents", () => {
     });
   });
 
-  it("stages an optimistic generated image placeholder when assistant delta announces imagegen skill", () => {
+  it("does not stage generated image card from assistant text announcements", () => {
     const { result, dispatch } = makeOptions();
 
     act(() => {
@@ -198,27 +198,13 @@ describe("useThreadItemEvents", () => {
       });
     });
 
-    expect(dispatch).toHaveBeenCalledWith({
-      type: "incrementAgentSegment",
-      threadId: "thread-1",
-    });
-    expect(dispatch).toHaveBeenCalledWith({
-      type: "upsertItem",
-      workspaceId: "ws-1",
-      threadId: "thread-1",
-      item: {
-        id: "optimistic-generated-image:thread-1:assistant-1",
-        kind: "generatedImage",
-        status: "processing",
-        sourceToolName: "imagegen-intent-placeholder",
-        promptText: "直接生成一张成年女性肖像。",
-        images: [],
-      },
-      hasCustomName: false,
-    });
+    const generatedImageCalls = dispatch.mock.calls.filter(
+      ([action]) => action?.type === "upsertItem" && action.item?.kind === "generatedImage",
+    );
+    expect(generatedImageCalls).toHaveLength(0);
   });
 
-  it("stages an optimistic generated image placeholder from completed assistant commentary", () => {
+  it("does not stage generated image card from completed assistant commentary", () => {
     const nowSpy = vi.spyOn(Date, "now").mockReturnValue(2468);
     const { result, dispatch } = makeOptions();
 
@@ -231,29 +217,36 @@ describe("useThreadItemEvents", () => {
       });
     });
 
-    expect(dispatch).toHaveBeenCalledWith({
-      type: "incrementAgentSegment",
-      threadId: "thread-1",
-    });
-    expect(dispatch).toHaveBeenCalledWith({
-      type: "upsertItem",
-      workspaceId: "ws-1",
-      threadId: "thread-1",
-      item: {
-        id: "optimistic-generated-image:thread-1:assistant-2",
-        kind: "generatedImage",
-        status: "processing",
-        sourceToolName: "imagegen-intent-placeholder",
-        promptText: "按你的约束重生成为完整头部出镜的东亚成年舞者形象。",
-        images: [],
-      },
-      hasCustomName: false,
-    });
+    const generatedImageCalls = dispatch.mock.calls.filter(
+      ([action]) => action?.type === "upsertItem" && action.item?.kind === "generatedImage",
+    );
+    expect(generatedImageCalls).toHaveLength(0);
 
     nowSpy.mockRestore();
   });
 
-  it("releases optimistic generated image dedupe after a real generated image arrives", () => {
+  it("does not stage generated image placeholder for assistant engineering discussion", () => {
+    const { result, dispatch } = makeOptions();
+
+    act(() => {
+      result.current.onAgentMessageDelta({
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        itemId: "assistant-debug-1",
+        delta:
+          "我看到了，问题是 user intent placeholder 和 assistant imagegen skill 触发路径重复，需要在 reducer 层去重。",
+      });
+    });
+
+    const placeholderCalls = dispatch.mock.calls.filter(
+      ([action]) =>
+        action?.type === "upsertItem" &&
+        action.item?.kind === "generatedImage",
+    );
+    expect(placeholderCalls).toHaveLength(0);
+  });
+
+  it("does not restage text-derived image cards around real generated image events", () => {
     vi.mocked(buildConversationItem).mockReturnValue({
       id: "generated-image-1",
       kind: "generatedImage",
@@ -271,6 +264,18 @@ describe("useThreadItemEvents", () => {
         itemId: "assistant-1",
         delta: "使用 `imagegen` skill，直接生成一张成年女性肖像。",
       });
+    });
+    expect(
+      dispatch.mock.calls.filter(
+        ([action]) =>
+          action?.type === "upsertItem" &&
+          action.item?.kind === "generatedImage",
+      ),
+    ).toHaveLength(0);
+
+    dispatch.mockClear();
+
+    act(() => {
       result.current.onItemCompleted("ws-1", "thread-1", {
         type: "image_generation_end",
         id: "generated-image-1",
@@ -283,16 +288,29 @@ describe("useThreadItemEvents", () => {
       });
     });
 
-    const placeholderCalls = dispatch.mock.calls.filter(
+    const generatedImageCalls = dispatch.mock.calls.filter(
       ([action]) =>
         action?.type === "upsertItem" &&
-        action.item?.kind === "generatedImage" &&
-        action.item?.sourceToolName === "imagegen-intent-placeholder",
+        action.item?.kind === "generatedImage",
     );
-    expect(placeholderCalls).toHaveLength(2);
+    expect(generatedImageCalls).toHaveLength(1);
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "upsertItem",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+      item: {
+        id: "generated-image-1",
+        kind: "generatedImage",
+        status: "completed",
+        sourceToolName: "image_generation_end",
+        promptText: "直接生成一张成年女性肖像。",
+        images: [{ src: "data:image/png;base64,AAA" }],
+      },
+      hasCustomName: false,
+    });
   });
 
-  it("applies normalized codex realtime events through the assembler action and stages image placeholders", () => {
+  it("applies normalized codex realtime events through the assembler action without text-derived image cards", () => {
     const { result, dispatch, markProcessing, safeMessageActivity } = makeOptions();
 
     act(() => {
@@ -336,24 +354,10 @@ describe("useThreadItemEvents", () => {
       }),
       hasCustomName: false,
     });
-    expect(dispatch).toHaveBeenCalledWith({
-      type: "incrementAgentSegment",
-      threadId: "thread-1",
-    });
-    expect(dispatch).toHaveBeenCalledWith({
-      type: "upsertItem",
-      workspaceId: "ws-1",
-      threadId: "thread-1",
-      item: {
-        id: "optimistic-generated-image:thread-1:assistant-assembler-1",
-        kind: "generatedImage",
-        status: "processing",
-        sourceToolName: "imagegen-intent-placeholder",
-        promptText: "直接生成一张成年女性肖像。",
-        images: [],
-      },
-      hasCustomName: false,
-    });
+    const generatedImageCalls = dispatch.mock.calls.filter(
+      ([action]) => action?.type === "upsertItem" && action.item?.kind === "generatedImage",
+    );
+    expect(generatedImageCalls).toHaveLength(0);
     expect(safeMessageActivity).toHaveBeenCalled();
   });
 

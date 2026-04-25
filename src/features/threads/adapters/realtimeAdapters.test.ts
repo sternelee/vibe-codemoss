@@ -306,6 +306,151 @@ describe("realtime adapters", () => {
     }
   });
 
+  it("maps codex/raw imagegen function_call into a processing generated image event", () => {
+    const event = codexRealtimeAdapter.mapEvent({
+      workspaceId: "ws-image",
+      message: {
+        method: "codex/raw",
+        params: {
+          threadId: "thread-image",
+          type: "response_item",
+          payload: {
+            type: "function_call",
+            call_id: "ig-function-call-1",
+            name: "imagegen",
+            arguments: JSON.stringify({
+              prompt: "清晨山谷风景",
+            }),
+          },
+        },
+      },
+    });
+
+    expect(event).toBeTruthy();
+    expect(event?.operation).toBe("itemStarted");
+    expect(event?.item.kind).toBe("generatedImage");
+    expect(event?.item.id).toBe("ig-function-call-1");
+    if (event?.item.kind === "generatedImage") {
+      expect(event.item.status).toBe("processing");
+      expect(event.item.promptText).toBe("清晨山谷风景");
+      expect(event.item.images).toHaveLength(0);
+    }
+  });
+
+  it("maps matching codex/raw imagegen function_call_output into a completed generated image event", () => {
+    codexRealtimeAdapter.mapEvent({
+      workspaceId: "ws-image",
+      message: {
+        method: "codex/raw",
+        params: {
+          threadId: "thread-image",
+          type: "response_item",
+          payload: {
+            type: "function_call",
+            call_id: "ig-function-call-2",
+            name: "image_gen",
+            arguments: JSON.stringify({
+              prompt: "湖边小屋",
+            }),
+          },
+        },
+      },
+    });
+
+    const event = codexRealtimeAdapter.mapEvent({
+      workspaceId: "ws-image",
+      message: {
+        method: "codex/raw",
+        params: {
+          threadId: "thread-image",
+          type: "response_item",
+          payload: {
+            type: "function_call_output",
+            call_id: "ig-function-call-2",
+            output: "/Users/demo/.codex/generated_images/ig_function.png",
+          },
+        },
+      },
+    });
+
+    expect(event).toBeTruthy();
+    expect(event?.operation).toBe("itemCompleted");
+    expect(event?.item.kind).toBe("generatedImage");
+    expect(event?.item.id).toBe("ig-function-call-2");
+    if (event?.item.kind === "generatedImage") {
+      expect(event.item.status).toBe("completed");
+      expect(event.item.promptText).toBe("湖边小屋");
+      expect(event.item.images[0]?.localPath).toBe(
+        "/Users/demo/.codex/generated_images/ig_function.png",
+      );
+    }
+  });
+
+  it("isolates pending codex/raw imagegen tool calls by workspace to avoid prompt cross-talk", () => {
+    codexRealtimeAdapter.mapEvent({
+      workspaceId: "ws-image-a",
+      message: {
+        method: "codex/raw",
+        params: {
+          threadId: "thread-image",
+          type: "response_item",
+          payload: {
+            type: "function_call",
+            call_id: "ig-function-call-shared",
+            name: "imagegen",
+            arguments: JSON.stringify({
+              prompt: "workspace A prompt",
+            }),
+          },
+        },
+      },
+    });
+    codexRealtimeAdapter.mapEvent({
+      workspaceId: "ws-image-b",
+      message: {
+        method: "codex/raw",
+        params: {
+          threadId: "thread-image",
+          type: "response_item",
+          payload: {
+            type: "function_call",
+            call_id: "ig-function-call-shared",
+            name: "imagegen",
+            arguments: JSON.stringify({
+              prompt: "workspace B prompt",
+            }),
+          },
+        },
+      },
+    });
+
+    const event = codexRealtimeAdapter.mapEvent({
+      workspaceId: "ws-image-a",
+      message: {
+        method: "codex/raw",
+        params: {
+          threadId: "thread-image",
+          type: "response_item",
+          payload: {
+            type: "function_call_output",
+            call_id: "ig-function-call-shared",
+            output: "/Users/demo/.codex/generated_images/ws_a.png",
+          },
+        },
+      },
+    });
+
+    expect(event).toBeTruthy();
+    expect(event?.operation).toBe("itemCompleted");
+    expect(event?.item.kind).toBe("generatedImage");
+    if (event?.item.kind === "generatedImage") {
+      expect(event.item.promptText).toBe("workspace A prompt");
+      expect(event.item.images[0]?.localPath).toBe(
+        "/Users/demo/.codex/generated_images/ws_a.png",
+      );
+    }
+  });
+
   it("maps opencode text:delta to assistant delta and ignores heartbeat", () => {
     const deltaEvent = opencodeRealtimeAdapter.mapEvent({
       workspaceId: "ws-3",
