@@ -7,8 +7,8 @@
 ## Current Status
 
 <!-- @@@auto:current-status -->
-- **Active File**: `journal-6.md`
-- **Total Sessions**: 203
+- **Active File**: `journal-7.md`
+- **Total Sessions**: 204
 - **Last Active**: 2026-04-27
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,8 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-6.md` | ~1961 | Active |
+| `journal-7.md` | ~57 | Active |
+| `journal-6.md` | ~1961 | Archived |
 | `journal-5.md` | ~1949 | Archived |
 | `journal-4.md` | ~1975 | Archived |
 | `journal-3.md` | ~1972 | Archived |
@@ -34,6 +35,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 204 | 2026-04-27 | 补充 v0.4.9 发布说明 | `82a4b7a6c0661de6f2acac7cd8c28fb78bb87a73` | `feature/v0.4.9` |
 | 203 | 2026-04-27 | 修复失效会话手动恢复分流 | `85aaefa6` | `feature/v0.4.9` |
 | 202 | 2026-04-27 | 归档运行时 OpenSpec 提案 | `9007e01a` | `feature/v0.4.9` |
 | 201 | 2026-04-27 | 修复 Codex 运行时生命周期恢复 | `4b3ac419df7703aa70a13482f8a723246575172f` | `feature/v0.4.9` |
