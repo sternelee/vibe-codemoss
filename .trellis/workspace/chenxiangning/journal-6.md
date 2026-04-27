@@ -1890,3 +1890,72 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 203: 修复失效会话手动恢复分流
+
+**Date**: 2026-04-27
+**Task**: 修复失效会话手动恢复分流
+**Branch**: `feature/v0.4.9`
+
+### Summary
+
+修复 Codex stale thread 手动恢复在 recover-only 与 recover-and-resend 下的语义分流，并补齐自测与 OpenSpec 记录。
+
+### Main Changes
+
+任务目标:
+- 修复旧 Codex thread 出现 `thread not found` 后，点击“尝试恢复会话”和“恢复并发送上一条提示词”无效或误反馈的问题。
+- 重点收紧边界条件、大文件治理门禁、heavy-test-noise 告警门禁，以及 Windows/macOS 兼容风险。
+
+主要改动:
+- 将 manual stale thread recovery 结果结构化为 `rebound` / `fresh` / `failed`，避免调用方用 `string | null` 猜测语义。
+- recover-only 只允许 verified `rebound` 成功；没有 verified replacement 时不把 fresh thread 伪装成旧会话恢复成功。
+- recover-and-resend 按 result kind 分流：`rebound` 保留重复 user bubble suppression，`fresh` 可见发送上一条 prompt。
+- `RuntimeReconnectCard` 增加 structured result 归一化和 fresh fallback 提示，malformed callback result / 空 thread id / unknown kind 均显式失败。
+- `manualThreadRecovery` 增加空 workspace/thread id 早失败、refresh 抛错原因保留、异常信息安全字符串化。
+- 新增 OpenSpec change `fix-codex-stale-thread-manual-recovery`，并回写 Self-Test Record 与 4.4-4.7 验证门禁。
+
+涉及模块:
+- Frontend recovery contract: `src/app-shell-parts/manualThreadRecovery.ts`
+- App shell adapter: `src/app-shell-parts/useAppShellLayoutNodesSection.tsx`
+- Message recovery UI: `src/features/messages/components/RuntimeReconnectCard.tsx` 与 Messages prop 链路
+- Tests: app-shell recovery、Messages runtime reconnect、runtimeReconnect helper tests
+- i18n: `src/i18n/locales/en.part1.ts`、`src/i18n/locales/zh.part1.ts`
+- OpenSpec: `openspec/changes/fix-codex-stale-thread-manual-recovery/**`
+
+验证结果:
+- `pnpm vitest run src/app-shell-parts/useAppShellLayoutNodesSection.recovery.test.ts src/features/messages/components/Messages.runtime-reconnect.test.tsx src/features/messages/components/runtimeReconnect.test.ts` 通过，3 files / 35 tests passed。
+- `pnpm typecheck` 通过。
+- `pnpm lint` 通过。
+- `npm run check:large-files:near-threshold` 完成，仅 19 个既有 watch warning，无 hard failure。
+- `npm run check:large-files:gate` 通过，found=0。
+- `node --test scripts/check-heavy-test-noise.test.mjs` 通过，5 tests passed。
+- `npm run check:heavy-test-noise` 完成 370 test files，repo-owned act/stdout/stderr noise 均为 0。
+- `npm run check:runtime-contracts` 通过。
+- `npm run doctor:strict` 通过。
+- `cargo test --manifest-path src-tauri/Cargo.toml` 通过。
+- `openspec validate fix-codex-stale-thread-manual-recovery --strict` 通过。
+- `git diff --check` 通过。
+
+后续事项:
+- 可在真实旧会话 `thread not found` 场景下手动点一次 recover-only 与 recover-and-resend，确认 UI copy 和 fresh thread 切换体感符合预期。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `85aaefa6` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
