@@ -54,6 +54,7 @@ import {
   parseReasoning,
 } from "./messagesReasoning";
 import {
+  buildLiveTailWorkingSet,
   buildRenderedItemsWindow,
   collapseExpandedExploreItems,
   findLatestOrdinaryUserQuestionId,
@@ -399,6 +400,17 @@ export const Messages = memo(function Messages({
       : items;
     return dedupeExitPlanItemsKeepFirst(baseItems);
   }, [isSelectionFrozen, items]);
+  const liveTailWorkingSet = useMemo(
+    () =>
+      buildLiveTailWorkingSet(effectiveItems, {
+        isThinking,
+        showAllHistoryItems,
+        visibleWindow: VISIBLE_MESSAGE_WINDOW,
+        enableCollaborationBadge,
+      }),
+    [effectiveItems, enableCollaborationBadge, isThinking, showAllHistoryItems],
+  );
+  const renderSourceItems = liveTailWorkingSet.items;
   const firstItemIdRef = useRef<string | null>(items[0]?.id ?? null);
   const activeUserInputRequestId =
     threadId && userInputRequests.length
@@ -658,7 +670,7 @@ export const Messages = memo(function Messages({
     }
 
     const reasoningIds: string[] = [];
-    for (const item of effectiveItems) {
+    for (const item of renderSourceItems) {
       if (item.kind === "reasoning") {
         reasoningIds.push(item.id);
       }
@@ -686,34 +698,34 @@ export const Messages = memo(function Messages({
       });
       lastAutoExpandedIdRef.current = lastReasoningId;
     }
-  }, [effectiveItems, isThinking]);
+  }, [isThinking, renderSourceItems]);
   const reasoningMetaById = useMemo(() => {
     const meta = new Map<string, ReturnType<typeof parseReasoning>>();
-    effectiveItems.forEach((item) => {
+    renderSourceItems.forEach((item) => {
       if (item.kind === "reasoning") {
         meta.set(item.id, parseReasoning(item));
       }
     });
     return meta;
-  }, [effectiveItems]);
+  }, [renderSourceItems]);
 
   const lastUserMessageIndex = useMemo(
-    () => findLastUserMessageIndex(effectiveItems),
-    [effectiveItems],
+    () => findLastUserMessageIndex(renderSourceItems),
+    [renderSourceItems],
   );
   const reasoningWindowStartIndex = useMemo(() => {
     if (lastUserMessageIndex >= 0) {
       return lastUserMessageIndex;
     }
-    return findLastAssistantMessageIndex(effectiveItems);
-  }, [effectiveItems, lastUserMessageIndex]);
+    return findLastAssistantMessageIndex(renderSourceItems);
+  }, [lastUserMessageIndex, renderSourceItems]);
 
   const latestReasoningLabel = useMemo(() => {
     if (hideClaudeReasoning) {
       return null;
     }
-    for (let index = effectiveItems.length - 1; index > reasoningWindowStartIndex; index -= 1) {
-      const item = effectiveItems[index];
+    for (let index = renderSourceItems.length - 1; index > reasoningWindowStartIndex; index -= 1) {
+      const item = renderSourceItems[index];
       if (!isReasoningConversationItem(item)) {
         continue;
       }
@@ -723,17 +735,17 @@ export const Messages = memo(function Messages({
       }
     }
     return null;
-  }, [effectiveItems, hideClaudeReasoning, reasoningMetaById, reasoningWindowStartIndex]);
+  }, [hideClaudeReasoning, reasoningMetaById, reasoningWindowStartIndex, renderSourceItems]);
 
   const latestReasoningId = useMemo(() => {
-    for (let index = effectiveItems.length - 1; index > reasoningWindowStartIndex; index -= 1) {
-      const item = effectiveItems[index];
+    for (let index = renderSourceItems.length - 1; index > reasoningWindowStartIndex; index -= 1) {
+      const item = renderSourceItems[index];
       if (isReasoningConversationItem(item)) {
         return item.id;
       }
     }
     return null;
-  }, [effectiveItems, reasoningWindowStartIndex]);
+  }, [reasoningWindowStartIndex, renderSourceItems]);
   const claudeDockedReasoningItems = useMemo(() => {
     if (!hideClaudeReasoning) {
       return [] as Array<{
@@ -745,8 +757,8 @@ export const Messages = memo(function Messages({
       item: Extract<ConversationItem, { kind: "reasoning" }>;
       parsed: ReturnType<typeof parseReasoning>;
     }> = [];
-    for (let index = reasoningWindowStartIndex + 1; index < effectiveItems.length; index += 1) {
-      const item = effectiveItems[index];
+    for (let index = reasoningWindowStartIndex + 1; index < renderSourceItems.length; index += 1) {
+      const item = renderSourceItems[index];
       if (!isReasoningConversationItem(item)) {
         continue;
       }
@@ -764,7 +776,7 @@ export const Messages = memo(function Messages({
       list.push({ item, parsed });
     }
     return list;
-  }, [effectiveItems, hideClaudeReasoning, reasoningMetaById, reasoningWindowStartIndex]);
+  }, [hideClaudeReasoning, reasoningMetaById, reasoningWindowStartIndex, renderSourceItems]);
   const previousIsThinkingRef = useRef(isThinking);
   useEffect(() => {
     if (previousIsThinkingRef.current && !isThinking && claudeDockedReasoningItems.length > 0) {
@@ -787,8 +799,8 @@ export const Messages = memo(function Messages({
   }, [claudeDockedReasoningItems, isThinking]);
 
   const latestTitleOnlyReasoningId = useMemo(() => {
-    for (let index = effectiveItems.length - 1; index >= 0; index -= 1) {
-      const item = effectiveItems[index];
+    for (let index = renderSourceItems.length - 1; index >= 0; index -= 1) {
+      const item = renderSourceItems[index];
       if (!isReasoningConversationItem(item)) {
         continue;
       }
@@ -798,12 +810,12 @@ export const Messages = memo(function Messages({
       }
     }
     return null;
-  }, [effectiveItems, reasoningMetaById]);
+  }, [reasoningMetaById, renderSourceItems]);
 
   const latestWorkingActivityLabel = useMemo(() => {
     let lastUserIndex = -1;
-    for (let index = effectiveItems.length - 1; index >= 0; index -= 1) {
-      const item = effectiveItems[index];
+    for (let index = renderSourceItems.length - 1; index >= 0; index -= 1) {
+      const item = renderSourceItems[index];
       if (isUserMessageConversationItem(item)) {
         lastUserIndex = index;
         break;
@@ -812,8 +824,8 @@ export const Messages = memo(function Messages({
     if (lastUserIndex < 0) {
       return null;
     }
-    for (let index = effectiveItems.length - 1; index > lastUserIndex; index -= 1) {
-      const item = effectiveItems[index];
+    for (let index = renderSourceItems.length - 1; index > lastUserIndex; index -= 1) {
+      const item = renderSourceItems[index];
       if (!item) {
         continue;
       }
@@ -826,14 +838,14 @@ export const Messages = memo(function Messages({
       }
     }
     return null;
-  }, [activeEngine, effectiveItems, presentationProfile]);
+  }, [activeEngine, presentationProfile, renderSourceItems]);
   const approvalResumeWorkingLabel = useMemo(() => {
     if (!isThinking || lastUserMessageIndex < 0) {
       return null;
     }
     const resumeText = t("approval.resumingAfterApproval");
-    for (let index = effectiveItems.length - 1; index > lastUserMessageIndex; index -= 1) {
-      const item = effectiveItems[index];
+    for (let index = renderSourceItems.length - 1; index > lastUserMessageIndex; index -= 1) {
+      const item = renderSourceItems[index];
       if (!item) {
         continue;
       }
@@ -849,25 +861,25 @@ export const Messages = memo(function Messages({
       }
     }
     return null;
-  }, [effectiveItems, isThinking, lastUserMessageIndex, t]);
+  }, [isThinking, lastUserMessageIndex, renderSourceItems, t]);
 
   const latestAssistantMessageId = useMemo(() => {
-    for (let index = effectiveItems.length - 1; index > lastUserMessageIndex; index -= 1) {
-      const item = effectiveItems[index];
+    for (let index = renderSourceItems.length - 1; index > lastUserMessageIndex; index -= 1) {
+      const item = renderSourceItems[index];
       if (isAssistantMessageConversationItem(item)) {
         return item.id;
       }
     }
     return null;
-  }, [effectiveItems, lastUserMessageIndex]);
+  }, [lastUserMessageIndex, renderSourceItems]);
 
   const waitingForFirstChunk = useMemo(() => {
-    if (!isThinking || effectiveItems.length === 0) {
+    if (!isThinking || renderSourceItems.length === 0) {
       return false;
     }
     let lastUserIndex = -1;
-    for (let index = effectiveItems.length - 1; index >= 0; index -= 1) {
-      const item = effectiveItems[index];
+    for (let index = renderSourceItems.length - 1; index >= 0; index -= 1) {
+      const item = renderSourceItems[index];
       if (isUserMessageConversationItem(item)) {
         lastUserIndex = index;
         break;
@@ -876,19 +888,19 @@ export const Messages = memo(function Messages({
     if (lastUserIndex < 0) {
       return false;
     }
-    for (let index = lastUserIndex + 1; index < effectiveItems.length; index += 1) {
-      const item = effectiveItems[index];
+    for (let index = lastUserIndex + 1; index < renderSourceItems.length; index += 1) {
+      const item = renderSourceItems[index];
       if (isAssistantMessageConversationItem(item)) {
         return false;
       }
     }
     return true;
-  }, [isThinking, effectiveItems]);
+  }, [isThinking, renderSourceItems]);
   const streamActivityPhase = useStreamActivityPhase({
     isProcessing:
       isThinking &&
       (activeEngine === "codex" || activeEngine === "claude" || activeEngine === "gemini"),
-    items: effectiveItems,
+    items: renderSourceItems,
   });
   const primaryWorkingLabel = isContextCompacting
     ? t("chat.contextDualViewCompacting")
@@ -899,7 +911,7 @@ export const Messages = memo(function Messages({
     isThinking;
 
   const visibleItems = useMemo(() => {
-    const filtered = effectiveItems.filter((item) => {
+    const filtered = renderSourceItems.filter((item) => {
       if (
         (activeEngine === "codex" || activeEngine === "claude") &&
         item.kind === "explore" &&
@@ -955,11 +967,11 @@ export const Messages = memo(function Messages({
     );
   }, [
     activeEngine,
-    effectiveItems,
     hideClaudeReasoning,
     latestTitleOnlyReasoningId,
     presentationProfile,
     reasoningMetaById,
+    renderSourceItems,
   ]);
   const timelineSourceItems = useMemo(() => {
     if (activeEngine !== "codex" || !isThinking) {
@@ -1106,11 +1118,12 @@ export const Messages = memo(function Messages({
     threadId,
     visibleItems,
   ]);
-  const shouldCollapseHistoryItems =
-    !showAllHistoryItems && timelineItems.length > VISIBLE_MESSAGE_WINDOW;
-  const collapsedHistoryItemCount = shouldCollapseHistoryItems
-    ? timelineItems.length - VISIBLE_MESSAGE_WINDOW
-    : 0;
+  const timelineCollapsedHistoryItemCount =
+    !showAllHistoryItems && timelineItems.length > VISIBLE_MESSAGE_WINDOW
+      ? timelineItems.length - VISIBLE_MESSAGE_WINDOW
+      : 0;
+  const collapsedHistoryItemCount =
+    liveTailWorkingSet.omittedBeforeWorkingSetCount + timelineCollapsedHistoryItemCount;
   const latestLiveStickyUserMessageId = useMemo(
     () =>
       isThinking && !conversationState?.meta.historyRestoredAtMs
@@ -1120,19 +1133,24 @@ export const Messages = memo(function Messages({
         : null,
     [conversationState?.meta.historyRestoredAtMs, enableCollaborationBadge, isThinking, timelineItems],
   );
-  const { renderedItems, visibleCollapsedHistoryItemCount } = useMemo(
+  const renderedItemsWindow = useMemo(
     () =>
       buildRenderedItemsWindow(
         timelineItems,
-        collapsedHistoryItemCount,
+        timelineCollapsedHistoryItemCount,
         latestLiveStickyUserMessageId,
       ),
     [
-      collapsedHistoryItemCount,
       latestLiveStickyUserMessageId,
+      timelineCollapsedHistoryItemCount,
       timelineItems,
     ],
   );
+  const renderedItems = renderedItemsWindow.renderedItems;
+  const visibleCollapsedHistoryItemCount = collapsedHistoryItemCount > 0
+    ? renderedItemsWindow.visibleCollapsedHistoryItemCount
+      + liveTailWorkingSet.omittedBeforeWorkingSetCount
+    : 0;
   const currentLatestAssistantTextLength = useMemo(
     () => findLatestAssistantTextLength(renderedItems),
     [renderedItems],

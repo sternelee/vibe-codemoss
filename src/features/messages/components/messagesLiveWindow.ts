@@ -155,3 +155,62 @@ export function buildRenderedItemsWindow(
     visibleCollapsedHistoryItemCount: Math.max(0, collapsedHistoryItemCount - 1),
   };
 }
+
+export function buildLiveTailWorkingSet(
+  items: ConversationItem[],
+  options: {
+    isThinking: boolean;
+    showAllHistoryItems: boolean;
+    visibleWindow: number;
+    enableCollaborationBadge?: boolean;
+  },
+) {
+  const { isThinking, showAllHistoryItems, visibleWindow } = options;
+  if (!isThinking || showAllHistoryItems || visibleWindow <= 0) {
+    return {
+      items,
+      omittedBeforeWorkingSetCount: 0,
+      stickyUserMessageId: null,
+    };
+  }
+
+  const maxWorkingSetItems = Math.max(visibleWindow, visibleWindow * 2);
+  if (items.length <= maxWorkingSetItems) {
+    return {
+      items,
+      omittedBeforeWorkingSetCount: 0,
+      stickyUserMessageId: findLatestOrdinaryUserQuestionId(items, {
+        enableCollaborationBadge: options.enableCollaborationBadge,
+      }),
+    };
+  }
+
+  const tailStartIndex = Math.max(0, items.length - maxWorkingSetItems);
+  const tailItems = items.slice(tailStartIndex);
+  const stickyUserMessageId = findLatestOrdinaryUserQuestionId(items, {
+    enableCollaborationBadge: options.enableCollaborationBadge,
+  });
+  if (!stickyUserMessageId || tailItems.some((item) => item.id === stickyUserMessageId)) {
+    return {
+      items: tailItems,
+      omittedBeforeWorkingSetCount: tailStartIndex,
+      stickyUserMessageId,
+    };
+  }
+
+  const stickyUserMessageIndex = items.findIndex((item) => item.id === stickyUserMessageId);
+  const stickyUserMessage = items[stickyUserMessageIndex];
+  if (!stickyUserMessage || stickyUserMessageIndex >= tailStartIndex) {
+    return {
+      items: tailItems,
+      omittedBeforeWorkingSetCount: tailStartIndex,
+      stickyUserMessageId,
+    };
+  }
+
+  return {
+    items: [stickyUserMessage, ...tailItems],
+    omittedBeforeWorkingSetCount: Math.max(0, tailStartIndex - 1),
+    stickyUserMessageId,
+  };
+}

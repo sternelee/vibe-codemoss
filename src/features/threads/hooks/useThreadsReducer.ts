@@ -96,6 +96,28 @@ function isAssistantMessageItem(item: ConversationItem | undefined): item is Ass
   return item?.kind === "message" && item.role === "assistant";
 }
 
+function canUseLiveAssistantDeltaFastPath({
+  threadId,
+  list,
+  index,
+  shouldCanonicalizeLegacyId,
+  keepFinalMetadata,
+}: {
+  threadId: string;
+  list: ConversationItem[];
+  index: number;
+  shouldCanonicalizeLegacyId: boolean;
+  keepFinalMetadata: boolean;
+}) {
+  return (
+    INCREMENTAL_DERIVATION_ENABLED
+    && threadId.startsWith("claude:")
+    && index === list.length - 1
+    && !shouldCanonicalizeLegacyId
+    && !keepFinalMetadata
+  );
+}
+
 function isToolConversationItem(item: ConversationItem | undefined): item is ToolConversationItem {
   return item?.kind === "tool";
 }
@@ -1203,6 +1225,33 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
           text: nextText,
           isFinal: keepFinalMetadata ? true : false,
         };
+        if (
+          canUseLiveAssistantDeltaFastPath({
+            threadId: action.threadId,
+            list,
+            index,
+            shouldCanonicalizeLegacyId,
+            keepFinalMetadata,
+          })
+        ) {
+          list[index] = normalizeItem(list[index]);
+          const nextThreadsByWorkspace = maybeRenameThreadFromAgent({
+            workspaceId: action.workspaceId,
+            threadId: action.threadId,
+            items: list,
+            itemId: segmentedItemId,
+            hasCustomName: action.hasCustomName,
+            threadsByWorkspace: state.threadsByWorkspace,
+          });
+          return {
+            ...state,
+            itemsByThread: {
+              ...state.itemsByThread,
+              [action.threadId]: list,
+            },
+            threadsByWorkspace: nextThreadsByWorkspace,
+          };
+        }
       } else {
         list.push({
           id: segmentedItemId,
