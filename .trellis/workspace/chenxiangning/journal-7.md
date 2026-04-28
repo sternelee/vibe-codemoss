@@ -55,3 +55,61 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 205: 修复 Windows Codex wrapper 会话启动降级
+
+**Date**: 2026-04-28
+**Task**: 修复 Windows Codex wrapper 会话启动降级
+**Branch**: `feature/v0.4.11`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：修复少数 Windows 11 用户通过 npm .cmd/.bat wrapper 创建 Codex 会话时 app-server 初始化前退出的问题，并用 OpenSpec 记录行为契约。
+
+主要改动：
+- 新增 OpenSpec change `fix-windows-codex-app-server-wrapper-launch`，包含 proposal、design、delta spec 和 tasks。
+- 将 Codex app-server 参数拼装收口为共享 launch options，primary 路径保持内部 spec priority hint 注入。
+- Windows .cmd/.bat wrapper primary 启动失败时，自动执行一次兼容 retry；retry 保留用户 codexArgs，但跳过内部 `developer_instructions` quoted config，避免穿过 `cmd.exe /c` 的 quoting 风险。
+- probe/doctor 复用同一套 app-server 参数语义，保留 fallbackRetried / wrapperKind / appServerProbeStatus 诊断。
+- 增加 DeferredStartupEventSink，避免 primary 失败但 fallback 成功时把早期 runtime/ended/stderr 泄漏到前端造成假失败。
+
+涉及模块：
+- src-tauri/src/backend/app_server.rs
+- src-tauri/src/backend/app_server_cli.rs
+- openspec/changes/fix-windows-codex-app-server-wrapper-launch/**
+
+验证结果：
+- cargo test --manifest-path src-tauri/Cargo.toml app_server_cli 通过：10 passed。
+- cargo test --manifest-path src-tauri/Cargo.toml app_server 通过：69 passed。
+- npm run typecheck 通过。
+- openspec validate fix-windows-codex-app-server-wrapper-launch --strict 通过。
+- git diff --check 通过。
+
+后续事项：
+- 需要问题 Win11 机器手工验证创建 Codex 会话。
+- 需要健康 Win11 wrapper 环境确认 primary path 不触发 fallback。
+- 需要 macOS smoke 确认非 Windows 路径无回归。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a3d3744b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
