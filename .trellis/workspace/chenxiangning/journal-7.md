@@ -171,3 +171,59 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 207: Nix 前端依赖改用 importNpmLock
+
+**Date**: 2026-04-28
+**Task**: Nix 前端依赖改用 importNpmLock
+**Branch**: `feature/v0.4.11`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：
+- 响应 PR #428 后续反馈，将 Linux/Nix frontend npm dependency closure 从手写 npmDepsHash 迁移到 importNpmLock，避免 package-lock.json 或 root package metadata 变化后反复出现 fixed-output hash mismatch。
+
+主要改动：
+- flake.nix：用 pkgs.importNpmLock { npmRoot = ./.; } 和 pkgs.importNpmLock.npmConfigHook 替代 npmDepsHash / npmDepsFetcherVersion。
+- OpenSpec fix-linux-nix-flake-packaging：更新 proposal、design、delta spec、tasks，记录 PR #428 follow-up commit fe252675 的自动 hash 方案。
+- 明确只吸收 importNpmLock 自动化能力，不照抄 doCheck = false 或 chmod -R u+w dist。
+
+涉及模块：
+- Nix packaging：flake.nix
+- OpenSpec：openspec/changes/fix-linux-nix-flake-packaging
+
+验证结果：
+- git diff --check 通过。
+- openspec validate fix-linux-nix-flake-packaging --type change --strict --no-interactive 通过。
+- package.json direct dependencies 均有 package-lock entry。
+- registry resolved entries 均有 integrity。
+- 当前 pinned nixpkgs 中确认存在 importNpmLock.npmConfigHook。
+
+后续事项：
+- 本机 nix 不可用，已按 shell 基线确认普通 shell、login shell 与 which nix 都找不到 nix。
+- 仍需在 Nix-capable host 执行 nix build .# --no-link --print-build-logs、nix flake check --no-build、nix run .#。
+- 若 Nix 实机构建后出现权限问题，再根据实际错误评估是否需要 PR #428 中的 chmod -R u+w dist；当前提交刻意不扩大范围。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `aa9d4d6b358d277c742ddd298f6ccdde5bf41ad9` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
