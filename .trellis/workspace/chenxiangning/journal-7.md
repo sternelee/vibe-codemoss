@@ -728,3 +728,56 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 218: 恢复 Nix 固定前端依赖哈希
+
+**Date**: 2026-04-28
+**Task**: 恢复 Nix 固定前端依赖哈希
+**Branch**: `feature/v0.4.11`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：修复 `nix run github:chenxiangning/codemoss/feature/v0.4.11` 在 Nix evaluation 阶段因 `importNpmLock` 读取缺失 `resolved` 字段而失败的问题。
+
+主要改动：
+- 将 `flake.nix` 的 frontend dependency source 从 `pkgs.importNpmLock` / `npmConfigHook` 改回 `npmDepsHash` + `npmDepsFetcherVersion = 2`。
+- 使用 0.4.11 版本已记录的 fixed-output hash：`sha256-pS4skwBNVcEB2tLO/E3xCkD0G015wAmJJ1ds9N9idec=`。
+- 同步更新 `openspec/changes/fix-linux-nix-flake-packaging` 的 proposal/design/spec/tasks，记录当前 lockfile 与 `importNpmLock` 的 `resolved` 字段契约不兼容。
+
+涉及模块：
+- Nix packaging：`flake.nix`
+- OpenSpec behavior/spec artifacts：`openspec/changes/fix-linux-nix-flake-packaging/**`
+
+验证结果：
+- `npm run build` 通过。
+- `git diff --check` 通过。
+- `openspec validate fix-linux-nix-flake-packaging --type change --strict --no-interactive` 通过。
+- 本机无 `nix`，无法执行真实 `nix run`；需要在 Nix-capable host 上复测 `nix run github:chenxiangning/codemoss/feature/v0.4.11`。
+
+后续事项：
+- 若 Nix host 报 `npmDepsHash` mismatch，使用输出中的 `got:` hash 刷新 `flake.nix`。
+- 工作区存在无关 untracked 目录 `openspec/changes/fix-codex-stalled-late-event-quarantine/`，本次未纳入提交。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `be912556` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
