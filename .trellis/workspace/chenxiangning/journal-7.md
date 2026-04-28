@@ -837,3 +837,67 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 220: 收敛 Codex 会话保活与历史展示
+
+**Date**: 2026-04-29
+**Task**: 收敛 Codex 会话保活与历史展示
+**Branch**: `feature/v0.4.11`
+
+### Summary
+
+提交 Codex stalled turn quarantine、20 分钟 execution-active no-progress window、event_msg 用户消息优先级，以及相关 OpenSpec 与回归测试。
+
+### Main Changes
+
+任务目标：
+- 收敛 Codex session / keepalive 提案后续 bugfix，确认当前实现没有偏离 Codex realtime liveness 主线。
+- 修复 Codex 用户气泡与会话标题被 response_item user mirror / 内部注入内容污染的问题。
+- 把测试断言同步到新增 engine hint contract，避免 routing 测试继续按旧 payload 失败。
+
+主要改动：
+- 新增 OpenSpec change `fix-codex-stalled-late-event-quarantine`，定义 Codex stalled turn quarantine 与 1200 秒 execution-active no-progress window。
+- 在 `useAppServerEvents` 透传 legacy raw item / agent delta / turn error / turn stalled 的 turnId 与 engine hint。
+- 在 `useThreadEventHandlers` 增加 Codex turn quarantine ledger，阻止同一 threadId + turnId 的迟到事件重新标记 processing/generating，同时保留 successor turn 正常更新。
+- 在前端 Codex session history 与 Rust local usage summary 中优先采用 `event_msg.user_message` / `event_msg.userMessage`，把 `response_item` user mirror 作为 fallback。
+- 更新 routing、app-server event、thread liveness、history loader、local_usage 回归测试。
+
+涉及模块：
+- OpenSpec: `openspec/changes/fix-codex-stalled-late-event-quarantine/**`
+- Frontend event routing: `src/features/app/hooks/useAppServerEvents*.tsx?`
+- Thread liveness: `src/features/threads/hooks/useThreadEventHandlers*.ts`
+- Codex history parsing: `src/features/threads/loaders/codexSessionHistory.ts`
+- Rust local usage parsing: `src-tauri/src/local_usage.rs`
+
+验证结果：
+- `openspec validate fix-codex-stalled-late-event-quarantine --strict` 通过。
+- `npx vitest run src/features/app/hooks/useAppServerEvents.routing.test.tsx` 通过。
+- `npx vitest run src/features/app/hooks/useAppServerEvents.test.tsx src/features/app/hooks/useAppServerEvents.runtime-ended.test.tsx src/features/threads/hooks/useThreadEventHandlers.test.ts` 通过。
+- `npx vitest run src/features/threads/loaders/historyLoaders.test.ts` 通过。
+- `cargo test --manifest-path src-tauri/Cargo.toml parse_codex_session_summary_prefers_event_msg_user_summary_over_response_item_user` 通过。
+- `npm run typecheck` 通过。
+- `npm run lint` 通过。
+- `cargo fmt --manifest-path src-tauri/Cargo.toml --check` 通过。
+
+后续事项：
+- 若继续推进，需要再跑完整 `npm run test` 与更完整的 Rust 测试矩阵后再进入发布或归档。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `69131442` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

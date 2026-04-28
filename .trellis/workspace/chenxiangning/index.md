@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-7.md`
-- **Total Sessions**: 219
+- **Total Sessions**: 220
 - **Last Active**: 2026-04-29
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-7.md` | ~839 | Active |
+| `journal-7.md` | ~903 | Active |
 | `journal-6.md` | ~1961 | Archived |
 | `journal-5.md` | ~1949 | Archived |
 | `journal-4.md` | ~1975 | Archived |
@@ -35,6 +35,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 220 | 2026-04-29 | 收敛 Codex 会话保活与历史展示 | `69131442` | `feature/v0.4.11` |
 | 219 | 2026-04-29 | 添加邮件发送设置与测试发送 | `3c65a668` | `feature/v0.4.11` |
 | 218 | 2026-04-28 | 恢复 Nix 固定前端依赖哈希 | `be912556` | `feature/v0.4.11` |
 | 217 | 2026-04-28 | 记录 Rust 格式化提交 | `6cb1e4ee` | `feature/v0.4.11` |
