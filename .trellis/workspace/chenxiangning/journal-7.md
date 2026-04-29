@@ -1091,3 +1091,59 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 224: 修复 CI sentry 抖动与 Actions 升级
+
+**Date**: 2026-04-29
+**Task**: 修复 CI sentry 抖动与 Actions 升级
+**Branch**: `feature/v0.4.11`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+## 任务目标
+修复 `heavy-test-noise-sentry.yml` 暴露的 CI-only flaky test，并顺手升级两个 sentry workflow 的 GitHub Actions 版本，避免 Node 20 action runtime deprecation 风险。
+
+## 主要改动
+- 将 `src/features/composer/components/Composer.rewind-confirm.test.tsx` 中的同步 `getByTestId()` 断言改为等待 `claude-rewind-store-feedback` 真正渲染完成后再断言，消除 Linux runner 上的异步 UI 竞态。
+- 将 `/.github/workflows/heavy-test-noise-sentry.yml` 升级到 `actions/checkout@v6`、`actions/setup-node@v6`、`actions/upload-artifact@v7`。
+- 将 `/.github/workflows/large-file-governance.yml` 升级到 `actions/checkout@v6`、`actions/setup-node@v6`。
+
+## 涉及模块
+- CI workflow: `.github/workflows/heavy-test-noise-sentry.yml`
+- CI workflow: `.github/workflows/large-file-governance.yml`
+- frontend test: `src/features/composer/components/Composer.rewind-confirm.test.tsx`
+
+## 验证结果
+- `npx -y node@20.20.2 ./node_modules/vitest/vitest.mjs run src/features/composer/components/Composer.rewind-confirm.test.tsx -t "exports rewind files into default chat diff directory"` 通过。
+- Node 20 下目标用例 20 连跑稳定通过。
+- `node --test scripts/check-heavy-test-noise.test.mjs` 通过。
+- `npm run check:heavy-test-noise` 全量通过，summary 为 environment warnings=1 / act warnings=0 / stdout payload lines=0 / stderr payload lines=0。
+- `npm run check:large-files:near-threshold` 通过，输出 21 条 watch warning。
+- `npm run check:large-files:gate` 通过，found=0。
+
+## 后续事项
+- 如需彻底消除 GitHub Node 20 action deprecation warning，可后续统一升级 `ci.yml` 与 `release.yml` 中仍停留在旧 major 的 actions。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5a04ad5d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
