@@ -736,6 +736,114 @@ async fn terminal_turn_events_clear_foreground_resume_pending_continuity() {
 }
 
 #[tokio::test]
+async fn settle_foreground_work_timeout_releases_resume_pending_protection_but_keeps_recent_diagnostics() {
+    let manager = RuntimeManager::new(&std::env::temp_dir());
+    let entry = workspace_entry("resume-pending-timeout");
+    manager.record_starting(&entry, "codex", "test").await;
+    {
+        let mut entries = manager.entries.lock().await;
+        let runtime = entries
+            .get_mut("codex::resume-pending-timeout")
+            .expect("runtime entry should exist");
+        runtime.session_exists = true;
+        runtime.starting = false;
+    }
+
+    manager
+        .note_foreground_resume_pending(
+            &entry,
+            "codex",
+            "thread-1",
+            Some("turn-1"),
+            "user-input-resume",
+            48_000,
+        )
+        .await;
+    manager
+        .settle_foreground_work_timeout(
+            "codex",
+            "resume-pending-timeout",
+            Some("thread-1"),
+            Some("turn-1"),
+            "user-input-resume",
+            "resume-pending-timeout",
+        )
+        .await;
+
+    let snapshot = manager.snapshot(&AppSettings::default()).await;
+    let row = snapshot
+        .rows
+        .iter()
+        .find(|item| item.workspace_id == "resume-pending-timeout")
+        .expect("runtime row should exist");
+    assert!(!row.active_work_protected);
+    assert_eq!(row.state, RuntimeState::GracefulIdle);
+    assert!(row.foreground_work_state.is_none());
+    assert!(row.foreground_work_source.is_none());
+    assert_eq!(
+        row.last_recovery_source.as_deref(),
+        Some("user-input-resume")
+    );
+    assert_eq!(
+        row.last_guard_state.as_deref(),
+        Some("resume-pending-timeout")
+    );
+}
+
+#[tokio::test]
+async fn settle_foreground_work_timeout_ignores_mismatched_turn_identity() {
+    let manager = RuntimeManager::new(&std::env::temp_dir());
+    let entry = workspace_entry("resume-pending-timeout-mismatch");
+    manager.record_starting(&entry, "codex", "test").await;
+    {
+        let mut entries = manager.entries.lock().await;
+        let runtime = entries
+            .get_mut("codex::resume-pending-timeout-mismatch")
+            .expect("runtime entry should exist");
+        runtime.session_exists = true;
+        runtime.starting = false;
+    }
+
+    manager
+        .note_foreground_resume_pending(
+            &entry,
+            "codex",
+            "thread-1",
+            Some("turn-1"),
+            "queue-fusion-cutover",
+            48_000,
+        )
+        .await;
+    manager
+        .settle_foreground_work_timeout(
+            "codex",
+            "resume-pending-timeout-mismatch",
+            Some("thread-1"),
+            Some("turn-2"),
+            "queue-fusion-cutover",
+            "fusion-resume-pending-timeout",
+        )
+        .await;
+
+    let snapshot = manager.snapshot(&AppSettings::default()).await;
+    let row = snapshot
+        .rows
+        .iter()
+        .find(|item| item.workspace_id == "resume-pending-timeout-mismatch")
+        .expect("runtime row should exist");
+    assert!(row.active_work_protected);
+    assert_eq!(row.state, RuntimeState::ResumePending);
+    assert_eq!(
+        row.foreground_work_source.as_deref(),
+        Some("queue-fusion-cutover")
+    );
+    assert_ne!(
+        row.last_guard_state.as_deref(),
+        Some("fusion-resume-pending-timeout")
+    );
+}
+
+#[tokio::test]
 async fn reconcile_marks_old_idle_runtime_evictable() {
     let manager = RuntimeManager::new(&std::env::temp_dir());
     let entry = workspace_entry("idle");

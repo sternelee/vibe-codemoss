@@ -46,6 +46,8 @@ const EXECUTION_ITEM_TYPES = new Set([
   "webSearch",
   "imageView",
 ]);
+const REQUEST_USER_INPUT_BLOCKED_REASON_CODE =
+  "request_user_input_blocked_in_default_mode";
 
 type ActiveExecutionItem = {
   itemType: string;
@@ -121,6 +123,15 @@ function listActiveExecutionItemTypes(diagnostic: TurnDiagnosticState) {
       ),
     ),
   );
+}
+
+function isRequestUserInputModeBlocked(event: CollaborationModeBlockedRequest) {
+  const blockedMethod = asString(event.params.blocked_method).trim();
+  if (blockedMethod === "item/tool/requestUserInput") {
+    return true;
+  }
+  const reasonCode = asString(event.params.reason_code).trim();
+  return reasonCode === REQUEST_USER_INPUT_BLOCKED_REASON_CODE;
 }
 
 function clearCompletedExecutionItem(
@@ -1018,6 +1029,22 @@ export function useThreadEventHandlers({
     dispatch,
     resolveClaudeContinuationThreadId,
   });
+  const settleThreadWaitingForUserChoice = useCallback(
+    (threadId: string) => {
+      if (!threadId) {
+        return;
+      }
+      // User-choice gates are no longer normal foreground processing.
+      markProcessingTracked(threadId, false);
+      setActiveTurnIdTracked(threadId, null);
+      dispatch({
+        type: "settleThreadPlanInProgress",
+        threadId,
+        targetStatus: "pending",
+      });
+    },
+    [dispatch, markProcessingTracked, setActiveTurnIdTracked],
+  );
   const onRequestUserInput = useCallback(
     (request: RequestUserInputRequest) => {
       enqueueUserInputRequest(request);
@@ -1030,30 +1057,23 @@ export function useThreadEventHandlers({
       if (!threadId) {
         return;
       }
-      // requestUserInput means the turn is now waiting for user choice,
-      // so we should stop the spinning "processing" state immediately.
-      markProcessingTracked(threadId, false);
-      setActiveTurnIdTracked(threadId, null);
-      dispatch({
-        type: "settleThreadPlanInProgress",
-        threadId,
-        targetStatus: "pending",
-      });
+      settleThreadWaitingForUserChoice(threadId);
     },
     [
-      dispatch,
       enqueueUserInputRequest,
-      markProcessingTracked,
       resolveClaudeContinuationThreadId,
-      setActiveTurnIdTracked,
+      settleThreadWaitingForUserChoice,
     ],
   );
   const onModeBlocked = useCallback(
     (event: CollaborationModeBlockedRequest) => {
-      const threadId = event.params.thread_id;
+      const rawThreadId = event.params.thread_id;
+      const threadId =
+        resolveClaudeContinuationThreadId?.(event.workspace_id, rawThreadId) ?? rawThreadId;
       if (!threadId) {
         return;
       }
+      const requestUserInputBlocked = isRequestUserInputModeBlocked(event);
       const requestId = event.params.request_id;
       if (requestId !== null && requestId !== undefined) {
         dispatch({
@@ -1062,14 +1082,20 @@ export function useThreadEventHandlers({
           workspaceId: event.workspace_id,
         });
       }
+      if (requestUserInputBlocked) {
+        settleThreadWaitingForUserChoice(threadId);
+      }
       const reason =
         event.params.reason.trim() ||
         "This request is blocked while effective mode is code.";
       const suggestion =
         (event.params.suggestion ?? "").trim() ||
         "Switch to Plan mode and retry if user input is required.";
-      const blockedMethod = event.params.blocked_method || "item/tool/requestUserInput";
-      const blockedTitle = blockedMethod.includes("requestUserInput")
+      const blockedMethod = asString(event.params.blocked_method).trim();
+      const blockedDetail = blockedMethod || (
+        requestUserInputBlocked ? "item/tool/requestUserInput" : "modeBlocked"
+      );
+      const blockedTitle = requestUserInputBlocked
         ? "Tool: askuserquestion"
         : "Tool: mode policy";
       const eventId = requestId !== null && requestId !== undefined
@@ -1084,14 +1110,14 @@ export function useThreadEventHandlers({
           kind: "tool",
           toolType: "modeBlocked",
           title: blockedTitle,
-          detail: blockedMethod,
+          detail: blockedDetail,
           status: "completed",
           output: `${reason}\n\n${suggestion}`,
         },
         hasCustomName: Boolean(getCustomName(event.workspace_id, threadId)),
       });
     },
-    [dispatch, getCustomName],
+    [dispatch, getCustomName, resolveClaudeContinuationThreadId, settleThreadWaitingForUserChoice],
   );
 
   const onModeResolved = useCallback(

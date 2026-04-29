@@ -639,6 +639,19 @@ impl WorkspaceSession {
             let Some(timed_out_state) = timed_out_state else {
                 return;
             };
+            if let Some(runtime_manager) = session.runtime_manager() {
+                let guard_state = format!("{}-timeout", timed_out_state.source.stalled_stage());
+                runtime_manager
+                    .settle_foreground_work_timeout(
+                        "codex",
+                        &session.entry.id,
+                        Some(&normalized_thread_id),
+                        timed_out_state.turn_id.as_deref(),
+                        timed_out_state.source.runtime_source_label(),
+                        &guard_state,
+                    )
+                    .await;
+            }
             let message = timed_out_state
                 .source
                 .stalled_message(timed_out_state.timeout_ms);

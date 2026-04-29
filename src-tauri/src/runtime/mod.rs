@@ -1619,6 +1619,31 @@ impl RuntimeManager {
         let _ = self.persist_ledger().await;
     }
 
+    pub(crate) async fn settle_foreground_work_timeout(
+        &self,
+        engine: &str,
+        workspace_id: &str,
+        thread_id: Option<&str>,
+        turn_id: Option<&str>,
+        source: &str,
+        guard_state: &str,
+    ) {
+        let key = runtime_key(engine, workspace_id);
+        let mut entries = self.entries.lock().await;
+        if let Some(runtime) = entries.get_mut(&key) {
+            if runtime.matches_foreground_work_identity(thread_id, turn_id) {
+                runtime.note_foreground_work_timeout();
+                runtime.clear_foreground_work_continuity();
+                runtime.clear_active_work_protection_if_idle();
+                runtime.last_used_at_ms = now_millis();
+                runtime.last_recovery_source = Some(source.to_string());
+                runtime.last_guard_state = Some(guard_state.to_string());
+            }
+        }
+        drop(entries);
+        let _ = self.persist_ledger().await;
+    }
+
     pub(crate) async fn has_active_work_protection_for_session(
         &self,
         engine: &str,

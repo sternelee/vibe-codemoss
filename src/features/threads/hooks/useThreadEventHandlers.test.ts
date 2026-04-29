@@ -172,6 +172,9 @@ function makeOptions(onDebug = vi.fn()) {
     renameCustomNameKey: vi.fn(),
     renameAutoTitlePendingKey: vi.fn(),
     renameThreadTitleMapping: vi.fn(),
+    resolveClaudeContinuationThreadId: undefined as
+      | ((workspaceId: string, threadId: string, turnId?: string | null) => string | null)
+      | undefined,
     resolvePendingThreadForSession: vi.fn(() => null),
     getActiveTurnIdForThread: vi.fn(() => null),
     renamePendingMemoryCaptureKey: vi.fn(),
@@ -254,6 +257,103 @@ describe("useThreadEventHandlers diagnostics", () => {
 
     expect(waitingEntry?.payload.diagnosticCategory).toBe("first-token-delay");
     expect(waitingEntry?.payload.latencyCategory).toBe("upstream-pending");
+  });
+
+  it("settles requestUserInput modeBlocked events through the shared waiting-for-user-choice path", () => {
+    const options = makeOptions();
+    options.resolveClaudeContinuationThreadId = vi.fn(
+      (_workspaceId: string, threadId: string) =>
+        threadId === "thread-native" ? "shared:thread-1" : threadId,
+    );
+    const { result } = renderHook(() => useThreadEventHandlers(options));
+
+    act(() => {
+      result.current.onTurnStarted("ws-1", "thread-native", "turn-1");
+    });
+
+    options.dispatch.mockClear();
+    options.markProcessing.mockClear();
+    options.setActiveTurnId.mockClear();
+
+    act(() => {
+      result.current.onModeBlocked({
+        workspace_id: "ws-1",
+        params: {
+          thread_id: "thread-native",
+          blocked_method: "",
+          effective_mode: "code",
+          reason_code: "request_user_input_blocked_in_default_mode",
+          reason: "request blocked",
+          suggestion: "Switch to Plan mode",
+          request_id: "req-1",
+        },
+      });
+    });
+
+    expect(options.markProcessing).toHaveBeenCalledWith("shared:thread-1", false);
+    expect(options.setActiveTurnId).toHaveBeenCalledWith("shared:thread-1", null);
+    expect(options.dispatch).toHaveBeenCalledWith({
+      type: "removeUserInputRequest",
+      requestId: "req-1",
+      workspaceId: "ws-1",
+    });
+    expect(options.dispatch).toHaveBeenCalledWith({
+      type: "settleThreadPlanInProgress",
+      threadId: "shared:thread-1",
+      targetStatus: "pending",
+    });
+    expect(options.dispatch).toHaveBeenCalledWith({
+      type: "upsertItem",
+      workspaceId: "ws-1",
+      threadId: "shared:thread-1",
+      item: expect.objectContaining({
+        id: "mode-blocked-shared:thread-1-req-1",
+        toolType: "modeBlocked",
+        title: "Tool: askuserquestion",
+        detail: "item/tool/requestUserInput",
+        status: "completed",
+      }),
+      hasCustomName: false,
+    });
+  });
+
+  it("keeps non-requestUserInput modeBlocked events explanatory only", () => {
+    const options = makeOptions();
+    const { result } = renderHook(() => useThreadEventHandlers(options));
+
+    act(() => {
+      result.current.onModeBlocked({
+        workspace_id: "ws-1",
+        params: {
+          thread_id: "thread-1",
+          blocked_method: "item/tool/fileChange",
+          effective_mode: "plan",
+          reason_code: "plan_readonly_violation",
+          reason: "write blocked",
+          suggestion: "Switch to Default mode",
+        },
+      });
+    });
+
+    expect(options.markProcessing).not.toHaveBeenCalledWith("thread-1", false);
+    expect(options.setActiveTurnId).not.toHaveBeenCalledWith("thread-1", null);
+    expect(options.dispatch).not.toHaveBeenCalledWith({
+      type: "settleThreadPlanInProgress",
+      threadId: "thread-1",
+      targetStatus: "pending",
+    });
+    expect(options.dispatch).toHaveBeenCalledWith({
+      type: "upsertItem",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+      item: expect.objectContaining({
+        toolType: "modeBlocked",
+        title: "Tool: mode policy",
+        detail: "item/tool/fileChange",
+        status: "completed",
+      }),
+      hasCustomName: false,
+    });
   });
 
   it("settles codex foreground turns after the bounded no-progress window", () => {
