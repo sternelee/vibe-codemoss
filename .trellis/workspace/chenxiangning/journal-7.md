@@ -901,3 +901,77 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 221: 拆分提交邮件提醒与自动压缩改动
+
+**Date**: 2026-04-29
+**Task**: 拆分提交邮件提醒与自动压缩改动
+**Branch**: `feature/v0.4.11`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+## 任务目标
+- 将当前工作区已完成的业务改动拆分为多笔中文 Conventional Commits。
+- 避免把无关工作区噪音混进同一笔提交。
+- 在提交后补齐 Trellis session record。
+
+## 主要改动
+- `fix(ci): 修复大文件与测试噪音门禁`
+  - 扩展 large-file governance 的文本后缀识别范围。
+  - 归一化 heavy-test-noise sentry 的 ANSI / CR 日志处理。
+- `feat(runtime): 增加邮件提醒与自动压缩运行时契约`
+  - 扩展 Tauri backend、settings、types、bridge contract。
+  - 补强 conversation completion email 的边界校验。
+  - 引入 Codex auto-compaction threshold / enabled runtime contract。
+- `feat(frontend): 接入完成邮件提醒与 Codex 压缩交互`
+  - 将 completion email、compaction routing、token usage、settings UI 接入前端状态机。
+  - 为 pending thread -> canonical thread 切换增加 completion intent rebinding。
+- `docs(openspec): 同步邮件提醒与自动压缩规范`
+  - 新增并同步相关 OpenSpec change artifacts 与 spec 文档。
+
+## 涉及模块
+- `scripts/check-large-files*.mjs`
+- `scripts/check-heavy-test-noise*.mjs`
+- `src-tauri/src/backend/**`
+- `src-tauri/src/email/mod.rs`
+- `src-tauri/src/settings/**`
+- `src/features/app/hooks/useAppServerEvents*`
+- `src/features/composer/components/ChatInputBox/**`
+- `src/features/threads/hooks/**`
+- `src/features/threads/utils/{completionEmailIntent,conversationCompletionEmail}*`
+- `openspec/changes/{add-conversation-email-notification,configure-codex-auto-compaction-threshold,show-codex-auto-compaction-message}/**`
+
+## 验证结果
+- 本轮执行：`git diff --check`，通过。
+- 提交后确认：`git status --short` clean，业务提交已全部落盘。
+- 未在本轮重新执行全量 `lint` / `typecheck` / `cargo test`；如需我可以继续补跑并追加 follow-up commit。
+
+## 后续事项
+- 如需进一步精炼历史，可在此基础上对 frontend / runtime commit 再做 rebase squash，但当前 4 笔提交已具备可读语义边界。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f8f74f23` | (see git log) |
+| `bd140a77` | (see git log) |
+| `a16aa802` | (see git log) |
+| `b3ec7ec2` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
