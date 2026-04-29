@@ -556,7 +556,7 @@ describe("GitHistoryPanel interactions", () => {
     expect(menuItems[0]?.textContent).toContain("git.historyBranchMenuCheckout");
   });
 
-  it("keeps current local branch update on pull path", async () => {
+  it("routes current local branch update through updateGitBranch command", async () => {
     render(<GitHistoryPanel workspace={workspace as never} />);
 
     await waitFor(() => {
@@ -576,9 +576,9 @@ describe("GitHistoryPanel interactions", () => {
     fireEvent.click(updateButton as Element);
 
     await waitFor(() => {
-      expect(tauriService.pullGit).toHaveBeenCalledWith("w1");
+      expect(tauriService.updateGitBranch).toHaveBeenCalledWith("w1", "main");
     });
-    expect(tauriService.updateGitBranch).not.toHaveBeenCalled();
+    expect(tauriService.pullGit).not.toHaveBeenCalled();
   });
 
   it("updates a non-current tracked local branch from branch context menu", async () => {
@@ -645,7 +645,7 @@ describe("GitHistoryPanel interactions", () => {
     expect(screen.getByText("git.historyBranchUpdateSuccess")).toBeTruthy();
   });
 
-  it("disables local branch update without upstream tracking", async () => {
+  it("shows blocked notice when updating a non-current local branch without upstream tracking", async () => {
     vi.mocked(tauriService.listGitBranches).mockResolvedValue({
       branches: [],
       localBranches: [
@@ -673,6 +673,13 @@ describe("GitHistoryPanel interactions", () => {
       remoteBranches: [],
       currentBranch: "main",
     } as never);
+    vi.mocked(tauriService.updateGitBranch).mockResolvedValueOnce({
+      branch: "no-upstream",
+      status: "blocked",
+      reason: "no_upstream",
+      message: "Branch 'no-upstream' has no upstream tracking branch configured.",
+      worktreePath: null,
+    });
 
     render(<GitHistoryPanel workspace={workspace as never} />);
 
@@ -688,10 +695,62 @@ describe("GitHistoryPanel interactions", () => {
 
     const updateAction = await screen.findByText("git.historyBranchMenuUpdate");
     const updateButton = updateAction.closest('[role="menuitem"]');
-    expect(
-      (updateButton as HTMLButtonElement | null)?.disabled
-      || updateButton?.getAttribute("aria-disabled") === "true",
-    ).toBe(true);
+    expect(updateButton?.getAttribute("aria-disabled")).not.toBe("true");
+    fireEvent.click(updateButton as Element);
+
+    await waitFor(() => {
+      expect(tauriService.updateGitBranch).toHaveBeenCalledWith("w1", "no-upstream");
+    });
+    expect(screen.getByText("git.historyBranchUpdateBlockedNoUpstream")).toBeTruthy();
+  });
+
+  it("shows blocked notice when updating the current local branch without upstream tracking", async () => {
+    vi.mocked(tauriService.listGitBranches).mockResolvedValue({
+      branches: [],
+      localBranches: [
+        {
+          name: "main",
+          isCurrent: true,
+          isRemote: false,
+          remote: null,
+          upstream: null,
+          lastCommit: 1739300000,
+          ahead: 0,
+          behind: 0,
+        },
+      ],
+      remoteBranches: [],
+      currentBranch: "main",
+    } as never);
+    vi.mocked(tauriService.updateGitBranch).mockResolvedValueOnce({
+      branch: "main",
+      status: "blocked",
+      reason: "no_upstream",
+      message: "Branch 'main' has no upstream tracking branch configured.",
+      worktreePath: null,
+    });
+
+    render(<GitHistoryPanel workspace={workspace as never} />);
+
+    await waitFor(() => {
+      expect(document.querySelector(".git-history-branch-row .git-history-branch-name")).toBeTruthy();
+    });
+
+    const branchRow = Array.from(document.querySelectorAll(".git-history-branch-row")).find((row) =>
+      row.textContent?.includes("main"),
+    );
+    expect(branchRow).toBeTruthy();
+    fireEvent.contextMenu(branchRow as Element, { clientX: 160, clientY: 180 });
+
+    const updateAction = await screen.findByText("git.historyBranchMenuUpdate");
+    const updateButton = updateAction.closest('[role="menuitem"]');
+    expect(updateButton?.getAttribute("aria-disabled")).not.toBe("true");
+    fireEvent.click(updateButton as Element);
+    expect(tauriService.pullGit).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(tauriService.updateGitBranch).toHaveBeenCalledWith("w1", "main");
+    });
+    expect(screen.getByText("git.historyBranchUpdateBlockedNoUpstream")).toBeTruthy();
   });
 
   it("keeps remote branch update on fetch-only path", async () => {

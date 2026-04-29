@@ -187,6 +187,22 @@ fn branch_update_result(
     }
 }
 
+fn no_upstream_branch_update_result(branch_name: &str) -> GitBranchUpdateResult {
+    branch_update_result(
+        branch_name,
+        BRANCH_UPDATE_STATUS_BLOCKED,
+        Some(BRANCH_UPDATE_REASON_NO_UPSTREAM),
+        format!("Branch '{branch_name}' has no upstream tracking branch configured."),
+        None,
+    )
+}
+
+fn branch_update_has_upstream(state: &LocalBranchUpdateState) -> bool {
+    matches!(state.upstream_name.as_deref(), Some(name) if !name.trim().is_empty())
+        && matches!(state.upstream_remote.as_deref(), Some(name) if !name.trim().is_empty())
+        && state.upstream_oid.is_some()
+}
+
 fn current_local_branch(repo_root: &Path) -> Result<Option<String>, String> {
     let repo = open_repository_at_root(repo_root)?;
     let head = match repo.head() {
@@ -313,33 +329,11 @@ async fn update_non_current_local_branch(
     let initial_state = load_local_branch_update_state(repo_root, branch_name)?;
     let upstream_name = match initial_state.upstream_name.as_deref() {
         Some(name) if !name.trim().is_empty() => name.to_string(),
-        _ => {
-            return Ok(branch_update_result(
-                initial_state.branch_name.as_str(),
-                BRANCH_UPDATE_STATUS_BLOCKED,
-                Some(BRANCH_UPDATE_REASON_NO_UPSTREAM),
-                format!(
-                    "Branch '{}' has no upstream tracking branch configured.",
-                    initial_state.branch_name
-                ),
-                None,
-            ));
-        }
+        _ => return Ok(no_upstream_branch_update_result(initial_state.branch_name.as_str())),
     };
     let upstream_remote = match initial_state.upstream_remote.as_deref() {
         Some(name) if !name.trim().is_empty() => name.to_string(),
-        _ => {
-            return Ok(branch_update_result(
-                initial_state.branch_name.as_str(),
-                BRANCH_UPDATE_STATUS_BLOCKED,
-                Some(BRANCH_UPDATE_REASON_NO_UPSTREAM),
-                format!(
-                    "Branch '{}' has no upstream tracking branch configured.",
-                    initial_state.branch_name
-                ),
-                None,
-            ));
-        }
+        _ => return Ok(no_upstream_branch_update_result(initial_state.branch_name.as_str())),
     };
 
     git_core::run_git_command(&repo_root.to_path_buf(), &["fetch", upstream_remote.as_str()])
@@ -363,18 +357,7 @@ async fn update_non_current_local_branch(
     let refreshed_state = load_local_branch_update_state(repo_root, initial_state.branch_name.as_str())?;
     let upstream_oid = match refreshed_state.upstream_oid {
         Some(oid) => oid,
-        None => {
-            return Ok(branch_update_result(
-                refreshed_state.branch_name.as_str(),
-                BRANCH_UPDATE_STATUS_BLOCKED,
-                Some(BRANCH_UPDATE_REASON_NO_UPSTREAM),
-                format!(
-                    "Branch '{}' has no upstream tracking branch configured.",
-                    refreshed_state.branch_name
-                ),
-                None,
-            ));
-        }
+        None => return Ok(no_upstream_branch_update_result(refreshed_state.branch_name.as_str())),
     };
 
     if refreshed_state.local_oid == upstream_oid || refreshed_state.behind == 0 {
@@ -424,6 +407,21 @@ async fn update_non_current_local_branch(
     ];
     let arg_refs = args_owned.iter().map(String::as_str).collect::<Vec<_>>();
     if let Err(error) = git_core::run_git_command(&repo_root.to_path_buf(), &arg_refs).await {
+        if load_local_branch_update_state(repo_root, refreshed_state.branch_name.as_str())
+            .map(|latest_state| latest_state.local_oid != refreshed_state.local_oid)
+            .unwrap_or(false)
+        {
+            return Ok(branch_update_result(
+                refreshed_state.branch_name.as_str(),
+                BRANCH_UPDATE_STATUS_BLOCKED,
+                Some(BRANCH_UPDATE_REASON_STALE_REF),
+                format!(
+                    "Branch '{}' changed while updating. Refresh branch state and retry.",
+                    refreshed_state.branch_name
+                ),
+                None,
+            ));
+        }
         if is_stale_update_ref_error(&error, refreshed_state.branch_name.as_str()) {
             return Ok(branch_update_result(
                 refreshed_state.branch_name.as_str(),
@@ -1457,6 +1455,9 @@ impl DaemonState {
         }
 
         let branch_state = load_local_branch_update_state(&repo_root, normalized_branch.as_str())?;
+        if !branch_update_has_upstream(&branch_state) {
+            return Ok(no_upstream_branch_update_result(branch_state.branch_name.as_str()));
+        }
         if branch_state.is_current {
             self.pull_git(workspace_id, None, None, None, None, None)
                 .await?;

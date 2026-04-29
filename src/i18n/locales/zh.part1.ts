@@ -2478,7 +2478,7 @@ const zhPart1 = {
     historyBranchUpdateSuccess: "已更新分支 {{branch}}。",
     historyBranchUpdateAlreadyUpToDate: "分支 {{branch}} 已是最新。",
     historyBranchUpdateAheadOnly: "分支 {{branch}} 已领先上游，无需更新。",
-    historyBranchUpdateBlockedNoUpstream: "分支 {{branch}} 未设置上游分支。",
+    historyBranchUpdateBlockedNoUpstream: "分支 {{branch}} 未设置上游分支。请先为该分支绑定 upstream 后再重试更新。",
     historyBranchUpdateBlockedDiverged: "分支 {{branch}} 与上游已分叉，请切换到该分支后手动处理。",
     historyBranchUpdateBlockedOccupiedWorktree: "分支 {{branch}} 当前正被工作树 {{path}} 使用。",
     historyBranchUpdateBlockedStaleRef: "分支 {{branch}} 在更新过程中发生变化，请刷新后重试。",

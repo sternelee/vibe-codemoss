@@ -1725,19 +1725,11 @@ export function useGitHistoryPanelInteractions(scope: any) {
       isCurrent: boolean;
       isRemote: boolean;
       remoteName: string | null;
-      hasUpstream: boolean;
     },
   ) => {
     closeBranchContextMenu();
     if (options.isRemote && options.remoteName) {
       await runOperation("fetch", () => fetchGit(workspaceId, options.remoteName));
-      return;
-    }
-    if (options.isCurrent) {
-      await runOperation("pull", () => pullGit(workspaceId));
-      return;
-    }
-    if (!options.hasUpstream) {
       return;
     }
 
@@ -1797,7 +1789,6 @@ export function useGitHistoryPanelInteractions(scope: any) {
     createOperationErrorState,
     fetchGit,
     getOperationDisplayName,
-    pullGit,
     refreshAll,
     runOperation,
     setOperationLoading,
@@ -1818,10 +1809,8 @@ export function useGitHistoryPanelInteractions(scope: any) {
     const currentDisabledReason = t("git.historyBranchMenuUnavailableCurrent");
     const remoteDisabledReason = t("git.historyBranchMenuUnavailableRemote");
     const noCurrentBranchDisabledReason = t("git.historyBranchMenuUnavailableNoCurrent");
-    const noUpstreamDisabledReason = t("git.historyBranchMenuNoUpstreamTracking");
     const currentBranchName = currentBranch ?? t("git.unknown");
     const remoteName = branchContextMenu.branch.remote ?? null;
-    const hasUpstream = Boolean(branchContextMenu.branch.upstream?.trim());
 
     const createDisabledReason = createBranchSourceOptions.length === 0
       ? baseDisabledReason
@@ -1932,20 +1921,17 @@ export function useGitHistoryPanelInteractions(scope: any) {
         label: t("git.historyBranchMenuUpdate"),
         icon: <Download size={14} aria-hidden />,
         dividerBefore: true,
-        disabled: Boolean(baseDisabledReason || (isRemote ? !remoteName : !isCurrent && !hasUpstream)),
+        disabled: Boolean(baseDisabledReason || (isRemote ? !remoteName : false)),
         disabledReason:
           baseDisabledReason ||
           (isRemote
             ? (!remoteName ? remoteDisabledReason : null)
-            : !isCurrent && !hasUpstream
-              ? noUpstreamDisabledReason
-              : null),
+            : null),
         onSelect: () => {
           void handleUpdateBranchFromContextMenu(targetBranch, {
             isCurrent,
             isRemote,
             remoteName,
-            hasUpstream,
           });
         },
       },

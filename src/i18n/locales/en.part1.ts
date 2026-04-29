@@ -2481,7 +2481,8 @@ const enPart1 = {
     historyBranchUpdateSuccess: "Updated branch {{branch}}.",
     historyBranchUpdateAlreadyUpToDate: "Branch {{branch}} is already up to date.",
     historyBranchUpdateAheadOnly: "Branch {{branch}} is ahead of upstream. No update is required.",
-    historyBranchUpdateBlockedNoUpstream: "Branch {{branch}} has no upstream branch configured.",
+    historyBranchUpdateBlockedNoUpstream:
+      "Branch {{branch}} has no upstream branch configured. Bind an upstream target for this branch, then retry update.",
     historyBranchUpdateBlockedDiverged: "Branch {{branch}} has diverged from upstream. Checkout the branch and resolve it manually.",
     historyBranchUpdateBlockedOccupiedWorktree: "Branch {{branch}} is currently used by worktree at {{path}}.",
     historyBranchUpdateBlockedStaleRef: "Branch {{branch}} changed while updating. Refresh and retry.",

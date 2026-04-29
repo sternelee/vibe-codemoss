@@ -150,6 +150,22 @@ fn branch_update_result(
     }
 }
 
+fn no_upstream_branch_update_result(branch_name: &str) -> GitBranchUpdateResult {
+    branch_update_result(
+        branch_name,
+        BRANCH_UPDATE_STATUS_BLOCKED,
+        Some(BRANCH_UPDATE_REASON_NO_UPSTREAM),
+        format!("Branch '{branch_name}' has no upstream tracking branch configured."),
+        None,
+    )
+}
+
+fn branch_update_has_upstream(state: &LocalBranchUpdateState) -> bool {
+    matches!(state.upstream_name.as_deref(), Some(name) if !name.trim().is_empty())
+        && matches!(state.upstream_remote.as_deref(), Some(name) if !name.trim().is_empty())
+        && state.upstream_oid.is_some()
+}
+
 fn load_local_branch_update_state(
     repo_root: &Path,
     branch_name: &str,
@@ -264,33 +280,11 @@ async fn update_non_current_local_branch(
     let initial_state = load_local_branch_update_state(repo_root, branch_name)?;
     let upstream_name = match initial_state.upstream_name.as_deref() {
         Some(name) if !name.trim().is_empty() => name.to_string(),
-        _ => {
-            return Ok(branch_update_result(
-                initial_state.branch_name.as_str(),
-                BRANCH_UPDATE_STATUS_BLOCKED,
-                Some(BRANCH_UPDATE_REASON_NO_UPSTREAM),
-                format!(
-                    "Branch '{}' has no upstream tracking branch configured.",
-                    initial_state.branch_name
-                ),
-                None,
-            ));
-        }
+        _ => return Ok(no_upstream_branch_update_result(initial_state.branch_name.as_str())),
     };
     let upstream_remote = match initial_state.upstream_remote.as_deref() {
         Some(name) if !name.trim().is_empty() => name.to_string(),
-        _ => {
-            return Ok(branch_update_result(
-                initial_state.branch_name.as_str(),
-                BRANCH_UPDATE_STATUS_BLOCKED,
-                Some(BRANCH_UPDATE_REASON_NO_UPSTREAM),
-                format!(
-                    "Branch '{}' has no upstream tracking branch configured.",
-                    initial_state.branch_name
-                ),
-                None,
-            ));
-        }
+        _ => return Ok(no_upstream_branch_update_result(initial_state.branch_name.as_str())),
     };
 
     run_git_command(repo_root, &["fetch", upstream_remote.as_str()]).await?;
@@ -311,18 +305,7 @@ async fn update_non_current_local_branch(
     let refreshed_state = load_local_branch_update_state(repo_root, initial_state.branch_name.as_str())?;
     let upstream_oid = match refreshed_state.upstream_oid {
         Some(oid) => oid,
-        None => {
-            return Ok(branch_update_result(
-                refreshed_state.branch_name.as_str(),
-                BRANCH_UPDATE_STATUS_BLOCKED,
-                Some(BRANCH_UPDATE_REASON_NO_UPSTREAM),
-                format!(
-                    "Branch '{}' has no upstream tracking branch configured.",
-                    refreshed_state.branch_name
-                ),
-                None,
-            ));
-        }
+        None => return Ok(no_upstream_branch_update_result(refreshed_state.branch_name.as_str())),
     };
 
     if refreshed_state.local_oid == upstream_oid || refreshed_state.behind == 0 {
@@ -372,6 +355,21 @@ async fn update_non_current_local_branch(
     ];
     let arg_refs = args_owned.iter().map(String::as_str).collect::<Vec<_>>();
     if let Err(error) = run_git_command(repo_root, &arg_refs).await {
+        if load_local_branch_update_state(repo_root, refreshed_state.branch_name.as_str())
+            .map(|latest_state| latest_state.local_oid != refreshed_state.local_oid)
+            .unwrap_or(false)
+        {
+            return Ok(branch_update_result(
+                refreshed_state.branch_name.as_str(),
+                BRANCH_UPDATE_STATUS_BLOCKED,
+                Some(BRANCH_UPDATE_REASON_STALE_REF),
+                format!(
+                    "Branch '{}' changed while updating. Refresh branch state and retry.",
+                    refreshed_state.branch_name
+                ),
+                None,
+            ));
+        }
         if is_stale_update_ref_error(&error, refreshed_state.branch_name.as_str()) {
             return Ok(branch_update_result(
                 refreshed_state.branch_name.as_str(),
@@ -430,6 +428,9 @@ pub(crate) async fn update_git_branch(
     }
 
     let branch_state = load_local_branch_update_state(&repo_root, normalized_branch.as_str())?;
+    if !branch_update_has_upstream(&branch_state) {
+        return Ok(no_upstream_branch_update_result(branch_state.branch_name.as_str()));
+    }
     if branch_state.is_current {
         pull_git(
             workspace_id,
@@ -1339,6 +1340,40 @@ mod tests {
             current_local_branch(local_root.as_path()).expect("current branch"),
             Some("main".to_string())
         );
+    }
+
+    #[tokio::test]
+    async fn update_git_branch_blocks_current_branch_without_upstream() {
+        let temp_dir = create_temp_dir("branch-update-no-upstream");
+        let remote_root = temp_dir.join("remote.git");
+        let local_root = temp_dir.join("local");
+        run_git_sync(temp_dir.as_path(), &["init", "--bare", remote_root.to_string_lossy().as_ref()]);
+        run_git_sync(
+            temp_dir.as_path(),
+            &[
+                "clone",
+                remote_root.to_string_lossy().as_ref(),
+                local_root.to_string_lossy().as_ref(),
+            ],
+        );
+        write_file(local_root.as_path(), "README.md", "init\n");
+        git_commit(local_root.as_path(), "initial commit");
+        run_git_sync(local_root.as_path(), &["checkout", "--orphan", "local-only"]);
+        run_git_sync(local_root.as_path(), &["reset", "--hard"]);
+        write_file(local_root.as_path(), "LOCAL.txt", "local only\n");
+        git_commit(local_root.as_path(), "local only branch");
+
+        let app_state = build_test_app_state("ws-no-upstream", local_root.as_path());
+        let result = update_git_branch(
+            "ws-no-upstream".to_string(),
+            "local-only".to_string(),
+            tauri_state(&app_state),
+        )
+        .await
+        .expect("update current branch without upstream");
+
+        assert_eq!(result.status, BRANCH_UPDATE_STATUS_BLOCKED);
+        assert_eq!(result.reason.as_deref(), Some(BRANCH_UPDATE_REASON_NO_UPSTREAM));
     }
 
     #[tokio::test]
