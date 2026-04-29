@@ -1341,3 +1341,178 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 228: CI sentry workflow 权限门禁修复
+
+**Date**: 2026-04-29
+**Task**: CI sentry workflow 权限门禁修复
+**Branch**: `feature/v0.4.11`
+
+### Summary
+
+为两个 sentry workflow 补齐最小权限声明，消除 workflow token 权限过宽的门禁风险。
+
+### Main Changes
+
+| 模块 | 说明 |
+|------|------|
+| GitHub Actions | 为 `heavy-test-noise-sentry.yml` 与 `large-file-governance.yml` 新增 `permissions: contents: read` |
+| 安全边界 | 显式收敛 `GITHUB_TOKEN` 为只读权限，满足 least-privilege 预期 |
+| 行为影响 | 不修改 trigger、job 结构、脚本入口或执行语义，仅修复 YAML 级权限边界 |
+
+**涉及文件**:
+- `.github/workflows/heavy-test-noise-sentry.yml`
+- `.github/workflows/large-file-governance.yml`
+
+**验证结果**:
+- `node --test scripts/check-heavy-test-noise.test.mjs` 通过
+- `npm run check:large-files:near-threshold` 通过（仅 watch 级 warning，无 fail）
+- `npm run check:large-files:gate` 通过
+- `npm run check:heavy-test-noise` 本地完整通过；唯一 warning 为 allowlist 内的 environment warning，不属于 repo-owned noise
+
+**后续事项**:
+- 如需进一步清理本地 npm warning，可单独检查 `electron_mirror` 相关环境变量或 npm 配置；不属于本次仓库门禁修复范围
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0b25913f890407eb0c98bca96eafd820b71f6486` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 229: 修复历史恢复幕布渲染回归
+
+**Date**: 2026-04-29
+**Task**: 修复历史恢复幕布渲染回归
+**Branch**: `feature/v0.4.11`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标:
+- 修复 Codex 自动/手动 context compaction 文案在幕布中的恢复态渲染问题。
+- 修复多轮对话快速 follow-up 时最后一个 user bubble 可能被幕布吃掉的问题。
+- 对当前工作区做全面 review，并补齐边界条件、CI 门禁与大文件治理相关修复。
+
+主要改动:
+- 补齐 historyRestoredAtMsByThread 从 threads state 到 AppShell、layout、Messages 的透传链路，并在 useLayoutNodes 增加漏传 fallback。
+- 调整 Messages render window 保底逻辑，恢复态关闭 live sticky overlay，但继续保留最后一个关键 user bubble 的可见性。
+- 修复 fallback resume 保留本地 items 时未写入 restored 标记的边界分支。
+- 保留本地 Codex compaction message 穿过 history reconcile。
+- 将新增历史恢复/compaction 回归测试拆到 companion test file，避免继续推高近阈值大测试文件。
+- 修正 large-file governance 与 heavy-test-noise sentry workflow 的 action 版本到仓库稳定基线。
+
+涉及模块:
+- src/features/threads/hooks
+- src/features/layout/hooks
+- src/features/messages/components
+- src/app-shell.tsx
+- src/app-shell-parts/useAppShellLayoutNodesSection.tsx
+- .github/workflows/large-file-governance.yml
+- .github/workflows/heavy-test-noise-sentry.yml
+
+验证结果:
+- npm exec vitest run src/features/layout/hooks/useLayoutNodes.client-ui-visibility.test.tsx src/features/messages/components/Messages.live-behavior.test.tsx src/features/threads/hooks/useThreadActions.test.tsx src/features/threads/hooks/useThreadActions.history-restore.test.tsx src/features/threads/hooks/useThreadsReducer.test.ts src/features/threads/hooks/useThreadsReducer.history-restore.test.ts src/features/threads/hooks/useThreadTurnEvents.test.tsx
+- node --test scripts/check-heavy-test-noise.test.mjs scripts/check-large-files.test.mjs
+- npm run typecheck
+- npm exec eslint src/features/threads/hooks/useThreadActions.ts src/features/threads/hooks/useThreadActions.test.tsx src/features/threads/hooks/useThreadActions.history-restore.test.tsx src/features/threads/hooks/useThreadsReducer.ts src/features/threads/hooks/useThreadsReducer.test.ts src/features/threads/hooks/useThreadsReducer.history-restore.test.ts src/features/layout/hooks/useLayoutNodes.tsx src/features/layout/hooks/useLayoutNodes.client-ui-visibility.test.tsx src/features/messages/components/Messages.tsx src/features/messages/components/Messages.live-behavior.test.tsx src/features/threads/hooks/threadReducerOptimisticItemMerge.ts src/features/threads/hooks/useThreadTurnEvents.ts src/features/threads/hooks/useThreads.ts src/app-shell.tsx src/app-shell-parts/useAppShellLayoutNodesSection.tsx
+- npm run check:large-files:near-threshold
+- npm run check:large-files:gate
+
+后续事项:
+- 建议继续人工回归 Codex 自动 compaction、手动 compaction、多轮快速 follow-up 三条真实交互链路。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d938e025` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 230: 合并 PR #448 自定义主题预设
+
+**Date**: 2026-04-29
+**Task**: 合并 PR #448 自定义主题预设
+**Branch**: `integrate/pr-448-theme-presets`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：将 PR #448 的自定义主题预设能力合入当前本地集成分支，并解决与 feature/v0.4.11 的 settings/theme 冲突。
+
+主要改动：
+- 创建并使用本地集成分支 integrate/pr-448-theme-presets。
+- 合入 upstream/pr-448，保留 custom theme preset、VS Code preset token、frontend/Rust settings sanitize 与 runtime appearance contract。
+- 语义解决 BasicAppearanceSection.tsx 冲突，同时保留当前分支 client UI visibility 设置项与 PR 的 theme preset selector。
+- 语义解决 useAppSettings.test.ts 冲突，同时保留 global search shortcut 测试与 dim theme preset sanitize 测试。
+- 创建合并提交 feat(theme): 合并自定义主题预设能力。
+
+涉及模块：
+- frontend settings UI
+- frontend settings hook tests
+- theme preset utils
+- runtime theme appearance
+- Rust app settings sanitize
+- OpenSpec/Trellis metadata
+
+验证结果：
+- npx vitest run src/features/settings/hooks/useAppSettings.test.ts src/features/settings/components/SettingsView.test.tsx src/features/theme/utils/themePreset.test.ts src/features/theme/utils/mapVsCodeColorsToTokens.test.ts 通过，4 个文件 61 个测试通过。
+- npm run typecheck 通过。
+- npm run lint 通过。
+- git diff --name-only --diff-filter=U 为空，无未解决冲突。
+
+后续事项：
+- 可在 integrate/pr-448-theme-presets 上继续人工调试自定义主题 preset 行为。
+- 若调试通过，可将集成分支合回 feature/v0.4.11。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `bc7f575d03e37b7750b12753ce069e5c5044fbd8` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
