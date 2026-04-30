@@ -266,3 +266,58 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 242: 归档 Spec Hub 独立阅读窗体 OpenSpec 变更
+
+**Date**: 2026-04-30
+**Task**: 归档 Spec Hub 独立阅读窗体 OpenSpec 变更
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标:
+- 收口 Spec Hub 独立阅读窗体与阅读导航改造对应的 OpenSpec 文档。
+- 将 change 内的 delta specs 同步到主 specs，并完成 change 归档。
+
+主要改动:
+- 将 detached Spec Hub window 能力同步到主 specs，新增 `openspec/specs/detached-spec-hub-window/spec.md`。
+- 将 reader outline、linked spec reading flow、collapsible side panes 等 requirement 合并进 `openspec/specs/spec-hub-workbench-ui/spec.md`。
+- 使用 `openspec archive spec-hub-viewer-and-detached-window --yes --skip-specs` 归档 change 到 `openspec/changes/archive/2026-04-30-spec-hub-viewer-and-detached-window/`。
+
+涉及模块:
+- openspec/specs/spec-hub-workbench-ui/spec.md
+- openspec/specs/detached-spec-hub-window/spec.md
+- openspec/changes/archive/2026-04-30-spec-hub-viewer-and-detached-window/**
+
+验证结果:
+- openspec validate "spec-hub-viewer-and-detached-window" --type change --strict --no-interactive 通过
+- openspec archive spec-hub-viewer-and-detached-window --yes --skip-specs 成功
+- 本次为 OpenSpec 文档收口，未新增业务代码测试执行
+
+后续事项:
+- 当前工作树仍存在与 note-card / composer / backend 等无关本次归档的改动，保持未提交状态。
+- 若后续需要对 Spec Hub 主 specs 再做 wording 微调，应直接修改主 `openspec/specs/**`，不再回写已归档 change。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c2ca9e04` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
