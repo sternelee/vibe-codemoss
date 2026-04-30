@@ -5,6 +5,7 @@ import {
   getEffectiveSelectedEffort,
   getEffectiveReasoningSupported,
   getEffectiveSelectedModelId,
+  getReasoningOptionsForModel,
   getNextEngineSelectedModelId,
 } from "./modelSelection";
 
@@ -93,6 +94,28 @@ describe("modelSelection", () => {
         activeThreadSelection: null,
       }),
     ).toBe("high");
+  });
+
+  it("derives reasoning options from supported efforts before falling back to the model default", () => {
+    expect(
+      getReasoningOptionsForModel(
+        createModel("codex-alt", {
+          supportedReasoningEfforts: [
+            { reasoningEffort: "medium", description: "Medium" },
+            { reasoningEffort: "high", description: "High" },
+          ],
+          defaultReasoningEffort: "low",
+        }),
+      ),
+    ).toEqual(["medium", "high"]);
+    expect(
+      getReasoningOptionsForModel(
+        createModel("codex-default", {
+          supportedReasoningEfforts: [],
+          defaultReasoningEffort: "medium",
+        }),
+      ),
+    ).toEqual(["medium"]);
   });
 
   it("falls back to the configured claude default when no claude models are loaded yet", () => {

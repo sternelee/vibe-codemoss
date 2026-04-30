@@ -159,6 +159,7 @@ import {
   getEffectiveModels,
   getEffectiveReasoningSupported,
   getEffectiveSelectedModelId,
+  getReasoningOptionsForModel,
   getNextEngineSelectedModelId,
 } from "./app-shell-parts/modelSelection";
 import { useOpenCodeSelection } from "./app-shell-parts/useOpenCodeSelection";
@@ -564,8 +565,6 @@ export function AppShell() {
     models,
     selectedModelId,
     setSelectedModelId,
-    reasoningSupported,
-    reasoningOptions,
     selectedEffort,
     setSelectedEffort,
     refreshModels,
@@ -738,9 +737,9 @@ export function AppShell() {
           selectedModelId: id,
         });
       }
-      if (activeEngine === "codex") {
+      if (activeEngine === "codex" && !hasActiveComposerThread) {
         setSelectedModelId(id);
-      } else {
+      } else if (activeEngine !== "codex") {
         setEngineSelectedModelIdByType((prev) => ({
           ...prev,
           [activeEngine]: id,
@@ -751,7 +750,13 @@ export function AppShell() {
         effort: effectiveSelectedEffort,
       });
     },
-    [activeEngine, effectiveSelectedEffort, persistActiveComposerSelection, setSelectedModelId],
+    [
+      activeEngine,
+      effectiveSelectedEffort,
+      hasActiveComposerThread,
+      persistActiveComposerSelection,
+      setSelectedModelId,
+    ],
   );
 
   const effectiveModels = useMemo(() => {
@@ -795,24 +800,36 @@ export function AppShell() {
     threadComposerSelection,
   ]);
 
-  const effectiveReasoningSupported = useMemo(() => {
-    return getEffectiveReasoningSupported(activeEngine, reasoningSupported);
-  }, [activeEngine, reasoningSupported]);
-
   // Derive effective selected model based on active engine
   const effectiveSelectedModel = useMemo(() => {
     return effectiveModels.find((m) => m.id === effectiveSelectedModelId) ?? null;
   }, [effectiveModels, effectiveSelectedModelId]);
 
+  const effectiveReasoningOptions = useMemo(() => {
+    return getReasoningOptionsForModel(effectiveSelectedModel);
+  }, [effectiveSelectedModel]);
+
+  const effectiveReasoningSupported = useMemo(() => {
+    return getEffectiveReasoningSupported(activeEngine, effectiveReasoningOptions.length > 0);
+  }, [activeEngine, effectiveReasoningOptions.length]);
+
   const handleSelectComposerEffort = useCallback(
     (effort: string | null) => {
-      setSelectedEffort(effort);
+      if (!(activeEngine === "codex" && hasActiveComposerThread)) {
+        setSelectedEffort(effort);
+      }
       persistActiveComposerSelection({
         modelId: effectiveSelectedModelId,
         effort,
       });
     },
-    [effectiveSelectedModelId, persistActiveComposerSelection, setSelectedEffort],
+    [
+      activeEngine,
+      effectiveSelectedModelId,
+      hasActiveComposerThread,
+      persistActiveComposerSelection,
+      setSelectedEffort,
+    ],
   );
 
   // Sync accessMode when switching engines (Codex forces full-access, Claude restores saved mode)
@@ -854,7 +871,7 @@ export function AppShell() {
     onSelectCollaborationMode: applySelectedCollaborationMode,
     accessMode,
     onSelectAccessMode: handleSetAccessMode,
-    reasoningOptions,
+    reasoningOptions: effectiveReasoningOptions,
     selectedEffort: effectiveSelectedEffort,
     onSelectEffort: handleSelectComposerEffort,
     reasoningSupported: effectiveReasoningSupported,
@@ -869,7 +886,7 @@ export function AppShell() {
     onSelectCollaborationMode: applySelectedCollaborationMode,
     accessMode,
     onSelectAccessMode: handleSetAccessMode,
-    reasoningOptions,
+    reasoningOptions: effectiveReasoningOptions,
     selectedEffort: effectiveSelectedEffort,
     onSelectEffort: handleSelectComposerEffort,
     reasoningSupported: effectiveReasoningSupported,
@@ -1017,15 +1034,6 @@ export function AppShell() {
       : gitStatus.files.length > 0
         ? t("git.filesChanged", { count: gitStatus.files.length })
         : t("git.workingTreeClean");
-
-  usePersistComposerSettings({
-    enabled: !hasActiveComposerThread,
-    appSettingsLoading,
-    selectedModelId,
-    selectedEffort,
-    setAppSettings,
-    queueSaveSettings,
-  });
 
   const { textareaHeight, onTextareaHeightChange } =
     useComposerEditorState();
@@ -1234,33 +1242,30 @@ export function AppShell() {
     resolveCanonicalThreadId,
     onDebug: addDebugEntry,
   });
+  const currentComposerSelectionScopeKey = `${activeWorkspaceId ?? "__workspace__unknown__"}:${activeThreadId ?? "__thread__none__"}`;
+  const isComposerSelectionScopeSynced =
+    composerSelectionScopeKey === currentComposerSelectionScopeKey;
 
   useLayoutEffect(() => {
-    const nextScopeKey = `${activeWorkspaceId ?? "__workspace__unknown__"}:${activeThreadId ?? "__thread__none__"}`;
+    const nextScopeKey = currentComposerSelectionScopeKey;
     setComposerSelectionScopeKey((current) =>
       current === nextScopeKey ? current : nextScopeKey,
     );
     setThreadComposerSelection(null);
-  }, [activeThreadId, activeWorkspaceId]);
+  }, [currentComposerSelectionScopeKey]);
 
   useLayoutEffect(() => {
     setThreadComposerSelection(selectedComposerSelection);
   }, [selectedComposerSelection]);
 
-  useLayoutEffect(() => {
-    if (activeEngine !== "codex" || threadComposerSelection === null) {
-      return;
-    }
-    const nextModelId = threadComposerSelection.modelId ?? null;
-    if (nextModelId && nextModelId !== selectedModelId) {
-      setSelectedModelId(nextModelId);
-    }
-  }, [
-    activeEngine,
+  usePersistComposerSettings({
+    enabled: !hasActiveComposerThread && isComposerSelectionScopeSynced,
+    appSettingsLoading,
     selectedModelId,
-    setSelectedModelId,
-    threadComposerSelection,
-  ]);
+    selectedEffort,
+    setAppSettings,
+    queueSaveSettings,
+  });
 
   const claudeModelRefreshThreadKeyRef = useRef<string | null>(null);
 
@@ -2284,7 +2289,7 @@ export function AppShell() {
     openTerminal, openWorktreePrompt, perfSnapshotRef, persistComposerSelectionForThread, persistProjectCopiesFolder, pickImages, pinThread,
     pinnedThreadsVersion, planByThread, planPanelHeight, prefillDraft,
     prompts, pushError, pushLoading, queueGitStatusRefresh, queueMessage,
-    queueSaveSettings, rateLimitsByWorkspace, reasoningOptions, reasoningSupported, recentThreads, reduceTransparency, refreshAccountInfo,
+    queueSaveSettings, rateLimitsByWorkspace, reasoningOptions: effectiveReasoningOptions, reasoningSupported: effectiveReasoningSupported, recentThreads, reduceTransparency, refreshAccountInfo,
     refreshAccountRateLimits, refreshEngines, refreshFiles, refreshGitDiffs, refreshGitLog, refreshGitStatus, refreshThread, refreshWorkspaces, releaseNotesActiveIndex,
     releaseNotesEntries, releaseNotesError, releaseNotesLoading, releaseNotesOpen, reloadSelectedAgent, removeImage, removeImagesForThread, removeThread, removeThreads,
     removeWorkspace, removeWorktree, renamePrompt, renameThread, renameWorkspaceGroup, renameWorktree, renameWorktreeNotice, renameWorktreePrompt,

@@ -35,6 +35,14 @@ function getDefaultModelId(models: ModelOption[]) {
   return models.find((model) => model.isDefault)?.id ?? models[0]?.id ?? null;
 }
 
+function normalizeReasoningEffort(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 export function getEffectiveModels(
   activeEngine: EngineType,
   codexModels: ModelOption[],
@@ -104,6 +112,15 @@ export function getEffectiveSelectedEffort({
     return selectedEffort;
   }
   return activeThreadSelection.effort;
+}
+
+export function getReasoningOptionsForModel(model: ModelOption | null): string[] {
+  const supported = model?.supportedReasoningEfforts.map((effort) => effort.reasoningEffort) ?? [];
+  if (supported.length > 0) {
+    return supported;
+  }
+  const defaultEffort = normalizeReasoningEffort(model?.defaultReasoningEffort);
+  return defaultEffort ? [defaultEffort] : [];
 }
 
 export function getEffectiveReasoningSupported(
