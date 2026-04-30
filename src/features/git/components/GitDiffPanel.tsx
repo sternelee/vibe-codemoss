@@ -149,6 +149,7 @@ type GitDiffPanelProps = {
   onGenerateCommitMessage?: (
     language?: CommitMessageLanguage,
     engine?: CommitMessageEngine,
+    selectedPaths?: string[],
   ) => void | Promise<void>;
   // Git operations
   onCommit?: (selectedPaths?: string[]) => void | Promise<void>;
@@ -1071,6 +1072,7 @@ export function GitDiffPanel({
   const {
     selectedCommitPaths,
     selectedCommitCount,
+    hasExplicitCommitSelection,
     includedCommitPaths,
     excludedCommitPaths,
     partialCommitPaths,
@@ -1699,11 +1701,21 @@ export function GitDiffPanel({
       if (!onGenerateCommitMessage || commitMessageLoading || commitLoading || !canGenerateCommitMessage) {
         return;
       }
+      const selectedPathsForGeneration =
+        selectedCommitCount > 0
+          ? selectedCommitPaths
+          : hasExplicitCommitSelection
+            ? []
+            : undefined;
       const items = [
         await MenuItem.new({
           text: t("git.generateCommitMessageChinese"),
           action: async () => {
             setCommitMessageMenuEngine(engine);
+            if (selectedPathsForGeneration) {
+              await onGenerateCommitMessage("zh", engine, selectedPathsForGeneration);
+              return;
+            }
             await onGenerateCommitMessage("zh", engine);
           },
         }),
@@ -1711,6 +1723,10 @@ export function GitDiffPanel({
           text: t("git.generateCommitMessageEnglish"),
           action: async () => {
             setCommitMessageMenuEngine(engine);
+            if (selectedPathsForGeneration) {
+              await onGenerateCommitMessage("en", engine, selectedPathsForGeneration);
+              return;
+            }
             await onGenerateCommitMessage("en", engine);
           },
         }),
@@ -1719,7 +1735,16 @@ export function GitDiffPanel({
       const window = getCurrentWindow();
       await menu.popup(position, window);
     },
-    [canGenerateCommitMessage, commitLoading, commitMessageLoading, onGenerateCommitMessage, t],
+    [
+      canGenerateCommitMessage,
+      commitLoading,
+      commitMessageLoading,
+      onGenerateCommitMessage,
+      selectedCommitCount,
+      selectedCommitPaths,
+      hasExplicitCommitSelection,
+      t,
+    ],
   );
   const showCommitMessageEngineMenu = useCallback(
     async (event: ReactMouseEvent<HTMLButtonElement>) => {

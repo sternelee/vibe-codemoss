@@ -253,6 +253,103 @@ describe("GitDiffPanel", () => {
     });
   });
 
+  it("passes selected commit scope when generating commit message from the commit section", async () => {
+    mockMenuPopup
+      .mockImplementationOnce(async (items) => {
+        const codexItem = items.find((item) => item.text === "Use Codex engine");
+        await codexItem?.action?.();
+      })
+      .mockImplementationOnce(async (items) => {
+        const englishItem = items.find((item) => item.text === "Generate English commit message");
+        await englishItem?.action?.();
+      });
+    const onGenerateCommitMessage = vi.fn();
+
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        onGenerateCommitMessage={onGenerateCommitMessage}
+        unstagedFiles={[{ path: "file.txt", status: "M", additions: 1, deletions: 0 }]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Toggle commit section" }));
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Toggle commit selection: file.txt" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Generate commit message" }));
+
+    await waitFor(() => {
+      expect(onGenerateCommitMessage).toHaveBeenCalledWith("en", "codex", [
+        "file.txt",
+      ]);
+    });
+  });
+
+  it("passes an explicit empty scope after the user clears staged defaults", async () => {
+    mockMenuPopup
+      .mockImplementationOnce(async (items) => {
+        const codexItem = items.find((item) => item.text === "Use Codex engine");
+        await codexItem?.action?.();
+      })
+      .mockImplementationOnce(async (items) => {
+        const englishItem = items.find((item) => item.text === "Generate English commit message");
+        await englishItem?.action?.();
+      });
+    const onGenerateCommitMessage = vi.fn();
+
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        onGenerateCommitMessage={onGenerateCommitMessage}
+        stagedFiles={[{ path: "file.txt", status: "M", additions: 1, deletions: 0 }]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Toggle commit section" }));
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Toggle commit selection: file.txt" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Generate commit message" }));
+
+    await waitFor(() => {
+      expect(onGenerateCommitMessage).toHaveBeenCalledWith("en", "codex", []);
+    });
+  });
+
+  it("keeps an explicit empty scope after the user selects and re-clears an unstaged file", async () => {
+    mockMenuPopup
+      .mockImplementationOnce(async (items) => {
+        const codexItem = items.find((item) => item.text === "Use Codex engine");
+        await codexItem?.action?.();
+      })
+      .mockImplementationOnce(async (items) => {
+        const englishItem = items.find((item) => item.text === "Generate English commit message");
+        await englishItem?.action?.();
+      });
+    const onGenerateCommitMessage = vi.fn();
+
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        onGenerateCommitMessage={onGenerateCommitMessage}
+        unstagedFiles={[{ path: "file.txt", status: "M", additions: 1, deletions: 0 }]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Toggle commit section" }));
+    const selectionToggle = screen.getByRole("checkbox", {
+      name: "Toggle commit selection: file.txt",
+    });
+    fireEvent.click(selectionToggle);
+    fireEvent.click(selectionToggle);
+    fireEvent.click(screen.getByRole("button", { name: "Generate commit message" }));
+
+    await waitFor(() => {
+      expect(onGenerateCommitMessage).toHaveBeenCalledWith("en", "codex", []);
+    });
+  });
+
   it("shows spinning engine icon while generating commit message", () => {
     render(
       <GitDiffPanel
