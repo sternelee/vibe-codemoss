@@ -115,6 +115,21 @@ export {
 } from "./tauri/projectMemory";
 export type { ProjectMemoryItem, ProjectMemoryListResult, ProjectMemorySettings } from "./tauri/projectMemory";
 export {
+  noteCardArchive,
+  noteCardCreate,
+  noteCardDelete,
+  noteCardGet,
+  noteCardList,
+  noteCardRestore,
+  noteCardUpdate,
+} from "./tauri/noteCards";
+export type {
+  NoteCardAttachment,
+  WorkspaceNoteCard,
+  WorkspaceNoteCardListResult,
+  WorkspaceNoteCardSummary,
+} from "./tauri/noteCards";
+export {
   addClaudeProvider,
   addCodexProvider,
   deleteClaudeProvider,
