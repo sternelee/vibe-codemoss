@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-8.md`
-- **Total Sessions**: 243
+- **Total Sessions**: 244
 - **Last Active**: 2026-04-30
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-8.md` | ~385 | Active |
+| `journal-8.md` | ~446 | Active |
 | `journal-7.md` | ~1950 | Archived |
 | `journal-6.md` | ~1961 | Archived |
 | `journal-5.md` | ~1949 | Archived |
@@ -36,6 +36,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 244 | 2026-04-30 | 完善工作区便签引用与跨平台附件兼容 | `8257af6a` | `feature/fix-0.4.12` |
 | 243 | 2026-04-30 | 工作区便签池与上下文引用交付 | `c277c8a3`, `b1434bce` | `feature/fix-0.4.12` |
 | 242 | 2026-04-30 | 归档 Spec Hub 独立阅读窗体 OpenSpec 变更 | `c2ca9e04` | `feature/fix-0.4.12` |
 | 241 | 2026-04-30 | Spec Hub 独立阅读窗体与需求池优化 | `a6dd7b21` | `feature/fix-0.4.12` |

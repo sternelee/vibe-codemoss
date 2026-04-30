@@ -383,3 +383,64 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 244: 完善工作区便签引用与跨平台附件兼容
+
+**Date**: 2026-04-30
+**Task**: 完善工作区便签引用与跨平台附件兼容
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+## 任务目标
+收尾工作区便签功能，补齐 @# 引用预览、幕布上下文卡片、右侧面板折叠交互，以及本地图片附件在跨平台场景下的保存与回显稳定性。
+
+## 主要改动
+- 右侧便签面板默认折叠快速记录/编辑区，仅在新建或选中便签时展开；补充 `@#` 可引用便签提示文案，并调整操作区布局以压缩垂直占用。
+- Composer `@#` 自动补全补齐便签内容预览和缩略图展示；消息幕布中的便签上下文改为独立卡片，默认半折叠，图片使用缩略图并支持查看大图。
+- 后端 `note_cards` 补齐 summary `body_markdown` 字段，并修复本地附件 URI 归一化逻辑，兼容 `file://`、`asset://localhost`、percent-encoded UTF-8 路径、Windows drive letter 与 UNC 路径。
+- 前端同步统一图片路径 normalize 和 workspace 切换状态清理，避免旧 workspace 便签残留和缩略图重复去重失效。
+
+## 涉及模块
+- `src/features/note-cards/**`
+- `src/features/composer/**`
+- `src/features/messages/**`
+- `src/services/tauri/noteCards.ts`
+- `src-tauri/src/note_cards.rs`
+- `src/i18n/locales/**`
+- `src/styles/**`
+
+## 验证结果
+- `npm run typecheck`
+- `npx vitest run src/features/messages/components/Messages.note-card-context.test.tsx src/features/note-cards/components/WorkspaceNoteCardPanel.test.tsx src/features/composer/components/ChatInputBox/ChatInputBoxAdapter.test.tsx src/features/composer/hooks/useComposerAutocompleteState.test.tsx`
+- `cargo test --manifest-path src-tauri/Cargo.toml note_cards`
+- `npm run check:runtime-contracts`
+- `npm run check:large-files:near-threshold`
+
+## 后续事项
+- 若后续继续扩展便签卡片展示，优先沿用当前独立卡片和缩略图折叠模式，避免重新混入普通消息气泡。
+- `check:large-files:near-threshold` 仍报告仓库既有 watchlist 文件，但本次提交未触发 fail gate。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8257af6a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
