@@ -154,12 +154,24 @@ Rationale：
 
 - **macOS**：由于 detached window 使用 `titleBarStyle: overlay`，拖动能力依赖前端显式声明的 drag region；因此需要保证 menubar 与其文字区都可拖、不可误选、且不被正文覆盖。
 - **macOS**：仅靠 `data-tauri-drag-region` 仍可能因为 overlay titlebar 与层级关系出现拖动不稳定，因此需要在 menubar 上补一层 `startDragging()` 手动兜底。
+- **macOS**：手动 drag fallback 不能假设事件目标一定是 `HTMLElement`；当用户按在 menubar 标题文本上时，target 可能是 `Text node`，实现必须先判定 `Element` 再做 interactive guard，否则会出现“看起来按在标题栏上却拖不动”的假失效。
 - **Windows**：当前未启用 overlay titlebar，系统原生标题栏仍可拖动；前端 menubar 主要承担视觉统一，不应通过过度 hack 破坏系统行为。
 
 Rationale：
 
 - 当前“拖不动”更像 drag handle 设计与窗口 permission 对齐不足，而不是窗口创建参数错误。
 - 所以修复策略应聚焦在前端 drag region、`startDragging()` 兜底与 detached window capability 映射，而不是盲目改 `WebviewWindow` option。
+
+### Decision 11: Detached Spec Hub 默认窗口高度对齐 detached file explorer 的紧凑基线
+
+- 备选 A：继续使用更高的 reader window 默认高度。
+  - 问题：在中等高度屏幕上会放大 menubar + header + 三栏布局的垂直占用，正文与侧栏节奏都显得偏松。
+- 备选 B：回到与 detached file explorer 接近的默认高度基线。采用。
+
+Rationale：
+
+- detached Spec Hub 虽然是 reader-first surface，但它并不需要比 detached file explorer 更高的默认壳层才可用。
+- 统一默认高度基线后，独立窗口家族在 macOS / Windows 上更容易形成一致预期，也更利于后续共享 window shell 调参经验。
 
 ## Data Flow
 

@@ -79,6 +79,20 @@ detached Spec Hub window MUST 具备稳定的独立窗口壳层与完整的 read
 - **AND** 非交互文案区域 SHALL 不因文本选中或层级覆盖而导致拖动失效
 - **AND** menubar SHALL 提供手动 drag fallback，以避免 overlay titlebar 下的拖动句柄失灵
 
+#### Scenario: Text-node targets do not break macOS drag fallback
+
+- **GIVEN** detached Spec Hub window 运行在 macOS desktop
+- **AND** 用户按下的是 menubar 标题文字等非交互文案区域
+- **WHEN** 该鼠标事件的目标不是 `HTMLElement` 而是文本节点
+- **THEN** detached window 的手动 drag fallback SHALL 仍然生效
+- **AND** 它 SHALL NOT 因为 target 缺少 `closest()` 而中断拖动流程
+
+#### Scenario: Detached window height stays aligned with detached file explorer baseline
+
+- **WHEN** 系统首次创建 detached Spec Hub window
+- **THEN** 该窗口 SHALL 使用与 detached file explorer 一致的紧凑默认高度基线
+- **AND** 它 SHALL NOT 仅因 reader surface 存在而默认创建一个明显更高的窗口
+
 ### Requirement: Detached Spec Hub Session Handoff SHALL Be Recoverable
 
 系统 MUST 为 detached Spec Hub window 持久化最近一次阅读 session snapshot，以支持冷启动恢复、事件晚到恢复和错误态回退。

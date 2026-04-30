@@ -40,8 +40,9 @@
   - detached window 采用固定 window identity，可复用、可重定向、可聚焦，不为每次点击无限创建新窗体。
   - detached surface 与主窗体并行存在，关闭独立窗口不影响主窗体 Spec Hub；主窗体切回聊天/Git/文件视图时，独立窗口继续保留阅读上下文。
   - detached window 的外观与尺寸链对齐 detached file explorer：拥有稳定的专用窗口壳层，并保证 reader surface 占满可用窗口空间。
+  - detached window 的默认高度与独立文件窗口保持同一紧凑基线，避免 Spec Hub 独立窗体在中等屏幕上显得过高、压缩正文与边栏的垂直节奏。
   - detached surface 保留旧的 control center toggle，但默认维持折叠，避免执行台长期占据阅读空间。
-  - detached window 的 drag handle 需要针对 macOS overlay titlebar 做显式加固，并增加 `startDragging()` 兜底与窗口 capability 对齐，同时不破坏 Windows 侧原生标题栏拖动能力。
+  - detached window 的 drag handle 需要针对 macOS overlay titlebar 做显式加固，并增加 `startDragging()` 兜底与窗口 capability 对齐；该兜底需要覆盖 menubar 文案文本节点等非交互目标，同时不破坏 Windows 侧原生标题栏拖动能力。
 - 引入 surface-scoped reader context：
   - 同一 workspace + spec-root 下，embedded 与 detached surface 各自维护独立的 change / artifact / spec source 阅读上下文。
   - detached window 在冷启动或事件晚到时可从最近一次 session snapshot 恢复，避免空白窗体或错误 change。
@@ -93,6 +94,8 @@
 14. collapsed 状态下的 change pane expand affordance SHALL 呈现清晰可见的展开 icon。
 15. detached Spec Hub window SHALL 保留现有 control center toggle，且首次进入时默认 SHALL 保持折叠。
 16. 当 `tasks` artifact 的某个导航分组下仍存在未完成 checklist item 时，对应阅读导航项 SHALL 显示明确但低干扰的提醒标识。
+17. detached Spec Hub window 在 macOS overlay titlebar 下 SHALL 继续可拖动，即使用户按下的是 menubar 内的非交互文本区域。
+18. detached Spec Hub window 的默认窗口高度 SHALL 与 detached file explorer 维持同一紧凑基线，而不是额外放大成更高的 reader shell。
 
 ## Impact
 
