@@ -674,3 +674,67 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 249: 补充记录 composer 线程选择链路结构性重构提交
+
+**Date**: 2026-05-01
+**Task**: 补充记录 composer 线程选择链路结构性重构提交
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：
+- 提交当前工作区全部 composer 线程作用域修复与回归测试改动，不在本轮继续追加新修复。
+
+主要改动：
+- 重构 AppShell、useThreads、useThreadMessaging、useThreadMessagingSessionTooling 之间的 composer selection 数据流，改为发送时解析当前 selection，降低启动恢复阶段的状态回写环风险。
+- 收敛 useModels 的职责，移除线程作用域切换相关状态所有权，补充 globalSelectionReady 以保护冷启动全局 composer 默认值持久化。
+- 强化 modelSelection 与 usePersistComposerSettings 的边界处理，过滤线程态无效 modelId 和 unsupported reasoning effort，避免冷启动误清空全局默认值。
+- 补充 AppShell 启动回归测试、selection 纯函数测试和持久化测试，覆盖已有线程、无活动线程、pending 转 canonical 线程等路径。
+
+涉及模块：
+- src/app-shell.tsx
+- src/app-shell-parts/modelSelection.ts
+- src/app-shell.startup.test.tsx
+- src/features/models/hooks/useModels.ts
+- src/features/app/hooks/usePersistComposerSettings.ts
+- src/features/threads/hooks/useThreads.ts
+- src/features/threads/hooks/useThreadMessaging.ts
+- src/features/threads/hooks/useThreadMessagingSessionTooling.ts
+- 相关测试文件
+
+验证结果：
+- npm exec vitest run src/app-shell.startup.test.tsx src/features/models/hooks/useModels.test.tsx src/app-shell-parts/modelSelection.test.ts src/features/app/hooks/usePersistComposerSettings.test.tsx src/app-shell-parts/useSelectedComposerSession.test.tsx 通过。
+- npm run lint 通过。
+- npm run typecheck 通过。
+- npm run check:large-files 通过。
+- npm run check:heavy-test-noise 通过。
+- 本地 tauri dev 启动链检查通过，未复现同类启动即崩。
+
+后续事项：
+- 继续跟进尚未完全排除的 composer 启动边界风险，按后续 review 结果补修剩余问题。
+- 单独处理 doctor:strict 暴露的 branding 遗留问题，避免与本次 composer 修复耦合。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `28eaec3f062c7e4358e5372960f542fd5ffa3715` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
