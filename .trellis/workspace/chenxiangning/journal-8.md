@@ -1039,3 +1039,41 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 255: 合并 PR 478 与 PR 479 到 0.4.12 分支
+
+**Date**: 2026-05-01
+**Task**: 合并 PR 478 与 PR 479 到 0.4.12 分支
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：将 upstream PR #478 和 PR #479 本机合并到当前 feature/fix-0.4.12 分支，绕过 GitHub 网页因 Trellis workspace add/add 冲突无法合并的问题。
+主要改动：按顺序合并 #478 configurable terminal shell 与 #479 Claude model refresh stale mapping；手工语义合并 .trellis/workspace/watsonk1998/index.md 和 journal-1.md，保留 #476/#478/#479 三条 session 记录；生成两个 merge commit f0a41c99 和 013d9b6d。
+涉及模块：settings terminal shell 配置链路；terminal runtime shell resolution；composer ModelSelect label refresh；OpenSpec/Trellis change artifacts；watsonk1998 workspace session metadata。
+验证结果：npm exec vitest -- run src/features/settings/hooks/useAppSettings.test.ts src/features/settings/components/SettingsView.test.tsx src/features/composer/components/ChatInputBox/selectors/ModelSelect.test.tsx 通过，60 tests passed；npm run typecheck 通过；cargo test --manifest-path src-tauri/Cargo.toml 通过；git diff --check 通过；最终无冲突标记残留。
+后续事项：需要推送 feature/fix-0.4.12 到远端；如发布前要求，可再跑 npm run lint / npm run test 全量前端门禁。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `013d9b6dce95002c8925d5805289d43643968c53` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
