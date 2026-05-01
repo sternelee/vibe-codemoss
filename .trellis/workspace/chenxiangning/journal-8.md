@@ -1307,3 +1307,49 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 262: 修复 Codex 记忆摘要与历史截图回归
+
+**Date**: 2026-05-01
+**Task**: 修复 Codex 记忆摘要与历史截图回归
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+修复 Codex 记忆上下文摘要重复、历史普通截图丢失，以及 fallback 覆盖 remote structured history 的回归。
+
+### Main Changes
+
+- 任务目标：修复 Codex 记忆引用导致的同轮重复摘要展示，并恢复历史会话中普通用户截图的可见性。
+- 主要改动：
+  1. 放宽 project-memory wrapper canonicalization，支持带 attributes 的 injected XML。
+  2. 为 memory summary 增加 same-turn suppress，避免 assistant summary 与 user wrapper 双显。
+  3. 收紧 note-card 图片去重边界，只过滤确认来自 injected note-card 的附件。
+  4. 修正 Codex history loader，在 fallback 仅多出普通用户截图时改为 merge richer images，而不是整包覆盖 remote history。
+  5. 修正 suppressed memory-only user row 的 surface，避免泄漏原始 <project-memory ...> XML。
+- 涉及模块：messages、conversationNormalization、codexHistoryLoader、codexSessionHistory、threadItems、OpenSpec change artifacts。
+- 验证结果：
+  - pnpm vitest run src/features/messages/components/Messages.test.tsx src/features/threads/loaders/historyLoaders.test.ts
+  - pnpm vitest run src/features/messages/components/Messages.note-card-context.test.tsx
+  - pnpm exec tsc --noEmit
+- 后续事项：建议手工验证真实 UI 场景，确认同轮只显示一张记忆摘要卡片，且历史普通截图缩略图恢复正常。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7177533d0b2ade0c114c5f5fa7afe589d1b03ab8` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
