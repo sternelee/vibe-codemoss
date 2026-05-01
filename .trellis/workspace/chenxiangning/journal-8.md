@@ -1191,3 +1191,41 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 259: 合并 PR 484 486 487 488 并修复侧边栏过滤边界
+
+**Date**: 2026-05-01
+**Task**: 合并 PR 484 486 487 488 并修复侧边栏过滤边界
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：按顺序本地合并 PR #484/#486/#487/#488，解决冲突后做整体 review，并修复发现的问题。
+主要改动：合并 Windows 用户 .local/bin CLI discovery；合并 Composer 自定义 slash command 残留清理；合并 symlink skill directory 扫描支持，同时保留 plugin cache/skills root 不跟随 symlink 的安全边界；合并侧边栏隐藏已退出会话入口；review 后修复隐藏已退出会话时父会话 exited、子会话 running 导致树形结构断裂的问题，保留运行子会话的父级上下文并补 aria-pressed。
+涉及模块：src-tauri/src/backend/app_server_cli.rs；src/features/composer/components/Composer.tsx；src/features/composer/components/ChatInputBox/ChatInputBoxAdapter.test.tsx；src/features/composer/components/ComposerEditorHelpers.test.tsx；src-tauri/src/skills.rs；src/features/app/components/ThreadList.tsx；src/features/app/components/ThreadList.test.tsx；src/i18n/locales/en.part2.ts；src/i18n/locales/zh.part2.ts；src/styles/sidebar.css。
+验证结果：cargo test --manifest-path src-tauri/Cargo.toml windows_extra_search_paths_include_user_local_bin 通过；cargo test --manifest-path src-tauri/Cargo.toml skills:: 通过；目标 vitest 覆盖 ThreadList/Sidebar/Composer/ChatInputBoxAdapter/useCustomCommands 通过；npm run typecheck 通过；npm run check:large-files:gate 通过；git diff --check 通过。heavy-test-noise 完整门禁将在记录后继续执行并在最终回复说明结果。
+后续事项：若 backend 后续提供显式 session lifecycle 字段，侧边栏 exited 判定应从 isProcessing/isReviewing 迁移到后端字段。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1be5bc00` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

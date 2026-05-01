@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-8.md`
-- **Total Sessions**: 258
+- **Total Sessions**: 259
 - **Last Active**: 2026-05-01
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-8.md` | ~1193 | Active |
+| `journal-8.md` | ~1231 | Active |
 | `journal-7.md` | ~1950 | Archived |
 | `journal-6.md` | ~1961 | Archived |
 | `journal-5.md` | ~1949 | Archived |
@@ -36,6 +36,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 259 | 2026-05-01 | 合并 PR 484 486 487 488 并修复侧边栏过滤边界 | `1be5bc00` | `feature/fix-0.4.12` |
 | 258 | 2026-05-01 | 补充终端 Shell 示例文案 | `5227e431` | `feature/fix-0.4.12` |
 | 257 | 2026-05-01 | Review 合并 PR 边界修复 | `851c1055` | `feature/fix-0.4.12` |
 | 256 | 2026-05-01 | 合并 PR 481 AskUserQuestion 超时结算 | `2d6931ecf25bd6a242940d1a5d3da99eba171f69` | `feature/fix-0.4.12` |
