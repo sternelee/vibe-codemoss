@@ -1889,3 +1889,57 @@ Review 结果：
 ### Next Steps
 
 - None - task complete
+
+
+## Session 273: 修复 GitHistoryPanel 无 upstream 阻断提示测试不稳定
+
+**Date**: 2026-05-02
+**Task**: 修复 GitHistoryPanel 无 upstream 阻断提示测试不稳定
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：修复 CI 中 GitHistoryPanel interactions 的无 upstream 分支更新阻断提示测试偶发失败问题，并完成本地全量验证。
+
+主要改动：
+- 将 GitHistoryPanel.test.tsx 中两个 `git.historyBranchUpdateBlockedNoUpstream` 断言从同步 `getByText` 调整为异步 `findByText`。
+- 根因是 `updateGitBranch` 调用完成后，阻断提示还需要等待 `refreshAll()` 异步刷新完成才会渲染；慢环境下同步断言会过早读取 DOM。
+- 产品代码未改动，仅修复测试等待契约，降低 CI flaky 风险。
+
+涉及模块：
+- src/features/git-history/components/GitHistoryPanel.test.tsx
+
+验证结果：
+- npm exec vitest run src/features/git-history/components/GitHistoryPanel.test.tsx：通过，38 tests。
+- npm run check:heavy-test-noise：通过。
+- npm run lint：通过。
+- npm run typecheck：通过。
+- npm run test：通过。
+- npm run check:large-files：通过。
+- git diff --check：通过。
+
+后续事项：
+- 若 CI 仍出现同类测试过早断言，应继续收敛为 findBy*/waitFor 等待真实 UI 状态，而不是只等待 mock command 被调用。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `da25f0fa` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
