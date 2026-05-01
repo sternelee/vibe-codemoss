@@ -1267,3 +1267,43 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 261: 收口已退出会话显示切换交互
+
+**Date**: 2026-05-01
+**Task**: 收口已退出会话显示切换交互
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+完成 sidebar 已退出会话显示切换的项目级收口、视觉优化与 keyboard 回归修复。
+
+### Main Changes
+
+- 任务目标：把 exited session 的显示/隐藏从 ThreadList 内联条带收口到 workspace/worktree 行级入口，同时保证项目隔离、视觉可读性和 keyboard 可达性。
+- 主要改动：新增 `useExitedSessionVisibility`、`exitedSessionRows`、`exitedSessionVisibility` 三组 helper；将 toggle 入口挂到 `WorkspaceCard` / `WorktreeCard` leading icon；`ThreadList` 改为消费外部 hide 状态并在 all-hidden 时展示弱提示。
+- 视觉处理：移除原列表顶部 pill bar，改为行级 icon button；为 workspace/worktree leading 区预留 badge 安全间距，避免覆盖 folder/branch icon 和标题首字符。
+- 交互修复：补齐 exited toggle 的 `Enter/Space/Spacebar` 键盘冒泡隔离，避免激活 toggle 时触发父级 workspace/worktree row 折叠。
+- 影响模块：`src/features/app/components/*`、`src/features/app/hooks/useExitedSessionVisibility.ts`、`src/features/app/utils/*`、`src/styles/sidebar.css`、`openspec/changes/fix-sidebar-exited-session-visibility-toggle/*`。
+- 验证结果：通过 Sidebar/ThreadList/WorktreeSection 定向 Vitest、`npm run typecheck`、`npm run lint`、`npm run check:large-files`、`openspec validate fix-sidebar-exited-session-visibility-toggle --strict`、`git diff --check`。
+- 后续事项：等待人工确认 sidebar 长标题与 badge 极端场景；本次未处理 messages/threads 相关的其他进行中改动。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `38f215c7` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
