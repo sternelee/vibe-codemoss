@@ -1153,3 +1153,41 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 258: 补充终端 Shell 示例文案
+
+**Date**: 2026-05-01
+**Task**: 补充终端 Shell 示例文案
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：修复设置页终端 Shell 配置文案，明确 Windows/macOS 使用示例，并修复保存按钮暴露 i18n key 的问题。
+主要改动：将终端 Shell 保存按钮从通用 settings.save 改为 settings.terminalShellPathSave；扩展中英文 terminalShellPathHint，分别提供 Windows PowerShell 路径示例和 macOS shell 路径示例；同步测试 i18n mock。
+涉及模块：src/features/settings/components/SettingsView.tsx；src/i18n/locales/zh.part1.ts；src/i18n/locales/en.part1.ts；src/test/vitest.setup.ts。
+验证结果：npm exec vitest -- run src/features/settings/components/SettingsView.test.tsx src/features/settings/hooks/useAppSettings.test.ts 通过；npm run typecheck 通过；npm run check:large-files:gate 通过；git diff --check 通过。
+后续事项：无。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5227e431` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
