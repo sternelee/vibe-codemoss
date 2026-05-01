@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-8.md`
-- **Total Sessions**: 273
+- **Total Sessions**: 274
 - **Last Active**: 2026-05-02
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-8.md` | ~1945 | Active |
+| `journal-8.md` | ~1996 | Active |
 | `journal-7.md` | ~1950 | Archived |
 | `journal-6.md` | ~1961 | Archived |
 | `journal-5.md` | ~1949 | Archived |
@@ -36,6 +36,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 274 | 2026-05-02 | 归档分支后台更新 OpenSpec 提案 | `82844fcc` | `feature/fix-0.4.12` |
 | 273 | 2026-05-02 | 修复 GitHistoryPanel 无 upstream 阻断提示测试不稳定 | `da25f0fa` | `feature/fix-0.4.12` |
 | 272 | 2026-05-02 | 同步 OpenSpec 升级后的规范上下文 | `e1861e36` | `feature/fix-0.4.12` |
 | 271 | 2026-05-02 | 归档 OpenSpec 完成规范 | `3fa5a49d47972923768b12d29d398a4875f53529` | `feature/fix-0.4.12` |

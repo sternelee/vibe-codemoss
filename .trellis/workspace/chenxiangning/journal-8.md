@@ -1943,3 +1943,54 @@ Review 结果：
 ### Next Steps
 
 - None - task complete
+
+
+## Session 274: 归档分支后台更新 OpenSpec 提案
+
+**Date**: 2026-05-02
+**Task**: 归档分支后台更新 OpenSpec 提案
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：按用户要求将 allow-branch-update-without-checkout OpenSpec change 归档，并使用本地中文 Conventional Commits 提交。
+
+主要改动：
+- 归档 allow-branch-update-without-checkout 到 openspec/changes/archive/2026-05-01-allow-branch-update-without-checkout/。
+- 同步 openspec/specs/git-branch-management/spec.md，补充非当前 tracked local branch 的 Update 可用性、无 upstream 禁用原因、remote branch fetch-only 菜单语义。
+- 同步 openspec/specs/git-operations/spec.md，补充非当前本地分支后台更新的 fast-forward only、stale-ref、diverged、occupied worktree、ahead-only、already-up-to-date 等规范要求。
+
+涉及模块：
+- openspec/changes/archive/2026-05-01-allow-branch-update-without-checkout/
+- openspec/specs/git-branch-management/spec.md
+- openspec/specs/git-operations/spec.md
+
+验证结果：
+- openspec archive allow-branch-update-without-checkout -y 成功。
+- openspec validate --all --strict --no-interactive 通过，213 passed, 0 failed。
+
+后续事项：
+- 工作区仍保留非本次提交范围的 openspec/changes/fix-windows-codex-app-server-wrapper-launch/tasks.md 改动，未纳入本次归档提交。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `82844fcc` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
