@@ -16,4 +16,4 @@
 
 ## 4. 后续独立事项
 
-- [ ] 4.1 单独修复 `doctor:strict` 当前暴露的 branding 遗留，确保该 change 回写后仓库重新满足严格健康检查。
+- [x] 4.1 单独修复 `doctor:strict` 当前暴露的 branding 遗留，确保该 change 回写后仓库重新满足严格健康检查。
