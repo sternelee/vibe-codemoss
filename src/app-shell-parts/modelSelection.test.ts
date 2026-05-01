@@ -50,6 +50,7 @@ describe("modelSelection", () => {
         selectedModelId: "codex-alt",
         activeThreadSelectedModelId: null,
         hasActiveThread: false,
+        codexModels,
         engineModelsAsOptions: engineModels,
         engineSelectedModelIdByType: {},
         defaultClaudeModelId: "claude-fallback",
@@ -64,6 +65,7 @@ describe("modelSelection", () => {
         selectedModelId: "codex-default",
         activeThreadSelectedModelId: "codex-alt",
         hasActiveThread: true,
+        codexModels,
         engineModelsAsOptions: engineModels,
         engineSelectedModelIdByType: {},
         defaultClaudeModelId: "claude-fallback",
@@ -81,6 +83,7 @@ describe("modelSelection", () => {
           modelId: "codex-alt",
           effort: null,
         },
+        reasoningOptions: ["medium", "high"],
       }),
     ).toBeNull();
   });
@@ -92,6 +95,7 @@ describe("modelSelection", () => {
         hasActiveThread: true,
         selectedEffort: "high",
         activeThreadSelection: null,
+        reasoningOptions: ["medium", "high"],
       }),
     ).toBe("high");
   });
@@ -125,6 +129,7 @@ describe("modelSelection", () => {
         selectedModelId: "codex-alt",
         activeThreadSelectedModelId: null,
         hasActiveThread: false,
+        codexModels,
         engineModelsAsOptions: [],
         engineSelectedModelIdByType: {},
         defaultClaudeModelId: "claude-fallback",
@@ -142,6 +147,7 @@ describe("modelSelection", () => {
         selectedModelId: "codex-alt",
         activeThreadSelectedModelId: null,
         hasActiveThread: false,
+        codexModels,
         engineModelsAsOptions: engineModels,
         engineSelectedModelIdByType,
         defaultClaudeModelId: "claude-fallback",
@@ -159,6 +165,7 @@ describe("modelSelection", () => {
         selectedModelId: "codex-alt",
         activeThreadSelectedModelId: null,
         hasActiveThread: false,
+        codexModels,
         engineModelsAsOptions: engineModels,
         engineSelectedModelIdByType,
         defaultClaudeModelId: "claude-fallback",
@@ -176,6 +183,7 @@ describe("modelSelection", () => {
         selectedModelId: "codex-alt",
         activeThreadSelectedModelId: "engine-alt",
         hasActiveThread: true,
+        codexModels,
         engineModelsAsOptions: engineModels,
         engineSelectedModelIdByType,
         defaultClaudeModelId: "claude-fallback",
@@ -193,11 +201,42 @@ describe("modelSelection", () => {
         selectedModelId: "codex-alt",
         activeThreadSelectedModelId: null,
         hasActiveThread: true,
+        codexModels,
         engineModelsAsOptions: engineModels,
         engineSelectedModelIdByType,
         defaultClaudeModelId: "claude-fallback",
       }),
     ).toBe("engine-default");
+  });
+
+  it("falls back to the codex default when the thread model is invalid", () => {
+    expect(
+      getEffectiveSelectedModelId({
+        activeEngine: "codex",
+        selectedModelId: "missing-model",
+        activeThreadSelectedModelId: "missing-thread-model",
+        hasActiveThread: true,
+        codexModels,
+        engineModelsAsOptions: engineModels,
+        engineSelectedModelIdByType: {},
+        defaultClaudeModelId: "claude-fallback",
+      }),
+    ).toBe("codex-default");
+  });
+
+  it("drops an unsupported reasoning effort for the active model", () => {
+    expect(
+      getEffectiveSelectedEffort({
+        activeEngine: "codex",
+        hasActiveThread: true,
+        selectedEffort: "ultra",
+        activeThreadSelection: {
+          modelId: "codex-alt",
+          effort: "ultra",
+        },
+        reasoningOptions: ["medium", "high"],
+      }),
+    ).toBeNull();
   });
 
   it("keeps the saved non-codex engine selection when it is still valid", () => {

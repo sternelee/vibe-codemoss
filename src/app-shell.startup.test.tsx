@@ -48,7 +48,9 @@ const startupState = vi.hoisted(() => {
     codexModels,
     activeEngine: "codex" as const,
     activeThreadId: "thread-1" as string | null,
+    canonicalThreadId: null as string | null,
     configModel: "gpt-5.5",
+    appSettingsLoading: false,
     appSettings: {
       lastComposerModelId: "gpt-5.5",
       lastComposerReasoningEffort: "medium",
@@ -184,7 +186,7 @@ vi.mock("./features/app/hooks/useAppSettingsController", () => ({
     setAppSettings: startupState.setAppSettings,
     doctor: null,
     claudeDoctor: null,
-    appSettingsLoading: false,
+    appSettingsLoading: startupState.appSettingsLoading,
     reduceTransparency: false,
     setReduceTransparency: createNoopFunction(),
     scaleShortcutTitle: "",
@@ -675,7 +677,7 @@ vi.mock("./features/threads/hooks/useThreads", () => ({
       startShare: createNoopFunction(),
       startSharedSessionForWorkspace: createNoopFunction(),
       updateSharedSessionEngineSelection: createNoopFunction(),
-      resolveCanonicalThreadId: (value: string) => value,
+      resolveCanonicalThreadId: (value: string) => startupState.canonicalThreadId ?? value,
       reviewPrompt: null,
       closeReviewPrompt: createNoopFunction(),
       showPresetStep: false,
@@ -1085,7 +1087,9 @@ describe("AppShell startup", () => {
   beforeEach(() => {
     startupState.activeEngine = "codex";
     startupState.activeThreadId = "thread-1";
+    startupState.canonicalThreadId = null;
     startupState.configModel = "gpt-5.5";
+    startupState.appSettingsLoading = false;
     startupState.appSettings = createAppSettings();
     startupState.renderCtx = null;
     startupState.clientStore = {
@@ -1151,5 +1155,56 @@ describe("AppShell startup", () => {
       expect.stringContaining("Maximum update depth exceeded"),
     );
     expect(startupState.renderCtx?.effectiveSelectedModelId).toBe("gpt-5.5");
+  });
+
+  it("does not clear the global composer defaults before app settings finish loading", async () => {
+    startupState.activeThreadId = null;
+    startupState.appSettingsLoading = true;
+    startupState.appSettings.lastComposerModelId = "gpt-5.5";
+    startupState.appSettings.lastComposerReasoningEffort = "medium";
+
+    const view = render(<AppShell />);
+
+    await waitFor(() => {
+      const sentinel = view.getByTestId("app-shell-sentinel");
+      expect(sentinel.getAttribute("data-model")).toBe("gpt-5.5");
+    });
+
+    expect(startupState.setAppSettings).not.toHaveBeenCalled();
+    expect(startupState.queueSaveSettings).not.toHaveBeenCalled();
+  });
+
+  it("keeps the thread selection stable when a pending codex thread finalizes", async () => {
+    startupState.activeThreadId = "codex-pending-1";
+    startupState.canonicalThreadId = "codex:session-1";
+    startupState.clientStore.composer[
+      getThreadComposerSelectionStorageKey(startupState.workspace.id, "codex-pending-1")
+    ] = {
+      modelId: "codex-alt",
+      effort: "high",
+    };
+
+    const view = render(<AppShell />);
+
+    await waitFor(() => {
+      const sentinel = view.getByTestId("app-shell-sentinel");
+      expect(sentinel.getAttribute("data-model")).toBe("codex-alt");
+      expect(sentinel.getAttribute("data-effort")).toBe("high");
+    });
+
+    startupState.activeThreadId = "codex:session-1";
+    startupState.canonicalThreadId = "codex:session-1";
+    view.rerender(<AppShell />);
+
+    await waitFor(() => {
+      const sentinel = view.getByTestId("app-shell-sentinel");
+      expect(sentinel.getAttribute("data-model")).toBe("codex-alt");
+      expect(sentinel.getAttribute("data-effort")).toBe("high");
+    });
+
+    expect(consoleErrorSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining("Maximum update depth exceeded"),
+    );
+    expect(startupState.renderCtx?.effectiveSelectedModelId).toBe("codex-alt");
   });
 });

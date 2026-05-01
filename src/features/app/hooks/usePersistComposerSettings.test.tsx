@@ -18,6 +18,7 @@ describe("usePersistComposerSettings", () => {
       usePersistComposerSettings({
         enabled: true,
         appSettingsLoading: false,
+        selectionReady: true,
         selectedModelId: "gpt-5.5",
         selectedEffort: "high",
         setAppSettings,
@@ -42,6 +43,7 @@ describe("usePersistComposerSettings", () => {
       usePersistComposerSettings({
         enabled: false,
         appSettingsLoading: false,
+        selectionReady: true,
         selectedModelId: "gpt-5.5",
         selectedEffort: "high",
         setAppSettings,
@@ -68,6 +70,7 @@ describe("usePersistComposerSettings", () => {
       usePersistComposerSettings({
         enabled: true,
         appSettingsLoading: false,
+        selectionReady: true,
         selectedModelId: null,
         selectedEffort: null,
         setAppSettings,
@@ -80,6 +83,28 @@ describe("usePersistComposerSettings", () => {
         lastComposerModelId: null,
         lastComposerReasoningEffort: null,
       });
+    });
+  });
+
+  it("waits for the global composer selection to finish restoring before persisting", async () => {
+    const queueSaveSettings = vi.fn(async (next: AppSettings) => next);
+    const setAppSettings = vi.fn();
+
+    renderHook(() =>
+      usePersistComposerSettings({
+        enabled: true,
+        appSettingsLoading: false,
+        selectionReady: false,
+        selectedModelId: null,
+        selectedEffort: null,
+        setAppSettings,
+        queueSaveSettings,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(setAppSettings).not.toHaveBeenCalled();
+      expect(queueSaveSettings).not.toHaveBeenCalled();
     });
   });
 });

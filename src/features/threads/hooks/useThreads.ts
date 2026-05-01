@@ -105,6 +105,11 @@ type UseThreadsOptions = {
   model?: string | null;
   effort?: string | null;
   collaborationMode?: Record<string, unknown> | null;
+  resolveComposerSelection?: () => {
+    model: string | null;
+    effort: string | null;
+    collaborationMode: Record<string, unknown> | null;
+  };
   accessMode?: "default" | "read-only" | "current" | "full-access";
   steerEnabled?: boolean;
   customPrompts?: CustomPromptOption[];
@@ -297,6 +302,7 @@ export function useThreads({
   model,
   effort,
   collaborationMode,
+  resolveComposerSelection,
   accessMode,
   steerEnabled = false,
   customPrompts = [],
@@ -1995,6 +2001,7 @@ export function useThreads({
     model,
     effort,
     collaborationMode,
+    resolveComposerSelection,
     steerEnabled,
     customPrompts,
     activeEngine,

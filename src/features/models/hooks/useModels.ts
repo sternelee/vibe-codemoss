@@ -18,7 +18,19 @@ type UseModelsOptions = {
   preferredModelId?: string | null;
   preferredEffort?: string | null;
   preferredSelectionReady?: boolean;
-  selectionScopeKey?: string;
+};
+
+type UseModelsResult = {
+  models: ModelOption[];
+  selectedModel: ModelOption | null;
+  reasoningSupported: boolean;
+  selectedModelId: string | null;
+  setSelectedModelId: (next: string | null) => void;
+  reasoningOptions: string[];
+  selectedEffort: string | null;
+  setSelectedEffort: (next: string | null) => void;
+  refreshModels: () => Promise<void>;
+  globalSelectionReady: boolean;
 };
 
 const CONFIG_MODEL_DESCRIPTION = "Configured in CODEX_HOME/config.toml";
@@ -145,8 +157,7 @@ export function useModels({
   preferredModelId = null,
   preferredEffort = null,
   preferredSelectionReady = true,
-  selectionScopeKey,
-}: UseModelsOptions) {
+}: UseModelsOptions): UseModelsResult {
   const [rawModels, setRawModels] = useState<ModelOption[]>([]);
   const [models, setModels] = useState<ModelOption[]>([]);
   const [configModel, setConfigModel] = useState<string | null>(null);
@@ -159,7 +170,7 @@ export function useModels({
   const hasUserSelectedModel = useRef(false);
   const hasUserSelectedEffort = useRef(false);
   const lastWorkspaceId = useRef<string | null>(null);
-  const lastSelectionScopeKey = useRef<string | null>(selectionScopeKey ?? null);
+  const [modelsLoadedForWorkspace, setModelsLoadedForWorkspace] = useState(false);
 
   const workspaceId = activeWorkspace?.id ?? null;
   const isConnected = Boolean(activeWorkspace?.connected);
@@ -221,17 +232,8 @@ export function useModels({
     hasUserSelectedEffort.current = false;
     lastWorkspaceId.current = workspaceId;
     setConfigModel(null);
+    setModelsLoadedForWorkspace(false);
   }, [workspaceId]);
-
-  useLayoutEffect(() => {
-    const nextSelectionScopeKey = selectionScopeKey ?? null;
-    if (nextSelectionScopeKey === lastSelectionScopeKey.current) {
-      return;
-    }
-    hasUserSelectedModel.current = false;
-    hasUserSelectedEffort.current = false;
-    lastSelectionScopeKey.current = nextSelectionScopeKey;
-  }, [selectionScopeKey]);
 
   useEffect(() => {
     if (selectedEffort === null) {
@@ -413,6 +415,7 @@ export function useModels({
       const selectableData = mergeCodexSelectableModels(data);
       setRawModels(data);
       lastFetchedWorkspaceId.current = requestedWorkspaceId;
+      setModelsLoadedForWorkspace(true);
       if (!preferredSelectionReady && !hasUserSelectedModel.current) {
         return;
       }
@@ -521,7 +524,6 @@ export function useModels({
     selectedEffort,
     selectedModelId,
     resolveEffort,
-    selectionScopeKey,
   ]);
 
   return {
@@ -534,5 +536,6 @@ export function useModels({
     selectedEffort,
     setSelectedEffort,
     refreshModels,
+    globalSelectionReady: preferredSelectionReady && modelsLoadedForWorkspace,
   };
 }
