@@ -1397,6 +1397,11 @@ export const Composer = memo(function Composer({
 
   useEffect(() => {
     resetContextLedgerSessionState();
+    setSelectedSkillNames([]);
+    setSelectedCommonsNames([]);
+    setSelectedManualMemories([]);
+    setSelectedNoteCards([]);
+    setSelectedInlineFileReferences([]);
   }, [activeThreadId, activeWorkspaceId, resetContextLedgerSessionState]);
 
   useEffect(() => {
