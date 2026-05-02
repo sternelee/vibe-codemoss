@@ -53,3 +53,50 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 276: 清理 doctor strict 品牌文案阻塞
+
+**Date**: 2026-05-02
+**Task**: 清理 doctor strict 品牌文案阻塞
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：移除会阻塞 `npm run doctor:strict` 的遗留品牌文案，给后续业务提交建立绿色 CI 基线。
+
+主要改动：
+- 将 `src-tauri/src/engine/events.rs` 中注释里的 legacy 品牌词替换为中性的 `app-generated` 表述。
+
+涉及模块：
+- `src-tauri/src/engine/events.rs`
+
+验证结果：
+- 该改动已纳入本轮后续全量门禁验证，`npm run doctor:strict` 最终通过。
+- `git diff --check` 通过。
+
+后续事项：
+- 继续按主题拆分剩余 diagnostics/performance compatibility 与 Windows file monitor 修复改动并分别提交。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `bed5d920` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
