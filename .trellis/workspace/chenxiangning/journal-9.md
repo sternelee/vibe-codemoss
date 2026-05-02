@@ -163,3 +163,57 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 278: 修复 Windows 外部文件监控路径缺失噪声
+
+**Date**: 2026-05-02
+**Task**: 修复 Windows 外部文件监控路径缺失噪声
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：避免 Windows stale path / path-not-found 场景被错误升级为 `External file monitor is unavailable` 高噪音 toast。
+
+主要改动：
+- 扩展 `useFileExternalSync` 的 missing-file classifier，覆盖 `os error 3` + path-not-found 语义文本（英文/中文）。
+- 保留 bare `os error 3` 的诊断能力，不把所有 `os error 3` 一律吞成 missing path。
+- 在 `FileViewPanel.test.tsx` 增加正反两组回归测试。
+- 新增并提交 OpenSpec change `fix-windows-external-file-monitor-toast-storm` 的 proposal/design/spec/tasks。
+
+涉及模块：
+- `src/features/files/hooks/useFileExternalSync.ts`
+- `src/features/files/components/FileViewPanel.test.tsx`
+- `openspec/changes/fix-windows-external-file-monitor-toast-storm/**`
+
+验证结果：
+- 聚焦 Vitest 已通过。
+- `npm run typecheck` 通过。
+- 本轮全量 `npm run test`、`npm run check:heavy-test-noise` 已通过。
+- `openspec validate fix-windows-external-file-monitor-toast-storm --strict` 已通过。
+
+后续事项：
+- 当前仅提交 OpenSpec change 目录，主 `openspec/specs/**` 尚未同步，因此本次未执行 archive。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `18a69594` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
