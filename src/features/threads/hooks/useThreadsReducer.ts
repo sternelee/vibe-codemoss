@@ -70,6 +70,7 @@ import {
   findMatchingReview,
   isDuplicateReviewById,
 } from "./threadReducerReviewItems";
+import { shouldFinalizeToolStatus } from "./threadReducerToolStatus";
 import {
   extractRenameText,
   isRetainableFinalizedCodexThread,
@@ -158,22 +159,6 @@ function canUseLiveAssistantDeltaFastPath({
 
 function isToolConversationItem(item: ConversationItem | undefined): item is ToolConversationItem {
   return item?.kind === "tool";
-}
-
-function isFailedToolStatus(status: string) {
-  return /(fail|error|cancel(?:led)?|abort|timeout|timed[_ -]?out)/.test(status);
-}
-
-function isCompletedToolStatus(status: string) {
-  return /(complete|completed|success|done|finish(?:ed)?|succeed(?:ed)?)/.test(
-    status,
-  );
-}
-
-function isPendingToolStatus(status: string) {
-  return /(pending|running|processing|started|in[_ -]?progress|inprogress|queued)/.test(
-    status,
-  );
 }
 
 type ThreadActivityStatus = {
@@ -1082,15 +1067,7 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
           return item;
         }
 
-        const normalizedStatus = (item.status ?? "").toLowerCase();
-        if (
-          isFailedToolStatus(normalizedStatus) ||
-          isCompletedToolStatus(normalizedStatus)
-        ) {
-          return item;
-        }
-
-        if (!normalizedStatus || isPendingToolStatus(normalizedStatus)) {
+        if (shouldFinalizeToolStatus(item.status)) {
           didChange = true;
           return {
             ...item,

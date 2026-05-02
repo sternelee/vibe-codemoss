@@ -141,6 +141,7 @@ import { DetachedExternalChangeToggles } from "./settings-view/sections/Detached
 import { WebServiceSettings } from "./settings-view/sections/WebServiceSettings";
 import { EmailSenderSettings } from "./settings-view/sections/EmailSenderSettings";
 import { DictationSection } from "./settings-view/sections/DictationSection";
+import { ExperimentalToggleRow } from "./settings-view/components/ExperimentalToggleRow";
 import {
   buildShortcutDrafts,
   shortcutDraftKeyBySetting,
@@ -168,46 +169,6 @@ import {
   SHOW_SHORTCUTS_ENTRY,
   TEMPORARILY_DISABLED_SIDEBAR_SECTIONS as BASE_DISABLED_SIDEBAR_SECTIONS,
 } from "./settings-view/settingsViewConstants";
-
-type ExperimentalToggleRowProps = {
-  title: string;
-  description: string;
-  markerLabel: string;
-  markerTone: "success" | "info" | "warning";
-  markerDetail: string;
-  checked: boolean;
-  onCheckedChange: (checked: boolean) => void;
-  highlighted?: boolean;
-};
-
-function ExperimentalToggleRow({
-  title,
-  description,
-  markerLabel,
-  markerTone,
-  markerDetail,
-  checked,
-  onCheckedChange,
-  highlighted = false,
-}: ExperimentalToggleRowProps) {
-  return (
-    <div className={`settings-toggle-row${highlighted ? " is-highlighted" : ""}`}>
-      <div>
-        <div className="settings-toggle-title flex items-center gap-2">
-          <span>{title}</span>
-          <Badge variant={markerTone} size="sm">
-            {markerLabel}
-          </Badge>
-        </div>
-        <div className="settings-toggle-subtitle">
-          {description}
-        </div>
-        <div className="settings-help">{markerDetail}</div>
-      </div>
-      <Switch checked={checked} onCheckedChange={onCheckedChange} />
-    </div>
-  );
-}
 
 export type SettingsViewProps = {
   workspaceGroups: WorkspaceGroup[];
