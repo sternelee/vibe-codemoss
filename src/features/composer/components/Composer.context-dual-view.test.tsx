@@ -40,6 +40,8 @@ vi.mock("./ChatInputBox/ChatInputBoxAdapter", () => ({
       percent: number;
       hasUsage: boolean;
       compactionState: string;
+      compactionSource: string | null;
+      usageSyncPendingAfterCompaction: boolean;
     } | null;
     onRequestContextCompaction?: () => Promise<void> | void;
   }) => (
@@ -53,6 +55,8 @@ vi.mock("./ChatInputBox/ChatInputBoxAdapter", () => ({
       data-dual-percent={String(dualContextUsage?.percent ?? "")}
       data-dual-has-usage={String(dualContextUsage?.hasUsage ?? "")}
       data-dual-state={String(dualContextUsage?.compactionState ?? "")}
+      data-dual-source={String(dualContextUsage?.compactionSource ?? "")}
+      data-dual-pending-sync={String(dualContextUsage?.usageSyncPendingAfterCompaction ?? "")}
     >
       <button
         type="button"
@@ -73,6 +77,10 @@ function ComposerHarness({
   contextDualViewEnabled = false,
   isProcessing = false,
   isContextCompacting = false,
+  codexCompactionLifecycleState = "idle",
+  codexCompactionSource = null,
+  codexCompactionCompletedAt = null,
+  lastTokenUsageUpdatedAt = null,
   items = [],
   onRequestContextCompaction,
 }: {
@@ -81,6 +89,10 @@ function ComposerHarness({
   contextDualViewEnabled?: boolean;
   isProcessing?: boolean;
   isContextCompacting?: boolean;
+  codexCompactionLifecycleState?: "idle" | "compacting" | "completed";
+  codexCompactionSource?: "auto" | "manual" | null;
+  codexCompactionCompletedAt?: number | null;
+  lastTokenUsageUpdatedAt?: number | null;
   items?: Array<{ id: string; kind: "message"; role: "assistant" | "user"; text: string }>;
   onRequestContextCompaction?: () => Promise<void> | void;
 }) {
@@ -120,6 +132,10 @@ function ComposerHarness({
       contextUsage={contextUsage}
       contextDualViewEnabled={contextDualViewEnabled}
       isContextCompacting={isContextCompacting}
+      codexCompactionLifecycleState={codexCompactionLifecycleState}
+      codexCompactionSource={codexCompactionSource}
+      codexCompactionCompletedAt={codexCompactionCompletedAt}
+      lastTokenUsageUpdatedAt={lastTokenUsageUpdatedAt}
     />
   );
 }
@@ -220,27 +236,21 @@ describe("Composer dual context usage model", () => {
         selectedEngine="codex"
         contextDualViewEnabled={true}
         isProcessing={false}
-        items={[
-          {
-            id: "context-compacted-turn-1",
-            kind: "message",
-            role: "assistant",
-            text: "Context compacted.",
-          },
-        ]}
+        codexCompactionLifecycleState="completed"
+        codexCompactionCompletedAt={2_222}
       />,
     );
 
     adapter = screen.getByTestId("chat-input-box-adapter");
     expect(adapter.getAttribute("data-dual-state")).toBe("compacted");
+    expect(adapter.getAttribute("data-dual-pending-sync")).toBe("true");
   });
 
-  it("keeps compacting state when context compaction event is in progress", () => {
+  it("does not treat preserved historical compaction messages as current completed state", () => {
     render(
       <ComposerHarness
         selectedEngine="codex"
         contextDualViewEnabled={true}
-        isContextCompacting={true}
         items={[
           {
             id: "context-compacted-turn-1",
@@ -253,7 +263,38 @@ describe("Composer dual context usage model", () => {
     );
 
     const adapter = screen.getByTestId("chat-input-box-adapter");
+    expect(adapter.getAttribute("data-dual-state")).toBe("idle");
+  });
+
+  it("keeps compacting state when context compaction event is in progress", () => {
+    render(
+      <ComposerHarness
+        selectedEngine="codex"
+        contextDualViewEnabled={true}
+        isContextCompacting={true}
+        codexCompactionLifecycleState="compacting"
+        codexCompactionSource="auto"
+      />,
+    );
+
+    const adapter = screen.getByTestId("chat-input-box-adapter");
     expect(adapter.getAttribute("data-dual-state")).toBe("compacting");
+    expect(adapter.getAttribute("data-dual-source")).toBe("auto");
+  });
+
+  it("clears pending-sync state after a newer usage snapshot arrives", () => {
+    render(
+      <ComposerHarness
+        selectedEngine="codex"
+        contextDualViewEnabled={true}
+        codexCompactionLifecycleState="completed"
+        codexCompactionCompletedAt={1_000}
+        lastTokenUsageUpdatedAt={2_000}
+      />,
+    );
+
+    const adapter = screen.getByTestId("chat-input-box-adapter");
+    expect(adapter.getAttribute("data-dual-pending-sync")).toBe("false");
   });
 
   it("forwards manual compaction requests to the external handler when provided", () => {

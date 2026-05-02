@@ -45,6 +45,7 @@ import {
 } from "./ClaudeRewindConfirmDialog";
 import { ReviewInlinePrompt } from "./ReviewInlinePrompt";
 import type {
+  CodexCompactionSource,
   ContextCompactionState,
   ContextSelectionChip,
   DualContextUsageViewModel,
@@ -140,6 +141,10 @@ type ComposerProps = {
   contextUsage?: ThreadTokenUsage | null;
   contextDualViewEnabled?: boolean;
   isContextCompacting?: boolean;
+  codexCompactionLifecycleState?: "idle" | "compacting" | "completed";
+  codexCompactionSource?: CodexCompactionSource | null;
+  codexCompactionCompletedAt?: number | null;
+  lastTokenUsageUpdatedAt?: number | null;
   codexAutoCompactionEnabled?: boolean;
   codexAutoCompactionThresholdPercent?: number;
   onCodexAutoCompactionSettingsChange?: (patch: {
@@ -905,24 +910,14 @@ function clampUsagePercent(percent: number): number {
   return Math.min(Math.max(percent, 0), 100);
 }
 
-function isCompactedConversationItem(item: ConversationItem): boolean {
-  if (item.kind !== "message" || item.role !== "assistant") {
-    return false;
-  }
-  if (item.id.startsWith("context-compacted-")) {
-    return true;
-  }
-  return item.text.trim().toLowerCase() === "context compacted.";
-}
-
 function resolveCompactionState(
-  items: ConversationItem[],
   isContextCompacting: boolean,
+  lifecycleState: "idle" | "compacting" | "completed",
 ): ContextCompactionState {
-  if (isContextCompacting) {
+  if (isContextCompacting || lifecycleState === "compacting") {
     return "compacting";
   }
-  if (items.some(isCompactedConversationItem)) {
+  if (lifecycleState === "completed") {
     return "compacted";
   }
   return "idle";
@@ -930,8 +925,11 @@ function resolveCompactionState(
 
 function resolveDualContextUsageModel(
   contextUsage: ThreadTokenUsage | null,
-  items: ConversationItem[],
   isContextCompacting: boolean,
+  lifecycleState: "idle" | "compacting" | "completed",
+  compactionSource: CodexCompactionSource | null,
+  compactionCompletedAt: number | null,
+  lastTokenUsageUpdatedAt: number | null,
 ): DualContextUsageViewModel {
   const contextWindow = Math.max(contextUsage?.modelContextWindow ?? 0, 0);
   const lastInput = Math.max(contextUsage?.last.inputTokens ?? 0, 0);
@@ -949,7 +947,15 @@ function resolveDualContextUsageModel(
     contextWindow,
     percent,
     hasUsage,
-    compactionState: resolveCompactionState(items, isContextCompacting),
+    compactionState: resolveCompactionState(isContextCompacting, lifecycleState),
+    compactionSource: compactionSource ?? null,
+    usageSyncPendingAfterCompaction:
+      lifecycleState === "completed"
+      && (
+        compactionCompletedAt == null
+        || lastTokenUsageUpdatedAt == null
+        || lastTokenUsageUpdatedAt < compactionCompletedAt
+      ),
   };
 }
 
@@ -1165,6 +1171,10 @@ export const Composer = memo(function Composer({
   contextUsage = null,
   contextDualViewEnabled = false,
   isContextCompacting = false,
+  codexCompactionLifecycleState = "idle",
+  codexCompactionSource = null,
+  codexCompactionCompletedAt = null,
+  lastTokenUsageUpdatedAt = null,
   codexAutoCompactionEnabled = true,
   codexAutoCompactionThresholdPercent = 92,
   onCodexAutoCompactionSettingsChange,
@@ -2102,8 +2112,22 @@ export const Composer = memo(function Composer({
 
   const dualContextUsage = useMemo(
     () =>
-      resolveDualContextUsageModel(contextUsage, items, isContextCompacting),
-    [contextUsage, isContextCompacting, items],
+      resolveDualContextUsageModel(
+        contextUsage,
+        isContextCompacting,
+        codexCompactionLifecycleState,
+        codexCompactionSource,
+        codexCompactionCompletedAt,
+        lastTokenUsageUpdatedAt,
+      ),
+    [
+      contextUsage,
+      isContextCompacting,
+      codexCompactionLifecycleState,
+      codexCompactionSource,
+      codexCompactionCompletedAt,
+      lastTokenUsageUpdatedAt,
+    ],
   );
   const deferredStreamActivityPhase = useDeferredValue(streamActivityPhase);
   const deferredLegacyContextUsage = useDeferredValue(legacyContextUsage);

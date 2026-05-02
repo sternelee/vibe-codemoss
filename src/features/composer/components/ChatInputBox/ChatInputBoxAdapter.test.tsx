@@ -204,6 +204,8 @@ describe('ChatInputBoxAdapter toggle bridge', () => {
         percent: 6.25,
         hasUsage: true,
         compactionState: 'idle',
+        compactionSource: null,
+        usageSyncPendingAfterCompaction: false,
       },
       accountRateLimits: {
         primary: {
@@ -236,6 +238,8 @@ describe('ChatInputBoxAdapter toggle bridge', () => {
           percent: 6.25,
           hasUsage: true,
           compactionState: 'idle',
+          compactionSource: null,
+          usageSyncPendingAfterCompaction: false,
         }}
         accountRateLimits={{
           primary: {
@@ -768,6 +772,8 @@ describe('ChatInputBoxAdapter toggle bridge', () => {
         percent: 31.25,
         hasUsage: true,
         compactionState: 'idle',
+        compactionSource: null,
+        usageSyncPendingAfterCompaction: false,
       },
     });
 
@@ -781,6 +787,8 @@ describe('ChatInputBoxAdapter toggle bridge', () => {
         percent: number;
         hasUsage: boolean;
         compactionState: string;
+        compactionSource: string | null;
+        usageSyncPendingAfterCompaction: boolean;
       } | null;
       usageUsedTokens?: number;
       usageMaxTokens?: number;
@@ -793,6 +801,8 @@ describe('ChatInputBoxAdapter toggle bridge', () => {
       percent: 31.25,
       hasUsage: true,
       compactionState: 'idle',
+      compactionSource: null,
+      usageSyncPendingAfterCompaction: false,
     });
     expect(latest.usageUsedTokens).toBe(120_000);
     expect(latest.usageMaxTokens).toBe(256_000);

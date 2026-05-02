@@ -1595,6 +1595,13 @@ describe("useThreadTurnEvents", () => {
     });
 
     expect(dispatch).toHaveBeenCalledWith({
+      type: "markContextCompacting",
+      threadId: "thread-1",
+      isCompacting: false,
+      timestamp: 5555,
+      completionStatus: "completed",
+    });
+    expect(dispatch).toHaveBeenCalledWith({
       type: "settleCodexCompactionMessage",
       threadId: "thread-1",
       text: "threads.codexCompactionCompleted",
@@ -1633,6 +1640,13 @@ describe("useThreadTurnEvents", () => {
       result.current.onContextCompacted("ws-1", "thread-1", "manual-turn");
     });
 
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "markContextCompacting",
+      threadId: "thread-1",
+      isCompacting: false,
+      timestamp: expect.any(Number),
+      completionStatus: "completed",
+    });
     expect(dispatch).toHaveBeenCalledWith({
       type: "settleCodexCompactionMessage",
       threadId: "thread-1",
@@ -1773,6 +1787,14 @@ describe("useThreadTurnEvents", () => {
       });
     });
 
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "markContextCompacting",
+      threadId: "thread-1",
+      isCompacting: false,
+      timestamp: expect.any(Number),
+      completionStatus: "completed",
+      source: "auto",
+    });
     expect(dispatch).toHaveBeenCalledWith({
       type: "settleCodexCompactionMessage",
       threadId: "thread-1",

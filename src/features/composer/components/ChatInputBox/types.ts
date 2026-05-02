@@ -442,6 +442,7 @@ export interface UsageInfo {
 }
 
 export type ContextCompactionState = 'idle' | 'compacting' | 'compacted';
+export type CodexCompactionSource = 'auto' | 'manual';
 
 export interface DualContextUsageViewModel {
   usedTokens: number;
@@ -449,6 +450,8 @@ export interface DualContextUsageViewModel {
   percent: number;
   hasUsage: boolean;
   compactionState: ContextCompactionState;
+  compactionSource: CodexCompactionSource | null;
+  usageSyncPendingAfterCompaction: boolean;
 }
 
 export interface RateLimitWindowInfo {
