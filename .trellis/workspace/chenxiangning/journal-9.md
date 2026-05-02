@@ -279,3 +279,80 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 280: 设置入口收口与 MCP/Skills 合并归档
+
+**Date**: 2026-05-02
+**Task**: 设置入口收口与 MCP/Skills 合并归档
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+收口多个设置一级入口为父级 tab，并完成 MCP/Skills 合并、OpenSpec 归档与提交闭环。
+
+### Main Changes
+
+## 任务目标
+- 将多个分散的设置一级入口收口为更稳定的父级页面内 tab 导航
+- 追加完成 `MCP / Skills` 入口合并，并保留原有 MCP 与 Skills 能力可达性
+- 回写并归档 OpenSpec 变更，完成提交前验证与会话记录闭环
+
+## 主要改动
+- `基础设置` 统一承载 `外观 / 行为 / 快捷键 / 打开方式 / Web 服务 / 邮件发送`
+- `项目管理` 统一承载 `分组 / 会话管理 / 使用情况`
+- `智能体/提示词` 统一承载 `智能体 / 提示词库`
+- `运行环境` 统一承载 `Runtime 池 / CLI 验证`
+- `MCP / Skills` 统一承载 `MCP 服务器 / Skills`
+- 删除 legacy child section key，统一改为父级 section + highlight target 打开契约
+- 为 `McpSection` / `SkillsSection` 增加 `embedded` 模式，避免嵌入父级 tab 后重复标题
+- 同步更新中英文文案、浅色主题样式、Vitest mock 与 SettingsView 回归测试
+- 归档 OpenSpec change `consolidate-settings-basic-entry-tabs`，并同步主 specs
+
+## 涉及模块
+- `src/features/settings/components/SettingsView.tsx`
+- `src/features/app/hooks/useSettingsModalState.ts`
+- `src/features/settings/components/McpSection.tsx`
+- `src/features/settings/components/SkillsSection.tsx`
+- `src/features/settings/components/SettingsView.test.tsx`
+- `src/app-shell-parts/useAppShellLayoutNodesSection.tsx`
+- `src/styles/settings.part2.basic-redesign.css`
+- `src/styles/settings.part3.css`
+- `src/i18n/locales/en.part1.ts`
+- `src/i18n/locales/en.part3.ts`
+- `src/i18n/locales/zh.part1.ts`
+- `src/i18n/locales/zh.part3.ts`
+- `openspec/specs/settings-navigation-consolidation/spec.md`
+- `openspec/changes/archive/2026-05-02-consolidate-settings-basic-entry-tabs/`
+
+## 验证结果
+- `npm run lint` 通过
+- `npm run typecheck` 通过
+- `npm run check:large-files` 通过
+- `npm run test` 通过，完成 407 个 test files
+- `openspec validate --specs` 通过
+- `git diff --cached --check` 通过
+- 2026-05-02 human smoke：`MCP / Skills` 单入口、`MCP 服务器` 可达、`Skills` 浏览与文件动作可达
+
+## 后续事项
+- 工作区仍存在与本次提交无关的 OpenSpec 删除/归档改动，未纳入本次提交
+- 当前 active Trellis task 列表里仍有其他历史 planning task，未因本次设置页收口提交而一并归档
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `97f3ab40840c0f7edbd8d6ff2fabb71201992766` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
