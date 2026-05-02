@@ -129,6 +129,34 @@ function buildCodexCompactionMessage(
   };
 }
 
+function collectThreadScopedCodexCompactionMessages(
+  list: ConversationItem[],
+  threadId: string,
+) {
+  let latestMatch: AssistantMessageItem | null = null;
+  let matchCount = 0;
+  for (const item of list) {
+    if (!isThreadScopedCodexCompactionMessage(item, threadId)) {
+      continue;
+    }
+    latestMatch = item;
+    matchCount += 1;
+  }
+  return {
+    latestMatch,
+    matchCount,
+  };
+}
+
+function filterThreadScopedCodexCompactionMessages(
+  list: ConversationItem[],
+  threadId: string,
+) {
+  return list.filter(
+    (item) => !isThreadScopedCodexCompactionMessage(item, threadId),
+  );
+}
+
 function isUserMessageItem(item: ConversationItem | undefined): item is UserMessageItem {
   return item?.kind === "message" && item.role === "user";
 }
@@ -2208,63 +2236,54 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
           },
         };
       }
-      let existingIndex = -1;
-      for (let index = list.length - 1; index >= 0; index -= 1) {
-        if (isThreadScopedCodexCompactionMessage(list[index], action.threadId)) {
-          existingIndex = index;
-          break;
-        }
+      const { latestMatch, matchCount } = collectThreadScopedCodexCompactionMessages(
+        list,
+        action.threadId,
+      );
+      if (latestMatch?.text === action.text && matchCount === 1) {
+        return state;
       }
-      if (existingIndex >= 0) {
-        const existingItem = list[existingIndex];
-        if (!isThreadScopedCodexCompactionMessage(existingItem, action.threadId)) {
-          return state;
-        }
-        if (existingItem.text === action.text) {
-          return state;
-        }
-        const next = list.map((entry, index) =>
-          index === existingIndex
-            ? buildCodexCompactionMessage(action.threadId, action.text, entry.id)
-            : entry,
-        );
-        return {
-          ...state,
-          itemsByThread: {
-            ...state.itemsByThread,
-            [action.threadId]: prepareThreadItems(next),
-          },
-        };
-      }
+      const next = [
+        ...filterThreadScopedCodexCompactionMessages(list, action.threadId),
+        buildCodexCompactionMessage(
+          action.threadId,
+          action.text,
+          latestMatch?.id ?? fallbackMessageId ?? undefined,
+        ),
+      ];
       return {
         ...state,
         itemsByThread: {
           ...state.itemsByThread,
-          [action.threadId]: prepareThreadItems([
-            ...list,
-            buildCodexCompactionMessage(action.threadId, action.text, fallbackMessageId ?? undefined),
-          ]),
+          [action.threadId]: prepareThreadItems(next),
         },
       };
     }
     case "appendCodexCompactionMessage": {
       const list = state.itemsByThread[action.threadId] ?? [];
       const lastItem = list[list.length - 1];
-      if (
+      const { latestMatch, matchCount } = collectThreadScopedCodexCompactionMessages(
+        list,
+        action.threadId,
+      );
+      const shouldReuseLatestStartedMessage =
         isThreadScopedCodexCompactionMessage(lastItem, action.threadId) &&
-        lastItem.text === action.text &&
-        !lastItem.id.includes("-completed-")
-      ) {
+        latestMatch?.text === action.text &&
+        !latestMatch.id.includes("-completed-");
+      if (shouldReuseLatestStartedMessage && matchCount === 1) {
         return state;
       }
+      const next = [
+        ...filterThreadScopedCodexCompactionMessages(list, action.threadId),
+        shouldReuseLatestStartedMessage
+          ? latestMatch
+          : buildCodexCompactionMessage(action.threadId, action.text),
+      ];
       return {
         ...state,
         itemsByThread: {
           ...state.itemsByThread,
-          [action.threadId]: prepareThreadItems([
-            ...list,
-            buildCodexCompactionMessage(action.threadId, action.text),
-          ]),
+          [action.threadId]: prepareThreadItems(next),
         },
       };
     }
