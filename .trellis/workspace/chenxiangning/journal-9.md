@@ -651,3 +651,54 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 287: Context Ledger 一阶段提案与执行准备
+
+**Date**: 2026-05-03
+**Task**: Context Ledger 一阶段提案与执行准备
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+提交 Context Ledger 的 OpenSpec change 与 Trellis 执行容器，收敛前端第一阶段边界并建立后续实现入口。
+
+### Main Changes
+
+任务目标：为 Context Ledger 第一阶段建立可实施、可验证、可追踪的文档与任务基线。
+
+主要改动：
+- 新增 add-context-ledger proposal、design、tasks 与相关 delta specs
+- 明确 Phase 1 只依赖前端可观察真值，不引入新的 backend prompt attribution protocol
+- 明确 provider-only attribution gap 使用 degraded/shared 标记
+- 新建 05-03-context-ledger-phase1 Trellis task、PRD 与 implement/check/debug context
+
+涉及模块：
+- openspec/changes/add-context-ledger/**
+- .trellis/tasks/05-03-context-ledger-phase1/**
+
+验证结果：
+- openspec validate add-context-ledger --strict --no-interactive 已通过
+- task.py validate 05-03-context-ledger-phase1 已通过
+
+后续事项：
+- 在下一笔提交中补齐 Task Center 的 OpenSpec change、Trellis task 与整体实施计划
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `41a29244` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
