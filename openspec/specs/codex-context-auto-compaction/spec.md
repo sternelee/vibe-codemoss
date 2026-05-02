@@ -37,7 +37,7 @@ Users MUST be able to configure Codex auto-compaction enabled state and threshol
 - **THEN** the system SHALL fall back to `92%`
 
 ### Requirement: Codex Compaction Message Surface
-Codex context compaction MUST be visible in the conversation message surface when the frontend receives real compaction lifecycle events, regardless of whether compaction was triggered automatically or by the user.
+Codex context compaction MUST remain visible and source-consistent in the conversation message surface when the frontend receives real compaction lifecycle events, regardless of whether compaction was triggered automatically or by the user.
 
 #### Scenario: show compaction start message
 - **WHEN** frontend receives `thread/compacting` for a Codex thread
@@ -55,6 +55,12 @@ Codex context compaction MUST be visible in the conversation message surface whe
 - **AND** the conversation message surface does not contain a visible Codex compaction start message for that lifecycle
 - **THEN** the conversation message surface SHALL append one completed compaction message for that lifecycle
 - **AND** repeated completion events for the same lifecycle SHALL NOT append duplicate fallback messages
+
+#### Scenario: preserve compaction source continuity when completion omits source flags
+- **WHEN** frontend previously observed a Codex thread enter compaction with explicit `auto` or `manual` source metadata
+- **AND** frontend later receives `thread/compacted` for the same lifecycle without source flags
+- **THEN** the conversation message surface SHALL settle the same lifecycle using the previously known source classification
+- **AND** automatic compaction completion SHALL NOT fall back to misleading or contradictory copy
 
 #### Scenario: manual compaction uses the same visible message path
 - **WHEN** frontend receives `thread/compacting` or `thread/compacted` with `manual: true`

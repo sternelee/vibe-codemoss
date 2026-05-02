@@ -48,6 +48,7 @@ const THREAD_CREATE_PENDING_SENTINEL: &str = "__thread-create-pending__";
 
 pub(crate) mod commands;
 mod event_sources;
+mod identity;
 mod pool_types;
 mod process_diagnostics;
 mod session_lifecycle;
@@ -55,6 +56,7 @@ mod session_lifecycle;
 use self::event_sources::{
     event_method, event_stream_source, event_thread_id, event_turn_id, event_turn_source,
 };
+use self::identity::{normalize_engine, runtime_key};
 
 fn now_millis() -> u64 {
     SystemTime::now()
@@ -98,19 +100,6 @@ fn write_json_atomically(path: &Path, content: &str) -> Result<(), String> {
         return Err(error.to_string());
     }
     Ok(())
-}
-
-fn runtime_key(engine: &str, workspace_id: &str) -> String {
-    format!("{engine}::{workspace_id}")
-}
-
-fn normalize_engine(engine: &str) -> String {
-    let normalized = engine.trim().to_ascii_lowercase();
-    if normalized.is_empty() {
-        "codex".to_string()
-    } else {
-        normalized
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

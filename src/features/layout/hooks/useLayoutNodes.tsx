@@ -131,6 +131,10 @@ type ThreadActivityStatus = {
   processingStartedAt?: number | null;
   lastDurationMs?: number | null;
   heartbeatPulse?: number;
+  codexCompactionSource?: "auto" | "manual" | null;
+  codexCompactionLifecycleState?: "idle" | "compacting" | "completed";
+  codexCompactionCompletedAt?: number | null;
+  lastTokenUsageUpdatedAt?: number | null;
 };
 
 type GitDiffViewerItem = {
@@ -1488,6 +1492,26 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
           deferredComposerActiveThreadStatus?.isContextCompacting ??
           activeThreadStatus?.isContextCompacting ??
           false
+        }
+        codexCompactionLifecycleState={
+          deferredComposerActiveThreadStatus?.codexCompactionLifecycleState ??
+          activeThreadStatus?.codexCompactionLifecycleState ??
+          "idle"
+        }
+        codexCompactionSource={
+          deferredComposerActiveThreadStatus?.codexCompactionSource ??
+          activeThreadStatus?.codexCompactionSource ??
+          null
+        }
+        codexCompactionCompletedAt={
+          deferredComposerActiveThreadStatus?.codexCompactionCompletedAt ??
+          activeThreadStatus?.codexCompactionCompletedAt ??
+          null
+        }
+        lastTokenUsageUpdatedAt={
+          deferredComposerActiveThreadStatus?.lastTokenUsageUpdatedAt ??
+          activeThreadStatus?.lastTokenUsageUpdatedAt ??
+          null
         }
         accountRateLimits={deferredComposerLiveInputs.rateLimits}
         usageShowRemaining={options.usageShowRemaining}

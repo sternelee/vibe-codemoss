@@ -29,15 +29,14 @@ describe("threadReducer compaction lifecycle", () => {
     });
 
     const items = secondTrigger.itemsByThread["thread-1"] ?? [];
-    expect(items).toHaveLength(3);
+    expect(items).toHaveLength(2);
     expect(items[0]).toMatchObject({
-      id: "context-compacted-codex-compact-thread-1-1111",
+      id: "context-compacted-turn-1",
       kind: "message",
       role: "assistant",
-      text: "Codex 正在压缩背景信息",
-      engineSource: "codex",
+      text: "Context compacted.",
     });
-    expect(items[2]).toMatchObject({
+    expect(items[1]).toMatchObject({
       id: "context-compacted-codex-compact-thread-1-2222",
       kind: "message",
       role: "assistant",
@@ -145,6 +144,31 @@ describe("threadReducer compaction lifecycle", () => {
         text: "Codex 已压缩背景信息",
         engineSource: "codex",
       },
+    ]);
+  });
+
+  it("replaces an older completed curtain when a new Codex compaction starts", () => {
+    const completed = threadReducer(initialState, {
+      type: "settleCodexCompactionMessage",
+      threadId: "thread-1",
+      text: "Codex 已压缩背景信息",
+      fallbackMessageId: "context-compacted-codex-compact-thread-1-completed-turn-1",
+      appendIfAlreadyCompleted: true,
+    });
+
+    const restarted = threadReducer(completed, {
+      type: "appendCodexCompactionMessage",
+      threadId: "thread-1",
+      text: "Codex 正在压缩背景信息",
+    });
+
+    expect(restarted.itemsByThread["thread-1"]).toEqual([
+      expect.objectContaining({
+        kind: "message",
+        role: "assistant",
+        text: "Codex 正在压缩背景信息",
+        engineSource: "codex",
+      }),
     ]);
   });
 

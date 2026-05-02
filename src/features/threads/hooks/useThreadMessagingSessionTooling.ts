@@ -512,6 +512,13 @@ export function useThreadMessagingSessionTooling({
         const timestamp = Date.now();
         codexCompactionInFlightByThreadRef.current[threadId] = true;
         dispatch({
+          type: "markContextCompacting",
+          threadId,
+          isCompacting: true,
+          timestamp,
+          source: "manual",
+        });
+        dispatch({
           type: "appendCodexCompactionMessage",
           threadId,
           text: t("threads.codexCompactionStarted"),
@@ -522,6 +529,12 @@ export function useThreadMessagingSessionTooling({
           await compactThreadContextService(activeWorkspace.id, threadId);
         } catch (error) {
           delete codexCompactionInFlightByThreadRef.current[threadId];
+          dispatch({
+            type: "markContextCompacting",
+            threadId,
+            isCompacting: false,
+            timestamp: Date.now(),
+          });
           dispatch({
             type: "discardLatestCodexCompactionMessage",
             threadId,

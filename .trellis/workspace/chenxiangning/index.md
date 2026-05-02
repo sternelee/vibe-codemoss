@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-9.md`
-- **Total Sessions**: 278
-- **Last Active**: 2026-05-02
+- **Total Sessions**: 286
+- **Last Active**: 2026-05-03
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-9.md` | ~219 | Active |
+| `journal-9.md` | ~653 | Active |
 | `journal-8.md` | ~1996 | Archived |
 | `journal-7.md` | ~1950 | Archived |
 | `journal-6.md` | ~1961 | Archived |
@@ -37,6 +37,14 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 286 | 2026-05-03 | 恢复 useThreads 集成测试 | `ee709bef` | `feature/fix-0.4.12` |
+| 285 | 2026-05-03 | 修正 Codex 压缩幕布复用 | `b24d96c0` | `feature/fix-0.4.12` |
+| 284 | 2026-05-02 | 修复 Codex 压缩历史消息保留 | `0e62dda0` | `feature/fix-0.4.12` |
+| 283 | 2026-05-02 | 修复大文件检查参数解析 | `e5b78bff` | `feature/fix-0.4.12` |
+| 282 | 2026-05-02 | 修复 Codex 压缩状态文案回写 | `6eba4f43` | `feature/fix-0.4.12` |
+| 281 | 2026-05-02 | 归档剩余 OpenSpec 变更并同步主 specs | `adc601b059510e21038da4f611e0e17f8bdad6bc` | `feature/fix-0.4.12` |
+| 280 | 2026-05-02 | 设置入口收口与 MCP/Skills 合并归档 | `97f3ab40840c0f7edbd8d6ff2fabb71201992766` | `feature/fix-0.4.12` |
+| 279 | 2026-05-02 | 归档核心复杂度治理重构 | `949347d7` | `feature/fix-0.4.12` |
 | 278 | 2026-05-02 | 修复 Windows 外部文件监控路径缺失噪声 | `18a69594` | `feature/fix-0.4.12` |
 | 277 | 2026-05-02 | 增加低性能兼容模式与诊断导出 | `6467b10e` | `feature/fix-0.4.12` |
 | 276 | 2026-05-02 | 清理 doctor strict 品牌文案阻塞 | `bed5d920` | `feature/fix-0.4.12` |

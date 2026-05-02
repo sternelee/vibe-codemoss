@@ -125,6 +125,8 @@ describe("ContextBar live canvas controls visibility", () => {
           percent: 50,
           hasUsage: true,
           compactionState: "idle",
+          compactionSource: null,
+          usageSyncPendingAfterCompaction: false,
         }}
         codexAutoCompactionEnabled={false}
         codexAutoCompactionThresholdPercent={150}
@@ -152,6 +154,8 @@ describe("ContextBar live canvas controls visibility", () => {
           percent: 50,
           hasUsage: true,
           compactionState: "idle",
+          compactionSource: null,
+          usageSyncPendingAfterCompaction: false,
         }}
         codexAutoCompactionEnabled
         codexAutoCompactionThresholdPercent={150}
@@ -176,6 +180,8 @@ describe("ContextBar live canvas controls visibility", () => {
           percent: 100,
           hasUsage: true,
           compactionState: "idle",
+          compactionSource: null,
+          usageSyncPendingAfterCompaction: false,
         }}
       />,
     );
@@ -185,5 +191,25 @@ describe("ContextBar live canvas controls visibility", () => {
 
     const ring = container.querySelector(".context-dual-usage-ring") as HTMLElement | null;
     expect(ring?.style.getPropertyValue("--dual-usage-percent")).toBe("100%");
+  });
+
+  it("shows sync-pending copy after automatic compaction completes before usage refresh", () => {
+    render(
+      <ContextBar
+        currentProvider="codex"
+        contextDualViewEnabled
+        dualContextUsage={{
+          usedTokens: 140,
+          contextWindow: 100,
+          percent: 100,
+          hasUsage: true,
+          compactionState: "compacted",
+          compactionSource: "auto",
+          usageSyncPendingAfterCompaction: true,
+        }}
+      />,
+    );
+
+    expect(screen.getByText("chat.contextDualViewCompactedPendingSyncAuto")).toBeTruthy();
   });
 });

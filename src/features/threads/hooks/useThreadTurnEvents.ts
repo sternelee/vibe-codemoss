@@ -42,6 +42,21 @@ type ContextCompactionSourcePayload = {
   manual?: boolean | null;
 };
 
+function resolveCompactionSource(
+  payload?: ContextCompactionSourcePayload,
+): "auto" | "manual" | null | undefined {
+  if (!payload) {
+    return undefined;
+  }
+  if (payload.manual === true) {
+    return "manual";
+  }
+  if (payload.auto === true) {
+    return "auto";
+  }
+  return undefined;
+}
+
 function isCodexContextCompaction(threadId: string): boolean {
   if (inferEngineFromThreadId(threadId) !== "codex") {
     return false;
@@ -684,19 +699,23 @@ export function useThreadTurnEvents({
         ? targetThreadIds.some((targetThreadId) => isCodexContextCompaction(targetThreadId))
         : wasCodexCompacting;
       setCodexCompactionInFlight(targetThreadIds, false);
+      const compactionSource = resolveCompactionSource(payload);
       targetThreadIds.forEach((targetThreadId) => {
+        const compactionAction: ThreadAction = {
+          type: "markContextCompacting",
+          threadId: targetThreadId,
+          isCompacting: false,
+          timestamp,
+          ...(isCodexCompaction ? { completionStatus: "completed" as const } : {}),
+          ...(compactionSource !== undefined ? { source: compactionSource } : {}),
+        };
         dispatch({
           type: "ensureThread",
           workspaceId,
           threadId: targetThreadId,
           engine: inferEngineFromThreadId(targetThreadId),
         });
-        dispatch({
-          type: "markContextCompacting",
-          threadId: targetThreadId,
-          isCompacting: false,
-          timestamp,
-        });
+        dispatch(compactionAction);
       });
       const resolvedTurnId = turnId || `auto-${timestamp}`;
       if (isCodexCompaction) {
@@ -756,19 +775,22 @@ export function useThreadTurnEvents({
       );
       setCodexCompactionInFlight(targetThreadIds, isCodexCompaction);
       const timestamp = Date.now();
+      const compactionSource = resolveCompactionSource(_payload);
       targetThreadIds.forEach((targetThreadId) => {
+        const compactionAction: ThreadAction = {
+          type: "markContextCompacting",
+          threadId: targetThreadId,
+          isCompacting: true,
+          timestamp,
+          ...(compactionSource !== undefined ? { source: compactionSource } : {}),
+        };
         dispatch({
           type: "ensureThread",
           workspaceId,
           threadId: targetThreadId,
           engine: inferEngineFromThreadId(targetThreadId),
         });
-        dispatch({
-          type: "markContextCompacting",
-          threadId: targetThreadId,
-          isCompacting: true,
-          timestamp,
-        });
+        dispatch(compactionAction);
       });
       if (isCodexCompaction) {
         targetThreadIds.forEach((targetThreadId) => {

@@ -16,6 +16,7 @@ import {
   listMcpServerStatus,
   listGlobalMcpServers,
   readGlobalAgentsMd,
+  readGlobalCodexAuthJson,
   readGlobalCodexConfigToml,
   pushGit,
   pullGit,
@@ -28,6 +29,7 @@ import {
   openWorkspaceIn,
   openNewWindow,
   readAgentMd,
+  readClaudeMd,
   setCodexUnifiedExecOfficialOverride,
   renameThreadTitleKey,
   setThreadTitle,
@@ -39,6 +41,7 @@ import {
   writeGlobalAgentsMd,
   writeGlobalCodexConfigToml,
   writeAgentMd,
+  writeClaudeMd,
   connectOpenCodeProvider,
   getOpenCodeProviderHealth,
   getCodeIntelDefinition,
@@ -1113,6 +1116,23 @@ describe("tauri invoke wrappers", () => {
     });
   });
 
+  it("reads global auth.json", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({
+      exists: true,
+      content: '{"tokens":[]}',
+      truncated: false,
+    });
+
+    await readGlobalCodexAuthJson();
+
+    expect(invokeMock).toHaveBeenCalledWith("file_read", {
+      scope: "global",
+      kind: "auth",
+      workspaceId: undefined,
+    });
+  });
+
   it("writes global config.toml", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({});
@@ -1124,6 +1144,37 @@ describe("tauri invoke wrappers", () => {
       kind: "config",
       workspaceId: undefined,
       content: 'model = "gpt-5"',
+    });
+  });
+
+  it("reads CLAUDE.md for a workspace", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({
+      exists: true,
+      content: "# Claude",
+      truncated: false,
+    });
+
+    await readClaudeMd("ws-claude");
+
+    expect(invokeMock).toHaveBeenCalledWith("file_read", {
+      scope: "workspace",
+      kind: "claude",
+      workspaceId: "ws-claude",
+    });
+  });
+
+  it("writes CLAUDE.md for a workspace", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({});
+
+    await writeClaudeMd("ws-claude", "# Claude");
+
+    expect(invokeMock).toHaveBeenCalledWith("file_write", {
+      scope: "workspace",
+      kind: "claude",
+      workspaceId: "ws-claude",
+      content: "# Claude",
     });
   });
 

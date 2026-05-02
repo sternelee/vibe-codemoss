@@ -182,7 +182,9 @@ function areDualContextUsageEqual(
     left.contextWindow === right.contextWindow &&
     left.percent === right.percent &&
     left.hasUsage === right.hasUsage &&
-    left.compactionState === right.compactionState
+    left.compactionState === right.compactionState &&
+    left.compactionSource === right.compactionSource &&
+    left.usageSyncPendingAfterCompaction === right.usageSyncPendingAfterCompaction
   );
 }
 
