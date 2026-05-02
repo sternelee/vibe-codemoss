@@ -458,3 +458,41 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 283: 修复大文件检查参数解析
+
+**Date**: 2026-05-02
+**Task**: 修复大文件检查参数解析
+**Branch**: `feature/fix-0.4.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：审查并处理工作区遗留的 check-large-files 脚本改动，判断是否为有效修复。
+主要改动：为 scripts/check-large-files.mjs 增加统一的 readOptionValue 参数读取函数，修复 --baseline-file、--policy-file、--root、--scope 等需要值的 CLI 参数在缺值时误吞下一个 flag 的问题；补充 node:test 用例覆盖缺失 baseline-file 参数时应快速失败的行为。
+涉及模块：scripts/check-large-files.mjs；scripts/check-large-files.test.mjs。
+验证结果：node --test scripts/check-large-files.test.mjs 通过；执行 node scripts/check-large-files.mjs --baseline-file --scope fail 返回 exit code 1，stderr 为 Missing value for --baseline-file，行为符合预期。
+后续事项：无，当前工作区已清洁。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e5b78bff` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
