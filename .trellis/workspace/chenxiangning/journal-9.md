@@ -883,3 +883,69 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 291: Context Ledger 压缩布局与详情渲染修复
+
+**Date**: 2026-05-03
+**Task**: Context Ledger 压缩布局与详情渲染修复
+**Branch**: `feature/v-0.4.13`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+## 任务目标
+- 压缩 Context Ledger 最近轮次、比较摘要与来源卡片的高度和层级。
+- 强化 i18n 文案，并明确该视图展示的是实时上下文投影而非静态说明。
+- 修复来源详情内容的 markdown 渲染与致密单行输出解析。
+- 复核边界条件、Windows/macOS 兼容点以及大文件/测试噪声门禁。
+
+## 主要改动
+- 重排 `ContextLedgerPanel` 卡片结构，压平 usage snapshot 与 comparison 摘要层级，减少冗余标签与无效说明文案。
+- 为 inspection title/content 增加 i18n key + params 入口，补充中英文实时说明与 recent turns 详情文案。
+- 新增 `src/utils/denseMarkdownOutput.ts`，把致密 markdown 归一化抽为 shared util。
+- 新增 `contextLedgerInspectionMarkdown`，在详情视图中恢复 labeled dense markdown，并限制 section marker 只在行首/换行后生效，避免误切段。
+- 让 `session-activity` 复用 shared markdown normalize，移除跨 feature 的反向依赖。
+- 增补回归测试，覆盖 dense markdown 恢复、plain markdown 直通和 marker-like prose 不误切段。
+
+## 涉及模块
+- `src/features/context-ledger/components/ContextLedgerPanel.tsx`
+- `src/features/context-ledger/utils/contextLedgerProjection.ts`
+- `src/features/context-ledger/utils/contextLedgerInspectionMarkdown.ts`
+- `src/features/session-activity/utils/shellOutputHighlight.ts`
+- `src/utils/denseMarkdownOutput.ts`
+- `src/styles/composer.part2.css`
+- `src/i18n/locales/en.part2.ts`
+- `src/i18n/locales/zh.part2.ts`
+
+## 验证结果
+- `npm run lint` 通过
+- `npm run typecheck` 通过
+- `npm run check:large-files` 通过
+- `npx vitest run src/features/context-ledger/components/ContextLedgerPanel.test.tsx src/features/context-ledger/utils/contextLedgerProjection.test.ts src/features/context-ledger/utils/contextLedgerInspectionMarkdown.test.ts src/features/session-activity/utils/shellOutputHighlight.test.ts` 通过（33 tests）
+- `npm run check:heavy-test-noise` 通过（419 test files；environment warnings 1，act warnings 0，stdout/stderr payload lines 0）
+
+## 后续事项
+- Context Ledger 面板仍在大文件边缘，后续若继续扩展交互，优先按 view model / comparison / inspection section 做模块拆分。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1537d996` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
