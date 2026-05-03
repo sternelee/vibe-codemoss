@@ -1255,3 +1255,41 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 297: 合并 PR494 邮件设置卡片背景修复
+
+**Date**: 2026-05-03
+**Task**: 合并 PR494 邮件设置卡片背景修复
+**Branch**: `feature/v-0.4.13`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：将 upstream PR #494 的邮件设置卡片背景修复合并到当前分支 feature/v-0.4.13，并处理与当前样式结构的兼容问题。
+主要改动：未直接 merge 对方整条 PR，而是只提取业务修复语义；在 src/styles/settings.part2.css 中为 settings-email-card 增加独立的 theme-driven surface、header/content 布局覆盖与 enabled 态边框；新增 src/styles/settings-email-card-surface.test.ts 作为 CSS guard test，防止回退到硬编码黑底。
+涉及模块：settings 样式层、邮件发送设置卡片、样式守卫测试。
+验证结果：npx vitest run src/styles/settings-email-card-surface.test.ts 通过；npx eslint src/styles/settings-email-card-surface.test.ts 通过；npm run typecheck 通过；npm run check:large-files 通过；git diff --check 通过。
+后续事项：如需同步到远端，可直接 push 当前分支；若后续继续拆分 settings 样式分片，需保留 settings-email-card 这一 scoped selector contract。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `31b769ea` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
