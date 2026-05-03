@@ -77,14 +77,14 @@ export const UserConversationTimelinePanel = memo(function UserConversationTimel
                   })}
                 </span>
               </div>
+              <button
+                type="button"
+                className="sp-user-conversation-jump"
+                onClick={() => onJumpToMessage?.(item.id)}
+              >
+                {t("statusPanel.jumpToConversationMessage")}
+              </button>
             </div>
-            <button
-              type="button"
-              className="sp-user-conversation-jump"
-              onClick={() => onJumpToMessage?.(item.id)}
-            >
-              {t("statusPanel.jumpToConversationMessage")}
-            </button>
 
             {hasText ? (
               <pre
