@@ -1508,3 +1508,58 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 302: 归档 Claude Gemini 幕布提案
+
+**Date**: 2026-05-04
+**Task**: 归档 Claude Gemini 幕布提案
+**Branch**: `feature/v-0.4.13`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：
+- 在 Claude Code / Gemini 通用幕布组装实现提交后，确认 OpenSpec change 是否满足归档门禁。
+- 将 delta specs 智能同步到主 openspec/specs/**，再归档 change。
+
+主要改动：
+- 将 extend-conversation-curtain-assembly-to-claude-gemini 的 delta specs 合并到主 specs：
+  - conversation-curtain-assembly-core
+  - conversation-curtain-normalization-core
+  - conversation-lifecycle-contract
+  - conversation-provider-stream-mitigation
+- 保留主 specs 既有历史要求，只做 additive / targeted merge，避免覆盖 conversation-lifecycle-contract 中已有的大量生命周期契约。
+- 将 change 移动到 openspec/changes/archive/2026-05-04-extend-conversation-curtain-assembly-to-claude-gemini/。
+
+验证结果：
+- openspec status --change extend-conversation-curtain-assembly-to-claude-gemini --json：artifacts 全部 done，tasks 27/27 complete。
+- openspec validate extend-conversation-curtain-assembly-to-claude-gemini --strict --no-interactive：通过。
+- openspec validate --specs --strict --no-interactive：219 specs 通过，0 failed。
+- openspec list --json：active changes 中已不再包含 extend-conversation-curtain-assembly-to-claude-gemini。
+- git diff --check：通过。
+
+后续事项：
+- 此 change 已完成归档；后续如继续 Claude/Gemini 真实设备回归，可作为新的 release verification 或 bugfix change 处理。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0750ed03` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
