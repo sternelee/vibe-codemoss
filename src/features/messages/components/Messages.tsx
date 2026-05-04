@@ -101,6 +101,7 @@ import {
 
 const MESSAGE_JUMP_EVENT_NAME = "mossx:jump-to-message";
 const ASSISTANT_FINALIZING_LIVE_WINDOW_MS = 320;
+const CODEX_FINALIZING_LIVE_WINDOW_MS = 6_000;
 
 type MessagesProps = {
   items: ConversationItem[];
@@ -941,12 +942,16 @@ export const Messages = memo(function Messages({
     if (assistantFinalizingTimerRef.current !== null) {
       window.clearTimeout(assistantFinalizingTimerRef.current);
     }
+    const finalizingWindowMs =
+      activeEngine === "codex"
+        ? CODEX_FINALIZING_LIVE_WINDOW_MS
+        : ASSISTANT_FINALIZING_LIVE_WINDOW_MS;
     assistantFinalizingTimerRef.current = window.setTimeout(() => {
       assistantFinalizingTimerRef.current = null;
       setFinalizingAssistantMessageId((current) =>
         current === latestAssistantMessageId ? null : current,
       );
-    }, ASSISTANT_FINALIZING_LIVE_WINDOW_MS);
+    }, finalizingWindowMs);
   }, [
     activeEngine,
     finalizingAssistantMessageId,
@@ -1596,7 +1601,7 @@ export const Messages = memo(function Messages({
   useEffect(() => {
     if (
       (activeEngine !== "claude" && activeEngine !== "codex" && activeEngine !== "gemini") ||
-      !isThinking ||
+      (!isThinking && !isAssistantFinalizing) ||
       !threadId
     ) {
       return;
@@ -1604,13 +1609,13 @@ export const Messages = memo(function Messages({
     noteThreadVisibleRender(threadId, {
       visibleItemCount: renderedItems.length,
     });
-  }, [activeEngine, isThinking, renderedItems.length, threadId]);
+  }, [activeEngine, isAssistantFinalizing, isThinking, renderedItems.length, threadId]);
 
   const handleAssistantVisibleTextRender = useCallback(
     (payload: { itemId: string; visibleText: string }) => {
       if (
         (activeEngine !== "claude" && activeEngine !== "codex" && activeEngine !== "gemini") ||
-        !isThinking ||
+        (!isThinking && !isAssistantFinalizing) ||
         !threadId
       ) {
         return;
@@ -1619,8 +1624,37 @@ export const Messages = memo(function Messages({
         itemId: payload.itemId,
         visibleTextLength: payload.visibleText.length,
       });
+      if (
+        activeEngine === "codex" &&
+        isAssistantFinalizing &&
+        payload.itemId === finalizingAssistantMessageId
+      ) {
+        const targetItem = renderSourceItems.find(
+          (item) =>
+            isAssistantMessageConversationItem(item) &&
+            item.id === payload.itemId,
+        );
+        const targetTextLength =
+          targetItem && isAssistantMessageConversationItem(targetItem)
+            ? targetItem.text.length
+            : 0;
+        if (targetTextLength > 0 && payload.visibleText.length >= targetTextLength) {
+          if (assistantFinalizingTimerRef.current !== null) {
+            window.clearTimeout(assistantFinalizingTimerRef.current);
+            assistantFinalizingTimerRef.current = null;
+          }
+          setFinalizingAssistantMessageId(null);
+        }
+      }
     },
-    [activeEngine, isThinking, threadId],
+    [
+      activeEngine,
+      finalizingAssistantMessageId,
+      isAssistantFinalizing,
+      isThinking,
+      renderSourceItems,
+      threadId,
+    ],
   );
 
   useEffect(() => clearTransientUiState, [clearTransientUiState]);

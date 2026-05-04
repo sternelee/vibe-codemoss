@@ -134,8 +134,8 @@ type GeneratedImageRowProps = {
 };
 
 const LIVE_ASSISTANT_MARKDOWN_THROTTLE_MS = 48;
-const CODEX_MEDIUM_STREAMING_THROTTLE_MS = 120;
-const CODEX_LARGE_STREAMING_THROTTLE_MS = 220;
+const CODEX_MEDIUM_STREAMING_THROTTLE_MS = 80;
+const CODEX_LARGE_STREAMING_THROTTLE_MS = 120;
 const CODEX_MEDIUM_STREAMING_MIN_LENGTH = 260;
 const CODEX_MEDIUM_STREAMING_MIN_LINES = 6;
 const CODEX_LARGE_STREAMING_MIN_LENGTH = 700;
@@ -268,28 +268,39 @@ function shouldUsePlainTextStreamingSurface(
   item: Extract<ConversationItem, { kind: "message" }>,
   isStreaming: boolean,
   activeEngine: MessagesEngine,
-  presentationProfile: PresentationProfile | null | undefined,
   mitigationProfile: StreamMitigationProfile | null | undefined,
+) {
+  return (
+    item.role === "assistant" &&
+    isStreaming &&
+    activeEngine !== "codex" &&
+    mitigationProfile?.renderPlainTextWhileStreaming === true
+  );
+}
+
+function shouldUseLightweightStreamingMarkdown(
+  item: Extract<ConversationItem, { kind: "message" }>,
+  isStreaming: boolean,
+  activeEngine: MessagesEngine,
+  presentationProfile: PresentationProfile | null | undefined,
+  displayText: string,
 ) {
   if (item.role !== "assistant" || !isStreaming) {
     return false;
   }
-  if (mitigationProfile?.renderPlainTextWhileStreaming === true) {
-    return true;
-  }
-  const useCodexStagedMarkdownThrottle =
+  const useStagedMarkdownThrottle =
     presentationProfile?.useCodexStagedMarkdownThrottle ?? activeEngine === "codex";
-  if (!useCodexStagedMarkdownThrottle) {
+  if (!useStagedMarkdownThrottle) {
     return false;
   }
-  const trimmedText = item.text.trim();
+  const trimmedText = displayText.trim();
   if (!trimmedText) {
     return false;
   }
   const lineCount = trimmedText.split(/\r?\n/).length;
   return (
-    trimmedText.length >= CODEX_LARGE_STREAMING_MIN_LENGTH ||
-    lineCount >= CODEX_LARGE_STREAMING_MIN_LINES
+    trimmedText.length >= CODEX_MEDIUM_STREAMING_MIN_LENGTH ||
+    lineCount >= CODEX_MEDIUM_STREAMING_MIN_LINES
   );
 }
 
@@ -886,8 +897,14 @@ export const MessageRow = memo(function MessageRow({
     item,
     isStreaming,
     activeEngine,
-    presentationProfile,
     streamMitigationProfile,
+  );
+  const useLightweightStreamingMarkdown = !usePlainTextStreamingSurface && shouldUseLightweightStreamingMarkdown(
+    item,
+    isStreaming,
+    activeEngine,
+    presentationProfile,
+    displayText,
   );
   const livePlainTextClassName = `${resolvedMarkdownClassName} markdown-live-plain-text`;
   const handleRenderedAssistantValue = useCallback(
@@ -1032,6 +1049,8 @@ export const MessageRow = memo(function MessageRow({
             )}
             onOpenFileLink={onOpenFileLink}
             onOpenFileLinkMenu={onOpenFileLinkMenu}
+            liveRenderMode={useLightweightStreamingMarkdown ? "lightweight" : "full"}
+            progressiveReveal={useLightweightStreamingMarkdown}
             onRenderedValueChange={handleRenderedAssistantValue}
           />
         )

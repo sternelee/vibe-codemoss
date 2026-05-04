@@ -1309,7 +1309,7 @@ describe("Messages", () => {
   it("keeps the latest assistant row on the live markdown surface briefly after streaming stops", () => {
     vi.useFakeTimers();
     try {
-      const items: ConversationItem[] = [
+      const streamingItems: ConversationItem[] = [
         {
           id: "user-finalizing-live-1",
           kind: "message",
@@ -1320,14 +1320,30 @@ describe("Messages", () => {
           id: "assistant-finalizing-live-1",
           kind: "message",
           role: "assistant",
-          text: "总结如下：\n- 第一条\n- 第二条",
+          text: "- streaming 阶段已经可见的总结",
+          isFinal: false,
+        },
+      ];
+      const completedItems: ConversationItem[] = [
+        streamingItems[0],
+        {
+          id: "assistant-finalizing-live-1",
+          kind: "message",
+          role: "assistant",
+          text: [
+            "- streaming 阶段已经可见的总结",
+            ...Array.from(
+              { length: 16 },
+              (_, index) => `- 第 ${index + 1} 条 completion 追加总结：这是一段较长的 Codex completion 内容，用来确认 finalizing window 不会立刻切回完整 Markdown。`,
+            ),
+          ].join("\n"),
           isFinal: true,
         },
       ];
 
       const { container, rerender } = render(
         <Messages
-          items={items}
+          items={streamingItems}
           threadId="codex:finalizing-live-1"
           workspaceId="ws-1"
           isThinking
@@ -1342,7 +1358,7 @@ describe("Messages", () => {
 
       rerender(
         <Messages
-          items={items}
+          items={completedItems}
           threadId="codex:finalizing-live-1"
           workspaceId="ws-1"
           isThinking={false}

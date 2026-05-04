@@ -12,7 +12,7 @@ describe("Messages codex live streaming", () => {
     });
   });
 
-  it("renders large codex assistant streaming output on the lightweight live surface", () => {
+  it("renders large codex assistant streaming output on the live Markdown surface", () => {
     const assistantText = Array.from(
       { length: 14 },
       (_, index) => `- 第 ${index + 1} 条审计结论：这是长段 streaming 输出`,
@@ -50,6 +50,7 @@ describe("Messages codex live streaming", () => {
     const plainTextSurface = container.querySelector(
       ".message.assistant .markdown-live-plain-text",
     );
-    expect(plainTextSurface?.textContent).toBe(assistantText);
+    expect(plainTextSurface).toBeNull();
+    expect(liveSurface?.textContent).toContain("第 14 条审计结论");
   });
 });

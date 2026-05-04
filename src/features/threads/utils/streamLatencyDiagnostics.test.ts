@@ -24,6 +24,7 @@ import {
   completeThreadStreamTurn,
   getThreadStreamLatencySnapshot,
   noteThreadDeltaReceived,
+  noteThreadTextIngressReceived,
   noteThreadTurnStarted,
   noteThreadVisibleTextRendered,
   noteThreadVisibleRender,
@@ -338,7 +339,7 @@ describe("streamLatencyDiagnostics", () => {
     expect(snapshot?.mitigationProfile).toBe("codex-markdown-stream-recovery");
     expect(snapshot?.mitigationReason).toBe("visible-output-stall-after-first-delta");
     expect(mitigation?.id).toBe("codex-markdown-stream-recovery");
-    expect(mitigation?.renderPlainTextWhileStreaming).toBe(true);
+    expect(mitigation?.renderPlainTextWhileStreaming).toBeUndefined();
     expect(mocks.appendRendererDiagnostic).toHaveBeenCalledWith(
       "stream-latency/mitigation-activated",
       expect.objectContaining({
@@ -640,6 +641,96 @@ describe("streamLatencyDiagnostics", () => {
     expect(resolveActiveThreadStreamMitigation(
       getThreadStreamLatencySnapshot("thread-mac-claude"),
     )).toBeNull();
+  });
+
+  it("records codex completion ingress after a long visible gap", async () => {
+    await primeThreadStreamLatencyContext({
+      workspaceId: "ws-1",
+      threadId: "thread-codex-completion-gap",
+      engine: "codex",
+      model: "gpt-5.4",
+    });
+    noteThreadTurnStarted({
+      workspaceId: "ws-1",
+      threadId: "thread-codex-completion-gap",
+      turnId: "turn-codex-completion-gap",
+      startedAt: 10_000,
+    });
+    noteThreadDeltaReceived("thread-codex-completion-gap", 10_050, {
+      source: "delta",
+      itemId: "assistant-codex-gap",
+      textLength: 120,
+    });
+    noteThreadVisibleTextRendered("thread-codex-completion-gap", {
+      itemId: "assistant-codex-gap",
+      visibleTextLength: 120,
+      renderAt: 10_080,
+    });
+    noteThreadTextIngressReceived("thread-codex-completion-gap", {
+      source: "completion",
+      itemId: "assistant-codex-gap",
+      textLength: 4_800,
+      timestamp: 32_000,
+    });
+
+    const snapshot = getThreadStreamLatencySnapshot("thread-codex-completion-gap");
+
+    expect(snapshot?.deltaCount).toBe(1);
+    expect(snapshot?.lastDeltaAt).toBe(10_050);
+    expect(snapshot?.cadenceSamplesMs).toEqual([]);
+    expect(snapshot?.lastIngressSource).toBe("completion");
+    expect(snapshot?.lastIngressGapMs).toBe(21_950);
+    expect(snapshot?.lastIngressTextLength).toBe(4_800);
+    expect(mocks.appendRendererDiagnostic).toHaveBeenCalledWith(
+      "stream-latency/codex-text-ingress",
+      expect.objectContaining({
+        engine: "codex",
+        ingressSource: "completion",
+        itemId: "assistant-codex-gap",
+        textLength: 4_800,
+        lastIngressGapMs: 21_950,
+      }),
+    );
+  });
+
+  it("dedupes identical codex completion ingress diagnostics", async () => {
+    await primeThreadStreamLatencyContext({
+      workspaceId: "ws-1",
+      threadId: "thread-codex-completion-dedupe",
+      engine: "codex",
+      model: "gpt-5.4",
+    });
+    noteThreadTurnStarted({
+      workspaceId: "ws-1",
+      threadId: "thread-codex-completion-dedupe",
+      turnId: "turn-codex-completion-dedupe",
+      startedAt: 20_000,
+    });
+    noteThreadDeltaReceived("thread-codex-completion-dedupe", 20_100, {
+      source: "delta",
+      itemId: "assistant-codex-dedupe",
+      textLength: 120,
+    });
+    noteThreadTextIngressReceived("thread-codex-completion-dedupe", {
+      source: "completion",
+      itemId: "assistant-codex-dedupe",
+      textLength: 4_800,
+      timestamp: 22_200,
+    });
+    noteThreadTextIngressReceived("thread-codex-completion-dedupe", {
+      source: "completion",
+      itemId: "assistant-codex-dedupe",
+      textLength: 4_800,
+      timestamp: 23_300,
+    });
+
+    const snapshot = getThreadStreamLatencySnapshot("thread-codex-completion-dedupe");
+    const ingressDiagnostics = mocks.appendRendererDiagnostic.mock.calls.filter(
+      ([eventName]) => eventName === "stream-latency/codex-text-ingress",
+    );
+
+    expect(snapshot?.lastIngressGapMs).toBe(2_100);
+    expect(ingressDiagnostics).toHaveLength(1);
   });
 
   it("does not report baseline profile activation as stream mitigation", async () => {
