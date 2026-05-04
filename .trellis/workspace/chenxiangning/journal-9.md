@@ -1918,3 +1918,60 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 309: 归档已验证 OpenSpec 提案
+
+**Date**: 2026-05-04
+**Task**: 归档已验证 OpenSpec 提案
+**Branch**: `feature/v-0.4.13-1`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：
+- 将 Spec Hub 中已验证、任务完成的 OpenSpec 提案从 active changes 收口到 archive。
+- 归档操作要求单独提交，不混入当前工作区中未暂存的 src 测试文件改动。
+
+主要改动：
+- 归档 add-agent-task-center。
+- 归档 connect-task-center-runtime-lifecycle。
+- 归档 connect-task-center-completion-and-recovery。
+- 归档 optimize-realtime-conversation-client-performance。
+- 归档 phase1-architecture-hardening。
+- 归档 status-panel-user-conversation-timeline。
+- 主 specs 中已存在对应 Requirement，普通 archive 会触发重复 Requirement 冲突，因此使用 --skip-specs 完成归档。
+
+涉及模块：
+- openspec/changes/archive
+- openspec/specs
+
+验证结果：
+- openspec list --json：6 个目标提案已不在 active changes 中。
+- openspec validate --all：229 passed, 0 failed。
+- git diff --cached --name-only：提交范围仅包含 openspec/**。
+
+后续事项：
+- 当前工作区仍保留 5 个未提交的 src 测试文件改动，未纳入本次归档提交；后续需单独确认其来源与是否保留。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d4e783e6` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
