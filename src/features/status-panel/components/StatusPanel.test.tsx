@@ -345,7 +345,7 @@ describe("StatusPanel", () => {
     expect(renderedMessages[1]).toContain("第一条消息");
     expect(screen.getByText("Images: 2")).toBeTruthy();
     expect(screen.getByText("Newest to oldest 1/2")).toBeTruthy();
-    expect(screen.getByText("Original order #2")).toBeTruthy();
+    expect(screen.getByText("#2")).toBeTruthy();
     expect(screen.getByText("Expand")).toBeTruthy();
   });
 
