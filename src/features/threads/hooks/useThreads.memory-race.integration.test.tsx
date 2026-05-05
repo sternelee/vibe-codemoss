@@ -730,6 +730,188 @@ describe("useThreads memory race integration", () => {
     }
   });
 
+  it("preserves only the latest Codex auto-compaction curtain through history reconcile and clears it after usage refresh", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-05-02T00:00:00.000Z"));
+      vi.mocked(resumeThread).mockResolvedValue({
+        result: {
+          thread: {
+            id: "codex-thread-compact",
+            preview: "Compaction thread",
+            updated_at: 4_000,
+            turns: [
+              {
+                items: [
+                  {
+                    type: "userMessage",
+                    id: "user-history-compact",
+                    content: [{ type: "text", text: "继续完成当前回复" }],
+                  },
+                  {
+                    type: "agentMessage",
+                    id: "assistant-history-compact",
+                    text: "history 对齐后的 Codex 最终正文。",
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      });
+
+      const { result } = renderHook(() =>
+        useThreads({
+          activeWorkspace: workspace,
+          onWorkspaceConnected: vi.fn(),
+          activeEngine: "codex",
+          useUnifiedHistoryLoader: true,
+        }),
+      );
+
+      const getCompactionMessages = () =>
+        (result.current.threadItemsByThread["codex-thread-compact"] ?? []).filter(
+          (item) =>
+            item.kind === "message" &&
+            item.role === "assistant" &&
+            item.engineSource === "codex" &&
+            item.id.startsWith(
+              "context-compacted-codex-compact-codex-thread-compact",
+            ),
+        );
+
+      act(() => {
+        handlers?.onContextCompacting?.("ws-1", "codex-thread-compact", {
+          usagePercent: 96,
+          thresholdPercent: 92,
+          targetPercent: 70,
+          auto: true,
+          manual: false,
+        });
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10);
+      });
+      act(() => {
+        handlers?.onContextCompacted?.("ws-1", "codex-thread-compact", "turn-old", {
+          auto: true,
+          manual: false,
+        });
+      });
+
+      expect(getCompactionMessages()).toHaveLength(1);
+      expect(getCompactionMessages()[0]).toMatchObject({
+        text: "threads.codexCompactionCompleted",
+      });
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10);
+      });
+      act(() => {
+        handlers?.onTurnStarted?.("ws-1", "codex-thread-compact", "turn-new");
+      });
+      act(() => {
+        handlers?.onContextCompacting?.("ws-1", "codex-thread-compact", {
+          usagePercent: 98,
+          thresholdPercent: 92,
+          targetPercent: 70,
+          auto: true,
+          manual: false,
+        });
+      });
+
+      expect(getCompactionMessages()).toHaveLength(1);
+      expect(getCompactionMessages()[0]).toMatchObject({
+        text: "threads.codexCompactionStarted",
+      });
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10);
+      });
+      act(() => {
+        handlers?.onContextCompacted?.("ws-1", "codex-thread-compact", "turn-new", {
+          auto: true,
+          manual: false,
+        });
+        handlers?.onTurnCompleted?.("ws-1", "codex-thread-compact", "turn-new");
+      });
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(4_500);
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(vi.mocked(resumeThread)).toHaveBeenCalledWith(
+        "ws-1",
+        "codex-thread-compact",
+      );
+      expect(getCompactionMessages()).toHaveLength(1);
+      expect(getCompactionMessages()[0]).toMatchObject({
+        text: "threads.codexCompactionCompleted",
+      });
+      expect(
+        (result.current.threadItemsByThread["codex-thread-compact"] ?? []).some(
+          (item) =>
+            item.kind === "message" &&
+            item.role === "assistant" &&
+            item.id === "assistant-history-compact",
+        ),
+      ).toBe(true);
+      expect(
+        result.current.threadStatusById["codex-thread-compact"]?.codexCompactionLifecycleState,
+      ).toBe("completed");
+
+      act(() => {
+        handlers?.onThreadTokenUsageUpdated?.("ws-1", "codex-thread-compact", {
+          total: {
+            totalTokens: 180_000,
+            inputTokens: 100_000,
+            cachedInputTokens: 20_000,
+            outputTokens: 60_000,
+            reasoningOutputTokens: 0,
+          },
+          last: {
+            totalTokens: 55_000,
+            inputTokens: 30_000,
+            cachedInputTokens: 10_000,
+            outputTokens: 15_000,
+            reasoningOutputTokens: 0,
+          },
+          modelContextWindow: 200_000,
+        });
+      });
+
+      expect(
+        result.current.threadStatusById["codex-thread-compact"]?.codexCompactionLifecycleState,
+      ).toBe("idle");
+
+      await act(async () => {
+        await result.current.refreshThread("ws-1", "codex-thread-compact");
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(getCompactionMessages()).toHaveLength(0);
+      expect(
+        result.current.threadItemsByThread["codex-thread-compact"] ?? [],
+      ).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: "assistant-history-compact",
+            kind: "message",
+            role: "assistant",
+            text: "history 对齐后的 Codex 最终正文。",
+          }),
+        ]),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("reconciles claude realtime output from history once after turn completion", async () => {
     vi.useFakeTimers();
     try {

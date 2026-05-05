@@ -16,6 +16,7 @@ import {
   listMcpServerStatus,
   listGlobalMcpServers,
   readGlobalAgentsMd,
+  readGlobalCodexAuthJson,
   readGlobalCodexConfigToml,
   pushGit,
   pullGit,
@@ -28,6 +29,7 @@ import {
   openWorkspaceIn,
   openNewWindow,
   readAgentMd,
+  readClaudeMd,
   setCodexUnifiedExecOfficialOverride,
   renameThreadTitleKey,
   setThreadTitle,
@@ -39,6 +41,7 @@ import {
   writeGlobalAgentsMd,
   writeGlobalCodexConfigToml,
   writeAgentMd,
+  writeClaudeMd,
   connectOpenCodeProvider,
   getOpenCodeProviderHealth,
   getCodeIntelDefinition,
@@ -78,7 +81,9 @@ import {
   deleteClaudeSession,
   deleteGeminiSession,
   sendConversationCompletionEmail,
+  exportDiagnosticsBundle,
 } from "./tauri";
+import { resetRuntimeModeStateForTests } from "./tauri/runtimeMode";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -133,6 +138,7 @@ describe("tauri invoke wrappers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     clearWebRuntimeFlag();
+    resetRuntimeModeStateForTests();
   });
 
   it("uses codex_bin for addWorkspace", async () => {
@@ -177,6 +183,21 @@ describe("tauri invoke wrappers", () => {
     await reloadCodexRuntimeConfig();
 
     expect(invokeMock).toHaveBeenCalledWith("reload_codex_runtime_config");
+  });
+
+  it("invokes diagnostics bundle export command", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({
+      filePath: "/tmp/diagnostics.json",
+      generatedAt: "123",
+    });
+
+    await expect(exportDiagnosticsBundle()).resolves.toEqual({
+      filePath: "/tmp/diagnostics.json",
+      generatedAt: "123",
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith("export_diagnostics_bundle");
   });
 
   it("invokes codex_doctor with the provided CLI inputs", async () => {
@@ -1097,6 +1118,23 @@ describe("tauri invoke wrappers", () => {
     });
   });
 
+  it("reads global auth.json", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({
+      exists: true,
+      content: '{"tokens":[]}',
+      truncated: false,
+    });
+
+    await readGlobalCodexAuthJson();
+
+    expect(invokeMock).toHaveBeenCalledWith("file_read", {
+      scope: "global",
+      kind: "auth",
+      workspaceId: undefined,
+    });
+  });
+
   it("writes global config.toml", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({});
@@ -1108,6 +1146,37 @@ describe("tauri invoke wrappers", () => {
       kind: "config",
       workspaceId: undefined,
       content: 'model = "gpt-5"',
+    });
+  });
+
+  it("reads CLAUDE.md for a workspace", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({
+      exists: true,
+      content: "# Claude",
+      truncated: false,
+    });
+
+    await readClaudeMd("ws-claude");
+
+    expect(invokeMock).toHaveBeenCalledWith("file_read", {
+      scope: "workspace",
+      kind: "claude",
+      workspaceId: "ws-claude",
+    });
+  });
+
+  it("writes CLAUDE.md for a workspace", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({});
+
+    await writeClaudeMd("ws-claude", "# Claude");
+
+    expect(invokeMock).toHaveBeenCalledWith("file_write", {
+      scope: "workspace",
+      kind: "claude",
+      workspaceId: "ws-claude",
+      content: "# Claude",
     });
   });
 
@@ -1576,21 +1645,82 @@ describe("tauri invoke wrappers", () => {
     expect(claudeStatus?.error).toContain("Codex CLI");
   });
 
-  it("returns a friendly error when web runtime tries unsupported CLI engine", async () => {
+  it("returns a friendly error after web runtime fallback state is learned", async () => {
     const invokeMock = vi.mocked(invoke);
     setWebRuntimeFlag(true);
+    invokeMock.mockRejectedValueOnce(new Error("unknown method: detect_engines"));
+
+    await detectEngines();
 
     const response = await engineSendMessage("ws-web", {
       text: "hello",
       engine: "claude",
     });
 
-    expect(invokeMock).not.toHaveBeenCalledWith("engine_send_message", expect.anything());
+    expect(invokeMock).toHaveBeenCalledTimes(1);
     expect(response).toEqual({
       error: {
         message: "Web 服务当前仅支持 Codex CLI。请切换到 Codex CLI（Web service currently supports Codex CLI only）.",
       },
     });
+  });
+
+  it("continues to invoke codex engine send after web runtime fallback state is learned", async () => {
+    const invokeMock = vi.mocked(invoke);
+    setWebRuntimeFlag(true);
+    invokeMock
+      .mockRejectedValueOnce(new Error("unknown method: detect_engines"))
+      .mockResolvedValueOnce({ engine: "codex", threadId: "codex-thread-1" });
+
+    await detectEngines();
+
+    const response = await engineSendMessage("ws-web", {
+      text: "hello codex",
+      engine: "codex",
+      threadId: "codex-thread-1",
+    });
+
+    expect(response).toEqual({ engine: "codex", threadId: "codex-thread-1" });
+    expect(invokeMock).toHaveBeenCalledTimes(2);
+    expect(invokeMock).toHaveBeenLastCalledWith("engine_send_message", {
+      workspaceId: "ws-web",
+      text: "hello codex",
+      engine: "codex",
+      model: null,
+      effort: null,
+      images: null,
+      continueSession: false,
+      accessMode: null,
+      threadId: "codex-thread-1",
+      sessionId: null,
+      agent: null,
+      variant: null,
+      customSpecRoot: null,
+    });
+  });
+
+  it("blocks non-codex engine switch after web runtime fallback state is learned", async () => {
+    const invokeMock = vi.mocked(invoke);
+    setWebRuntimeFlag(true);
+    invokeMock.mockRejectedValueOnce(new Error("unknown method: detect_engines"));
+
+    await detectEngines();
+
+    await expect(switchEngine("claude")).rejects.toThrow(
+      "Web 服务当前仅支持 Codex CLI。请切换到 Codex CLI（Web service currently supports Codex CLI only）.",
+    );
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns empty models for non-codex engine after web runtime fallback state is learned", async () => {
+    const invokeMock = vi.mocked(invoke);
+    setWebRuntimeFlag(true);
+    invokeMock.mockRejectedValueOnce(new Error("unknown method: detect_engines"));
+
+    await detectEngines();
+
+    await expect(getEngineModels("claude")).resolves.toEqual([]);
+    expect(invokeMock).toHaveBeenCalledTimes(1);
   });
 
   it("invokes get_active_engine", async () => {

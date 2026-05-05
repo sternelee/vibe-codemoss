@@ -190,6 +190,7 @@ export const ContextBar: React.FC<ContextBarProps> = memo(({
     const autoCompactionText = t('chat.contextDualViewAutoCompactionNote');
     const autoCompactionEnabledValue = codexAutoCompactionEnabled !== false;
     const autoCompactionThresholdValue = `${codexAutoCompactionThresholdPercent}%`;
+    const isAutoCompactionSource = dualContextUsage.compactionSource === 'auto';
     if (dualContextUsage.compactionState === 'compacting') {
       return {
         stateClass: 'compacting',
@@ -203,11 +204,26 @@ export const ContextBar: React.FC<ContextBarProps> = memo(({
         autoCompactionText,
         autoCompactionEnabledValue,
         autoCompactionThresholdValue,
-        statusText: t('chat.contextDualViewCompacting'),
-        ariaState: t('chat.contextDualViewCompacting'),
+        statusText: t(
+          isAutoCompactionSource
+            ? 'chat.contextDualViewCompactingAuto'
+            : 'chat.contextDualViewCompacting',
+        ),
+        ariaState: t(
+          isAutoCompactionSource
+            ? 'chat.contextDualViewCompactingAuto'
+            : 'chat.contextDualViewCompacting',
+        ),
       };
     }
     if (dualContextUsage.compactionState === 'compacted') {
+      const completedKey = dualContextUsage.usageSyncPendingAfterCompaction
+        ? (
+          isAutoCompactionSource
+            ? 'chat.contextDualViewCompactedPendingSyncAuto'
+            : 'chat.contextDualViewCompactedPendingSync'
+        )
+        : 'chat.contextDualViewCompacted';
       return {
         stateClass: 'compacted',
         barPercent: usagePercentForRing,
@@ -220,8 +236,8 @@ export const ContextBar: React.FC<ContextBarProps> = memo(({
         autoCompactionText,
         autoCompactionEnabledValue,
         autoCompactionThresholdValue,
-        statusText: t('chat.contextDualViewCompacted'),
-        ariaState: t('chat.contextDualViewCompacted'),
+        statusText: t(completedKey),
+        ariaState: t(completedKey),
       };
     }
     if (!dualContextUsage.hasUsage || dualContextUsage.contextWindow <= 0) {

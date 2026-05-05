@@ -17,6 +17,7 @@ type UserMessageItem = MessageItem & { role: "user" };
 type AssistantMessageItem = MessageItem & { role: "assistant" };
 type GeneratedImageItem = Extract<ConversationItem, { kind: "generatedImage" }>;
 const CODEX_COMPACTION_MESSAGE_ID_PREFIX = "context-compacted-codex-compact-";
+type CodexCompactionLifecycleState = "idle" | "compacting" | "completed";
 
 function isUserMessageItem(item: ConversationItem | undefined): item is UserMessageItem {
   return item?.kind === "message" && item.role === "user";
@@ -61,8 +62,15 @@ function isCodexCompactionMessage(
 export function mergeThreadItemsPreservingOptimisticUsers(
   localItems: ConversationItem[],
   incomingItems: ConversationItem[],
-  isProcessing: boolean,
+  options: {
+    isProcessing: boolean;
+    codexCompactionLifecycleState?: CodexCompactionLifecycleState;
+  },
 ) {
+  const {
+    isProcessing,
+    codexCompactionLifecycleState = "idle",
+  } = options;
   const hasSelectedAgentName = (value: unknown) =>
     typeof value === "string" && value.trim().length > 0;
   const hasSelectedAgentIcon = (value: unknown) =>
@@ -166,14 +174,23 @@ export function mergeThreadItemsPreservingOptimisticUsers(
     const preservedLocalOnlyItemIds = new Set(
       preservedOptimisticUsers.map((item) => item.id),
     );
-    localItems.forEach((item) => {
-      if (
-        isCodexCompactionMessage(item) &&
-        !mergedItems.some((candidate) => candidate.id === item.id)
-      ) {
-        preservedLocalOnlyItemIds.add(item.id);
-      }
-    });
+    const shouldPreserveLatestCompactionMessage =
+      codexCompactionLifecycleState === "compacting" ||
+      (codexCompactionLifecycleState === "completed" && !isProcessing);
+    let latestPreservedCompactionMessageId: string | null = null;
+    if (shouldPreserveLatestCompactionMessage) {
+      localItems.forEach((item) => {
+        if (
+          isCodexCompactionMessage(item) &&
+          !mergedItems.some((candidate) => candidate.id === item.id)
+        ) {
+          latestPreservedCompactionMessageId = item.id;
+        }
+      });
+    }
+    if (latestPreservedCompactionMessageId) {
+      preservedLocalOnlyItemIds.add(latestPreservedCompactionMessageId);
+    }
     if (preservedLocalOnlyItemIds.size > 0) {
       const mergedById = new Map(mergedItems.map((item) => [item.id, item]));
       const orderedItems: ConversationItem[] = [];

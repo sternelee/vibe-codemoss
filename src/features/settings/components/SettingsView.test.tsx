@@ -10,11 +10,21 @@ import {
 } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AppSettings, WorkspaceInfo } from "../../../types";
+import type {
+  AppSettings,
+  DiagnosticsBundleExportResult,
+  LocalUsageStatistics,
+  WorkspaceInfo,
+} from "../../../types";
 import {
   archiveWorkspaceSessions,
   deleteWorkspaceSessions,
+  exportDiagnosticsBundle,
+  getDaemonStatus,
+  getEmailSenderSettings,
+  getWebServerStatus,
   listWorkspaceSessions,
+  localUsageStatistics,
   unarchiveWorkspaceSessions,
 } from "../../../services/tauri";
 import { writeClientStoreValue } from "../../../services/clientStorage";
@@ -40,6 +50,26 @@ vi.mock("../../../services/toasts", () => ({
   pushErrorToast: vi.fn(),
 }));
 
+vi.mock("@/features/computer-use/components/ComputerUseStatusCard", () => ({
+  ComputerUseStatusCard: () => <div data-testid="computer-use-status-card" />,
+}));
+
+vi.mock("./McpSection", () => ({
+  McpSection: ({ embedded }: { embedded?: boolean }) => (
+    <div data-testid={embedded ? "embedded-mcp-section" : "mcp-section"}>
+      Mock MCP Section
+    </div>
+  ),
+}));
+
+vi.mock("./SkillsSection", () => ({
+  SkillsSection: ({ embedded }: { embedded?: boolean }) => (
+    <div data-testid={embedded ? "embedded-skills-section" : "skills-section"}>
+      Mock Skills Section
+    </div>
+  ),
+}));
+
 vi.mock("../../../services/tauri", async () => {
   const actual = await vi.importActual<typeof import("../../../services/tauri")>(
     "../../../services/tauri",
@@ -50,6 +80,11 @@ vi.mock("../../../services/tauri", async () => {
     archiveWorkspaceSessions: vi.fn(),
     unarchiveWorkspaceSessions: vi.fn(),
     deleteWorkspaceSessions: vi.fn(),
+    exportDiagnosticsBundle: vi.fn(),
+    localUsageStatistics: vi.fn(),
+    getWebServerStatus: vi.fn(),
+    getDaemonStatus: vi.fn(),
+    getEmailSenderSettings: vi.fn(),
   };
 });
 
@@ -62,6 +97,16 @@ const mockedLocalFonts = [
 const queryLocalFontsMock = vi.fn<() => Promise<Array<{ family: string }>>>(
   () => new Promise<Array<{ family: string }>>(() => {}),
 );
+
+const createDeferred = <T,>() => {
+  let resolve: (value: T) => void = () => {};
+  let reject: (reason?: unknown) => void = () => {};
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+  return { promise, resolve, reject };
+};
 
 beforeEach(() => {
   queryLocalFontsMock.mockReset();
@@ -77,6 +122,29 @@ beforeEach(() => {
   vi.mocked(archiveWorkspaceSessions).mockResolvedValue({ results: [] });
   vi.mocked(unarchiveWorkspaceSessions).mockResolvedValue({ results: [] });
   vi.mocked(deleteWorkspaceSessions).mockResolvedValue({ results: [] });
+  vi.mocked(exportDiagnosticsBundle).mockResolvedValue({
+    filePath: "/tmp/diagnostics.json",
+    generatedAt: "123",
+  });
+  vi.mocked(localUsageStatistics).mockResolvedValue(createLocalUsageStatistics());
+  vi.mocked(getWebServerStatus).mockResolvedValue({
+    running: false,
+    rpcEndpoint: "127.0.0.1:4732",
+    webPort: 3080,
+    addresses: [],
+    webAccessToken: null,
+    lastError: null,
+  });
+  vi.mocked(getDaemonStatus).mockResolvedValue({
+    running: false,
+    host: "127.0.0.1:4732",
+    lastError: null,
+  });
+  vi.mocked(getEmailSenderSettings).mockResolvedValue({
+    settings: baseSettings.emailSender,
+    secretConfigured: false,
+    secret: null,
+  });
 });
 
 afterEach(() => {
@@ -159,6 +227,7 @@ const baseSettings: AppSettings = {
   userMsgColor: "",
   usageShowRemaining: false,
   showMessageAnchors: true,
+  performanceCompatibilityModeEnabled: false,
   uiFontFamily:
     "Monaco, \"SF Pro Text\", \"SF Pro Display\", -apple-system, \"Helvetica Neue\", sans-serif",
   codeFontFamily:
@@ -241,6 +310,33 @@ const createDoctorResult = () => ({
   fallbackRetried: false,
 });
 
+const createLocalUsageStatistics = (): LocalUsageStatistics => ({
+  projectPath: "/tmp/ws-a",
+  projectName: "Workspace A",
+  totalSessions: 1,
+  totalUsage: {
+    inputTokens: 12,
+    outputTokens: 34,
+    cacheWriteTokens: 0,
+    cacheReadTokens: 0,
+    totalTokens: 46,
+  },
+  estimatedCost: 0.0123,
+  sessions: [],
+  dailyUsage: [],
+  weeklyComparison: {
+    currentWeek: { sessions: 1, cost: 0.0123, tokens: 46 },
+    lastWeek: { sessions: 0, cost: 0, tokens: 0 },
+    trends: { sessions: 0, cost: 0, tokens: 0 },
+  },
+  byModel: [],
+  totalEngineUsageCount: 1,
+  engineUsage: [{ engine: "codex", count: 1 }],
+  aiCodeModifiedLines: 0,
+  dailyCodeChanges: [],
+  lastUpdated: Date.now(),
+});
+
 const renderDisplaySection = (
   options: {
     appSettings?: Partial<AppSettings>;
@@ -284,9 +380,9 @@ const renderDisplaySection = (
     onRemoveDictationModel: vi.fn(),
   };
 
-  render(<SettingsView {...props} />);
+  const view = render(<SettingsView {...props} />);
 
-  return { onUpdateAppSettings, onToggleTransparency };
+  return { ...view, onUpdateAppSettings, onToggleTransparency };
 };
 
 const renderComposerSection = (
@@ -376,7 +472,8 @@ describe("SettingsView prompts workspace routing", () => {
         onDownloadDictationModel={vi.fn()}
         onCancelDictationDownload={vi.fn()}
         onRemoveDictationModel={vi.fn()}
-        initialSection="prompts"
+        initialSection="agent-prompt-management"
+        initialHighlightTarget="prompt-library"
       />,
     );
 
@@ -438,7 +535,7 @@ describe("SettingsView projects display", () => {
         onDownloadDictationModel={vi.fn()}
         onCancelDictationDownload={vi.fn()}
         onRemoveDictationModel={vi.fn()}
-        initialSection="projects"
+        initialSection="project-management"
       />,
     );
 
@@ -449,15 +546,34 @@ describe("SettingsView projects display", () => {
 });
 
 describe("SettingsView Display", () => {
-  it("shows CLI Validation and keeps dictation, git, and experimental sidebar entries hidden", async () => {
+  it("shows consolidated settings entries and keeps removed sidebar entries hidden", async () => {
     renderDisplaySection();
     await flushSettingsViewEffects();
+    const sidebar = document.querySelector(".settings-sidebar") as HTMLElement | null;
+    if (!sidebar) {
+      throw new Error("Expected settings sidebar");
+    }
+    const sidebarQueries = within(sidebar);
 
-    expect(screen.queryByRole("button", { name: "Dictation" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Git" })).toBeNull();
-    expect(screen.getByRole("button", { name: "CLI Validation" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Experimental" })).toBeNull();
-    expect(screen.getByRole("button", { name: "settings.sidebarWebService" })).toBeTruthy();
+    expect(sidebarQueries.queryByRole("button", { name: "Dictation" })).toBeNull();
+    expect(sidebarQueries.queryByRole("button", { name: "Git" })).toBeNull();
+    expect(sidebarQueries.queryByRole("button", { name: "Projects" })).toBeNull();
+    expect(sidebarQueries.queryByRole("button", { name: "Sessions" })).toBeNull();
+    expect(sidebarQueries.queryByRole("button", { name: "Agents" })).toBeNull();
+    expect(sidebarQueries.queryByRole("button", { name: "Prompts" })).toBeNull();
+    expect(sidebarQueries.queryByRole("button", { name: "Shortcuts" })).toBeNull();
+    expect(sidebarQueries.queryByRole("button", { name: "Open in" })).toBeNull();
+    expect(sidebarQueries.queryByRole("button", { name: "Usage" })).toBeNull();
+    expect(sidebarQueries.queryByRole("button", { name: "Web Service" })).toBeNull();
+    expect(sidebarQueries.queryByRole("button", { name: "Email" })).toBeNull();
+    expect(sidebarQueries.queryByRole("button", { name: "Runtime Pool" })).toBeNull();
+    expect(sidebarQueries.queryByRole("button", { name: "CLI Validation" })).toBeNull();
+    expect(sidebarQueries.queryByRole("button", { name: "Skills" })).toBeNull();
+    expect(sidebarQueries.getByRole("button", { name: "Project Management" })).toBeTruthy();
+    expect(sidebarQueries.getByRole("button", { name: "MCP / Skills" })).toBeTruthy();
+    expect(sidebarQueries.getByRole("button", { name: "Agents / Prompts" })).toBeTruthy();
+    expect(sidebarQueries.getByRole("button", { name: "Runtime Environment" })).toBeTruthy();
+    expect(sidebarQueries.queryByRole("button", { name: "Experimental" })).toBeNull();
   });
 
   it("removes the dead multi-agent toggle and no longer shows background terminal in experimental", async () => {
@@ -617,7 +733,8 @@ describe("SettingsView Display", () => {
         onDownloadDictationModel={vi.fn()}
         onCancelDictationDownload={vi.fn()}
         onRemoveDictationModel={vi.fn()}
-        initialSection="codex"
+        initialSection="runtime-environment"
+        initialHighlightTarget="cli-validation"
       />,
     );
 
@@ -677,7 +794,8 @@ describe("SettingsView Display", () => {
         onDownloadDictationModel={vi.fn()}
         onCancelDictationDownload={vi.fn()}
         onRemoveDictationModel={vi.fn()}
-        initialSection="codex"
+        initialSection="runtime-environment"
+        initialHighlightTarget="cli-validation"
       />,
     );
 
@@ -728,7 +846,8 @@ describe("SettingsView Display", () => {
         onDownloadDictationModel={vi.fn()}
         onCancelDictationDownload={vi.fn()}
         onRemoveDictationModel={vi.fn()}
-        initialSection="codex"
+        initialSection="runtime-environment"
+        initialHighlightTarget="cli-validation"
       />,
     );
 
@@ -778,7 +897,8 @@ describe("SettingsView Display", () => {
         onDownloadDictationModel={vi.fn()}
         onCancelDictationDownload={vi.fn()}
         onRemoveDictationModel={vi.fn()}
-        initialSection="codex"
+        initialSection="runtime-environment"
+        initialHighlightTarget="cli-validation"
       />,
     );
 
@@ -840,6 +960,113 @@ describe("SettingsView Display", () => {
         }),
       );
     });
+  });
+
+  it("toggles low-performance compatibility mode from behavior settings", async () => {
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    renderDisplaySection({
+      onUpdateAppSettings,
+      appSettings: { performanceCompatibilityModeEnabled: false },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Behavior" }));
+    fireEvent.click(screen.getByRole("switch", {
+      name: "Enable low-performance compatibility mode",
+    }));
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          performanceCompatibilityModeEnabled: true,
+        }),
+      );
+    });
+  });
+
+  it("exports diagnostics bundle from behavior settings", async () => {
+    renderDisplaySection();
+
+    fireEvent.click(screen.getByRole("button", { name: "Behavior" }));
+    fireEvent.click(screen.getByRole("button", { name: "Export diagnostics" }));
+
+    await waitFor(() => {
+      expect(exportDiagnosticsBundle).toHaveBeenCalledTimes(1);
+    });
+    expect((await screen.findByRole("status")).textContent ?? "").toContain(
+      "/tmp/diagnostics.json",
+    );
+  });
+
+  it("shows a readable diagnostics bundle export failure", async () => {
+    vi.mocked(exportDiagnosticsBundle).mockRejectedValueOnce(new Error("disk full"));
+    renderDisplaySection();
+
+    fireEvent.click(screen.getByRole("button", { name: "Behavior" }));
+    fireEvent.click(screen.getByRole("button", { name: "Export diagnostics" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert").textContent ?? "").toContain("disk full");
+    });
+  });
+
+  it("keeps the latest diagnostics bundle export result when responses settle out of order", async () => {
+    const firstExport = createDeferred<DiagnosticsBundleExportResult>();
+    const secondExport = createDeferred<DiagnosticsBundleExportResult>();
+    vi.mocked(exportDiagnosticsBundle)
+      .mockReturnValueOnce(firstExport.promise)
+      .mockReturnValueOnce(secondExport.promise);
+    renderDisplaySection();
+
+    fireEvent.click(screen.getByRole("button", { name: "Behavior" }));
+    const exportButton = screen.getByRole("button", { name: "Export diagnostics" });
+    await act(async () => {
+      fireEvent.click(exportButton);
+      fireEvent.click(exportButton);
+    });
+
+    expect(exportDiagnosticsBundle).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      secondExport.resolve({
+        filePath: "/tmp/new-diagnostics.json",
+        generatedAt: "2",
+      });
+    });
+    expect((await screen.findByRole("status")).textContent ?? "").toContain(
+      "/tmp/new-diagnostics.json",
+    );
+
+    await act(async () => {
+      firstExport.resolve({
+        filePath: "/tmp/old-diagnostics.json",
+        generatedAt: "1",
+      });
+    });
+    expect(screen.getByRole("status").textContent ?? "").toContain(
+      "/tmp/new-diagnostics.json",
+    );
+    expect(screen.getByRole("status").textContent ?? "").not.toContain(
+      "/tmp/old-diagnostics.json",
+    );
+  });
+
+  it("ignores diagnostics bundle export completion after settings unmount", async () => {
+    const pendingExport = createDeferred<DiagnosticsBundleExportResult>();
+    vi.mocked(exportDiagnosticsBundle).mockReturnValueOnce(pendingExport.promise);
+    const { unmount } = renderDisplaySection();
+
+    fireEvent.click(screen.getByRole("button", { name: "Behavior" }));
+    fireEvent.click(screen.getByRole("button", { name: "Export diagnostics" }));
+    unmount();
+
+    await act(async () => {
+      pendingExport.resolve({
+        filePath: "/tmp/unmounted-diagnostics.json",
+        generatedAt: "1",
+      });
+    });
+
+    expect(screen.queryByText("/tmp/unmounted-diagnostics.json")).toBeNull();
   });
 
   it("updates the active theme preset for dark appearance", async () => {
@@ -997,6 +1224,7 @@ describe("SettingsView Display", () => {
     expect(screen.getByText("Conversation canvas")).toBeTruthy();
     expect(screen.getByText("Runtime notice dock")).toBeTruthy();
     expect(screen.getByText("Sticky user bubble")).toBeTruthy();
+    expect(screen.getByText("Context sources card")).toBeTruthy();
 
     const topSessionTabsRow = screen
       .getByText("Top session tabs")
@@ -1007,10 +1235,19 @@ describe("SettingsView Display", () => {
     const stickyUserBubbleRow = screen
       .getByText("Sticky user bubble")
       .closest(".settings-toggle-row") as HTMLElement | null;
+    const contextSourcesCardRow = screen
+      .getByText("Context sources card")
+      .closest(".settings-toggle-row") as HTMLElement | null;
     const runtimeNoticeDockRow = screen
       .getByText("Runtime notice dock")
       .closest(".settings-toggle-row") as HTMLElement | null;
-    if (!topSessionTabsRow || !terminalRow || !stickyUserBubbleRow || !runtimeNoticeDockRow) {
+    if (
+      !topSessionTabsRow ||
+      !terminalRow ||
+      !stickyUserBubbleRow ||
+      !contextSourcesCardRow ||
+      !runtimeNoticeDockRow
+    ) {
       throw new Error("Expected client UI visibility rows");
     }
     expect(
@@ -1021,6 +1258,9 @@ describe("SettingsView Display", () => {
     ).toBeTruthy();
     expect(
       stickyUserBubbleRow.querySelector(".settings-client-ui-visibility-row-icon svg"),
+    ).toBeTruthy();
+    expect(
+      contextSourcesCardRow.querySelector(".settings-client-ui-visibility-row-icon svg"),
     ).toBeTruthy();
     expect(
       runtimeNoticeDockRow.querySelector(".settings-client-ui-visibility-row-icon svg"),
@@ -1045,6 +1285,18 @@ describe("SettingsView Display", () => {
         "clientUiVisibility",
         expect.objectContaining({
           controls: expect.objectContaining({ "topTool.terminal": false }),
+        }),
+        { immediate: true },
+      );
+    });
+
+    fireEvent.click(within(contextSourcesCardRow).getByRole("switch"));
+    await waitFor(() => {
+      expect(writeClientStoreValue).toHaveBeenCalledWith(
+        "app",
+        "clientUiVisibility",
+        expect.objectContaining({
+          controls: expect.objectContaining({ "curtain.contextLedger": false }),
         }),
         { immediate: true },
       );
@@ -1471,7 +1723,8 @@ describe("SettingsView Session management", () => {
         onDownloadDictationModel={vi.fn()}
         onCancelDictationDownload={vi.fn()}
         onRemoveDictationModel={vi.fn()}
-        initialSection="session-management"
+        initialSection="project-management"
+        initialHighlightTarget="project-sessions"
       />,
     );
 
@@ -1546,7 +1799,8 @@ describe("SettingsView Session management", () => {
         onDownloadDictationModel={vi.fn()}
         onCancelDictationDownload={vi.fn()}
         onRemoveDictationModel={vi.fn()}
-        initialSection="session-management"
+        initialSection="project-management"
+        initialHighlightTarget="project-sessions"
       />,
     );
 
@@ -1621,7 +1875,8 @@ describe("SettingsView Session management", () => {
         onDownloadDictationModel={vi.fn()}
         onCancelDictationDownload={vi.fn()}
         onRemoveDictationModel={vi.fn()}
-        initialSection="session-management"
+        initialSection="project-management"
+        initialHighlightTarget="project-sessions"
       />,
     );
 
@@ -1637,6 +1892,89 @@ describe("SettingsView Session management", () => {
 });
 
 describe("SettingsView Shortcuts", () => {
+  function expectTabButtonHasIcon(name: string) {
+    const tabButton = screen.getByRole("button", { name });
+    expect(tabButton.querySelector(".settings-basic-tab-icon")).toBeTruthy();
+  }
+
+  it("reaches shortcuts and open-app editors from Basic tabs", async () => {
+    renderDisplaySection();
+    await flushSettingsViewEffects();
+
+    expectTabButtonHasIcon("Appearance");
+    expectTabButtonHasIcon("Behavior");
+    expectTabButtonHasIcon("Shortcuts");
+    expectTabButtonHasIcon("Open in");
+    expectTabButtonHasIcon("Web Service");
+    expectTabButtonHasIcon("Email");
+
+    fireEvent.click(screen.getByRole("button", { name: "Shortcuts" }));
+    await flushSettingsViewEffects();
+    expect(screen.getAllByText("Shortcuts").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("Customize keyboard shortcuts for file actions, composer, panels, and navigation.")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open in" }));
+    await flushSettingsViewEffects();
+    expect(screen.getAllByText("Open in").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByDisplayValue("VS Code")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Web Service" }));
+    await flushSettingsViewEffects();
+    expect(screen.getAllByText("Web Service").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByLabelText("settings.webServicePortAriaLabel")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Email" }));
+    await flushSettingsViewEffects();
+    expect(screen.getAllByText("Email").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole("switch", { name: "settings.emailEnableTitle" })).toBeTruthy();
+  });
+
+  it("reaches all consolidated parent tabs", async () => {
+    renderDisplaySection();
+    await flushSettingsViewEffects();
+
+    fireEvent.click(screen.getByRole("button", { name: "Project Management" }));
+    await flushSettingsViewEffects();
+    expect(screen.getByRole("button", { name: "Groups" })).toBeTruthy();
+    expectTabButtonHasIcon("Groups");
+    expectTabButtonHasIcon("Session Management");
+    expectTabButtonHasIcon("Usage");
+    fireEvent.click(screen.getByRole("button", { name: "Session Management" }));
+    await flushSettingsViewEffects();
+    expect(screen.getByTestId("settings-project-sessions-expand-toggle")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Usage" }));
+    await flushSettingsViewEffects();
+    expect(screen.getAllByText("Usage").length).toBeGreaterThanOrEqual(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Agents / Prompts" }));
+    await flushSettingsViewEffects();
+    expect(screen.getByRole("button", { name: "Agents" })).toBeTruthy();
+    expectTabButtonHasIcon("Agents");
+    expectTabButtonHasIcon("Prompts");
+    fireEvent.click(screen.getByRole("button", { name: "Prompts" }));
+    await flushSettingsViewEffects();
+    expect(screen.getByText("settings.prompt.title")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "MCP / Skills" }));
+    await flushSettingsViewEffects();
+    expect(screen.getByRole("button", { name: "MCP Servers" })).toBeTruthy();
+    expectTabButtonHasIcon("MCP Servers");
+    expectTabButtonHasIcon("Skills");
+    expect(screen.getByTestId("embedded-mcp-section")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Skills" }));
+    await flushSettingsViewEffects();
+    expect(screen.getByTestId("embedded-skills-section")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Runtime Environment" }));
+    await flushSettingsViewEffects();
+    expect(screen.getByRole("button", { name: "Runtime Pool" })).toBeTruthy();
+    expectTabButtonHasIcon("Runtime Pool");
+    expectTabButtonHasIcon("CLI Validation");
+    fireEvent.click(screen.getByRole("button", { name: "CLI Validation" }));
+    await flushSettingsViewEffects();
+    expect(screen.getAllByText("CLI Validation").length).toBeGreaterThanOrEqual(2);
+  });
+
   it("closes when clicking back to app", async () => {
     const onClose = vi.fn();
     render(

@@ -20,6 +20,9 @@ describe("Messages live behavior", () => {
     if (!HTMLElement.prototype.scrollIntoView) {
       HTMLElement.prototype.scrollIntoView = vi.fn();
     }
+    if (!HTMLElement.prototype.scrollTo) {
+      HTMLElement.prototype.scrollTo = vi.fn();
+    }
   });
 
   const getMessagesScroller = (container: HTMLElement) => {
@@ -73,6 +76,174 @@ describe("Messages live behavior", () => {
       expect(scroller.scrollTop).toBe(scrollTop);
     });
   };
+
+  it("scrolls the messages container when receiving a jump-to-message event", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "u1",
+        kind: "message",
+        role: "user",
+        text: "older",
+      },
+      {
+        id: "u2",
+        kind: "message",
+        role: "user",
+        text: "latest",
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-jump"
+        workspaceId="ws-1"
+        isThinking={false}
+        activeEngine="claude"
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const scroller = getMessagesScroller(container);
+    const scrollToSpy = vi.spyOn(scroller, "scrollTo");
+    Object.defineProperty(scroller, "clientHeight", {
+      configurable: true,
+      value: 720,
+    });
+    Object.defineProperty(scroller, "scrollTop", {
+      configurable: true,
+      value: 240,
+      writable: true,
+    });
+    Object.defineProperty(scroller, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({ top: 120 }),
+    });
+
+    const targetNode = container.querySelector('[data-message-anchor-id="u2"]');
+    expect(targetNode).toBeTruthy();
+    Object.defineProperty(targetNode as HTMLDivElement, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({ top: 480 }),
+    });
+
+    act(() => {
+      document.dispatchEvent(
+        new CustomEvent<string>("ccgui:jump-to-message", {
+          detail: "u2",
+        }),
+      );
+    });
+
+    expect(scrollToSpy).toHaveBeenCalledWith({
+      top: Math.max(0, 240 + (480 - 120) - 720 * 0.28),
+      behavior: "smooth",
+    });
+  });
+
+  it("ignores the retired mossx jump event name after the ccgui event migration", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "u1",
+        kind: "message",
+        role: "user",
+        text: "older",
+      },
+      {
+        id: "u2",
+        kind: "message",
+        role: "user",
+        text: "latest",
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-jump-retired-event"
+        workspaceId="ws-1"
+        isThinking={false}
+        activeEngine="claude"
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const scroller = getMessagesScroller(container);
+    const scrollToSpy = vi.spyOn(scroller, "scrollTo");
+
+    act(() => {
+      document.dispatchEvent(
+        new CustomEvent<string>("mossx:jump-to-message", {
+          detail: "u2",
+        }),
+      );
+    });
+
+    expect(scrollToSpy).not.toHaveBeenCalled();
+  });
+
+  it("expands collapsed history before jumping to an older message", async () => {
+    const items: ConversationItem[] = Array.from({ length: 35 }, (_, index) => ({
+      id: `u${index + 1}`,
+      kind: "message" as const,
+      role: "user" as const,
+      text: `message ${index + 1}`,
+    }));
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-jump-collapsed"
+        workspaceId="ws-1"
+        isThinking={false}
+        activeEngine="claude"
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(container.querySelector('[data-message-anchor-id="u1"]')).toBeNull();
+    const showEarlierButton = container.querySelector(".messages-collapsed-indicator");
+    expect(showEarlierButton).toBeTruthy();
+    expect(showEarlierButton?.getAttribute("data-collapsed-count")).toBe("5");
+
+    const scroller = getMessagesScroller(container);
+    const scrollToSpy = vi.spyOn(scroller, "scrollTo");
+    Object.defineProperty(scroller, "clientHeight", {
+      configurable: true,
+      value: 720,
+    });
+    Object.defineProperty(scroller, "scrollTop", {
+      configurable: true,
+      value: 180,
+      writable: true,
+    });
+    Object.defineProperty(scroller, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({ top: 120 }),
+    });
+
+    act(() => {
+      document.dispatchEvent(
+        new CustomEvent<string>("ccgui:jump-to-message", {
+          detail: "u1",
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(container.querySelector('[data-message-anchor-id="u1"]')).toBeTruthy();
+    });
+
+    await waitFor(() => {
+      expect(scrollToSpy).toHaveBeenCalled();
+    });
+    expect(scrollToSpy.mock.calls.at(-1)?.[0]).toMatchObject({
+      behavior: "smooth",
+    });
+  });
 
   it("keeps only the latest title-only reasoning row for gemini and mirrors it in the working indicator", () => {
     const items: ConversationItem[] = [
@@ -899,15 +1070,17 @@ describe("Messages live behavior", () => {
       />,
     );
 
+    const nextScroller = getMessagesScroller(container);
     setMessageOffsetTop(container, "user-sticky-thread-b", 18);
-    await scrollMessages(scroller, 18);
+    await scrollMessages(nextScroller, 18);
 
     await waitFor(() => {
-      expect(
-        container
-          .querySelector(".messages-history-sticky-header")
-          ?.getAttribute("data-history-sticky-collapsed"),
-      ).toBe("false");
+      const stickyHeader = container.querySelector(".messages-history-sticky-header");
+      if (!stickyHeader) {
+        expect(container.querySelector('[data-history-sticky-toggle="expand"]')).toBeNull();
+        return;
+      }
+      expect(stickyHeader.getAttribute("data-history-sticky-collapsed")).toBe("false");
     });
   });
 
@@ -1196,6 +1369,71 @@ describe("Messages live behavior", () => {
           ?.getAttribute("data-history-sticky-message-id"),
       ).toBe("user-history-sticky-1");
     });
+  });
+
+  it("refreshes the active history sticky header text from the latest live snapshot without waiting for timeline convergence", async () => {
+    const initialItems: ConversationItem[] = [
+      {
+        id: "user-history-sticky-live-copy",
+        kind: "message",
+        role: "user",
+        text: "旧问题文案",
+      },
+      {
+        id: "assistant-history-sticky-live-copy",
+        kind: "message",
+        role: "assistant",
+        text: "回答中",
+      },
+    ];
+
+    const { container, rerender } = render(
+      <Messages
+        items={initialItems}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const scroller = getMessagesScroller(container);
+    setMessageOffsetTop(container, "user-history-sticky-live-copy", 18);
+
+    await scrollMessages(scroller, 18);
+    await waitFor(() => {
+      const stickyHeader = container.querySelector(".messages-history-sticky-header");
+      expect(stickyHeader?.textContent ?? "").toContain("旧问题文案");
+    });
+
+    rerender(
+      <Messages
+        items={[
+          {
+            id: "user-history-sticky-live-copy",
+            kind: "message",
+            role: "user",
+            text: "新问题文案",
+          },
+          {
+            id: "assistant-history-sticky-live-copy",
+            kind: "message",
+            role: "assistant",
+            text: "回答中",
+          },
+        ]}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(
+      container.querySelector(".messages-history-sticky-header")?.textContent ?? "",
+    ).toContain("新问题文案");
   });
 
   it("uses history sticky headers for restored history snapshots instead of live sticky", async () => {

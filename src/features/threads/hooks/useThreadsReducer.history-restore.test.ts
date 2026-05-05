@@ -23,6 +23,23 @@ describe("threadReducer history restore", () => {
           },
         ],
       },
+      threadStatusById: {
+        "thread-1": {
+          isProcessing: false,
+          hasUnread: false,
+          isReviewing: false,
+          isContextCompacting: false,
+          processingStartedAt: null,
+          lastDurationMs: null,
+          heartbeatPulse: 0,
+          continuationPulse: 0,
+          terminalPulse: 0,
+          codexCompactionSource: "auto",
+          codexCompactionLifecycleState: "completed",
+          codexCompactionCompletedAt: 2_000,
+          lastTokenUsageUpdatedAt: 1_000,
+        },
+      },
     };
 
     const next = threadReducer(base, {

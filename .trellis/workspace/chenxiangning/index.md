@@ -7,9 +7,9 @@
 ## Current Status
 
 <!-- @@@auto:current-status -->
-- **Active File**: `journal-9.md`
-- **Total Sessions**: 275
-- **Last Active**: 2026-05-02
+- **Active File**: `journal-10.md`
+- **Total Sessions**: 316
+- **Last Active**: 2026-05-05
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,8 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-9.md` | ~55 | Active |
+| `journal-10.md` | ~414 | Active |
+| `journal-9.md` | ~1977 | Archived |
 | `journal-8.md` | ~1996 | Archived |
 | `journal-7.md` | ~1950 | Archived |
 | `journal-6.md` | ~1961 | Archived |
@@ -37,6 +38,47 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 316 | 2026-05-05 | 记录消息推理与更新修复提交 | `e55fc787` | `feature/v-0.4.13-1` |
+| 315 | 2026-05-05 | 打磨 dock 对话标签导航样式 | `cc5ce9e9` | `feature/v-0.4.13-1` |
+| 314 | 2026-05-05 | 收口用户对话时间线主规范 | `9343c0b9` | `feature/v-0.4.13-1` |
+| 313 | 2026-05-05 | 打磨流式消息展示与用户对话时间线 | `2e87c819` | `feature/v-0.4.13-1` |
+| 312 | 2026-05-05 | 修复流式幕布长文输出卡顿 | `e3873027` | `feature/v-0.4.13-1` |
+| 311 | 2026-05-04 | 记录右侧面板拖拽提交优化 | `87845311acf113c3fa2909224321fe8d2c476a0f` | `feature/v-0.4.13-1` |
+| 310 | 2026-05-04 | 补齐第一阶段人工场景回归测试 | `72b36a97` | `feature/v-0.4.13-1` |
+| 309 | 2026-05-04 | 归档已验证 OpenSpec 提案 | `d4e783e6` | `feature/v-0.4.13-1` |
+| 308 | 2026-05-04 | 记录第一阶段架构硬化收敛 | `9ba009e7` | `feature/v-0.4.13` |
+| 307 | 2026-05-04 | 调整状态面板零态标签显示规则 | `b8a950b2` | `feature/v-0.4.13` |
+| 306 | 2026-05-04 | 重构用户对话时间线样式 | `c873a539` | `feature/v-0.4.13` |
+| 305 | 2026-05-04 | 优化 Codex 实时幕布收敛 | `c90f5183` | `feature/v-0.4.13` |
+| 304 | 2026-05-04 | 优化 Codex 长幕布流式渲染 | `72db8824` | `feature/v-0.4.13` |
+| 303 | 2026-05-04 | 优化实时对话客户端性能 | `bb58e69c` | `feature/v-0.4.13` |
+| 302 | 2026-05-04 | 归档 Claude Gemini 幕布提案 | `0750ed03` | `feature/v-0.4.13` |
+| 301 | 2026-05-04 | 完善 Claude 和 Gemini 通用幕布组装 | `1b1a4c0f` | `feature/v-0.4.13` |
+| 300 | 2026-05-04 | 修复任务运行恢复与 Codex 流式渲染收敛 | `ed186431`, `f4cb97b6` | `feature/v-0.4.13` |
+| 299 | 2026-05-04 | 合并用户对话时间线头部为单行 | `399d387e` | `feature/v-0.4.13` |
+| 298 | 2026-05-04 | Dock 用户对话时间线 | `2b3ca1f8` | `feature/v-0.4.13` |
+| 297 | 2026-05-03 | 合并 PR494 邮件设置卡片背景修复 | `31b769ea` | `feature/v-0.4.13` |
+| 296 | 2026-05-03 | Task Center 运行态投影与恢复收口 | `23c320ef` | `feature/v-0.4.13` |
+| 295 | 2026-05-03 | Task Center 运行生命周期接入 | `76c4a4aa` | `feature/v-0.4.13` |
+| 294 | 2026-05-03 | 执行 Task Center Phase 1 | `2e99f925` | `feature/v-0.4.13` |
+| 293 | 2026-05-03 | 归档 Context Ledger OpenSpec 提案 | `dd3bc4df836848db4d142b78ebceb726a94c4dbf` | `feature/v-0.4.13` |
+| 292 | 2026-05-03 | 支持幕布区域管理上下文来源卡片显隐 | `597f319c` | `feature/v-0.4.13` |
+| 291 | 2026-05-03 | Context Ledger 压缩布局与详情渲染修复 | `1537d996` | `feature/v-0.4.13` |
+| 290 | 2026-05-03 | Context Ledger 四阶段能力收口与边界修复 | `fcf46f1c040619702396252f8250da66b5866969` | `feature/v-0.4.13` |
+| 289 | 2026-05-03 | Context Ledger 阶段一二交付 | `537b3c2f` | `feature/v-0.4.13` |
+| 288 | 2026-05-03 | Task Center 一阶段提案与执行准备 | `28ad9c04` | `feature/fix-0.4.12` |
+| 287 | 2026-05-03 | Context Ledger 一阶段提案与执行准备 | `41a29244` | `feature/fix-0.4.12` |
+| 286 | 2026-05-03 | 恢复 useThreads 集成测试 | `ee709bef` | `feature/fix-0.4.12` |
+| 285 | 2026-05-03 | 修正 Codex 压缩幕布复用 | `b24d96c0` | `feature/fix-0.4.12` |
+| 284 | 2026-05-02 | 修复 Codex 压缩历史消息保留 | `0e62dda0` | `feature/fix-0.4.12` |
+| 283 | 2026-05-02 | 修复大文件检查参数解析 | `e5b78bff` | `feature/fix-0.4.12` |
+| 282 | 2026-05-02 | 修复 Codex 压缩状态文案回写 | `6eba4f43` | `feature/fix-0.4.12` |
+| 281 | 2026-05-02 | 归档剩余 OpenSpec 变更并同步主 specs | `adc601b059510e21038da4f611e0e17f8bdad6bc` | `feature/fix-0.4.12` |
+| 280 | 2026-05-02 | 设置入口收口与 MCP/Skills 合并归档 | `97f3ab40840c0f7edbd8d6ff2fabb71201992766` | `feature/fix-0.4.12` |
+| 279 | 2026-05-02 | 归档核心复杂度治理重构 | `949347d7` | `feature/fix-0.4.12` |
+| 278 | 2026-05-02 | 修复 Windows 外部文件监控路径缺失噪声 | `18a69594` | `feature/fix-0.4.12` |
+| 277 | 2026-05-02 | 增加低性能兼容模式与诊断导出 | `6467b10e` | `feature/fix-0.4.12` |
+| 276 | 2026-05-02 | 清理 doctor strict 品牌文案阻塞 | `bed5d920` | `feature/fix-0.4.12` |
 | 275 | 2026-05-02 | 记录 Codex wrapper macOS 验证 | `3eaccb6b` | `feature/fix-0.4.12` |
 | 274 | 2026-05-02 | 归档分支后台更新 OpenSpec 提案 | `82844fcc` | `feature/fix-0.4.12` |
 | 273 | 2026-05-02 | 修复 GitHistoryPanel 无 upstream 阻断提示测试不稳定 | `da25f0fa` | `feature/fix-0.4.12` |

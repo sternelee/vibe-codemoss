@@ -38,9 +38,9 @@ Both views MUST read context usage and compaction signals from the same conversa
 - **AND** neither view SHALL introduce an alternative token calculation source
 
 #### Scenario: Compaction status consistency across two views
-- **WHEN** conversation enters compacting or compacted states
+- **WHEN** conversation enters compacting or freshly completed compaction states
 - **THEN** both views SHALL present state-consistent messaging
-- **AND** state transitions SHALL be derived from existing thread status events
+- **AND** state transitions SHALL be derived from explicit thread lifecycle state rather than preserved historical compaction messages alone
 
 ### Requirement: View Visibility Control and Safe Rollback
 The system SHALL provide a runtime-controllable visibility strategy for the new view.
@@ -82,7 +82,7 @@ The dual context usage view MUST only be active in Codex engine sessions.
 - **AND** existing legacy token indicator behavior SHALL remain unchanged
 
 ### Requirement: Tooltip Detail Format For Codex Summary
-The codex summary tooltip MUST present textual details without an extra progress bar.
+The codex summary tooltip MUST present textual details without an extra progress bar, and MUST distinguish lifecycle status from usage snapshot freshness.
 
 #### Scenario: Tooltip displays required details
 - **WHEN** user hovers the codex context summary indicator
@@ -90,7 +90,35 @@ The codex summary tooltip MUST present textual details without an extra progress
 - **AND** tooltip SHALL show context usage ratio as percent and used/window
 - **AND** tooltip SHALL show compaction status text when available
 
+#### Scenario: Completed compaction with stale usage snapshot stays truthful
+- **WHEN** the current Codex thread has just completed compaction
+- **AND** the latest background-information usage snapshot has not yet refreshed to the post-compaction value
+- **THEN** tooltip SHALL keep showing the latest available usage snapshot
+- **AND** tooltip SHALL present an explicit sync-pending completion hint instead of implying that compaction failed or never happened
+
+#### Scenario: Historical compaction messages do not pin current tooltip state
+- **WHEN** thread history restore includes preserved compaction messages from earlier lifecycles
+- **AND** the current thread is no longer compacting or freshly completing compaction
+- **THEN** tooltip SHALL return to neutral current-state messaging
+- **AND** the system SHALL NOT mark the current tooltip state as completed solely because historical compaction messages still exist
+
 #### Scenario: No redundant progress bar in tooltip
 - **WHEN** tooltip is rendered for codex summary
 - **THEN** tooltip SHALL NOT render an additional bar-style progress indicator
+
+### Requirement: Context Ledger And Dual View SHALL Read One Shared Snapshot
+
+Context Ledger 与 Codex dual-view MUST 读取同一份 usage / compaction snapshot。
+
+#### Scenario: ledger summary matches codex dual-view totals
+
+- **WHEN** Codex dual-view 正在展示当前 background-info used/context-window/percent
+- **THEN** ledger summary SHALL 使用同一份 used/context-window/percent snapshot
+- **AND** 两个 surface SHALL NOT 出现互相矛盾的总量信息
+
+#### Scenario: non-codex dual-view boundary remains unchanged
+
+- **WHEN** 当前引擎不是 Codex
+- **THEN** 既有 dual-view codex-only visibility boundary SHALL 保持不变
+- **AND** ledger 的存在 SHALL NOT 改写 legacy-only usage render path
 

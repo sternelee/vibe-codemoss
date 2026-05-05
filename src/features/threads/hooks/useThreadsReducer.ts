@@ -70,6 +70,7 @@ import {
   findMatchingReview,
   isDuplicateReviewById,
 } from "./threadReducerReviewItems";
+import { shouldFinalizeToolStatus } from "./threadReducerToolStatus";
 import {
   extractRenameText,
   isRetainableFinalizedCodexThread,
@@ -86,6 +87,8 @@ const REDUCER_NOOP_GUARD_ENABLED = isReducerNoopGuardEnabled();
 const INCREMENTAL_DERIVATION_ENABLED = isIncrementalDerivationEnabled();
 const PENDING_THREAD_LAST_AGENT_ANCHOR_TTL_MS = 5 * 60 * 1000;
 const CODEX_COMPACTION_MESSAGE_ID_PREFIX = "context-compacted-codex-compact-";
+type CodexCompactionSource = "auto" | "manual";
+type CodexCompactionLifecycleState = "idle" | "compacting" | "completed";
 
 type MessageItem = Extract<ConversationItem, { kind: "message" }>;
 type UserMessageItem = MessageItem & { role: "user" };
@@ -126,6 +129,34 @@ function buildCodexCompactionMessage(
   };
 }
 
+function collectThreadScopedCodexCompactionMessages(
+  list: ConversationItem[],
+  threadId: string,
+) {
+  let latestMatch: AssistantMessageItem | null = null;
+  let matchCount = 0;
+  for (const item of list) {
+    if (!isThreadScopedCodexCompactionMessage(item, threadId)) {
+      continue;
+    }
+    latestMatch = item;
+    matchCount += 1;
+  }
+  return {
+    latestMatch,
+    matchCount,
+  };
+}
+
+function filterThreadScopedCodexCompactionMessages(
+  list: ConversationItem[],
+  threadId: string,
+) {
+  return list.filter(
+    (item) => !isThreadScopedCodexCompactionMessage(item, threadId),
+  );
+}
+
 function isUserMessageItem(item: ConversationItem | undefined): item is UserMessageItem {
   return item?.kind === "message" && item.role === "user";
 }
@@ -160,22 +191,6 @@ function isToolConversationItem(item: ConversationItem | undefined): item is Too
   return item?.kind === "tool";
 }
 
-function isFailedToolStatus(status: string) {
-  return /(fail|error|cancel(?:led)?|abort|timeout|timed[_ -]?out)/.test(status);
-}
-
-function isCompletedToolStatus(status: string) {
-  return /(complete|completed|success|done|finish(?:ed)?|succeed(?:ed)?)/.test(
-    status,
-  );
-}
-
-function isPendingToolStatus(status: string) {
-  return /(pending|running|processing|started|in[_ -]?progress|inprogress|queued)/.test(
-    status,
-  );
-}
-
 type ThreadActivityStatus = {
   isProcessing: boolean;
   hasUnread: boolean;
@@ -186,7 +201,59 @@ type ThreadActivityStatus = {
   heartbeatPulse?: number;
   continuationPulse?: number;
   terminalPulse?: number;
+  codexCompactionSource?: CodexCompactionSource | null;
+  codexCompactionLifecycleState?: CodexCompactionLifecycleState;
+  codexCompactionCompletedAt?: number | null;
+  lastTokenUsageUpdatedAt?: number | null;
 };
+
+function withThreadStatusDefaults(
+  status?: ThreadActivityStatus,
+): ThreadActivityStatus {
+  return {
+    isProcessing: status?.isProcessing ?? false,
+    hasUnread: status?.hasUnread ?? false,
+    isReviewing: status?.isReviewing ?? false,
+    isContextCompacting: status?.isContextCompacting ?? false,
+    processingStartedAt: status?.processingStartedAt ?? null,
+    lastDurationMs: status?.lastDurationMs ?? null,
+    heartbeatPulse: status?.heartbeatPulse ?? 0,
+    continuationPulse: status?.continuationPulse ?? 0,
+    terminalPulse: status?.terminalPulse ?? 0,
+    codexCompactionSource: status?.codexCompactionSource ?? null,
+    codexCompactionLifecycleState:
+      status?.codexCompactionLifecycleState ?? "idle",
+    codexCompactionCompletedAt: status?.codexCompactionCompletedAt ?? null,
+    lastTokenUsageUpdatedAt: status?.lastTokenUsageUpdatedAt ?? null,
+  };
+}
+
+function isTokenUsageBreakdownEqual(
+  left: ThreadTokenUsage["total"] | ThreadTokenUsage["last"] | undefined,
+  right: ThreadTokenUsage["total"] | ThreadTokenUsage["last"] | undefined,
+): boolean {
+  return (
+    (left?.totalTokens ?? 0) === (right?.totalTokens ?? 0) &&
+    (left?.inputTokens ?? 0) === (right?.inputTokens ?? 0) &&
+    (left?.cachedInputTokens ?? 0) === (right?.cachedInputTokens ?? 0) &&
+    (left?.outputTokens ?? 0) === (right?.outputTokens ?? 0) &&
+    (left?.reasoningOutputTokens ?? 0) === (right?.reasoningOutputTokens ?? 0)
+  );
+}
+
+function isThreadTokenUsageEqual(
+  left: ThreadTokenUsage | null | undefined,
+  right: ThreadTokenUsage | null | undefined,
+): boolean {
+  if (left == null || right == null) {
+    return left == null && right == null;
+  }
+  return (
+    isTokenUsageBreakdownEqual(left.total, right.total) &&
+    isTokenUsageBreakdownEqual(left.last, right.last) &&
+    left.modelContextWindow === right.modelContextWindow
+  );
+}
 
 export type ThreadState = {
   activeThreadIdByWorkspace: Record<string, string | null>;
@@ -234,6 +301,8 @@ export type ThreadAction =
       threadId: string;
       isCompacting: boolean;
       timestamp?: number;
+      source?: CodexCompactionSource | null;
+      completionStatus?: "completed" | "idle";
     }
   | {
       type: "settleCodexCompactionMessage";
@@ -537,25 +606,10 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
           ? {
               ...state.threadStatusById,
               [action.threadId]: {
-                isProcessing:
-                  state.threadStatusById[action.threadId]?.isProcessing ?? false,
+                ...withThreadStatusDefaults(
+                  state.threadStatusById[action.threadId],
+                ),
                 hasUnread: false,
-                isReviewing:
-                  state.threadStatusById[action.threadId]?.isReviewing ?? false,
-                isContextCompacting:
-                  state.threadStatusById[action.threadId]?.isContextCompacting ??
-                  false,
-                processingStartedAt:
-                  state.threadStatusById[action.threadId]?.processingStartedAt ??
-                  null,
-                lastDurationMs:
-                  state.threadStatusById[action.threadId]?.lastDurationMs ?? null,
-                heartbeatPulse:
-                  state.threadStatusById[action.threadId]?.heartbeatPulse ?? 0,
-                continuationPulse:
-                  state.threadStatusById[action.threadId]?.continuationPulse ?? 0,
-                terminalPulse:
-                  state.threadStatusById[action.threadId]?.terminalPulse ?? 0,
               },
             }
           : state.threadStatusById,
@@ -779,17 +833,7 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         },
         threadStatusById: {
           ...state.threadStatusById,
-          [action.threadId]: {
-            isProcessing: false,
-            hasUnread: false,
-            isReviewing: false,
-            isContextCompacting: false,
-            processingStartedAt: null,
-            lastDurationMs: null,
-            heartbeatPulse: 0,
-            continuationPulse: 0,
-            terminalPulse: 0,
-          },
+          [action.threadId]: withThreadStatusDefaults(),
         },
         activeThreadIdByWorkspace: {
           ...state.activeThreadIdByWorkspace,
@@ -918,6 +962,13 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
       const heartbeatPulse = previous?.heartbeatPulse ?? 0;
       const continuationPulse = previous?.continuationPulse ?? 0;
       const terminalPulse = previous?.terminalPulse ?? 0;
+      const compactionSource = previous?.codexCompactionSource ?? null;
+      const compactionLifecycleState =
+        previous?.codexCompactionLifecycleState ?? "idle";
+      const compactionCompletedAt =
+        previous?.codexCompactionCompletedAt ?? null;
+      const lastTokenUsageUpdatedAt =
+        previous?.lastTokenUsageUpdatedAt ?? null;
       if (action.isProcessing) {
         if (REDUCER_NOOP_GUARD_ENABLED && wasProcessing) {
           return state;
@@ -937,6 +988,10 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
               heartbeatPulse: wasProcessing ? heartbeatPulse : 0,
               continuationPulse,
               terminalPulse,
+              codexCompactionSource: compactionSource,
+              codexCompactionLifecycleState: compactionLifecycleState,
+              codexCompactionCompletedAt: compactionCompletedAt,
+              lastTokenUsageUpdatedAt,
             },
           },
         };
@@ -968,6 +1023,10 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
             heartbeatPulse: 0,
             continuationPulse,
             terminalPulse,
+            codexCompactionSource: compactionSource,
+            codexCompactionLifecycleState: compactionLifecycleState,
+            codexCompactionCompletedAt: compactionCompletedAt,
+            lastTokenUsageUpdatedAt,
           },
         },
       };
@@ -975,13 +1034,34 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
     case "markContextCompacting": {
       const previous = state.threadStatusById[action.threadId];
       const currentIsCompacting = previous?.isContextCompacting ?? false;
-      if (currentIsCompacting === action.isCompacting) {
-        return state;
-      }
       const actionTimestamp =
         typeof action.timestamp === "number" && Number.isFinite(action.timestamp)
           ? action.timestamp
           : null;
+      const previousSource = previous?.codexCompactionSource ?? null;
+      const previousLifecycleState =
+        previous?.codexCompactionLifecycleState ?? "idle";
+      const nextLifecycleState: CodexCompactionLifecycleState = action.isCompacting
+        ? "compacting"
+        : action.completionStatus === "completed"
+          ? "completed"
+          : previousLifecycleState === "completed"
+            ? "completed"
+          : "idle";
+      const nextSource =
+        action.source !== undefined
+          ? action.source
+          : nextLifecycleState === "completed" &&
+              previousLifecycleState !== "idle"
+            ? previousSource
+            : null;
+      if (
+        currentIsCompacting === action.isCompacting &&
+        previousLifecycleState === nextLifecycleState &&
+        previousSource === nextSource
+      ) {
+        return state;
+      }
       const startedAt = previous?.processingStartedAt ?? null;
       const nextStartedAt = action.isCompacting
         ? (startedAt ?? actionTimestamp ?? Date.now())
@@ -994,6 +1074,9 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
             )
           : previous?.lastDurationMs ?? null
         : previous?.lastDurationMs ?? null;
+      const nextCompletedAt = nextLifecycleState === "completed"
+        ? (actionTimestamp ?? Date.now())
+        : null;
       return {
         ...state,
         threadStatusById: {
@@ -1008,6 +1091,11 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
             heartbeatPulse: previous?.heartbeatPulse ?? 0,
             continuationPulse: previous?.continuationPulse ?? 0,
             terminalPulse: previous?.terminalPulse ?? 0,
+            codexCompactionSource: nextSource,
+            codexCompactionLifecycleState: nextLifecycleState,
+            codexCompactionCompletedAt: nextCompletedAt,
+            lastTokenUsageUpdatedAt:
+              previous?.lastTokenUsageUpdatedAt ?? null,
           },
         },
       };
@@ -1039,15 +1127,8 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         threadStatusById: {
           ...state.threadStatusById,
           [action.threadId]: {
-            isProcessing: previous?.isProcessing ?? false,
-            hasUnread: previous?.hasUnread ?? false,
-            isReviewing: previous?.isReviewing ?? false,
-            isContextCompacting: previous?.isContextCompacting ?? false,
-            processingStartedAt: previous?.processingStartedAt ?? null,
-            lastDurationMs: previous?.lastDurationMs ?? null,
-            heartbeatPulse: previous?.heartbeatPulse ?? 0,
+            ...withThreadStatusDefaults(previous),
             continuationPulse: nextPulse,
-            terminalPulse: previous?.terminalPulse ?? 0,
           },
         },
       };
@@ -1060,14 +1141,7 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         threadStatusById: {
           ...state.threadStatusById,
           [action.threadId]: {
-            isProcessing: previous?.isProcessing ?? false,
-            hasUnread: previous?.hasUnread ?? false,
-            isReviewing: previous?.isReviewing ?? false,
-            isContextCompacting: previous?.isContextCompacting ?? false,
-            processingStartedAt: previous?.processingStartedAt ?? null,
-            lastDurationMs: previous?.lastDurationMs ?? null,
-            heartbeatPulse: previous?.heartbeatPulse ?? 0,
-            continuationPulse: previous?.continuationPulse ?? 0,
+            ...withThreadStatusDefaults(previous),
             terminalPulse: nextPulse,
           },
         },
@@ -1082,15 +1156,7 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
           return item;
         }
 
-        const normalizedStatus = (item.status ?? "").toLowerCase();
-        if (
-          isFailedToolStatus(normalizedStatus) ||
-          isCompletedToolStatus(normalizedStatus)
-        ) {
-          return item;
-        }
-
-        if (!normalizedStatus || isPendingToolStatus(normalizedStatus)) {
+        if (shouldFinalizeToolStatus(item.status)) {
           didChange = true;
           return {
             ...item,
@@ -1153,23 +1219,10 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         threadStatusById: {
           ...state.threadStatusById,
           [action.threadId]: {
-            isProcessing:
-              state.threadStatusById[action.threadId]?.isProcessing ?? false,
-            hasUnread: state.threadStatusById[action.threadId]?.hasUnread ?? false,
+            ...withThreadStatusDefaults(
+              state.threadStatusById[action.threadId],
+            ),
             isReviewing: action.isReviewing,
-            isContextCompacting:
-              state.threadStatusById[action.threadId]?.isContextCompacting ??
-              false,
-            processingStartedAt:
-              state.threadStatusById[action.threadId]?.processingStartedAt ?? null,
-            lastDurationMs:
-              state.threadStatusById[action.threadId]?.lastDurationMs ?? null,
-            heartbeatPulse:
-              state.threadStatusById[action.threadId]?.heartbeatPulse ?? 0,
-            continuationPulse:
-              state.threadStatusById[action.threadId]?.continuationPulse ?? 0,
-            terminalPulse:
-              state.threadStatusById[action.threadId]?.terminalPulse ?? 0,
           },
         },
       };
@@ -1179,24 +1232,10 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         threadStatusById: {
           ...state.threadStatusById,
           [action.threadId]: {
-            isProcessing:
-              state.threadStatusById[action.threadId]?.isProcessing ?? false,
+            ...withThreadStatusDefaults(
+              state.threadStatusById[action.threadId],
+            ),
             hasUnread: action.hasUnread,
-            isReviewing:
-              state.threadStatusById[action.threadId]?.isReviewing ?? false,
-            isContextCompacting:
-              state.threadStatusById[action.threadId]?.isContextCompacting ??
-              false,
-            processingStartedAt:
-              state.threadStatusById[action.threadId]?.processingStartedAt ?? null,
-            lastDurationMs:
-              state.threadStatusById[action.threadId]?.lastDurationMs ?? null,
-            heartbeatPulse:
-              state.threadStatusById[action.threadId]?.heartbeatPulse ?? 0,
-            continuationPulse:
-              state.threadStatusById[action.threadId]?.continuationPulse ?? 0,
-            terminalPulse:
-              state.threadStatusById[action.threadId]?.terminalPulse ?? 0,
           },
         },
       };
@@ -1720,7 +1759,12 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
       const mergedItems = mergeThreadItemsPreservingOptimisticUsers(
         localItems,
         action.items,
-        Boolean(state.threadStatusById[action.threadId]?.isProcessing),
+        {
+          isProcessing: Boolean(state.threadStatusById[action.threadId]?.isProcessing),
+          codexCompactionLifecycleState:
+            state.threadStatusById[action.threadId]?.codexCompactionLifecycleState ??
+            "idle",
+        },
       );
       return {
         ...state,
@@ -1911,6 +1955,22 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
                 ?? 0,
               terminalPulse:
                 oldStatus.terminalPulse ?? existingStatus.terminalPulse ?? 0,
+              codexCompactionSource:
+                oldStatus.codexCompactionLifecycleState !== "idle"
+                  ? (oldStatus.codexCompactionSource ?? null)
+                  : (existingStatus.codexCompactionSource ?? null),
+              codexCompactionLifecycleState:
+                oldStatus.codexCompactionLifecycleState !== "idle"
+                  ? (oldStatus.codexCompactionLifecycleState ?? "idle")
+                  : (existingStatus.codexCompactionLifecycleState ?? "idle"),
+              codexCompactionCompletedAt:
+                oldStatus.codexCompactionCompletedAt
+                ?? existingStatus.codexCompactionCompletedAt
+                ?? null,
+              lastTokenUsageUpdatedAt:
+                oldStatus.lastTokenUsageUpdatedAt
+                ?? existingStatus.lastTokenUsageUpdatedAt
+                ?? null,
             }
           : oldStatus;
         delete newThreadStatusById[oldThreadId];
@@ -2073,6 +2133,17 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         ...base,
         summary: nextSummary,
       } as ConversationItem;
+      if (INCREMENTAL_DERIVATION_ENABLED && index >= 0) {
+        const next = [...list];
+        next[index] = normalizeItem(updated);
+        return {
+          ...state,
+          itemsByThread: {
+            ...state.itemsByThread,
+            [action.threadId]: next,
+          },
+        };
+      }
       const next = insertLiveReasoningItem(
         list,
         index,
@@ -2124,6 +2195,17 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         ...base,
         summary: nextSummary,
       } as ConversationItem;
+      if (INCREMENTAL_DERIVATION_ENABLED && index >= 0) {
+        const next = [...list];
+        next[index] = normalizeItem(updated);
+        return {
+          ...state,
+          itemsByThread: {
+            ...state.itemsByThread,
+            [action.threadId]: next,
+          },
+        };
+      }
       const next = insertLiveReasoningItem(
         list,
         index,
@@ -2176,63 +2258,54 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
           },
         };
       }
-      let existingIndex = -1;
-      for (let index = list.length - 1; index >= 0; index -= 1) {
-        if (isThreadScopedCodexCompactionMessage(list[index], action.threadId)) {
-          existingIndex = index;
-          break;
-        }
+      const { latestMatch, matchCount } = collectThreadScopedCodexCompactionMessages(
+        list,
+        action.threadId,
+      );
+      if (latestMatch?.text === action.text && matchCount === 1) {
+        return state;
       }
-      if (existingIndex >= 0) {
-        const existingItem = list[existingIndex];
-        if (!isThreadScopedCodexCompactionMessage(existingItem, action.threadId)) {
-          return state;
-        }
-        if (existingItem.text === action.text) {
-          return state;
-        }
-        const next = list.map((entry, index) =>
-          index === existingIndex
-            ? buildCodexCompactionMessage(action.threadId, action.text, entry.id)
-            : entry,
-        );
-        return {
-          ...state,
-          itemsByThread: {
-            ...state.itemsByThread,
-            [action.threadId]: prepareThreadItems(next),
-          },
-        };
-      }
+      const next = [
+        ...filterThreadScopedCodexCompactionMessages(list, action.threadId),
+        buildCodexCompactionMessage(
+          action.threadId,
+          action.text,
+          latestMatch?.id ?? fallbackMessageId ?? undefined,
+        ),
+      ];
       return {
         ...state,
         itemsByThread: {
           ...state.itemsByThread,
-          [action.threadId]: prepareThreadItems([
-            ...list,
-            buildCodexCompactionMessage(action.threadId, action.text, fallbackMessageId ?? undefined),
-          ]),
+          [action.threadId]: prepareThreadItems(next),
         },
       };
     }
     case "appendCodexCompactionMessage": {
       const list = state.itemsByThread[action.threadId] ?? [];
       const lastItem = list[list.length - 1];
-      if (
+      const { latestMatch, matchCount } = collectThreadScopedCodexCompactionMessages(
+        list,
+        action.threadId,
+      );
+      const shouldReuseLatestStartedMessage =
         isThreadScopedCodexCompactionMessage(lastItem, action.threadId) &&
-        lastItem.text === action.text &&
-        !lastItem.id.includes("-completed-")
-      ) {
+        latestMatch?.text === action.text &&
+        !latestMatch.id.includes("-completed-");
+      if (shouldReuseLatestStartedMessage && matchCount === 1) {
         return state;
       }
+      const next = [
+        ...filterThreadScopedCodexCompactionMessages(list, action.threadId),
+        shouldReuseLatestStartedMessage
+          ? latestMatch
+          : buildCodexCompactionMessage(action.threadId, action.text),
+      ];
       return {
         ...state,
         itemsByThread: {
           ...state.itemsByThread,
-          [action.threadId]: prepareThreadItems([
-            ...list,
-            buildCodexCompactionMessage(action.threadId, action.text),
-          ]),
+          [action.threadId]: prepareThreadItems(next),
         },
       };
     }
@@ -2305,6 +2378,17 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         ...base,
         content: nextContent,
       } as ConversationItem;
+      if (INCREMENTAL_DERIVATION_ENABLED && index >= 0) {
+        const next = [...list];
+        next[index] = normalizeItem(updated);
+        return {
+          ...state,
+          itemsByThread: {
+            ...state.itemsByThread,
+            [action.threadId]: next,
+          },
+        };
+      }
       const next = insertLiveReasoningItem(
         list,
         index,
@@ -2371,6 +2455,15 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
       } as ConversationItem;
       const next = [...list];
       next[index] = updated;
+      if (INCREMENTAL_DERIVATION_ENABLED) {
+        return {
+          ...state,
+          itemsByThread: {
+            ...state.itemsByThread,
+            [action.threadId]: next,
+          },
+        };
+      }
       return {
         ...state,
         itemsByThread: {
@@ -2577,14 +2670,48 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
           [action.workspaceId]: action.cursor,
         },
       };
-    case "setThreadTokenUsage":
+    case "setThreadTokenUsage": {
+      const existingStatus = withThreadStatusDefaults(
+        state.threadStatusById[action.threadId],
+      );
+      const previousTokenUsage = state.tokenUsageByThread[action.threadId] ?? null;
+      const usageSnapshotChanged = !isThreadTokenUsageEqual(
+        previousTokenUsage,
+        action.tokenUsage,
+      );
+      const shouldClearCompletedCompaction =
+        existingStatus.codexCompactionLifecycleState === "completed" &&
+        usageSnapshotChanged;
+      if (!usageSnapshotChanged && !shouldClearCompletedCompaction) {
+        return state;
+      }
+      const tokenUsageUpdatedAt = usageSnapshotChanged
+        ? Date.now()
+        : existingStatus.lastTokenUsageUpdatedAt;
       return {
         ...state,
         tokenUsageByThread: {
           ...state.tokenUsageByThread,
           [action.threadId]: action.tokenUsage,
         },
+        threadStatusById: {
+          ...state.threadStatusById,
+          [action.threadId]: {
+            ...existingStatus,
+            codexCompactionLifecycleState: shouldClearCompletedCompaction
+              ? "idle"
+              : existingStatus.codexCompactionLifecycleState,
+            codexCompactionSource: shouldClearCompletedCompaction
+              ? null
+              : existingStatus.codexCompactionSource,
+            codexCompactionCompletedAt: shouldClearCompletedCompaction
+              ? null
+              : existingStatus.codexCompactionCompletedAt,
+            lastTokenUsageUpdatedAt: tokenUsageUpdatedAt,
+          },
+        },
       };
+    }
     case "setRateLimits":
       return {
         ...state,

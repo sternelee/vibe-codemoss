@@ -1079,6 +1079,13 @@ describe("useThreadMessaging", () => {
 
     expect(compactThreadContext).toHaveBeenCalledWith("ws-1", "thread-1");
     expect(dispatch).toHaveBeenCalledWith({
+      type: "markContextCompacting",
+      threadId: "thread-1",
+      isCompacting: true,
+      timestamp: expect.any(Number),
+      source: "manual",
+    });
+    expect(dispatch).toHaveBeenCalledWith({
       type: "appendCodexCompactionMessage",
       threadId: "thread-1",
       text: "threads.codexCompactionStarted",
@@ -1136,6 +1143,12 @@ describe("useThreadMessaging", () => {
       await result.current.startCompact("/compact");
     });
 
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "markContextCompacting",
+      threadId: "thread-1",
+      isCompacting: false,
+      timestamp: expect.any(Number),
+    });
     expect(dispatch).toHaveBeenCalledWith({
       type: "discardLatestCodexCompactionMessage",
       threadId: "thread-1",

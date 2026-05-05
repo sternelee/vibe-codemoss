@@ -164,6 +164,22 @@ describe('ChatInputBoxAdapter toggle bridge', () => {
     expect(mockState.getClaudeAlwaysThinkingEnabled).not.toHaveBeenCalled();
   });
 
+  it('forwards file-reference open callbacks to ChatInputBox', async () => {
+    const onOpenFileReference = vi.fn();
+
+    renderAdapter({
+      onOpenFileReference,
+    });
+
+    await waitFor(() => expect(mockState.latestProps).toBeTruthy());
+
+    const latest = mockState.latestProps as {
+      onOpenFileReference?: (path: string) => void;
+    };
+
+    expect(latest.onOpenFileReference).toBe(onOpenFileReference);
+  });
+
   it('avoids rerendering ChatInputBox when adapter props stay referentially stable', async () => {
     const stableProps: ComponentProps<typeof ChatInputBoxAdapter> = {
       text: '',
@@ -204,6 +220,8 @@ describe('ChatInputBoxAdapter toggle bridge', () => {
         percent: 6.25,
         hasUsage: true,
         compactionState: 'idle',
+        compactionSource: null,
+        usageSyncPendingAfterCompaction: false,
       },
       accountRateLimits: {
         primary: {
@@ -236,6 +254,8 @@ describe('ChatInputBoxAdapter toggle bridge', () => {
           percent: 6.25,
           hasUsage: true,
           compactionState: 'idle',
+          compactionSource: null,
+          usageSyncPendingAfterCompaction: false,
         }}
         accountRateLimits={{
           primary: {
@@ -768,6 +788,8 @@ describe('ChatInputBoxAdapter toggle bridge', () => {
         percent: 31.25,
         hasUsage: true,
         compactionState: 'idle',
+        compactionSource: null,
+        usageSyncPendingAfterCompaction: false,
       },
     });
 
@@ -781,6 +803,8 @@ describe('ChatInputBoxAdapter toggle bridge', () => {
         percent: number;
         hasUsage: boolean;
         compactionState: string;
+        compactionSource: string | null;
+        usageSyncPendingAfterCompaction: boolean;
       } | null;
       usageUsedTokens?: number;
       usageMaxTokens?: number;
@@ -793,6 +817,8 @@ describe('ChatInputBoxAdapter toggle bridge', () => {
       percent: 31.25,
       hasUsage: true,
       compactionState: 'idle',
+      compactionSource: null,
+      usageSyncPendingAfterCompaction: false,
     });
     expect(latest.usageUsedTokens).toBe(120_000);
     expect(latest.usageMaxTokens).toBe(256_000);

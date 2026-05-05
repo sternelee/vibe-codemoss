@@ -182,7 +182,9 @@ function areDualContextUsageEqual(
     left.contextWindow === right.contextWindow &&
     left.percent === right.percent &&
     left.hasUsage === right.hasUsage &&
-    left.compactionState === right.compactionState
+    left.compactionState === right.compactionState &&
+    left.compactionSource === right.compactionSource &&
+    left.usageSyncPendingAfterCompaction === right.usageSyncPendingAfterCompaction
   );
 }
 
@@ -380,6 +382,7 @@ export interface ChatInputBoxAdapterProps {
   onOpenAgentSettings?: () => void;
   onOpenPromptSettings?: () => void;
   onOpenModelSettings?: (providerId?: string) => void;
+  onOpenFileReference?: (path: string) => void;
   onRefreshModelConfig?: (providerId?: string) => Promise<void> | void;
   isModelConfigRefreshing?: boolean;
   hasMessages?: boolean;
@@ -793,6 +796,7 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
       onOpenAgentSettings,
       onOpenPromptSettings,
       onOpenModelSettings,
+      onOpenFileReference,
       onRefreshModelConfig,
       isModelConfigRefreshing,
       hasMessages,
@@ -1604,6 +1608,7 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
         onOpenAgentSettings={onOpenAgentSettings}
         onOpenPromptSettings={onOpenPromptSettings}
         onOpenModelSettings={onOpenModelSettings}
+        onOpenFileReference={onOpenFileReference}
         onRefreshModelConfig={onRefreshModelConfig}
         isModelConfigRefreshing={isModelConfigRefreshing}
         hasMessages={hasMessages}

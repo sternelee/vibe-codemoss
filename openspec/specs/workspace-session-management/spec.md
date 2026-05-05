@@ -5,11 +5,15 @@ TBD - created by archiving change project-session-management-center. Update Purp
 ## Requirements
 ### Requirement: Session Management SHALL Be A Dedicated Settings Surface
 
-系统 MUST 提供独立的 `Session Management` 设置页入口，用于治理 workspace 级真实会话历史，并能引导用户访问全局历史 / 归档中心。
+系统 MUST 提供 `项目管理 -> 会话管理` 设置页 tab，用于治理 workspace 级真实会话历史，并能引导用户访问全局历史 / 归档中心。
+
+#### Scenario: session management lives under project management tabs
+- **WHEN** 用户浏览设置页左侧导航
+- **THEN** 系统 MUST 显示 `项目管理` 父级入口
+- **AND** 系统 MUST NOT 显示独立的 `会话管理` 一级入口
 
 #### Scenario: dedicated session management links to global history center
-
-- **WHEN** 用户进入 `Session Management`
+- **WHEN** 用户进入 `项目管理 -> 会话管理`
 - **THEN** 系统 MUST 提供进入全局历史 / 归档中心的明确入口
 - **AND** 用户 MUST 能理解该入口用于查看不依赖当前 workspace strict 命中的历史
 
@@ -173,4 +177,17 @@ TBD - created by archiving change project-session-management-center. Update Purp
 - **WHEN** 用户在 related surface 对某条会话执行 archive、unarchive 或 delete
 - **THEN** 系统 MUST 与全局历史 / 归档中心保持一致的 mutation 结果
 - **AND** strict project sessions 的事实边界 MUST 不因此被污染
+
+### Requirement: Workspace And Session Ownership MUST Remain Stable During Architecture Extraction
+第一阶段涉及 workspace/session 读取、投影、mutation 或 routing 的抽取 MUST 保持 ownership 与 scope 语义稳定。
+
+#### Scenario: extracted session helper keeps owner routing intact
+- **WHEN** workspace/session catalog、projection、mutation helper 或 bridge mapping 被拆分到新模块
+- **THEN** 系统 MUST 继续按 entry 的真实 `workspaceId` 执行 mutation routing
+- **AND** 抽取 MUST NOT 让 main workspace、worktree 与 related session 的归属语义漂移
+
+#### Scenario: strict and related scopes remain distinguishable after extraction
+- **WHEN** strict project sessions、related sessions 或 global history 相关逻辑被收敛到 facade 或 adapter
+- **THEN** strict、related 与 global scope 的边界 MUST 继续可解释
+- **AND** 系统 MUST NOT 因结构抽取而把 inferred related entries 混入 strict project results
 

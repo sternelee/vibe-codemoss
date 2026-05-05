@@ -431,6 +431,37 @@ The system MUST distinguish between restoring workspace/thread UI state and acqu
 - **THEN** 本 reconciliation 职责调整 MUST NOT 改变其既有生命周期行为
 - **AND** engine-specific differences MUST 继续保持在内部 adapter / loader 边界内
 
+### Requirement: Claude And Gemini History Reconcile MUST Be Validation-Oriented
+
+在 `Claude Code` 与 `Gemini` 会话中，turn completion 后的 history reconcile 或 session reopen MUST 以 validation / backfill 为主，而不是 primary duplicate repair。只要客户端已经具备足够的 local realtime observations 去完成 canonical convergence，系统就 MUST 在 history refresh 之前保持稳定的可见 row 结果。
+
+#### Scenario: claude equivalent history replay does not change visible row cardinality
+
+- **WHEN** `Claude Code` turn 已在本地完成 assistant、reasoning、tool、approval 或 plan rows 的 canonical convergence
+- **AND** 后续 history reconcile 只带来等价内容
+- **THEN** reconciliation MUST NOT 改变用户可见 row 数量
+- **AND** reconciliation only MAY canonicalize ids、metadata、timestamps 或 structured facts
+
+#### Scenario: gemini equivalent history replay does not change visible row cardinality
+
+- **WHEN** `Gemini` turn 已在本地完成 assistant、reasoning 或 tool rows 的 canonical convergence
+- **AND** 后续 history hydrate 只带来等价内容
+- **THEN** reconciliation MUST NOT 改变用户可见 row 数量
+- **AND** reconciliation only MAY canonicalize ids、metadata、timestamps 或 structured facts
+
+#### Scenario: reconcile may backfill missing structured facts without reintroducing cross-engine duplicates
+
+- **WHEN** 本地 realtime settlement 缺少部分 canonical metadata 或 structured activity facts
+- **AND** post-turn history reconcile 能补齐这些缺失信息
+- **THEN** 系统 MAY 用 reconcile 结果回填缺失事实
+- **AND** MUST NOT 因回填动作重新引入重复 user、assistant、reasoning、tool、approval 或 plan rows
+
+#### Scenario: codex lifecycle baseline remains unchanged
+
+- **WHEN** 当前引擎为 `Codex`
+- **THEN** Claude / Gemini convergence rollout MUST NOT weaken existing Codex idempotency、queued handoff、image generation、or staged markdown lifecycle behavior
+- **AND** Codex-specific tests MUST remain part of the regression gate
+
 ### Requirement: Claude Lifecycle Consumers MUST Canonicalize Verified Thread Identity Before State Mutation
 
 在统一 `conversation lifecycle` contract 下，`Claude` 的 lifecycle consumers MUST 在修改 active、loaded、processing、turn-settlement 等 thread-scoped state 之前，先解析已验证的 canonical thread identity。
@@ -559,3 +590,17 @@ Manual recovery actions on the conversation surface MUST leave lifecycle state c
 - **AND** the stale conversation identity still cannot be rebound
 - **THEN** lifecycle state MUST NOT treat runtime readiness alone as successful conversation recovery
 - **AND** the thread identity recovery outcome MUST determine whether the recovery card succeeds, fails, or offers fresh continuation
+
+### Requirement: Lifecycle Semantics MUST Survive Architecture Extraction
+threads / messages / composer 主链路在第一阶段抽取期间 MUST 保持统一会话生命周期语义不变。
+
+#### Scenario: lifecycle-compatible extraction preserves same outcomes
+- **WHEN** reducer、event handlers、thread actions、message rendering 或 composer orchestration 被拆分到新模块
+- **THEN** 相同事件序列在抽取前后 MUST 收敛到相同 lifecycle outcome
+- **AND** user-visible processing、completed、error、recovery 与 blocked 语义 MUST 保持等价
+
+#### Scenario: fallback or rollback path preserves lifecycle continuity
+- **WHEN** 新的 facade、adapter 或 extracted helper 被局部关闭或回滚
+- **THEN** conversation lifecycle contract MUST 继续成立
+- **AND** 回滚 MUST NOT 留下 pseudo-processing、identity 漂移或重复 settlement residue
+

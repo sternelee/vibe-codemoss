@@ -42,9 +42,14 @@ import {
   resolveStructuredPreviewKind,
 } from "../../files/components/FileStructuredPreview";
 import { useSkills } from "../../skills/hooks/useSkills";
+import {
+  isGlobalManagedInstructionSource,
+  normalizeManagedInstructionSource,
+} from "../../skills/utils/managedInstructionSource";
 
 type SkillsSectionProps = {
   activeWorkspace: WorkspaceInfo | null;
+  embedded?: boolean;
 };
 
 type GlobalEngine = "claude" | "code" | "gemini" | "agents";
@@ -110,17 +115,6 @@ function normalizeFsPath(path: unknown) {
   return String(path ?? "").trim().replace(/\\/g, "/");
 }
 
-function normalizeSource(source?: string) {
-  const normalized = normalizeText(source);
-  if (!normalized) {
-    return "";
-  }
-  if (normalized === "global_code") {
-    return "global_codex";
-  }
-  return normalized;
-}
-
 function normalizeWorkspacePath(workspacePath?: string | null) {
   const normalized = normalizePathKey(workspacePath ?? "");
   if (!normalized) {
@@ -130,8 +124,8 @@ function normalizeWorkspacePath(workspacePath?: string | null) {
 }
 
 function isGlobalSkill(skill: SkillOption, workspacePath?: string | null) {
-  const source = normalizeSource(skill.source);
-  if (source.startsWith("global_")) {
+  const source = normalizeManagedInstructionSource(skill.source);
+  if (isGlobalManagedInstructionSource(source)) {
     return true;
   }
   if (source.startsWith("project_") || source === "workspace_managed") {
@@ -152,7 +146,7 @@ function isGlobalSkill(skill: SkillOption, workspacePath?: string | null) {
 
 function matchesEngine(skill: SkillOption, engine: GlobalEngine) {
   const config = ENGINE_CONFIGS[engine];
-  const source = normalizeSource(skill.source);
+  const source = normalizeManagedInstructionSource(skill.source);
   if (config.sourcePrefixes.some((prefix) => source.startsWith(prefix))) {
     return true;
   }
@@ -236,7 +230,10 @@ function removeRecordKey<T>(record: Record<string, T>, keyToDelete: string) {
   return rest;
 }
 
-export function SkillsSection({ activeWorkspace }: SkillsSectionProps) {
+export function SkillsSection({
+  activeWorkspace,
+  embedded = false,
+}: SkillsSectionProps) {
   const { t } = useTranslation();
   const { skills, refreshSkills } = useSkills({ activeWorkspace });
   const [query, setQuery] = useState("");
@@ -813,11 +810,15 @@ export function SkillsSection({ activeWorkspace }: SkillsSectionProps) {
 
   return (
     <section className="settings-section">
-      <div className="settings-section-title">{t("settings.skillsPanel.title")}</div>
+      {!embedded && (
+        <div className="settings-section-title">{t("settings.skillsPanel.title")}</div>
+      )}
 
       {!activeWorkspace?.id ? (
         <>
-          <div className="settings-section-subtitle">{t("settings.skillsPanel.description")}</div>
+          {!embedded && (
+            <div className="settings-section-subtitle">{t("settings.skillsPanel.description")}</div>
+          )}
           <div className="settings-inline-muted">{t("settings.skillsPanel.workspaceRequired")}</div>
         </>
       ) : (
@@ -1008,7 +1009,9 @@ export function SkillsSection({ activeWorkspace }: SkillsSectionProps) {
                       <span className="settings-skills-detail-chip">
                         {t("settings.skillsPanel.detailSource")}:
                         {" "}
-                        {selectedSkill?.source ? normalizeSource(selectedSkill.source) : "-"}
+                        {selectedSkill?.source
+                          ? normalizeManagedInstructionSource(selectedSkill.source)
+                          : "-"}
                       </span>
                     </div>
                     <div className="settings-skills-detail-meta">
