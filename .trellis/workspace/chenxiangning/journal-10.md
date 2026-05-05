@@ -770,3 +770,58 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 323: 收口文件变更列表图标与密度
+
+**Date**: 2026-05-06
+**Task**: 收口文件变更列表图标与密度
+**Branch**: `feature/vv-v0.4.14`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：review 并收口 ai 对话右侧文件变更列表的视觉微调，确认纯 icon diff 入口与更紧凑的文件列表不会带来交互或主题回归，然后完成提交。
+
+Review 结论：
+- 未发现阻塞提交的问题。
+- diff 入口虽然改成无边框纯 icon，但仍保留 button 语义、aria-label、hover 与 focus-visible，可访问性没有被破坏。
+- 样式仍基于主题变量与 color-mix，没有引入写死颜色，深色/浅色/自定义主题兼容性保持不变。
+
+主要改动：
+- 将 session activity 文件变更列表右侧 diff 入口改为纯 icon 视觉。
+- 图标从 FileDiff/Eye 调整为更贴近 diff/compare 语义的 GitCompareArrows。
+- 压缩文件列表项高度、间距、字号与统计占位，提升单屏密度。
+
+涉及模块：
+- src/features/session-activity/components/WorkspaceSessionActivityPanel.tsx
+- src/styles/session-activity.css
+
+验证结果：
+- pnpm vitest run src/features/session-activity/components/WorkspaceSessionActivityPanel.test.tsx 通过（53 tests）。
+- git diff --check -- src/features/session-activity/components/WorkspaceSessionActivityPanel.tsx src/styles/session-activity.css 通过。
+
+后续事项：
+- 如需继续打磨这一块，下一步建议基于实际截图再判断是否继续下调列表行高或缩小右侧 icon 热区，而不要再联动 diff modal 其它 surface。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `87a977eb` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
