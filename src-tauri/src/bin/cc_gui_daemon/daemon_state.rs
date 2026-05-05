@@ -833,10 +833,34 @@ impl DaemonState {
         if !engine::engine_enabled_in_settings(&settings, engine_type) {
             return Vec::new();
         }
-        self.get_engine_status(engine_type)
-            .await
-            .map(|status| status.models)
-            .unwrap_or_default()
+        match engine_type {
+            engine::EngineType::OpenCode => {
+                let config = self
+                    .engine_manager
+                    .get_engine_config(engine::EngineType::OpenCode)
+                    .await;
+                let custom_bin = config
+                    .as_ref()
+                    .and_then(|cfg| cfg.bin_path.as_ref())
+                    .map(|value| value.as_str());
+                let fresh_models =
+                    engine::status::load_opencode_models(custom_bin).await.unwrap_or_default();
+
+                if !fresh_models.is_empty() {
+                    return fresh_models;
+                }
+
+                self.get_engine_status(engine_type)
+                    .await
+                    .map(|status| status.models)
+                    .unwrap_or_default()
+            }
+            _ => self
+                .get_engine_status(engine_type)
+                .await
+                .map(|status| status.models)
+                .unwrap_or_default(),
+        }
     }
 
     pub(super) async fn workspace_path_for_engine(

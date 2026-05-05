@@ -262,6 +262,7 @@ type LayoutNodesOptions = {
   onConnectWorkspace: (workspace: WorkspaceInfo) => Promise<void>;
   onAddAgent: (workspace: WorkspaceInfo, engine?: EngineType) => Promise<void>;
   engineOptions?: EngineDisplayInfo[];
+  enabledEngines?: Partial<Record<EngineType, boolean>>;
   onRefreshEngineOptions?: () =>
     | Promise<import("../../engine/hooks/useEngineController").EngineRefreshResult | void>
     | import("../../engine/hooks/useEngineController").EngineRefreshResult
@@ -1292,6 +1293,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       onConnectWorkspace={options.onConnectWorkspace}
       onAddAgent={options.onAddAgent}
       engineOptions={options.engineOptions}
+      enabledEngines={options.enabledEngines}
       onRefreshEngineOptions={options.onRefreshEngineOptions}
       onAddSharedAgent={options.onAddSharedAgent}
       onAddWorktreeAgent={options.onAddWorktreeAgent}

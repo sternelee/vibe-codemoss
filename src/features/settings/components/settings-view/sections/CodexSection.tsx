@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@/components/ui/tabs";
 import type { AppSettings, CodexDoctorResult } from "@/types";
 import { ComputerUseStatusCard } from "@/features/computer-use/components/ComputerUseStatusCard";
@@ -488,50 +489,54 @@ export function CodexSection({
         </TabsPanel>
 
         <TabsPanel value="gemini">
-          <div className="settings-field">
-            <label className="settings-field-label" htmlFor="gemini-enabled">
-              {t("settings.cliEngineEnabledLabel")}
-            </label>
-            <label className="settings-toggle">
-              <input
-                id="gemini-enabled"
-                type="checkbox"
-                aria-label={t("settings.cliValidationTabGeminiCli")}
-                checked={appSettings.geminiEnabled !== false}
-                onChange={(event) =>
-                  void onUpdateAppSettings({
-                    ...appSettings,
-                    geminiEnabled: event.target.checked,
-                  })
-                }
-              />
-              <span>{t("settings.cliValidationTabGeminiCli")}</span>
-            </label>
-            <div className="settings-help">{t("settings.geminiCliDisableDescription")}</div>
+          <div className="settings-toggle-row settings-cli-engine-toggle-row">
+            <div className="settings-cli-engine-toggle-copy">
+              <div className="settings-toggle-title settings-cli-engine-toggle-title">
+                <span>{t("settings.cliValidationTabGeminiCli")}</span>
+                <span className="settings-cli-engine-toggle-badge">
+                  {t("settings.cliEngineEnabledLabel")}
+                </span>
+              </div>
+              <div className="settings-toggle-subtitle">
+                {t("settings.geminiCliDisableDescription")}
+              </div>
+            </div>
+            <Switch
+              aria-label={t("settings.cliValidationTabGeminiCli")}
+              checked={appSettings.geminiEnabled !== false}
+              onCheckedChange={(checked) =>
+                void onUpdateAppSettings({
+                  ...appSettings,
+                  geminiEnabled: checked,
+                })
+              }
+            />
           </div>
         </TabsPanel>
 
         <TabsPanel value="opencode">
-          <div className="settings-field">
-            <label className="settings-field-label" htmlFor="opencode-enabled">
-              {t("settings.cliEngineEnabledLabel")}
-            </label>
-            <label className="settings-toggle">
-              <input
-                id="opencode-enabled"
-                type="checkbox"
-                aria-label={t("settings.cliValidationTabOpenCodeCli")}
-                checked={appSettings.opencodeEnabled !== false}
-                onChange={(event) =>
-                  void onUpdateAppSettings({
-                    ...appSettings,
-                    opencodeEnabled: event.target.checked,
-                  })
-                }
-              />
-              <span>{t("settings.cliValidationTabOpenCodeCli")}</span>
-            </label>
-            <div className="settings-help">{t("settings.openCodeCliDisableDescription")}</div>
+          <div className="settings-toggle-row settings-cli-engine-toggle-row">
+            <div className="settings-cli-engine-toggle-copy">
+              <div className="settings-toggle-title settings-cli-engine-toggle-title">
+                <span>{t("settings.cliValidationTabOpenCodeCli")}</span>
+                <span className="settings-cli-engine-toggle-badge">
+                  {t("settings.cliEngineEnabledLabel")}
+                </span>
+              </div>
+              <div className="settings-toggle-subtitle">
+                {t("settings.openCodeCliDisableDescription")}
+              </div>
+            </div>
+            <Switch
+              aria-label={t("settings.cliValidationTabOpenCodeCli")}
+              checked={appSettings.opencodeEnabled !== false}
+              onCheckedChange={(checked) =>
+                void onUpdateAppSettings({
+                  ...appSettings,
+                  opencodeEnabled: checked,
+                })
+              }
+            />
           </div>
         </TabsPanel>
       </Tabs>

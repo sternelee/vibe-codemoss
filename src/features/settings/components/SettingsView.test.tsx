@@ -962,7 +962,7 @@ describe("SettingsView Display", () => {
     );
 
     fireEvent.click(screen.getByRole("tab", { name: "Gemini CLI" }));
-    fireEvent.click(screen.getByRole("checkbox", { name: "Gemini CLI" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Gemini CLI" }));
 
     await waitFor(() => {
       expect(onUpdateAppSettings).toHaveBeenCalledWith(
@@ -973,7 +973,7 @@ describe("SettingsView Display", () => {
     onUpdateAppSettings.mockClear();
 
     fireEvent.click(screen.getByRole("tab", { name: "OpenCode CLI" }));
-    fireEvent.click(screen.getByRole("checkbox", { name: "OpenCode CLI" }));
+    fireEvent.click(screen.getByRole("switch", { name: "OpenCode CLI" }));
 
     await waitFor(() => {
       expect(onUpdateAppSettings).toHaveBeenCalledWith(

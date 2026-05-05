@@ -1027,7 +1027,13 @@ pub async fn get_engine_models(
         }
         EngineType::Claude | EngineType::Codex => {
             if force_refresh {
-                let status = manager.refresh_engine_status(engine_type).await;
+                let status = manager
+                    .refresh_engine_status_with_gates(
+                        engine_type,
+                        settings.gemini_enabled,
+                        settings.opencode_enabled,
+                    )
+                    .await;
                 return Ok(status.models);
             }
 
@@ -1037,14 +1043,14 @@ pub async fn get_engine_models(
                 }
             }
 
-            let statuses = manager.detect_engines().await;
-            let detected = statuses.into_iter().find(|s| s.engine_type == engine_type);
-
-            if let Some(status) = detected {
-                Ok(status.models)
-            } else {
-                Err(format!("{} not detected", engine_type.display_name()))
-            }
+            let status = manager
+                .refresh_engine_status_with_gates(
+                    engine_type,
+                    settings.gemini_enabled,
+                    settings.opencode_enabled,
+                )
+                .await;
+            Ok(status.models)
         }
     }
 }
