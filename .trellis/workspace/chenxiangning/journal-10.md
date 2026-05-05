@@ -118,3 +118,63 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 312: 修复流式幕布长文输出卡顿
+
+**Date**: 2026-05-05
+**Task**: 修复流式幕布长文输出卡顿
+**Branch**: `feature/v-0.4.13-1`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标:
+- 修复 Codex 实时流式输出在长文中后段导致的幕布整体卡顿、按钮冻结、最终一次性刷出的 P0 问题。
+
+主要改动:
+- 将 Messages 父层的流式呈现面拆分为稳定 timeline snapshot 与实时 live override，避免整棵消息树在 token 级别持续重算。
+- 新增 messages live window / streaming presentation contract，收敛 live assistant 与 live reasoning 的窗口化输出路径。
+- 调整 LiveMarkdown、MessagesRows、MessagesTimeline、StatusPanel 与 stream diagnostics，降低长会话持续输出时的 render pressure，同时保留实时 UI 效果。
+- 补齐前端 code-spec 与 OpenSpec 行为契约，明确 conversation render surface stability 的回归边界。
+- 补充回归测试，覆盖 live window、streaming presentation、windows render mitigation、rows mitigation、diagnostics 与 live markdown。
+
+涉及模块:
+- src/features/messages/components
+- src/features/messages/utils
+- src/features/status-panel/components
+- src/features/threads/utils
+- .trellis/spec/frontend
+- openspec/specs/conversation-render-surface-stability
+
+验证结果:
+- npm run lint ✅
+- npm run typecheck ✅
+- npm run check:large-files ✅
+- npm run test ✅ (430 test files 全绿)
+
+后续事项:
+- 后续若继续调整实时输出链路，必须保持“稳定 timeline + 实时 live override”这一渲染 contract，不要重新把 token 级更新抬回 Messages 顶层。
+- CHANGELOG.md 仍有独立未提交改动，本次 session 未纳入业务提交。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e3873027` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

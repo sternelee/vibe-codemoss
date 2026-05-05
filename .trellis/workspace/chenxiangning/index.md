@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-10.md`
-- **Total Sessions**: 311
-- **Last Active**: 2026-05-04
+- **Total Sessions**: 312
+- **Last Active**: 2026-05-05
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-10.md` | ~120 | Active |
+| `journal-10.md` | ~180 | Active |
 | `journal-9.md` | ~1977 | Archived |
 | `journal-8.md` | ~1996 | Archived |
 | `journal-7.md` | ~1950 | Archived |
@@ -38,6 +38,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 312 | 2026-05-05 | 修复流式幕布长文输出卡顿 | `e3873027` | `feature/v-0.4.13-1` |
 | 311 | 2026-05-04 | 记录右侧面板拖拽提交优化 | `87845311acf113c3fa2909224321fe8d2c476a0f` | `feature/v-0.4.13-1` |
 | 310 | 2026-05-04 | 补齐第一阶段人工场景回归测试 | `72b36a97` | `feature/v-0.4.13-1` |
 | 309 | 2026-05-04 | 归档已验证 OpenSpec 提案 | `d4e783e6` | `feature/v-0.4.13-1` |
