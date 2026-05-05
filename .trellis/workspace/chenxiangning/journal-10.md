@@ -719,3 +719,54 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 322: 收口 Rust 测试格式化残留改动
+
+**Date**: 2026-05-06
+**Task**: 收口 Rust 测试格式化残留改动
+**Branch**: `feature/vv-v0.4.14`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：分析并收口工作区剩余两个未提交的 src-tauri Rust 文件，确认是否属于有效改动并在无风险前提下提交。
+
+主要改动：
+- 审查 src-tauri/src/note_cards.rs，确认仅为测试中 materialize_attachments 调用的换行格式调整。
+- 审查 src-tauri/src/shared/workspace_snapshot.rs，确认仅为测试断言 assert_eq! 的换行格式调整。
+- 未修改 runtime 逻辑、command contract、跨层 payload 或平台兼容实现。
+
+涉及模块：
+- src-tauri/src/note_cards.rs
+- src-tauri/src/shared/workspace_snapshot.rs
+
+验证结果：
+- git diff --check -- src-tauri/src/note_cards.rs src-tauri/src/shared/workspace_snapshot.rs 通过。
+- cargo test --manifest-path src-tauri/Cargo.toml note_cards::tests::materialize_attachments 通过。
+- cargo test --manifest-path src-tauri/Cargo.toml shared::workspace_snapshot 通过。
+
+后续事项：
+- 当前这批残留已收口完成；后续若继续清理 src-tauri 侧改动，优先区分格式化残留与真实行为变更，避免把无功能价值的噪音 diff 混入主功能提交。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `181a5c9b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
