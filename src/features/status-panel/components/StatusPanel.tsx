@@ -311,6 +311,7 @@ export const StatusPanel = memo(function StatusPanel({
               >
                 <MessageSquareQuote size={14} className="sp-tab-icon" />
                 <span className="sp-tab-label">{t("statusPanel.tabLatestUserMessage")}</span>
+                <span className="sp-tab-count">{userConversationTimeline.items.length}</span>
               </button>
             )}
 

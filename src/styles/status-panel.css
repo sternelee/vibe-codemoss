@@ -41,6 +41,7 @@
 }
 
 .sp-tabs--dock {
+  position: relative;
   border: none;
   border-radius: 0;
   padding: 0;
@@ -50,9 +51,11 @@
   scrollbar-width: none;
   -ms-overflow-style: none;
   order: 1;
-  margin: 0 12px 8px;
+  margin: 0 12px 4px;
   flex: 0 0 auto;
-  gap: 8px;
+  gap: 18px;
+  align-items: flex-end;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-subtle, rgba(255, 255, 255, 0.08)) 88%, transparent);
 }
 
 .sp-tabs--dock::-webkit-scrollbar {
@@ -61,9 +64,35 @@
 }
 
 .sp-tabs--dock .sp-tab {
-  border-radius: 10px;
-  border: 1px solid transparent;
+  position: relative;
+  justify-content: flex-start;
+  gap: 4px;
+  padding: 4px 1px 6px;
+  border: none;
+  border-radius: 0;
   background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.sp-tabs--dock .sp-tab::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  left: 2px;
+  right: 2px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-strong) 94%, transparent);
+  transform: scaleX(0.28);
+  transform-origin: center;
+  opacity: 0;
+  transition:
+    transform 0.18s ease,
+    opacity 0.18s ease;
 }
 
 .sp-tabs--dock .sp-tab:not(:last-child),
@@ -71,16 +100,59 @@
 .sp-tabs--dock .sp-tab:last-child:not(:first-child),
 .sp-tabs--dock .sp-tab:only-child {
   border-right: none;
-  border-radius: 10px;
+  border-radius: 0;
 }
 
 .sp-tabs--dock .sp-tab:hover {
-  background: color-mix(in srgb, var(--surface-hover) 72%, transparent);
+  background: transparent;
+  color: var(--text-strong);
 }
 
 .sp-tabs--dock .sp-tab-active {
-  background: color-mix(in srgb, var(--surface-control) 82%, transparent);
-  border-color: color-mix(in srgb, var(--border-subtle) 88%, transparent);
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-strong);
+}
+
+.sp-tabs--dock .sp-tab-active::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.sp-tabs--dock .sp-tab-icon {
+  opacity: 0.68;
+  transition: opacity 0.18s ease;
+}
+
+.sp-tabs--dock .sp-tab:hover .sp-tab-icon,
+.sp-tabs--dock .sp-tab-active .sp-tab-icon {
+  opacity: 0.92;
+}
+
+.sp-tabs--dock .sp-tab-label {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.sp-tabs--dock .sp-tab-count,
+.sp-tabs--dock .sp-tab-file-stats {
+  font-size: 10px;
+  line-height: 1;
+}
+
+.sp-tabs--dock .sp-tab-file-stats {
+  gap: 4px;
+}
+
+.sp-tabs--dock .sp-tab-count {
+  opacity: 0.72;
+}
+
+.sp-tabs--dock .sp-tab-icon svg,
+.sp-tabs--dock .sp-tab-icon {
+  width: 16px;
+  height: 16px;
 }
 
 .sp-tab {

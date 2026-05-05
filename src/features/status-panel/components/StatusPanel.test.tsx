@@ -449,6 +449,41 @@ describe("StatusPanel", () => {
     expect(screen.getByText("#1")).toBeTruthy();
   });
 
+  it("shows filtered user conversation turn count in the dock tab", () => {
+    render(
+      <StatusPanel
+        items={[
+          {
+            id: "u-memory-only",
+            kind: "message",
+            role: "user",
+            text: "<project-memory>\n[项目上下文] 已记录会话摘要\n</project-memory>\n",
+          },
+          {
+            id: "u-image-only",
+            kind: "message",
+            role: "user",
+            text: "",
+            images: ["diagram.png"],
+          },
+          {
+            id: "u-real",
+            kind: "message",
+            role: "user",
+            text: "真实用户问题",
+          },
+        ]}
+        isProcessing={false}
+        variant="dock"
+      />,
+    );
+
+    const userConversationTab = screen.getByText("User Conversation").closest("button");
+    const turnCountNode = userConversationTab?.querySelector(".sp-tab-count");
+    expect(turnCountNode).toBeTruthy();
+    expect(turnCountNode?.textContent).toBe("2");
+  });
+
   it("keeps the current dock tab active when a new user message arrives", () => {
     const { rerender } = render(
       <StatusPanel
