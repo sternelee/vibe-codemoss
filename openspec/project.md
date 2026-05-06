@@ -18,6 +18,12 @@ OpenSpec workflow and governance for CodeMoss/ccgui, including change lifecycle 
 - Consistency tooling: `.claude/skills/osp-openspec-sync/scripts/*`
 - External spec root contract: custom spec root accepts both `<project-root>` and `<project-root>/openspec` forms.
 
+## Entry Surfaces
+
+- `openspec/README.md` is the concise entrypoint for navigation and common commands.
+- `openspec/project.md` is the detailed governance overview and audit surface.
+- Capability truth lives in `openspec/specs/*`; change-local truth lives in `openspec/changes/<change-id>/*`.
+
 ## Capability Metrics (Fine)
 
 | Domain | Count |
