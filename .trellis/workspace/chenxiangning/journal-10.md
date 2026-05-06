@@ -1867,3 +1867,60 @@ Review 结论：
 ### Next Steps
 
 - None - task complete
+
+
+## Session 344: 拆分规范中心布局交互测试
+
+**Date**: 2026-05-06
+**Task**: 拆分规范中心布局交互测试
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标:
+- 清理 src/features/spec/components/SpecHub.test.tsx 的 large-file near-threshold 告警。
+- 以布局/导航交互为边界拆分测试，不引入行为回归。
+
+主要改动:
+- 新增 src/features/spec/components/SpecHub.reader-layout.test.tsx，集中 reader outline、detached window、changes pane resize、control center collapse、filter view state 隔离等布局交互测试。
+- 新增 src/features/spec/components/SpecHub.test-support.tsx，抽离 SpecHub 测试共用 mock、i18n、Markdown render 和基础 hook state 生成器。
+- 精简 src/features/spec/components/SpecHub.test.tsx，仅保留其余业务流与 action/proposal 相关测试。
+
+涉及模块:
+- src/features/spec/components/SpecHub.test.tsx
+- src/features/spec/components/SpecHub.reader-layout.test.tsx
+- src/features/spec/components/SpecHub.test-support.tsx
+
+验证结果:
+- git diff --check 通过。
+- npx vitest run src/features/spec/components/SpecHub.test.tsx src/features/spec/components/SpecHub.reader-layout.test.tsx 通过（44 tests）。
+- npm run lint 通过。
+- npm run typecheck 通过。
+- npm run check:large-files:near-threshold --silent 通过，near-threshold 从 5 降到 4。
+
+后续事项:
+- 只剩 4 个 P0 runtime 文件：src-tauri/src/codex/mod.rs、src-tauri/src/backend/app_server.rs、src/app-shell.tsx、src-tauri/src/computer_use/mod.rs。
+- 下一步优先评估 app_server.rs 与 codex/mod.rs 的低风险拆分切口，再视情况处理 app-shell.tsx。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `61136c6f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

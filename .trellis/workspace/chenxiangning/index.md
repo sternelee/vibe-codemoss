@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-10.md`
-- **Total Sessions**: 343
+- **Total Sessions**: 344
 - **Last Active**: 2026-05-06
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-10.md` | ~1869 | Active |
+| `journal-10.md` | ~1926 | Active |
 | `journal-9.md` | ~1977 | Archived |
 | `journal-8.md` | ~1996 | Archived |
 | `journal-7.md` | ~1950 | Archived |
@@ -38,6 +38,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 344 | 2026-05-06 | 拆分规范中心布局交互测试 | `61136c6f` | `feature/v.0.4.14-2` |
 | 343 | 2026-05-06 | 拆分线程消息命令入口测试 | `460fe657` | `feature/v.0.4.14-2` |
 | 342 | 2026-05-06 | 拆分线程历史加载测试 | `028bc80c` | `feature/v.0.4.14-2` |
 | 341 | 2026-05-06 | 拆分线程列表路径兼容测试 | `c967865f` | `feature/v.0.4.14-2` |
