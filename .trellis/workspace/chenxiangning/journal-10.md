@@ -1232,3 +1232,57 @@ Review 结论：
 ### Next Steps
 
 - None - task complete
+
+
+## Session 332: 治理残留清理与入口对齐
+
+**Date**: 2026-05-06
+**Task**: 治理残留清理与入口对齐
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标:
+- 修复第一轮/第二轮文档关联改造 review 中暴露的残留入口文档问题
+- 清理 openspec/project.md 中高漂移、易过期的治理快照内容
+
+主要改动:
+- 清理 .agents/skills/start/SKILL.md 与 .agents/skills/before-dev/SKILL.md 中的旧 package 模板路径
+- 清理 .claude/commands/trellis/start.md 与 .claude/commands/trellis/before-dev.md 中的旧 package 模板路径
+- 重写 openspec/project.md, 删除高漂移历史快照与过期统计, 收敛为当前治理快照
+
+涉及模块:
+- .agents/skills/**
+- .claude/commands/trellis/**
+- openspec/project.md
+
+验证结果:
+- rg 确认已无 spec/<package>/<layer>、cli/、docs-site/ 残留
+- git diff --check 通过
+- openspec validate streamline-governance-doc-stack --strict --no-interactive 通过
+
+后续事项:
+- session-start hook 注入体量仍偏大, 作为后续治理优化项单独评估
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `deeef7fb` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
