@@ -1275,6 +1275,9 @@ const zhPart2 = {
     submitFailed: "提交失败，请重试。",
     submit: "提交",
     submitted: "已提交",
+    noAnswerProvided: "（未填写）",
+    noDisplayableAnswer: "（未提供可展示的答案）",
+    userInputSubmittedBanner: "[用户输入已提交]",
   },
 
   askUserQuestion: {

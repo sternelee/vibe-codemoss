@@ -1988,6 +1988,8 @@ const enPart1 = {
     thinking: "Thinking…",
     thinkingLabel: "Thinking",
     thinkingProcess: "Thinking Process",
+    reasoningProcessBoundary: "Thinking Process",
+    finalMessageBoundary: "Final Message",
     noThinkingContent: "No thinking content",
     generating: "Generating…",
     waitingForResponse: "Waiting for response…",

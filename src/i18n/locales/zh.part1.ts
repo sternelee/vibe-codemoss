@@ -1985,6 +1985,8 @@ const zhPart1 = {
     thinking: "思考中…",
     thinkingLabel: "思考",
     thinkingProcess: "思考过程",
+    reasoningProcessBoundary: "推理过程",
+    finalMessageBoundary: "最终消息",
     noThinkingContent: "无思考内容",
     generating: "生成中…",
     waitingForResponse: "等待响应…",

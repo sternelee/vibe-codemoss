@@ -68,6 +68,7 @@ describe("Messages turn boundaries", () => {
 
     const reasoningBoundaryNode = container.querySelector(".messages-reasoning-boundary");
     expect(reasoningBoundaryNode).toBeTruthy();
+    expect(reasoningBoundaryNode?.textContent ?? "").toContain("Thinking Process");
   });
 
   it("does not show reasoning boundary when only hidden command cards exist before final message", () => {
@@ -111,6 +112,9 @@ describe("Messages turn boundaries", () => {
 
     expect(container.querySelector(".messages-reasoning-boundary")).toBeNull();
     expect(container.querySelector(".messages-final-boundary")).toBeTruthy();
+    expect(container.querySelector(".messages-final-boundary")?.textContent ?? "").toContain(
+      "Final Message",
+    );
     expect(container.textContent ?? "").not.toContain("Command: rg --files");
   });
 
@@ -381,6 +385,7 @@ describe("Messages turn boundaries", () => {
     );
     expect(finalMessageNode).toBeTruthy();
     expect(reasoningBoundaryNode).toBeTruthy();
+    expect(reasoningBoundaryNode?.textContent ?? "").toContain("Thinking Process");
     expect(reasoningBoundaryMetaNode?.textContent ?? "").toContain("04-10 14:41:42");
     expect(reasoningBoundaryMetaNode?.getAttribute("aria-hidden")).toBe("true");
     expect(reasoningBoundaryMetaNode?.textContent).toBe(finalBoundaryMetaNode?.textContent);

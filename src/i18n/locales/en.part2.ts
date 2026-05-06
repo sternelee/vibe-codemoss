@@ -1303,6 +1303,9 @@ const enPart2 = {
     submitFailed: "Submit failed. Please retry.",
     submit: "Submit",
     submitted: "Submitted",
+    noAnswerProvided: "(No answer provided)",
+    noDisplayableAnswer: "(No displayable answer)",
+    userInputSubmittedBanner: "[User input submitted]",
   },
 
   askUserQuestion: {
