@@ -1813,3 +1813,57 @@ Review 结论：
 ### Next Steps
 
 - None - task complete
+
+
+## Session 343: 拆分线程消息命令入口测试
+
+**Date**: 2026-05-06
+**Task**: 拆分线程消息命令入口测试
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标:
+- 继续清理 large-file near-threshold 告警，优先处理 src/features/threads/hooks/useThreadMessaging.test.tsx。
+- 在不改变行为的前提下，按命令入口模块拆分测试，并保留 Windows/macOS 路径兼容回归覆盖。
+
+主要改动:
+- 新增 src/features/threads/hooks/useThreadMessaging.command-entrypoints.test.tsx，集中承载 /review、/mcp、/lsp、/import、/resume 命令入口测试。
+- 从 src/features/threads/hooks/useThreadMessaging.test.tsx 移除上述入口测试与配套 Windows/no-path workspace 场景、专用 mock 初始化，使主文件回落到 near-threshold 以下。
+- 保留并验证 Windows absolute path、extended path、relative path 与空 workspace path 的 LSP document path 兼容行为。
+
+涉及模块:
+- src/features/threads/hooks/useThreadMessaging.test.tsx
+- src/features/threads/hooks/useThreadMessaging.command-entrypoints.test.tsx
+
+验证结果:
+- git diff --check 通过。
+- npx vitest run src/features/threads/hooks/useThreadMessaging.test.tsx src/features/threads/hooks/useThreadMessaging.command-entrypoints.test.tsx src/features/threads/hooks/useThreadMessaging.context-injection.test.tsx src/features/threads/hooks/useThreadMessaging.spec-root.test.tsx 通过（101 tests）。
+- npm run check:large-files:near-threshold --silent 通过，near-threshold 从 6 降到 5。
+
+后续事项:
+- 继续拆分 src/features/spec/components/SpecHub.test.tsx，清空剩余 frontend test 告警。
+- 再评估 4 个 P0 runtime 文件的拆分顺序与风险。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `460fe657` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
