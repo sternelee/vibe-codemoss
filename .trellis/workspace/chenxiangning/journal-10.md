@@ -1629,3 +1629,49 @@ Review 结论：
 ### Next Steps
 
 - None - task complete
+
+
+## Session 339: 拆分 app server events 输入路由测试
+
+**Date**: 2026-05-06
+**Task**: 拆分 app server events 输入路由测试
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：继续清理 large-file near-threshold 告警，优先处理低风险 frontend test 文件。
+主要改动：
+- 新增 useAppServerEvents.request-user-input.test.tsx，承接 requestUserInput 相关 6 个测试。
+- 将 runtime-ended、compaction、token usage 的零散测试归并到对应专用 test 文件。
+- 将 useAppServerEvents.test.tsx 从 2996 行降到 2404 行，移出 near-threshold 告警。
+涉及模块：src/features/app/hooks/useAppServerEvents*.test.tsx
+验证结果：
+- git diff --check 通过
+- npm run check:large-files:near-threshold --silent：found=9
+- npx vitest run src/features/app/hooks/useAppServerEvents*.test.tsx：9 files / 70 tests passed
+- npm run typecheck 通过
+- npm run lint 通过
+后续事项：继续按同模块小批次清理剩余 test near-threshold 文件，优先评估 Messages.test.tsx 或 SpecHub.test.tsx。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `23f7b329` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
