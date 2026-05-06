@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-10.md`
-- **Total Sessions**: 324
+- **Total Sessions**: 325
 - **Last Active**: 2026-05-06
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-10.md` | ~882 | Active |
+| `journal-10.md` | ~920 | Active |
 | `journal-9.md` | ~1977 | Archived |
 | `journal-8.md` | ~1996 | Archived |
 | `journal-7.md` | ~1950 | Archived |
@@ -38,6 +38,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 325 | 2026-05-06 | 本地合并 PR 493 自定义技能目录支持 | `f2c284c4e56a247f9365451184a0f3080ffd5558` | `feature/v.0.4.14-2` |
 | 324 | 2026-05-06 | 隐藏已禁用引擎的会话提供方入口 | `dc99a007392c9f9ce82fd33ad25ed8510049aa48` | `feature/vv-v0.4.14` |
 | 323 | 2026-05-06 | 收口文件变更列表图标与密度 | `87a977eb` | `feature/vv-v0.4.14` |
 | 322 | 2026-05-06 | 收口 Rust 测试格式化残留改动 | `181a5c9b` | `feature/vv-v0.4.14` |

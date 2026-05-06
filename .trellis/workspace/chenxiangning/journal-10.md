@@ -880,3 +880,41 @@ Review 结论：
 ### Next Steps
 
 - None - task complete
+
+
+## Session 325: 本地合并 PR 493 自定义技能目录支持
+
+**Date**: 2026-05-06
+**Task**: 本地合并 PR 493 自定义技能目录支持
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：将 upstream PR #493 本地合并到当前分支 feature/v.0.4.14-2，并按仓库规则处理 merge 冲突与记录流程。
+主要改动：fetch upstream pull/493/head 到本地 pr-493 分支并执行 merge；唯一冲突出现在 .trellis/workspace/watsonk1998/index.md 与 journal-1.md，会话编号发生碰撞，已做语义合并并保留双方记录；PR 业务代码与相关环境文件按上游分支内容并入当前分支。
+涉及模块：src/features/settings；src/features/skills；src/features/composer；src/services/tauri.ts；src-tauri/src/skills.rs；src-tauri/src/shared/settings_core.rs；src-tauri/src/types.rs；src-tauri/src/bin/cc_gui_daemon.rs；.trellis/workspace/watsonk1998。
+验证结果：git diff --check 通过；npm run typecheck 通过；npm exec vitest -- run src/features/skills/hooks/useSkills.test.tsx src/features/settings/hooks/useAppSettings.test.ts src/services/tauri.test.ts 共 115 项测试通过。
+后续事项：如需同步远端，再决定是否 push 当前分支；若不希望保留 PR 中带入的 .omx/**、findings.md、progress.md、task_plan.md 等过程文件，需要单独清理并再次确认范围。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f2c284c4e56a247f9365451184a0f3080ffd5558` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
