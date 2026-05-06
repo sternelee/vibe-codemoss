@@ -918,3 +918,62 @@ Review 结论：
 ### Next Steps
 
 - None - task complete
+
+
+## Session 326: 修复自定义技能目录回归
+
+**Date**: 2026-05-06
+**Task**: 修复自定义技能目录回归
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标：对最近合并的自定义技能目录相关改动做功能审核收口，修复启动错误与 review 暴露的断链问题，并完成提交前回归验证。
+
+主要改动：
+- 修复 `SettingsView` 嵌入式 `SkillsSection` 未透传 `appSettings` 与 `onUpdateAppSettings`，消除 `customSkillDirectories` 读取时的启动崩溃。
+- 补齐 custom skill directories 到本地 Tauri 与 `cc_gui_daemon` 的 `external-absolute` allowlist，让读取、预览、写入、目录浏览都能访问自定义技能根目录。
+- 修复 `SkillsSection` 在 `custom` engine 下只识别首个目录的问题，改为支持多根目录加载、虚拟根节点展示与根路径摘要。
+- 新增/更新前端测试，覆盖嵌入式 props 透传和多 custom roots 浏览回归。
+
+涉及模块：
+- `src/features/settings/components/SettingsView.tsx`
+- `src/features/settings/components/SkillsSection.tsx`
+- `src/features/settings/components/SettingsView.test.tsx`
+- `src/features/settings/components/SkillsSection.test.tsx`
+- `src-tauri/src/workspaces/commands.rs`
+- `src-tauri/src/bin/cc_gui_daemon/daemon_state.rs`
+- `src-tauri/src/bin/cc_gui_daemon/file_access.rs`
+- `src-tauri/src/skills.rs`
+
+验证结果：
+- `npm run typecheck` 通过。
+- `npx eslint src/features/settings/components/SettingsView.tsx src/features/settings/components/SkillsSection.tsx src/features/settings/components/SettingsView.test.tsx src/features/settings/components/SkillsSection.test.tsx` 通过。
+- `npx vitest run src/features/settings/components/SettingsView.test.tsx src/features/settings/components/SkillsSection.test.tsx src/features/settings/hooks/useAppSettings.test.ts src/features/skills/hooks/useSkills.test.tsx src/services/tauri.test.ts` 通过，163 项测试全部通过。
+- `cargo test --manifest-path src-tauri/Cargo.toml list_external_absolute_directory_children_returns_sorted_entries` 通过。
+
+后续事项：
+- 建议人工回归设置页 `MCP / Skills -> Skills` 嵌入入口、custom engine 多目录浏览、文件预览/编辑/Reveal 链路。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `daa2f145` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
