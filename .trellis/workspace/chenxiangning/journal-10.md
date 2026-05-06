@@ -1523,3 +1523,56 @@ Review 结论：
 ### Next Steps
 
 - None - task complete
+
+
+## Session 337: 继续清理 runtime 近阈值告警
+
+**Date**: 2026-05-06
+**Task**: 继续清理 runtime 近阈值告警
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标
+- 继续按同模块小批次清理剩余 near-threshold 告警，优先处理 P0 runtime 模块中低风险、可独立抽离的持久化簇。
+
+主要改动
+- 新增 src-tauri/src/runtime/ledger.rs，抽离 PersistedRuntimeLedger 与 write_json_atomically 的 runtime ledger 持久化实现。
+- 调整 src-tauri/src/runtime/mod.rs，引入 ledger 子模块并移除内联持久化代码，保留原有调用点与行为不变。
+- 保留 Windows 原子写替换分支（rename 前 remove_file）与现有错误传播语义，未修改 runtime contract。
+
+涉及模块
+- runtime manager
+- runtime ledger persistence
+- large-file governance near-threshold cleanup
+
+验证结果
+- git diff --check 通过
+- npm run check:large-files:near-threshold --silent: found=11（从 12 降到 11；runtime/mod.rs 已移出告警）
+- cargo test --manifest-path src-tauri/Cargo.toml --no-run 通过
+
+后续事项
+- 剩余高风险项优先是 src-tauri/src/codex/mod.rs、src-tauri/src/backend/app_server.rs、src/app-shell.tsx、src-tauri/src/computer_use/mod.rs，以及测试长文件批次。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6d72f9b912f2ebe258d06f14654ef3d67814c20d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
