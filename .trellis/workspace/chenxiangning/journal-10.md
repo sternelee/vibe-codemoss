@@ -1467,3 +1467,59 @@ Review 结论：
 ### Next Steps
 
 - None - task complete
+
+
+## Session 336: 继续清理 git-history 近阈值告警
+
+**Date**: 2026-05-06
+**Task**: 继续清理 git-history 近阈值告警
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+任务目标
+- 继续按小批次清理 large-file near-threshold 历史告警，先完成 git-history 前端热路径这一批。
+
+主要改动
+- 新增 src/features/git-history/components/git-history-panel/hooks/useGitHistoryPanelBranchContextMenu.tsx，抽离 branch context menu 的 action 组装、update/fetch 分支更新、键盘导航与菜单定位逻辑。
+- 新增 src/features/git-history/components/git-history-panel/components/GitHistoryPanelTypes.ts，收口 GitHistoryPanel 的 feature-local 类型定义。
+- 调整 src/features/git-history/components/git-history-panel/hooks/useGitHistoryPanelInteractions.tsx，删除内联 branch context menu 大段逻辑，改为调用新子 hook。
+- 调整 src/features/git-history/components/git-history-panel/components/GitHistoryPanelImpl.tsx，移除顶部重复类型定义并压缩到 near-threshold 告警线以下。
+
+涉及模块
+- git-history panel components
+- git-history panel hooks
+- large-file governance near-threshold cleanup
+
+验证结果
+- git diff --check 通过
+- npm run check:large-files:near-threshold --silent: found=12（从 13 降到 12；GitHistoryPanelImpl 和 useGitHistoryPanelInteractions 均已移出告警）
+- npm run typecheck 通过
+- npm run lint 通过
+- npx vitest run src/features/git-history/components/GitHistoryPanel.test.tsx：1 file / 38 tests passed
+
+后续事项
+- 下一批优先处理剩余 bridge/runtime critical Rust 模块或 tests 长文件，保持单批同模块推进。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4a844a440216e1fde2cefa8ab8d0383740b233dd` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
