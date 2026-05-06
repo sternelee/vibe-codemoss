@@ -290,3 +290,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 352: 收紧 Claude 历史 transcript 空白保护边界
+
+**Date**: 2026-05-07
+**Task**: 收紧 Claude 历史 transcript 空白保护边界
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+为 Claude Code 历史恢复增加 transcript-heavy 空白保护，并将 fallback 严格绑定到 historyRestoredAtMs，补齐 OpenSpec change 与 focused tests。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `08552524` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
