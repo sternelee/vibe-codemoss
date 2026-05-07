@@ -951,7 +951,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 6px 12px;
+  padding: 5px 10px;
   border-radius: 9px;
   border: 1px solid var(--border-subtle);
   background: color-mix(in srgb, var(--surface-card) 92%, transparent);
@@ -960,6 +960,13 @@
 .sp-checkpoint-section--summary-line {
   gap: 6px;
   min-height: 0;
+}
+
+.sp-checkpoint-section--next-action {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
 }
 
 .sp-checkpoint-section--hero {
@@ -1122,9 +1129,10 @@
 .sp-checkpoint-evidence-compact {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 6px 16px;
-  padding: 4px 0;
+  align-items: start;
+  gap: 4px 10px;
+  min-height: 38px;
+  padding: 1px 0;
   border-radius: 8px;
   background: transparent;
 }
@@ -1132,14 +1140,15 @@
 .sp-checkpoint-inline-heading {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
-  flex-wrap: wrap;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
 }
 
 .sp-checkpoint-inline-heading > :not(:first-child)::before {
   content: "·";
-  margin-right: 8px;
+  margin-right: 6px;
   color: var(--text-faint);
 }
 
@@ -1184,12 +1193,256 @@
   background: var(--surface-hover);
 }
 
+.sp-checkpoint-commit-dialog-overlay {
+  --sp-commit-accent: var(--accent, #2563eb);
+  --sp-commit-text: var(--text-strong, var(--text-primary, #111827));
+  --sp-commit-text-muted: var(--text-muted, #64748b);
+  --sp-commit-text-faint: color-mix(in srgb, var(--sp-commit-text-muted) 82%, transparent);
+  --sp-commit-surface: var(--surface-popover, var(--surface-panel, var(--surface-card, #ffffff)));
+  --sp-commit-surface-raised: color-mix(
+    in srgb,
+    var(--surface-card, var(--sp-commit-surface)) 88%,
+    var(--surface-control, var(--sp-commit-surface)) 12%
+  );
+  --sp-commit-surface-control: color-mix(
+    in srgb,
+    var(--surface-control, var(--sp-commit-surface)) 82%,
+    var(--sp-commit-surface) 18%
+  );
+  --sp-commit-surface-hover: color-mix(
+    in srgb,
+    var(--surface-control-hover, var(--surface-control, var(--sp-commit-surface))) 72%,
+    var(--sp-commit-surface) 28%
+  );
+  --sp-commit-border: color-mix(in srgb, var(--border-subtle, #cbd5e1) 86%, var(--sp-commit-text) 14%);
+  --sp-commit-border-strong: color-mix(in srgb, var(--border-strong, var(--sp-commit-border)) 82%, var(--sp-commit-text) 18%);
+  --sp-commit-success: color-mix(in srgb, var(--success, #16a34a) 78%, var(--sp-commit-text) 22%);
+  --sp-commit-danger: color-mix(in srgb, var(--danger, var(--status-error, #dc2626)) 82%, var(--sp-commit-text) 18%);
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--surface-app, #020617) 58%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+.sp-checkpoint-commit-dialog {
+  width: min(920px, calc(100vw - 48px));
+  max-height: min(760px, calc(100vh - 48px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--sp-commit-border-strong);
+  border-radius: 16px;
+  background: var(--sp-commit-surface);
+  color: var(--sp-commit-text);
+  box-shadow: 0 24px 80px color-mix(in srgb, var(--sp-commit-text) 24%, transparent);
+}
+
+.sp-checkpoint-commit-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--sp-commit-border);
+}
+
+.sp-checkpoint-commit-dialog-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--sp-commit-text);
+}
+
+.sp-checkpoint-commit-dialog-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 7px;
+  font-size: 11px;
+  color: var(--sp-commit-text-muted);
+}
+
+.sp-checkpoint-commit-dialog-meta code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: min(680px, 68vw);
+  color: var(--sp-commit-text-muted);
+  font-family: var(--code-font-family);
+}
+
+.sp-checkpoint-commit-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  padding: 14px 18px 18px;
+}
+
+.sp-checkpoint-commit-message-section {
+  margin: 0;
+  padding-bottom: 12px;
+  border-bottom-color: var(--sp-commit-border);
+}
+
+.sp-checkpoint-commit-message-section .commit-message-input {
+  color: var(--sp-commit-text);
+  background: var(--sp-commit-surface-control);
+  border-color: var(--sp-commit-border-strong);
+}
+
+.sp-checkpoint-commit-message-section .commit-message-input::placeholder {
+  color: var(--sp-commit-text-faint);
+}
+
+.sp-checkpoint-commit-message-section .commit-message-input:focus {
+  border-color: color-mix(in srgb, var(--sp-commit-accent) 64%, var(--sp-commit-border));
+  color: var(--sp-commit-text);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sp-commit-accent) 18%, transparent);
+}
+
+.sp-checkpoint-commit-message-section .commit-message-generate-button {
+  border-color: var(--sp-commit-border);
+  background: color-mix(in srgb, var(--sp-commit-surface-raised) 92%, var(--sp-commit-accent) 8%);
+  color: color-mix(in srgb, var(--sp-commit-accent) 82%, var(--sp-commit-text) 18%);
+}
+
+.sp-checkpoint-commit-message-section .commit-message-generate-button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--sp-commit-accent) 44%, var(--sp-commit-border));
+  background: color-mix(in srgb, var(--sp-commit-surface-hover) 86%, var(--sp-commit-accent) 14%);
+}
+
+.sp-checkpoint-commit-message-section .commit-message-error {
+  color: var(--sp-commit-danger);
+}
+
+.sp-checkpoint-commit-files {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--sp-commit-border);
+  border-radius: 12px;
+  background: var(--sp-commit-surface-raised);
+}
+
+.sp-checkpoint-commit-files-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--sp-commit-border);
+  color: var(--sp-commit-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.sp-checkpoint-commit-files-header > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sp-checkpoint-commit-files-header strong {
+  color: var(--sp-commit-text);
+  font-size: 13px;
+}
+
+.sp-checkpoint-commit-total-stats,
+.sp-checkpoint-commit-file-stats {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--code-font-family);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.sp-checkpoint-commit-total-stats .is-add,
+.sp-checkpoint-commit-file-stats .is-add {
+  color: var(--sp-commit-success);
+}
+
+.sp-checkpoint-commit-total-stats .is-del,
+.sp-checkpoint-commit-file-stats .is-del {
+  color: var(--sp-commit-danger);
+}
+
+.sp-checkpoint-commit-file-list {
+  overflow: auto;
+  max-height: 390px;
+  padding: 4px;
+}
+
+.sp-checkpoint-commit-file-row {
+  display: grid;
+  grid-template-columns: 24px auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 8px;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.sp-checkpoint-commit-file-row:hover {
+  background: var(--sp-commit-surface-hover);
+}
+
+.sp-checkpoint-commit-file-row input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--sp-commit-accent);
+}
+
+.sp-checkpoint-commit-file-main {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.sp-checkpoint-commit-file-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--sp-commit-text);
+  font-family: var(--code-font-family);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.sp-checkpoint-commit-file-path {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--sp-commit-text-muted);
+  font-family: var(--code-font-family);
+  font-size: 10px;
+}
+
+.sp-checkpoint-commit-file-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 8px;
+  color: var(--sp-commit-success);
+  font-family: var(--code-font-family);
+  font-size: 9px;
+  font-weight: 800;
+}
+
 .sp-checkpoint-evidence-summary-main {
   display: flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
-  padding-top: 1px;
 }
 
 .sp-checkpoint-evidence-summary-badges {
@@ -1198,6 +1451,7 @@
   justify-content: flex-start;
   align-items: center;
   gap: 4px;
+  flex: 0 1 auto;
 }
 
 .sp-checkpoint-evidence-badge {
@@ -1218,7 +1472,7 @@
   flex-direction: column;
   gap: 3px;
   min-width: 0;
-  padding: 5px 7px;
+  padding: 4px 6px;
   border-radius: 8px;
   background: color-mix(in srgb, var(--surface-item) 86%, transparent);
 }
@@ -1267,13 +1521,54 @@
 
 .sp-checkpoint-validation-list-compact {
   display: grid;
-  grid-template-columns: repeat(2, minmax(110px, 1fr));
-  gap: 4px 14px;
+  grid-template-columns: repeat(2, minmax(96px, max-content));
+  justify-content: start;
+  gap: 3px 12px;
 }
 
 .sp-checkpoint-validation-list-compact .sp-checkpoint-validation-item {
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+}
+
+.sp-checkpoint-validation-group-label {
+  font-size: var(--sp-checkpoint-copy-size);
+  line-height: 1.15;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.sp-checkpoint-validation-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sp-checkpoint-validation-group-label {
+  display: inline-flex;
+  align-items: center;
+  min-width: 56px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.sp-checkpoint-validation-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  flex: 0 0 auto;
+  font-size: var(--sp-checkpoint-copy-size);
+  line-height: 1.15;
+  color: var(--text-strong);
+}
+
+.sp-checkpoint-validation-row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  min-width: 0;
 }
 
 .sp-checkpoint-validation-status,
@@ -1328,10 +1623,6 @@
 }
 
 @media (max-width: 720px) {
-  .sp-checkpoint-evidence-compact {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
   .sp-checkpoint-hero-copy {
     align-items: flex-start;
     flex-direction: column;
@@ -1342,14 +1633,16 @@
     justify-content: flex-start;
   }
 
-  .sp-checkpoint-validation-list-compact {
-    grid-template-columns: minmax(0, 1fr);
+  .sp-checkpoint-validation-strip {
+    flex-basis: 100%;
   }
 }
 
 .sp-checkpoint-action-row {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
   gap: 6px;
 }
 
@@ -1375,12 +1668,31 @@
 }
 
 .sp-checkpoint-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: 7px;
   background: transparent;
   color: var(--text-strong);
   font-size: 12px;
-  padding: 5px 9px;
+  line-height: 1.1;
+  padding: 4px 8px;
+}
+
+.sp-checkpoint-action--commit {
+  gap: 5px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-strong);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  box-shadow: none;
+}
+
+.sp-checkpoint-action--commit svg {
+  color: currentColor;
 }
 
 .sp-checkpoint-action:not(:disabled) {
@@ -1391,9 +1703,28 @@
   background: var(--surface-hover);
 }
 
+.sp-checkpoint-action--commit:not(:disabled):hover {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--text-strong) 8%, transparent);
+  color: var(--text-strong);
+}
+
 .sp-checkpoint-action:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+.sp-checkpoint-action--commit:disabled {
+  opacity: 1;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-strong);
+  box-shadow: none;
+}
+
+.sp-checkpoint-action--commit:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent, #2563eb) 58%, transparent);
+  outline-offset: 2px;
 }
 
 .sp-checkpoint-empty-state {

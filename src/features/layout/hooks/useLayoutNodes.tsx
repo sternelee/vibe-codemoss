@@ -2078,6 +2078,8 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       activeThreadId={options.activeThreadId}
       activeTurnId={options.activeTurnId ?? null}
       workspaceGitFiles={options.gitStatus.files}
+      workspaceGitStagedFiles={options.gitStatus.stagedFiles}
+      workspaceGitUnstagedFiles={options.gitStatus.unstagedFiles}
       workspaceGitTotals={{
         additions: options.gitStatus.totalAdditions,
         deletions: options.gitStatus.totalDeletions,
@@ -2093,6 +2095,14 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       variant="dock"
       visibleDockTabs={bottomActivityVisibleTabs}
       onRefreshGitStatus={options.queueGitStatusRefresh}
+      commitMessage={options.commitMessage}
+      commitMessageLoading={options.commitMessageLoading}
+      commitMessageError={options.commitMessageError}
+      onCommitMessageChange={options.onCommitMessageChange}
+      onGenerateCommitMessage={options.onGenerateCommitMessage}
+      onCommit={options.onCommit}
+      commitLoading={options.commitLoading}
+      commitError={options.commitError}
     />
   ) : null;
 

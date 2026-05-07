@@ -257,7 +257,7 @@ describe("buildCheckpointViewModel", () => {
     expect(resolveCheckpointGeneratedSummary(items)).toBeNull();
   });
 
-  it("rejects optimistic generated summary copy when verdict still needs review", () => {
+  it("rejects optimistic generated summary copy while evidence is still unsettled", () => {
     const result = buildCheckpointViewModel({
       todos: [],
       subagents: [],
@@ -294,7 +294,7 @@ describe("buildCheckpointViewModel", () => {
     expect(result.nextActions.map((entry) => entry.type)).toEqual(["review_diff"]);
   });
 
-  it("uses blocked command summary copy for command-level failures", () => {
+  it("downgrades custom command failures to needs_review instead of blocked", () => {
     const result = buildCheckpointViewModel({
       todos: [],
       subagents: [],
@@ -303,10 +303,9 @@ describe("buildCheckpointViewModel", () => {
       isProcessing: false,
     });
 
-    expect(result.verdict).toBe("blocked");
+    expect(result.verdict).toBe("needs_review");
     expect(result.summary).toEqual({
-      key: "statusPanel.checkpoint.summary.blockedCommand",
-      params: { command: 'sed -n "1,220p" missing-file.ts' },
+      key: "statusPanel.checkpoint.summary.manual",
     });
   });
 
@@ -321,5 +320,115 @@ describe("buildCheckpointViewModel", () => {
 
     expect(result.verdict).toBe("needs_review");
     expect(result.nextActions.map((entry) => entry.type)).toEqual(["review_diff"]);
+  });
+
+  it("allows running verdict to use generated summary", () => {
+    const result = buildCheckpointViewModel({
+      todos: [],
+      subagents: [],
+      fileChanges: baseFileChanges,
+      commands: [createCommand("cmd-1", "npm run test", "running")],
+      isProcessing: true,
+      generatedSummary: {
+        text: "Running tests and typecheck, about halfway done.",
+        sourceId: "assistant-3",
+      },
+    });
+
+    expect(result.verdict).toBe("running");
+    expect(result.summary).toEqual({
+      text: "Running tests and typecheck, about halfway done.",
+    });
+  });
+
+  it("resolves summary from assistant message with ## Summary heading", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "u1",
+        kind: "message",
+        role: "user",
+        text: "Run the tests",
+      },
+      {
+        id: "assistant-summary",
+        kind: "message",
+        role: "assistant",
+        text: "## Summary\n\nAll tests pass and the build succeeded.",
+      },
+    ];
+
+    const summary = resolveCheckpointGeneratedSummary(items);
+
+    expect(summary).toEqual({
+      text: "All tests pass and the build succeeded.",
+      sourceId: "assistant-summary",
+    });
+  });
+
+  it("prefers canonicalFileFacts over raw fileChanges when provided", () => {
+    const canonicalFacts: FileChangeSummary[] = [
+      {
+        filePath: "src/overridden.ts",
+        fileName: "overridden.ts",
+        status: "M",
+        additions: 20,
+        deletions: 5,
+      },
+    ];
+
+    const result = buildCheckpointViewModel({
+      todos: [],
+      subagents: [],
+      fileChanges: baseFileChanges,
+      commands: [],
+      isProcessing: false,
+      canonicalFileFacts: canonicalFacts,
+    });
+
+    expect(result.evidence.changedFiles).toBe(1);
+    expect(result.evidence.additions).toBe(20);
+    expect(result.evidence.deletions).toBe(5);
+    expect(result.keyChanges[0]?.summary).toMatchObject({
+      key: "statusPanel.checkpoint.keyChanges.filesSummary",
+      params: { count: 1, additions: 20, deletions: 5 },
+    });
+  });
+
+  it("falls back to raw fileChanges when canonicalFileFacts is absent", () => {
+    const result = buildCheckpointViewModel({
+      todos: [],
+      subagents: [],
+      fileChanges: baseFileChanges,
+      commands: [],
+      isProcessing: false,
+    });
+
+    expect(result.evidence.changedFiles).toBe(1);
+    expect(result.evidence.additions).toBe(8);
+    expect(result.evidence.deletions).toBe(2);
+  });
+
+  it("keeps required-validation command failure as blocked", () => {
+    const result = buildCheckpointViewModel({
+      todos: [],
+      subagents: [],
+      fileChanges: baseFileChanges,
+      commands: [createCommand("cmd-1", "npm run test", "error")],
+      isProcessing: false,
+    });
+
+    expect(result.verdict).toBe("blocked");
+  });
+
+  it("downgrades optional-validation command failure to not blocked", () => {
+    const result = buildCheckpointViewModel({
+      todos: [],
+      subagents: [],
+      fileChanges: baseFileChanges,
+      commands: [createCommand("cmd-1", "npm run build", "error")],
+      isProcessing: false,
+    });
+
+    expect(result.verdict).not.toBe("blocked");
   });
 });

@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import CircleAlert from "lucide-react/dist/esm/icons/circle-alert";
@@ -6,10 +6,12 @@ import X from "lucide-react/dist/esm/icons/x";
 import Loader2 from "lucide-react/dist/esm/icons/loader-2";
 import ShieldCheck from "lucide-react/dist/esm/icons/shield-check";
 import TriangleAlert from "lucide-react/dist/esm/icons/triangle-alert";
+import GitCommitHorizontal from "lucide-react/dist/esm/icons/git-commit-horizontal";
 import type { TFunction } from "i18next";
 import { WorkspaceEditableDiffReviewSurface } from "../../git/components/WorkspaceEditableDiffReviewSurface";
 import { FileIcon } from "../../messages/components/toolBlocks/FileIcon";
 import { resolveWorkspaceRelativePath } from "../../../utils/workspacePaths";
+import type { GitFileStatus } from "../../../types";
 import type {
   CheckpointAction,
   CheckpointMessageToken,
@@ -18,6 +20,7 @@ import type {
   FileChangeSummary,
 } from "../types";
 import { resolveCheckpointValidationProfile } from "../utils/checkpoint";
+import { CheckpointCommitDialog } from "./CheckpointCommitDialog";
 import { FileChangesList } from "./FileChangesList";
 
 interface CheckpointPanelProps {
@@ -32,6 +35,21 @@ interface CheckpointPanelProps {
   workspaceId?: string | null;
   workspacePath?: string | null;
   onRefreshGitStatus?: (() => void) | null;
+  commitMessage?: string;
+  commitMessageLoading?: boolean;
+  commitMessageError?: string | null;
+  onCommitMessageChange?: (value: string) => void;
+  onGenerateCommitMessage?: (
+    language?: "zh" | "en",
+    engine?: "codex" | "claude" | "gemini" | "opencode",
+    selectedPaths?: string[],
+  ) => void | Promise<void>;
+  onCommit?: (selectedPaths?: string[]) => void | Promise<void>;
+  commitLoading?: boolean;
+  commitError?: string | null;
+  stagedFiles?: GitFileStatus[];
+  unstagedFiles?: GitFileStatus[];
+  onExpandToDock?: () => void;
 }
 
 const VERDICT_ICON = {
@@ -53,6 +71,17 @@ export const CheckpointPanel = memo(function CheckpointPanel({
   workspaceId = null,
   workspacePath = null,
   onRefreshGitStatus = null,
+  commitMessage = "",
+  commitMessageLoading = false,
+  commitMessageError = null,
+  onCommitMessageChange,
+  onGenerateCommitMessage,
+  onCommit,
+  commitLoading = false,
+  commitError = null,
+  stagedFiles = [],
+  unstagedFiles = [],
+  onExpandToDock,
 }: CheckpointPanelProps) {
   const { t } = useTranslation();
   const [isDiffModalMaximized, setIsDiffModalMaximized] = useState(false);
@@ -60,6 +89,8 @@ export const CheckpointPanel = memo(function CheckpointPanel({
   const [diffStyle, setDiffStyle] = useState<"split" | "unified">("split");
   const [selectedDiffPath, setSelectedDiffPath] = useState<string | null>(null);
   const [isNoticeDismissed, setIsNoticeDismissed] = useState(false);
+  const [isCommitDialogOpen, setIsCommitDialogOpen] = useState(false);
+  const wasCommitLoadingRef = useRef(false);
   const VerdictIcon = VERDICT_ICON[checkpoint.verdict];
   const displayFiles = fileChanges;
   const primaryDiffPath =
@@ -98,6 +129,15 @@ export const CheckpointPanel = memo(function CheckpointPanel({
   const hasMissingValidationWithoutCommand = visibleValidations.some(
     (entry) => entry.status === "not_run" && !validationProfile.commands[entry.kind],
   );
+  const groupedValidations = useMemo(() => {
+    const required = visibleValidations.filter((entry) =>
+      validationProfile.requiredKinds.includes(entry.kind),
+    );
+    const optional = visibleValidations.filter(
+      (entry) => !validationProfile.requiredKinds.includes(entry.kind),
+    );
+    return { required, optional };
+  }, [visibleValidations, validationProfile]);
   const nextActionHintKey = resolveNextActionHintKey(
     checkpoint.verdict,
     missingValidationCommands.length > 0 || hasMissingValidationWithoutCommand,
@@ -139,8 +179,16 @@ export const CheckpointPanel = memo(function CheckpointPanel({
   const activeDiffGitPath = activeDiffFile
     ? resolveWorkspaceRelativePath(workspacePath, activeDiffFile.filePath)
     : null;
-  const visibleNextActions = checkpoint.nextActions.filter(
-    (action) => action.type !== "review_diff",
+  const hasCommittableGitChanges =
+    stagedFiles.length > 0 || unstagedFiles.length > 0 || fileChanges.length > 0;
+  const visibleNextActions = useMemo(
+    () =>
+      buildVisibleNextActions({
+        actions: checkpoint.nextActions,
+        hasCommittableGitChanges,
+        hasCommitHandler: Boolean(onCommit),
+      }),
+    [checkpoint.nextActions, hasCommittableGitChanges, onCommit],
   );
   const blockedNotice: CheckpointMessageToken | null =
     checkpoint.verdict === "blocked" ? checkpoint.summary : null;
@@ -154,6 +202,17 @@ export const CheckpointPanel = memo(function CheckpointPanel({
   useEffect(() => {
     setIsNoticeDismissed(false);
   }, [blockedNotice, checkpoint.verdict]);
+
+  useEffect(() => {
+    if (!isCommitDialogOpen) {
+      wasCommitLoadingRef.current = commitLoading;
+      return;
+    }
+    if (wasCommitLoadingRef.current && !commitLoading && !commitError) {
+      setIsCommitDialogOpen(false);
+    }
+    wasCommitLoadingRef.current = commitLoading;
+  }, [commitError, commitLoading, isCommitDialogOpen]);
 
   const handleReviewDiff = () => {
     if (!primaryDiffPath) {
@@ -214,23 +273,43 @@ export const CheckpointPanel = memo(function CheckpointPanel({
         <div className="sp-checkpoint-evidence-compact">
           <div className="sp-checkpoint-inline-heading">
             <span className="sp-checkpoint-section-title">{t("statusPanel.checkpoint.evidenceTitle")}</span>
-            <span className="sp-checkpoint-metric-label">
-              {t("statusPanel.checkpoint.evidence.validations")}
-            </span>
           </div>
-          <article className="sp-checkpoint-metric-card sp-checkpoint-metric-card-compact">
-            <ul className="sp-checkpoint-validation-list sp-checkpoint-validation-list-compact">
-              {visibleValidations.map((entry) => (
-                <li key={entry.kind} className="sp-checkpoint-validation-item">
-                  <span>{t(`statusPanel.checkpoint.validations.${entry.kind}`)}</span>
-                  <span className={`sp-checkpoint-validation-status is-${entry.status}`}>
-                    {t(`statusPanel.checkpoint.validations.status.${entry.status}`)}
+          <div
+            className="sp-checkpoint-validation-strip"
+            role="list"
+            aria-label={t("statusPanel.checkpoint.evidence.validations")}
+          >
+            {groupedValidations.required.length > 0 ? (
+              <div className="sp-checkpoint-validation-row">
+                <span className="sp-checkpoint-validation-group-label">
+                  {t("statusPanel.checkpoint.evidence.requiredValidations")}
+                </span>
+                {groupedValidations.required.map((entry) => (
+                  <span key={entry.kind} className="sp-checkpoint-validation-chip" role="listitem">
+                    <span>{t(`statusPanel.checkpoint.validations.${entry.kind}`)}</span>
+                    <span className={`sp-checkpoint-validation-status is-${entry.status}`}>
+                      {t(`statusPanel.checkpoint.validations.status.${entry.status}`)}
+                    </span>
                   </span>
-                </li>
-              ))}
-            </ul>
-          </article>
-
+                ))}
+              </div>
+            ) : null}
+            {groupedValidations.optional.length > 0 ? (
+              <div className="sp-checkpoint-validation-row">
+                <span className="sp-checkpoint-validation-group-label">
+                  {t("statusPanel.checkpoint.evidence.optionalValidations")}
+                </span>
+                {groupedValidations.optional.map((entry) => (
+                  <span key={entry.kind} className="sp-checkpoint-validation-chip" role="listitem">
+                    <span>{t(`statusPanel.checkpoint.validations.${entry.kind}`)}</span>
+                    <span className={`sp-checkpoint-validation-status is-${entry.status}`}>
+                      {t(`statusPanel.checkpoint.validations.status.${entry.status}`)}
+                    </span>
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
           {(checkpoint.evidence.todos || checkpoint.evidence.subagents) ? (
             <div className="sp-checkpoint-evidence-summary-badges">
               {checkpoint.evidence.todos ? (
@@ -276,58 +355,47 @@ export const CheckpointPanel = memo(function CheckpointPanel({
       </section>
 
       <section className="sp-checkpoint-section">
-        {checkpoint.keyChanges.length > 1 ? (
-          <ul className="sp-checkpoint-key-change-list">
-            {checkpoint.keyChanges.slice(1).map((entry) => (
-              <li key={entry.id} className="sp-checkpoint-key-change-item">
-                <span className="sp-checkpoint-key-change-label">{renderToken(t, entry.label)}</span>
-                <span className="sp-checkpoint-key-change-summary">
-                  {renderToken(t, entry.summary)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : checkpoint.keyChanges.length === 0 ? (
-          <div className="sp-empty">{t("statusPanel.checkpoint.keyChangesEmpty")}</div>
+        {!compact ? (
+          <div className="sp-checkpoint-file-detail">
+            <FileChangesList
+              fileChanges={displayFiles}
+              totalAdditions={totalAdditions}
+              totalDeletions={totalDeletions}
+              onOpenFilePath={onOpenFilePath}
+              onOpenDiffPath={onOpenDiffPath}
+              onOpenTotalDiff={primaryDiffPath ? handleReviewDiff : undefined}
+              onAfterSelect={onAfterSelect}
+            />
+          </div>
         ) : null}
-
-        <div className="sp-checkpoint-file-detail">
-          <FileChangesList
-            fileChanges={displayFiles}
-            totalAdditions={totalAdditions}
-            totalDeletions={totalDeletions}
-            onOpenFilePath={onOpenFilePath}
-            onOpenDiffPath={onOpenDiffPath}
-            onOpenTotalDiff={primaryDiffPath ? handleReviewDiff : undefined}
-            onAfterSelect={onAfterSelect}
-          />
-        </div>
       </section>
 
-      <section className="sp-checkpoint-section sp-checkpoint-section--summary-line">
-        <div className="sp-checkpoint-inline-heading">
-          <span className="sp-checkpoint-section-title">{t("statusPanel.checkpoint.risksTitle")}</span>
-          {translatedRisks.length === 0 ? (
-            <span className="sp-checkpoint-empty-state">
-              {t("statusPanel.checkpoint.risks.none")}
-            </span>
+      {!compact ? (
+        <section className="sp-checkpoint-section sp-checkpoint-section--summary-line">
+          <div className="sp-checkpoint-inline-heading">
+            <span className="sp-checkpoint-section-title">{t("statusPanel.checkpoint.risksTitle")}</span>
+            {translatedRisks.length === 0 ? (
+              <span className="sp-checkpoint-empty-state">
+                {t("statusPanel.checkpoint.risks.none")}
+              </span>
+            ) : null}
+          </div>
+          {translatedRisks.length > 0 ? (
+            <ul className="sp-checkpoint-risk-list">
+              {translatedRisks.map((entry) => (
+                <li key={`${entry.code}:${entry.sourceId ?? "none"}`} className="sp-checkpoint-risk-item">
+                  <span className={`sp-checkpoint-risk-severity is-${entry.severity}`}>
+                    {t(`statusPanel.checkpoint.risks.severity.${entry.severity}`)}
+                  </span>
+                  <span>{entry.translatedMessage}</span>
+                </li>
+              ))}
+            </ul>
           ) : null}
-        </div>
-        {translatedRisks.length > 0 ? (
-          <ul className="sp-checkpoint-risk-list">
-            {translatedRisks.map((entry) => (
-              <li key={`${entry.code}:${entry.sourceId ?? "none"}`} className="sp-checkpoint-risk-item">
-                <span className={`sp-checkpoint-risk-severity is-${entry.severity}`}>
-                  {t(`statusPanel.checkpoint.risks.severity.${entry.severity}`)}
-                </span>
-                <span>{entry.translatedMessage}</span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </section>
+        </section>
+      ) : null}
 
-      <section className="sp-checkpoint-section sp-checkpoint-section--summary-line">
+      <section className="sp-checkpoint-section sp-checkpoint-section--summary-line sp-checkpoint-section--next-action">
         <div className="sp-checkpoint-inline-heading">
           <span className="sp-checkpoint-section-title">{t("statusPanel.checkpoint.nextActionTitle")}</span>
           <span className="sp-checkpoint-action-hint">{t(nextActionHintKey)}</span>
@@ -338,15 +406,64 @@ export const CheckpointPanel = memo(function CheckpointPanel({
               <button
                 key={action.type}
                 type="button"
-                className="sp-checkpoint-action"
-                disabled={!resolveActionEnabled(action, primaryDiffPath)}
+                className={`sp-checkpoint-action${
+                  action.type === "commit" ? " sp-checkpoint-action--commit" : ""
+                }`}
+                disabled={
+                  !resolveActionEnabled(action, {
+                    primaryDiffPath,
+                    hasCommittableGitChanges,
+                    hasCommitHandler: Boolean(onCommit),
+                  })
+                }
+                onClick={
+                  action.type === "commit" && onCommit
+                    ? () => setIsCommitDialogOpen(true)
+                    : action.type === "review_diff"
+                      ? handleReviewDiff
+                      : undefined
+                }
               >
+                {action.type === "commit" ? (
+                  <GitCommitHorizontal size={14} strokeWidth={2.35} aria-hidden />
+                ) : null}
                 {renderToken(t, action.label)}
               </button>
             ))}
           </div>
         ) : null}
       </section>
+      {compact ? (
+        <section className="sp-checkpoint-section sp-checkpoint-section--summary-line">
+          <button
+            type="button"
+            className="sp-checkpoint-action sp-checkpoint-action--expand"
+            onClick={onExpandToDock}
+          >
+            {t("statusPanel.checkpoint.expandToDock")}
+          </button>
+        </section>
+      ) : null}
+      {isCommitDialogOpen && typeof document !== "undefined" ? createPortal(
+        <CheckpointCommitDialog
+          commitError={commitError}
+          commitLoading={commitLoading}
+          commitMessage={commitMessage}
+          commitMessageError={commitMessageError}
+          commitMessageLoading={commitMessageLoading}
+          fileChanges={fileChanges}
+          onClose={() => setIsCommitDialogOpen(false)}
+          onCommit={onCommit}
+          onCommitMessageChange={onCommitMessageChange}
+          onGenerateCommitMessage={onGenerateCommitMessage}
+          stagedFiles={stagedFiles}
+          totalAdditions={totalAdditions}
+          totalDeletions={totalDeletions}
+          unstagedFiles={unstagedFiles}
+          workspacePath={workspacePath}
+        />,
+        document.body,
+      ) : null}
       {selectedDiffPath && activeDiffPath && activeDiffFile && activeDiffGitPath && typeof document !== "undefined"
         ? createPortal(
             <div
@@ -500,15 +617,48 @@ export const CheckpointPanel = memo(function CheckpointPanel({
 
 function resolveActionEnabled(
   action: CheckpointAction,
-  primaryDiffPath: string | null,
+  context: {
+    primaryDiffPath: string | null;
+    hasCommittableGitChanges: boolean;
+    hasCommitHandler: boolean;
+  },
 ) {
+  if (action.type === "commit") {
+    return context.hasCommitHandler && context.hasCommittableGitChanges;
+  }
   if (!action.enabled) {
     return false;
   }
   if (action.type === "review_diff") {
-    return Boolean(primaryDiffPath);
+    return Boolean(context.primaryDiffPath);
   }
   return action.enabled;
+}
+
+function buildVisibleNextActions(input: {
+  actions: CheckpointAction[];
+  hasCommittableGitChanges: boolean;
+  hasCommitHandler: boolean;
+}): CheckpointAction[] {
+  const withoutUnavailableCommit = input.actions.filter((action) => {
+    if (action.type !== "commit") {
+      return true;
+    }
+    return input.hasCommitHandler && input.hasCommittableGitChanges;
+  });
+
+  const hasCommitAction = withoutUnavailableCommit.some((action) => action.type === "commit");
+  if (!hasCommitAction && input.hasCommitHandler && input.hasCommittableGitChanges) {
+    return [
+      ...withoutUnavailableCommit,
+      {
+        type: "commit",
+        label: { key: "statusPanel.checkpoint.actions.commit" },
+        enabled: true,
+      },
+    ];
+  }
+  return withoutUnavailableCommit;
 }
 
 function resolveNextActionHintKey(

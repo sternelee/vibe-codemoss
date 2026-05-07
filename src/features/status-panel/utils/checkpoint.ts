@@ -18,7 +18,7 @@ const DISPLAY_VALIDATION_KINDS = ["lint", "typecheck", "tests", "build"] as cons
 const CHECKPOINT_ACTION_LIMIT = 3;
 const CHECKPOINT_SUMMARY_MAX_LENGTH = 180;
 const POSITIVE_SUMMARY_HINT =
-  /\b(all checks passed|checks passed|passed|verified|ready|done|completed|success|safe to commit)\b|通过|已验证|验证通过|可提交|准备好|已完成/i;
+  /\b(all checks passed|checks passed|verified|ready to commit|safe to commit|successfully verified)\b|全部通过|已验证|验证通过|可提交|准备好提交/i;
 
 type CheckpointValidationProjectKind =
   | "javascript"
@@ -119,6 +119,7 @@ type BuildCheckpointViewModelInput = {
   commands: CommandSummary[];
   isProcessing: boolean;
   generatedSummary?: CheckpointGeneratedSummary | null;
+  canonicalFileFacts?: FileChangeSummary[] | null;
 };
 
 export interface CheckpointGeneratedSummary {
@@ -130,13 +131,15 @@ export function buildCheckpointViewModel(
   input: BuildCheckpointViewModelInput,
 ): CheckpointViewModel {
   const {
+    canonicalFileFacts = null,
     commands,
-    fileChanges,
+    fileChanges: rawFileChanges,
     generatedSummary = null,
     isProcessing,
     subagents,
     todos,
   } = input;
+  const fileChanges = canonicalFileFacts ?? rawFileChanges;
 
   const totalAdditions = fileChanges.reduce((total, item) => total + item.additions, 0);
   const totalDeletions = fileChanges.reduce((total, item) => total + item.deletions, 0);
@@ -185,8 +188,12 @@ export function buildCheckpointViewModel(
     hasMissingCoreValidation,
   });
 
+  const failedCommandKind = failedCommand
+    ? classifyValidationKind(failedCommand.command)
+    : null;
   const verdict = resolveVerdict({
     failedCommand,
+    failedCommandKind,
     failedSubagent,
     failedValidation,
     fileChanges,
@@ -199,6 +206,7 @@ export function buildCheckpointViewModel(
     hasSuccessfulCommand,
     hasInProgressTodo,
     isProcessing,
+    requiredKinds: validationProfile.requiredKinds,
   });
 
   const headline = buildHeadline(verdict, hasEvidence);
@@ -281,6 +289,8 @@ export function buildCheckpointViewModel(
   };
 }
 
+const SUMMARY_HEADING_PATTERN = /^##\s*(Summary|总结|摘要)\s*$/im;
+
 export function resolveCheckpointGeneratedSummary(
   items: ConversationItem[],
 ): CheckpointGeneratedSummary | null {
@@ -297,6 +307,33 @@ export function resolveCheckpointGeneratedSummary(
           text,
           sourceId: item.id,
         };
+      }
+    }
+  }
+
+  for (let index = items.length - 1; index >= 0; index -= 1) {
+    const item = items[index];
+    if (!item) {
+      continue;
+    }
+
+    if (
+      item.kind === "message" &&
+      item.role === "assistant"
+    ) {
+      const match = SUMMARY_HEADING_PATTERN.exec(item.text);
+      if (match) {
+        const afterHeading = item.text.slice(
+          match.index + match[0].length,
+        );
+        const paragraph = afterHeading.split(/\n\n|$/)[0];
+        const text = normalizeGeneratedSummaryText(paragraph);
+        if (text) {
+          return {
+            text,
+            sourceId: item.id,
+          };
+        }
       }
     }
   }
@@ -516,6 +553,7 @@ function buildRisks(input: {
 
 function resolveVerdict(input: {
   failedCommand: CommandSummary | null;
+  failedCommandKind: CheckpointValidationKind | null;
   failedSubagent: SubagentInfo | null;
   failedValidation: CheckpointValidationEvidence | null;
   fileChanges: FileChangeSummary[];
@@ -528,8 +566,23 @@ function resolveVerdict(input: {
   hasSuccessfulCommand: boolean;
   hasInProgressTodo: boolean;
   isProcessing: boolean;
+  requiredKinds: readonly CheckpointValidationKind[];
 }): CheckpointViewModel["verdict"] {
-  if (input.failedValidation || input.failedCommand || input.failedSubagent) {
+  if (input.failedSubagent) {
+    return "blocked";
+  }
+  if (
+    input.failedValidation &&
+    input.requiredKinds.includes(input.failedValidation.kind)
+  ) {
+    return "blocked";
+  }
+  if (
+    input.failedCommand &&
+    input.failedCommandKind &&
+    input.failedCommandKind !== "custom" &&
+    input.requiredKinds.includes(input.failedCommandKind)
+  ) {
     return "blocked";
   }
 
@@ -672,16 +725,23 @@ function shouldUseGeneratedSummary(
   if (!generatedSummary) {
     return false;
   }
-  if (verdict === "running" || verdict === "blocked") {
+  if (verdict === "blocked") {
     return false;
   }
   if (risks.some((entry) => entry.severity === "high")) {
     return false;
   }
-  if (verdict !== "ready" && POSITIVE_SUMMARY_HINT.test(generatedSummary.text)) {
+  if (hasUnsettledEvidence(verdict, risks) && POSITIVE_SUMMARY_HINT.test(generatedSummary.text)) {
     return false;
   }
   return true;
+}
+
+function hasUnsettledEvidence(
+  verdict: CheckpointViewModel["verdict"],
+  risks: CheckpointRisk[],
+) {
+  return verdict !== "ready" || risks.some((entry) => entry.severity !== "low");
 }
 
 function buildKeyChanges(input: {

@@ -42,6 +42,8 @@ interface StatusPanelProps {
   activeThreadId?: string | null;
   activeTurnId?: string | null;
   workspaceGitFiles?: GitFileStatus[];
+  workspaceGitStagedFiles?: GitFileStatus[];
+  workspaceGitUnstagedFiles?: GitFileStatus[];
   workspaceGitTotals?: {
     additions: number;
     deletions: number;
@@ -61,6 +63,18 @@ interface StatusPanelProps {
   variant?: "popover" | "dock";
   visibleDockTabs?: Partial<Record<TabType, boolean>>;
   onRefreshGitStatus?: (() => void) | null;
+  commitMessage?: string;
+  commitMessageLoading?: boolean;
+  commitMessageError?: string | null;
+  onCommitMessageChange?: (value: string) => void;
+  onGenerateCommitMessage?: (
+    language?: "zh" | "en",
+    engine?: "codex" | "claude" | "gemini" | "opencode",
+    selectedPaths?: string[],
+  ) => void | Promise<void>;
+  onCommit?: (selectedPaths?: string[]) => void | Promise<void>;
+  commitLoading?: boolean;
+  commitError?: string | null;
 }
 
 type StatusPanelTabDefinition = {
@@ -140,6 +154,8 @@ export const StatusPanel = memo(function StatusPanel({
   activeThreadId = null,
   activeTurnId = null,
   workspaceGitFiles,
+  workspaceGitStagedFiles = [],
+  workspaceGitUnstagedFiles = [],
   workspaceGitTotals = null,
   workspaceGitDiffs = [],
   itemsByThread,
@@ -152,6 +168,14 @@ export const StatusPanel = memo(function StatusPanel({
   variant = "popover",
   visibleDockTabs,
   onRefreshGitStatus = null,
+  commitMessage = "",
+  commitMessageLoading = false,
+  commitMessageError = null,
+  onCommitMessageChange,
+  onGenerateCommitMessage,
+  onCommit,
+  commitLoading = false,
+  commitError = null,
 }: StatusPanelProps) {
   const { t } = useTranslation();
   const deferredItems = useDeferredValue(items);
@@ -214,27 +238,6 @@ export const StatusPanel = memo(function StatusPanel({
       }),
     [effectiveItems, isCodexEngine],
   );
-  const checkpoint = useMemo(
-    () =>
-      buildCheckpointViewModel({
-        todos: isCodexEngine ? codexTaskItems : todos,
-        subagents,
-        fileChanges,
-        commands,
-        isProcessing,
-        generatedSummary: resolveCheckpointGeneratedSummary(effectiveItems),
-      }),
-    [
-      commands,
-      codexTaskItems,
-      effectiveItems,
-      fileChanges,
-      isCodexEngine,
-      isProcessing,
-      subagents,
-      todos,
-    ],
-  );
   const workspaceFileChanges = useMemo<FileChangeSummary[]>(
     () => {
       const diffByPath = new Map(
@@ -253,6 +256,31 @@ export const StatusPanel = memo(function StatusPanel({
       }));
     },
     [workspaceGitDiffs, workspaceGitFiles],
+  );
+  const canonicalCheckpointFileFacts =
+    workspaceGitFiles !== undefined ? workspaceFileChanges : null;
+  const checkpoint = useMemo(
+    () =>
+      buildCheckpointViewModel({
+        todos: isCodexEngine ? codexTaskItems : todos,
+        subagents,
+        fileChanges,
+        commands,
+        isProcessing,
+        generatedSummary: resolveCheckpointGeneratedSummary(effectiveItems),
+        canonicalFileFacts: canonicalCheckpointFileFacts,
+      }),
+    [
+      canonicalCheckpointFileFacts,
+      commands,
+      codexTaskItems,
+      effectiveItems,
+      fileChanges,
+      isCodexEngine,
+      isProcessing,
+      subagents,
+      todos,
+    ],
   );
   const displayedFileChanges =
     workspaceGitFiles !== undefined ? workspaceFileChanges : fileChanges;
@@ -497,6 +525,16 @@ export const StatusPanel = memo(function StatusPanel({
           workspaceId={workspaceId}
           workspacePath={workspacePath}
           onRefreshGitStatus={onRefreshGitStatus}
+          commitMessage={commitMessage}
+          commitMessageLoading={commitMessageLoading}
+          commitMessageError={commitMessageError}
+          onCommitMessageChange={onCommitMessageChange}
+          onGenerateCommitMessage={onGenerateCommitMessage}
+          onCommit={onCommit}
+          commitLoading={commitLoading}
+          commitError={commitError}
+          stagedFiles={workspaceGitStagedFiles}
+          unstagedFiles={workspaceGitUnstagedFiles}
           onAfterSelect={() => {
             if (variant !== "dock") {
               setOpenTab(null);

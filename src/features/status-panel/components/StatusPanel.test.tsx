@@ -179,7 +179,7 @@ describe("StatusPanel", () => {
     mockEditableDiffReviewSurface.mockClear();
   });
 
-  it("opens editor when clicking file in edits popover and closes popover", () => {
+  it("opens editor when clicking file in checkpoint result panel", () => {
     const onOpenDiffPath = vi.fn();
     const onOpenFilePath = vi.fn();
     render(
@@ -188,6 +188,7 @@ describe("StatusPanel", () => {
         isProcessing={false}
         onOpenDiffPath={onOpenDiffPath}
         onOpenFilePath={onOpenFilePath}
+        variant="dock"
       />,
     );
 
@@ -196,7 +197,6 @@ describe("StatusPanel", () => {
 
     expect(onOpenFilePath).toHaveBeenCalledWith("README.md");
     expect(onOpenDiffPath).not.toHaveBeenCalled();
-    expect(screen.queryByText("docs/EXECUTION_PLAN.md")).toBeNull();
   });
 
   it("prefers current workspace git file changes over historical tool file changes", () => {
@@ -204,6 +204,7 @@ describe("StatusPanel", () => {
       <StatusPanel
         items={[editToolItem]}
         isProcessing={false}
+        variant="dock"
         workspaceGitFiles={[
           { path: "src/WorkspaceOnly.tsx", status: "M", additions: 3, deletions: 1 },
         ]}
@@ -226,6 +227,7 @@ describe("StatusPanel", () => {
       <StatusPanel
         items={[editToolItem]}
         isProcessing={false}
+        variant="dock"
         workspaceGitFiles={[
           { path: "src/WorkspaceOnly.tsx", status: "M", additions: 3, deletions: 1 },
         ]}
@@ -243,6 +245,7 @@ describe("StatusPanel", () => {
       <StatusPanel
         items={[editToolItem]}
         isProcessing={false}
+        variant="dock"
         workspaceGitFiles={[]}
         workspaceGitTotals={{ additions: 0, deletions: 0 }}
         workspaceGitDiffs={[]}
@@ -259,6 +262,7 @@ describe("StatusPanel", () => {
       <StatusPanel
         items={[editToolItem]}
         isProcessing={false}
+        variant="dock"
         workspaceId="ws-git"
         workspaceGitFiles={[
           { path: "src/WorkspaceOnly.tsx", status: "M", additions: 3, deletions: 1 },
@@ -352,7 +356,160 @@ describe("StatusPanel", () => {
     expect(screen.getByText("statusPanel.checkpoint.summary.runningValidation")).toBeTruthy();
   });
 
-  it("renders blocked notices in a dismissible strip below the hero row", () => {
+  it("opens commit dialog from ready checkpoint and commits selected files", () => {
+    const onCommit = vi.fn();
+    const onCommitMessageChange = vi.fn();
+    render(
+      <StatusPanel
+        items={[
+          editToolItem,
+          {
+            id: "tool-lint-pass",
+            kind: "tool",
+            toolType: "commandExecution",
+            title: "Tool: Bash",
+            detail: "npm run lint",
+            status: "completed",
+          },
+          {
+            id: "tool-typecheck-pass",
+            kind: "tool",
+            toolType: "commandExecution",
+            title: "Tool: Bash",
+            detail: "npm run typecheck",
+            status: "completed",
+          },
+          {
+            id: "tool-test-pass",
+            kind: "tool",
+            toolType: "commandExecution",
+            title: "Tool: Bash",
+            detail: "npm run test",
+            status: "completed",
+          },
+        ]}
+        isProcessing={false}
+        variant="dock"
+        workspacePath="/tmp/workspace"
+        workspaceGitFiles={[
+          { path: "README.md", status: "M", additions: 2, deletions: 1 },
+          { path: "src/App.tsx", status: "M", additions: 5, deletions: 0 },
+        ]}
+        workspaceGitStagedFiles={[{ path: "README.md", status: "M", additions: 2, deletions: 1 }]}
+        workspaceGitUnstagedFiles={[{ path: "src/App.tsx", status: "M", additions: 5, deletions: 0 }]}
+        workspaceGitTotals={{ additions: 7, deletions: 1 }}
+        commitMessage="feat: ready commit"
+        onCommit={onCommit}
+        onCommitMessageChange={onCommitMessageChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Result"));
+    fireEvent.click(screen.getByText("statusPanel.checkpoint.actions.commit"));
+
+    expect(screen.getByRole("dialog", { name: "statusPanel.checkpoint.commitDialog.title" })).toBeTruthy();
+    expect(screen.getByText("/tmp/workspace")).toBeTruthy();
+    expect(screen.getByDisplayValue("feat: ready commit")).toBeTruthy();
+    fireEvent.change(screen.getByDisplayValue("feat: ready commit"), {
+      target: { value: "feat: updated commit" },
+    });
+    expect(onCommitMessageChange).toHaveBeenCalledWith("feat: updated commit");
+    fireEvent.click(screen.getAllByRole("checkbox", { name: "git.commitSelectionToggleFile" })[1]);
+    fireEvent.click(screen.getByRole("button", { name: "git.commit" }));
+
+    expect(onCommit).toHaveBeenCalledWith(["README.md", "src/App.tsx"]);
+  });
+
+  it("generates commit message from selected checkpoint commit files", () => {
+    const onGenerateCommitMessage = vi.fn();
+    render(
+      <StatusPanel
+        items={[
+          editToolItem,
+          {
+            id: "tool-lint-pass",
+            kind: "tool",
+            toolType: "commandExecution",
+            title: "Tool: Bash",
+            detail: "npm run lint",
+            status: "completed",
+          },
+          {
+            id: "tool-typecheck-pass",
+            kind: "tool",
+            toolType: "commandExecution",
+            title: "Tool: Bash",
+            detail: "npm run typecheck",
+            status: "completed",
+          },
+          {
+            id: "tool-test-pass",
+            kind: "tool",
+            toolType: "commandExecution",
+            title: "Tool: Bash",
+            detail: "npm run test",
+            status: "completed",
+          },
+        ]}
+        isProcessing={false}
+        variant="dock"
+        workspaceGitFiles={[{ path: "README.md", status: "M", additions: 2, deletions: 1 }]}
+        workspaceGitStagedFiles={[{ path: "README.md", status: "M", additions: 2, deletions: 1 }]}
+        workspaceGitUnstagedFiles={[]}
+        workspaceGitTotals={{ additions: 2, deletions: 1 }}
+        onCommit={vi.fn()}
+        onGenerateCommitMessage={onGenerateCommitMessage}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Result"));
+    fireEvent.click(screen.getByText("statusPanel.checkpoint.actions.commit"));
+    fireEvent.click(screen.getByRole("button", { name: "git.generateCommitMessage" }));
+
+    expect(onGenerateCommitMessage).toHaveBeenCalledWith("zh", "codex", ["README.md"]);
+  });
+
+  it("keeps review diff visible when commit action is available before checkpoint is ready", () => {
+    const onCommit = vi.fn();
+    render(
+      <StatusPanel
+        items={[
+          editToolItem,
+          {
+            id: "tool-lint-not-run",
+            kind: "tool",
+            toolType: "commandExecution",
+            title: "Tool: Bash",
+            detail: "npm run lint",
+            status: "error",
+          },
+        ]}
+        isProcessing={false}
+        variant="dock"
+        workspacePath="/tmp/workspace"
+        workspaceGitFiles={[{ path: "README.md", status: "M", additions: 2, deletions: 1 }]}
+        workspaceGitStagedFiles={[]}
+        workspaceGitUnstagedFiles={[{ path: "README.md", status: "M", additions: 2, deletions: 1 }]}
+        workspaceGitTotals={{ additions: 2, deletions: 1 }}
+        commitMessage="fix: checkpoint commit"
+        onCommit={onCommit}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Result"));
+
+    const nextActionSection = screen.getByText("statusPanel.checkpoint.nextActionTitle").closest("section");
+    expect(nextActionSection?.textContent).toContain("statusPanel.checkpoint.actions.reviewDiff");
+    const commitAction = screen.getByRole("button", {
+      name: "statusPanel.checkpoint.actions.commit",
+    }) as HTMLButtonElement;
+    expect(commitAction.disabled).toBe(false);
+    fireEvent.click(commitAction);
+
+    expect(screen.getByRole("dialog", { name: "statusPanel.checkpoint.commitDialog.title" })).toBeTruthy();
+  });
+
+  it("downgrades custom command failures to needs_review instead of blocked", () => {
     render(
       <StatusPanel
         items={[
@@ -371,12 +528,8 @@ describe("StatusPanel", () => {
 
     fireEvent.click(screen.getByText("Result"));
 
-    expect(screen.getByText("statusPanel.checkpoint.headline.blocked")).toBeTruthy();
-    const notice = screen.getByRole("status");
-    expect(notice.textContent).toContain("statusPanel.checkpoint.summary.blockedCommand");
-
-    fireEvent.click(screen.getByLabelText("common.close"));
-
+    expect(screen.getByText("statusPanel.checkpoint.headline.needs_review")).toBeTruthy();
+    expect(screen.getByText("statusPanel.checkpoint.summary.manual")).toBeTruthy();
     expect(screen.queryByRole("status")).toBeNull();
   });
 
@@ -433,6 +586,7 @@ describe("StatusPanel", () => {
           },
         ]}
         isProcessing={false}
+        variant="dock"
         workspaceId="ws-row-diff"
         onOpenDiffPath={onOpenDiffPath}
       />,
@@ -445,7 +599,7 @@ describe("StatusPanel", () => {
     expect(mockEditableDiffReviewSurface).not.toHaveBeenCalled();
   });
 
-  it("uses the first file with a real diff for the review diff action", () => {
+  it("uses the first file with a real diff for the file-list review diff action", () => {
     render(
       <StatusPanel
         items={[
@@ -464,11 +618,12 @@ describe("StatusPanel", () => {
         ]}
         isProcessing={false}
         workspaceId="ws-review"
+        variant="dock"
       />,
     );
 
     fireEvent.click(screen.getByText("Result"));
-    fireEvent.click(screen.getByRole("button", { name: "statusPanel.checkpoint.actions.reviewDiff" }));
+    fireEvent.click(screen.getByLabelText("statusPanel.checkpoint.actions.reviewDiff"));
 
     expect(mockEditableDiffReviewSurface.mock.lastCall?.[0]).toMatchObject({
       workspaceId: "ws-review",
@@ -494,6 +649,7 @@ describe("StatusPanel", () => {
           },
         ]}
         isProcessing={false}
+        variant="dock"
       />,
     );
 
@@ -511,6 +667,7 @@ describe("StatusPanel", () => {
   it("does not surface read-only search style file entries in checkpoint file changes", () => {
     render(
       <StatusPanel
+        variant="dock"
         items={[
           {
             id: "tool-search-noise",
@@ -543,6 +700,7 @@ describe("StatusPanel", () => {
   it("does not surface read-only batch-read file entries in checkpoint file changes", () => {
     render(
       <StatusPanel
+        variant="dock"
         items={[
           {
             id: "tool-batch-read-noise",
@@ -641,11 +799,12 @@ describe("StatusPanel", () => {
         ]}
         isProcessing={false}
         workspaceId="ws-1"
+        variant="dock"
       />,
     );
 
     fireEvent.click(screen.getByText("Result"));
-    fireEvent.click(screen.getByRole("button", { name: "statusPanel.checkpoint.actions.reviewDiff" }));
+    fireEvent.click(screen.getByLabelText("statusPanel.checkpoint.actions.reviewDiff"));
 
     expect(screen.getAllByText("One.tsx").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Two.tsx").length).toBeGreaterThan(0);
@@ -689,11 +848,12 @@ describe("StatusPanel", () => {
         isProcessing={false}
         workspaceId="ws-absolute"
         workspacePath="/repo"
+        variant="dock"
       />,
     );
 
     fireEvent.click(screen.getByText("Result"));
-    fireEvent.click(screen.getByRole("button", { name: "statusPanel.checkpoint.actions.reviewDiff" }));
+    fireEvent.click(screen.getByLabelText("statusPanel.checkpoint.actions.reviewDiff"));
 
     await waitFor(() => {
       expect(mockEditableDiffReviewSurface.mock.lastCall?.[0]).toMatchObject({
@@ -731,11 +891,12 @@ describe("StatusPanel", () => {
         ]}
         isProcessing={false}
         workspaceId="ws-2"
+        variant="dock"
       />,
     );
 
     fireEvent.click(screen.getByText("Result"));
-    fireEvent.click(screen.getByRole("button", { name: "statusPanel.checkpoint.actions.reviewDiff" }));
+    fireEvent.click(screen.getByLabelText("statusPanel.checkpoint.actions.reviewDiff"));
 
     const sidebarButtons = Array.from(document.querySelectorAll(".checkpoint-diff-sidebar-item"));
     expect(sidebarButtons).toHaveLength(2);
@@ -761,11 +922,12 @@ describe("StatusPanel", () => {
         ]}
         isProcessing={false}
         onOpenDiffPath={onOpenDiffPath}
+        variant="dock"
       />,
     );
 
     fireEvent.click(screen.getByText("Result"));
-    fireEvent.click(screen.getByRole("button", { name: "statusPanel.checkpoint.actions.reviewDiff" }));
+    fireEvent.click(screen.getByLabelText("statusPanel.checkpoint.actions.reviewDiff"));
 
     await waitFor(() => {
       expect(onOpenDiffPath).toHaveBeenCalledWith("src/NewFile.ts");
@@ -777,6 +939,7 @@ describe("StatusPanel", () => {
       <StatusPanel
         items={[childScopedEditToolItem]}
         isProcessing={false}
+        variant="dock"
         activeThreadId="child"
         itemsByThread={{
           root: [rootScopedEditToolItem],
@@ -798,6 +961,7 @@ describe("StatusPanel", () => {
       <StatusPanel
         items={[multiStatusEditToolItem]}
         isProcessing={false}
+        variant="dock"
       />,
     );
 
@@ -876,10 +1040,10 @@ describe("StatusPanel", () => {
     );
 
     fireEvent.click(screen.getByText("Result"));
-    expect(screen.getByText("README.md")).toBeTruthy();
+    expect(screen.getByText("statusPanel.checkpoint.headline.needs_review")).toBeTruthy();
 
     fireEvent.keyDown(document, { key: "Escape" });
-    expect(screen.queryByText("README.md")).toBeNull();
+    expect(screen.queryByText("statusPanel.checkpoint.headline.needs_review")).toBeNull();
   });
 
   it("does not render when expanded is false", () => {
@@ -912,6 +1076,7 @@ describe("StatusPanel", () => {
         isProcessing={false}
         plan={planSample}
         isPlanMode
+        variant="dock"
       />,
     );
     expect(screen.queryByText("statusPanel.tabTodos")).toBeNull();
@@ -923,7 +1088,7 @@ describe("StatusPanel", () => {
 
     fireEvent.click(screen.getByText("Result"));
     expect(screen.getByText("README.md")).toBeTruthy();
-    fireEvent.click(screen.getByText("Result"));
+    fireEvent.click(screen.getByText("Plan"));
     expect(screen.queryByText("README.md")).toBeNull();
   });
 
