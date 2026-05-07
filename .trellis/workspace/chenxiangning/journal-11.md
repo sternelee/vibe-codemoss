@@ -461,3 +461,46 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 356: 新增会话文件夹管理变更草案
+
+**Date**: 2026-05-07
+**Task**: 新增会话文件夹管理变更草案
+**Branch**: `feature/v.0.4.14-2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+新增 OpenSpec 会话文件夹管理变更草案。
+
+主要内容：
+- 定义 workspace session 文件夹树、catalog projection、global archive center 等行为规范。
+- 补齐 project attribution 与 workspace session management 的 OpenSpec delta。
+- 当前提交为规范草案提交，无运行时代码变更。
+
+验证：
+- git commit 成功。
+- python3 ./.trellis/scripts/get_context.py --mode record 已执行。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `68abef91` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
