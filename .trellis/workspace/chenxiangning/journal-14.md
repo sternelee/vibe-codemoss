@@ -1401,3 +1401,51 @@ Notes:
 ### Next Steps
 
 - None - task complete
+
+
+## Session 509: 迁出 Git History 面板常量和类型
+
+**Date**: 2026-05-20
+**Task**: 迁出 Git History 面板常量和类型
+**Branch**: `feature/v0.5.0-md`
+
+### Summary
+
+将 GitHistoryPanelProps 迁入 GitHistoryPanelTypes，将 PAGE_SIZE 迁为 GIT_HISTORY_PAGE_SIZE；GitHistoryPanelImpl.tsx 从 2408 行降到 2392 行，large-file watch 从 13 降到 12。
+
+### Main Changes
+
+完成 harness 大文件治理下一切片：
+- 将 GitHistoryPanelProps 从 GitHistoryPanelImpl.tsx 迁入 GitHistoryPanelTypes.ts。
+- 将 PAGE_SIZE 迁为 GitHistoryPanelImplHelpers.tsx 的 GIT_HISTORY_PAGE_SIZE。
+- GitHistoryPanelImpl.tsx 从 2408 行降至 2392，低于 feature-hotpath warn>2400 线。
+
+验证：
+- npm run typecheck
+- npx vitest run src/features/git-history/components/GitHistoryPanel.test.tsx src/features/git-history/components/git-history-panel/components/GitHistoryPanelPickers.test.tsx
+- npm run check:large-files:near-threshold
+- npm run check:large-files:gate
+- git diff --check
+
+备注：
+- heavy-test-noise-sentry 继续按阶段策略 deferred 到整体收口阶段。
+- 未纳入未跟踪 OpenSpec 目录 openspec/changes/evolve-harness-governance-closed-loop/。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a41d5c1e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

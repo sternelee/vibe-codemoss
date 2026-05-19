@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-14.md`
-- **Total Sessions**: 508
+- **Total Sessions**: 509
 - **Last Active**: 2026-05-20
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-14.md` | ~1403 | Active |
+| `journal-14.md` | ~1451 | Active |
 | `journal-13.md` | ~1947 | Archived |
 | `journal-12.md` | ~1971 | Archived |
 | `journal-11.md` | ~1985 | Archived |
@@ -42,6 +42,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 509 | 2026-05-20 | 迁出 Git History 面板常量和类型 | `a41d5c1e` | `feature/v0.5.0-md` |
 | 508 | 2026-05-20 | 拆分用户提问历史归一化 | `c0e1c765` | `feature/v0.5.0-md` |
 | 507 | 2026-05-20 | 拆分事件诊断工具 | `c81c151c` | `feature/v0.5.0-md` |
 | 506 | 2026-05-20 | 拆分消息线程解析职责 | `779c07b8` | `feature/v0.5.0-md` |
