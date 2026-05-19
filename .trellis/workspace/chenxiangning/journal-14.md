@@ -1449,3 +1449,63 @@ Notes:
 ### Next Steps
 
 - None - task complete
+
+
+## Session 510: 打通 harness 治理证据闭环
+
+**Date**: 2026-05-20
+**Task**: 打通 harness 治理证据闭环
+**Branch**: `feature/v0.5.0-md`
+
+### Summary
+
+完成 evolve-harness-governance-closed-loop：新增治理证据桥、bridge-fed policies、domain event runtime subscribe-only surface、capability 首批迁移、gate/cost/capability evidence adapters、CI/conformance checks，并同步 governance-evidence-bridge 与 harness-governance-gate-consolidation 主 specs 后归档 OpenSpec change。
+
+### Main Changes
+
+本次会话完成 harness 治理闭环收口：
+
+- 新增并加固 governance evidence bridge，统一 legacy governance evidence 与 harness evidence sources，提供冻结、确定性的 snapshot。
+- 将 bridge snapshot 注入 checkpoint policy evidence，新增 OpenSpec / large-file / heavy-test-noise / realtime / capability / cost budget bridge-fed policies，并扩展 audit metadata。
+- 增加 harness evidence adapters，覆盖 gate/cost/capability evidence，修复跨平台 path/id normalization、payload freeze、snapshot identity 与 heavy-test-noise advisory ceiling。
+- 新增 domain event runtime 最小实现，application-facing surface 保持 subscribe-only，内部 emit 通过 controller 隔离。
+- 首批 capability matrix 迁移覆盖 shared session 与 task run storage，scanner 从 317 降至 311，剩余 backlog 记录到 archived change。
+- 新增 `check:governance-evidence-bridge` 并强化相关 conformance scripts / CI wiring。
+- 同步两个新主 specs：`governance-evidence-bridge` 与 `harness-governance-gate-consolidation`。
+- 归档 OpenSpec change 到 `openspec/changes/archive/2026-05-20-evolve-harness-governance-closed-loop/`。
+
+验证：
+
+- `npm run typecheck` 通过。
+- targeted governance/status/domain/task/shared-session Vitest：14 files / 77 tests 通过。
+- `npm run check:governance-evidence-bridge`、`check:checkpoint-policy-chain`、`check:engine-capability-matrix`、`check:context-ledger-cost-budget`、`check:agent-domain-event-schema` 通过。
+- `npm run check:heavy-test-noise` 完整跑完 514 test files，repo-owned noise 为 0，environment warning 为 1。
+- `node --test scripts/check-heavy-test-noise.test.mjs scripts/check-large-files.test.mjs` 15 tests 通过。
+- `npm run check:large-files:near-threshold` 通过，报告既有 12 个 watch 项；`npm run check:large-files:gate` 通过，found=0。
+- `npm run perf:realtime:boundary-guard` 通过。
+- `openspec validate --all --strict --no-interactive` 归档后 282 passed, 0 failed。
+
+残余风险：
+
+- `npm run lint` exit 0，但仍有一个既有 `react-hooks/exhaustive-deps` warning：`src/features/threads/hooks/useThreadMessaging.ts:1718`，非本次改动。
+- capability scanner 仍有 311 个 raw engine branch findings，已作为后续迁移 backlog 保留。
+- Windows/Linux 兼容性通过 Node scripts/tests/CI matrix 约束，本地直接执行环境仍为 macOS。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2eafb213` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
