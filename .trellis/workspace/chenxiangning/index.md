@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-14.md`
-- **Total Sessions**: 500
+- **Total Sessions**: 501
 - **Last Active**: 2026-05-20
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-14.md` | ~1059 | Active |
+| `journal-14.md` | ~1093 | Active |
 | `journal-13.md` | ~1947 | Archived |
 | `journal-12.md` | ~1971 | Archived |
 | `journal-11.md` | ~1985 | Archived |
@@ -42,6 +42,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 501 | 2026-05-20 | 拆分 historyLoaders 回退测试 | `f6de5b3e` | `feature/v0.5.0-md` |
 | 500 | 2026-05-20 | 拆分 FileViewPanel 外部变更监控测试 | `f9eeda35` | `feature/v0.5.0-md` |
 | 499 | 2026-05-20 | 归档 harness 治理 OpenSpec 变更 | `92cefd0c` | `feature/v0.5.0-md` |
 | 498 | 2026-05-20 | 拆分 Sidebar 会话文件夹测试 | `ce539a2e` | `feature/v0.5.0-md` |

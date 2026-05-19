@@ -1057,3 +1057,37 @@ Notes:
 ### Next Steps
 
 - None - task complete
+
+
+## Session 501: 拆分 historyLoaders 回退测试
+
+**Date**: 2026-05-20
+**Task**: 拆分 historyLoaders 回退测试
+**Branch**: `feature/v0.5.0-md`
+
+### Summary
+
+将 historyLoaders.test.ts 尾部 Claude file-change reconstruction、OpenCode missing payload fallback、Codex truncated local history fallback 用例拆到 historyLoaders.fallbacks.test.ts；主测试文件从 2687 行降到 2427 行，large-file near-threshold watch 从 21 降到 20。验证通过：npm run typecheck；npx vitest run src/features/threads/loaders/historyLoaders.test.ts src/features/threads/loaders/historyLoaders.fallbacks.test.ts；npx vitest run src/features/threads/loaders/*historyLoaders*.test.ts；npm run check:large-files:near-threshold；npm run check:large-files:gate；git diff --check。阶段性未跑 heavy-test-noise，按治理约定留到最终整体收口。
+
+### Main Changes
+
+完成 historyLoaders 测试大文件治理切片：只移动测试用例，不改生产逻辑。新增 historyLoaders.fallbacks.test.ts 承接 Claude file-change reconstruction、OpenCode fallback warnings、Codex truncated local history fallback 相关用例，原 historyLoaders.test.ts 删除对应尾段。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f6de5b3e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
