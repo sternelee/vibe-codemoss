@@ -1305,3 +1305,51 @@ Notes:
 ### Next Steps
 
 - None - task complete
+
+
+## Session 507: 拆分事件诊断工具
+
+**Date**: 2026-05-20
+**Task**: 拆分事件诊断工具
+**Branch**: `feature/v0.5.0-md`
+
+### Summary
+
+将 useThreadEventHandlers 的 turn diagnostics、execution item tracking、no-progress watchdog、server debug filter 等纯 helper 迁出为 threadEventDiagnostics；useThreadEventHandlers.ts 从 2482 行降到 2067 行，large-file watch 从 15 降到 14。
+
+### Main Changes
+
+完成 harness 大文件治理下一切片：
+- 新增 threadEventDiagnostics.ts，承载 thread event diagnostics 的纯 helper、types、constants。
+- useThreadEventHandlers.ts 只保留 hook 组装、event callbacks 与跨 hook 接线，行数从 2482 降至 2067。
+- 保留 CODEX_TURN_NO_PROGRESS_STALL_MS 与 CODEX_EXECUTION_ACTIVE_NO_PROGRESS_STALL_MS 的旧模块 re-export，避免测试/调用方导入断裂。
+
+验证：
+- npm run typecheck
+- npx vitest run src/features/threads/hooks/useThreadEventHandlers.test.ts src/features/threads/hooks/useThreadItemEvents.test.ts src/features/threads/hooks/useThreadTurnEvents.test.tsx
+- npm run check:large-files:near-threshold
+- npm run check:large-files:gate
+- git diff --check
+
+备注：
+- heavy-test-noise-sentry 继续按阶段策略 deferred 到整体收口阶段。
+- 未纳入未跟踪 OpenSpec 目录 openspec/changes/evolve-harness-governance-closed-loop/。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c81c151c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
