@@ -586,3 +586,44 @@ Notes:
 ### Next Steps
 
 - None - task complete
+
+
+## Session 489: 收口 harness policy 判决审计面板
+
+**Date**: 2026-05-19
+**Task**: 收口 harness policy 判决审计面板
+**Branch**: `feature/v0.5.0-md`
+
+### Summary
+
+第一切片 add-policy-decision-audit-surface 已实现并提交：在 StatusPanel dock checkpoint 中展示 policy 判决依据，compact popover 保持轻量。
+
+### Main Changes
+
+| Area | Detail |
+|------|--------|
+| OpenSpec | 新增并验证 `add-policy-decision-audit-surface` proposal/design/spec/tasks。 |
+| Frontend | 新增 `PolicyDecisionAuditPanel`、`PolicyEntryRow` 与 formatter，将原 inline policy audit 拆成可测试组件。 |
+| UX | dock checkpoint 可展开查看 policy、verdict、reason、source；compact popover 不展示审计详情。 |
+| Tests | 运行 `npx vitest run src/features/status-panel/utils/audit/policyDecisionFormatter.test.ts src/features/status-panel/components/audit/PolicyDecisionAuditPanel.test.tsx src/features/status-panel/utils/checkpoint.test.ts src/features/status-panel/components/StatusPanel.test.tsx`，95 tests passed。 |
+| Governance | 运行 `openspec validate add-policy-decision-audit-surface --strict --no-interactive`、`npm run check:checkpoint-policy-chain`、`node --test scripts/check-heavy-test-noise.test.mjs scripts/test-batched.test.mjs`、`node --test scripts/check-large-files.test.mjs`。 |
+| Known Blockers | 整仓 `typecheck`、`check:large-files:gate`、`check:heavy-test-noise` 仍受并行 `useThreadActions` / native session 改动阻塞，本提交未混入这些文件。 |
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `82f34f9e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
