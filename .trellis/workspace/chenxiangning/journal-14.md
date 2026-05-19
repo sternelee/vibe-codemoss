@@ -1208,3 +1208,52 @@ Notes:
 ### Next Steps
 
 - None - task complete
+
+
+## Session 505: 拆分实时历史对齐调度
+
+**Date**: 2026-05-20
+**Task**: 拆分实时历史对齐调度
+**Branch**: `feature/v0.5.0-md`
+
+### Summary
+
+将 useThreads 的 Codex/Claude realtime history reconcile 调度、timer cleanup、重复 turn 去重抽出为 useThreadRealtimeHistoryReconcile；useThreads.ts 从 2561 行降到 2306 行，large-file watch 从 17 降到 16。
+
+### Main Changes
+
+完成 harness 大文件治理下一切片：
+- 新增 useThreadRealtimeHistoryReconcile.ts，封装 Codex/Claude turn completed 后的 realtime history reconcile 调度。
+- 将 timer refs、去重 refs、retry delay、unmount cleanup 从 useThreads.ts 迁出。
+- useThreads.ts 只保留事件入口 handleTurnCompletedForHistoryReconcile 的 hook 接线，对外 API 不变。
+- useThreads.ts 从 2561 行降至 2306 行，低于 feature-hotpath warn>2400 线。
+
+验证：
+- npm run typecheck
+- npx vitest run src/features/threads/hooks/useThreads*.test.tsx
+- npm run check:large-files:near-threshold
+- npm run check:large-files:gate
+- git diff --check
+
+备注：
+- heavy-test-noise-sentry 继续按阶段策略 deferred 到整体收口阶段。
+- 未纳入未跟踪 OpenSpec 目录 openspec/changes/evolve-harness-governance-closed-loop/。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a22cba8d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

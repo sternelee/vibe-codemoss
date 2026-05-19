@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-14.md`
-- **Total Sessions**: 504
+- **Total Sessions**: 505
 - **Last Active**: 2026-05-20
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-14.md` | ~1210 | Active |
+| `journal-14.md` | ~1259 | Active |
 | `journal-13.md` | ~1947 | Archived |
 | `journal-12.md` | ~1971 | Archived |
 | `journal-11.md` | ~1985 | Archived |
@@ -42,6 +42,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 505 | 2026-05-20 | 拆分实时历史对齐调度 | `a22cba8d` | `feature/v0.5.0-md` |
 | 504 | 2026-05-20 | 拆分线程动作加载职责 | `58da5764` | `feature/v0.5.0-md` |
 | 503 | 2026-05-20 | 拆分英文基础翻译分片 | `495bb867` | `feature/v0.5.0-md` |
 | 502 | 2026-05-20 | 拆分 useThreadsReducer 压缩生命周期测试 | `98f9b5bd` | `feature/v0.5.0-md` |
