@@ -871,3 +871,37 @@ Notes:
 ### Next Steps
 
 - None - task complete
+
+
+## Session 496: 拆分线程消息乐观渲染测试
+
+**Date**: 2026-05-20
+**Task**: 拆分线程消息乐观渲染测试
+**Branch**: `feature/v0.5.0-md`
+
+### Summary
+
+将 useThreadMessaging.test.tsx 尾部 Codex 乐观用户消息、generated image placeholder、silent prompt 相关用例拆到 useThreadMessaging.optimistic-render.test.tsx；主测试文件从 2753 行降到 2483 行，large-file near-threshold watch 从 25 降到 24。验证通过：npm run typecheck；npx vitest run src/features/threads/hooks/useThreadMessaging.test.tsx src/features/threads/hooks/useThreadMessaging.optimistic-render.test.tsx；npx vitest run src/features/threads/hooks/useThreadMessaging*.test.tsx；npm run check:large-files:near-threshold；npm run check:large-files:gate；git diff --check。阶段性未跑 heavy-test-noise，按当前治理约定留到最终整体收口。
+
+### Main Changes
+
+完成第二个 threads hook 测试大文件切片治理：只移动测试用例，不改生产逻辑。新增 useThreadMessaging.optimistic-render.test.tsx 承接 Codex optimistic render/generated image/silent prompt 用例，原 useThreadMessaging.test.tsx 删除对应尾段重复内容。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `eef1f298` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
