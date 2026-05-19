@@ -1,6 +1,6 @@
 # Harness Governance Layer — mossx 战略架构文档
 
-> **状态**：v1.6（实施约束加固版）
+> **状态**：v1.9（95%-99% release-grade execution hardening 版）
 > **作者**：陈湘宁 × AI Co-Architect
 > **日期**：2026-05-17
 > **类型**：架构战略文档（Strategic Architecture）
@@ -14,7 +14,7 @@
 
 1. **Harness engineering** 是包裹 LLM 的运行时框架；模型决定上限，harness 决定下限。
 2. **mossx 的战略空地是"Harness 治理层（Meta-Harness）"** —— 不与 Claude Code/Codex 竞争内核，而是做"agent 的 control plane"。
-3. **mossx 已经走了 60%** —— 治理层的物理骨架已存在，缺的不是代码，是"治理"语言的显式化与几处关键重构。
+3. **mossx 当前约 70%，下一目标是 95%-99% governance-layer readiness** —— 90% 只能算最低地基闭环；要到 95%-99%，还必须补齐 provenance/replay、safe recovery、operator handoff、三平台 evidence 与 sync/archive 闭环。
 
 ### 现状校准结论（v1.6）
 
@@ -26,6 +26,12 @@
 > 💡 **核心洞察**：mossx 不需要"启动一个治理层项目"，而是需要"给已有的治理资产一个统一的叙事和正式化的接口"。
 >
 > **v1.6 收口结论**：治理层设计已经完成第一轮闭环。下一步不再继续扩写战略，而是按 OpenSpec change 进入实施队列：先 contract/legal layer，再治理能力，再 substrate 风险切片。所有治理实现必须通过 heavy-test-noise、large-file governance 与 Win/macOS/Linux 三平台约束。
+>
+> **v1.7 校准结论**：核心治理与结构基座已有 first-slice implementation evidence，但不能把 first-slice 等同于 90% 完成。`advance-harness-governance-to-90` 是当前总控 change，专门承接 live snapshot injection、gate result evidence、domain-event adoption、browser scroll evidence、webview timing evidence 与后续 one-hub split。
+>
+> **v1.8 校准结论**：90% 只是最低 floor，不是本轮目标。当前总控 change 已升级为 95%-99% release-grade readiness：95% 要求运行闭环 + provenance + replay + recovery + operator handoff；99% 额外要求 Win/macOS/Linux 三平台 evidence 完整。100% 不作为本地交付目标，因为缺长期生产运行数据时声称 100% 不可信。
+>
+> **v1.9 加固结论**：95%-99% 不能只靠“任务写全”。总控 change 现在补了四个生产级门禁：① S1 明确 `StatusPanel` hook/useMemo 顺序，防止 evidence 只显示不进 policy ② S3 增加 `check:agent-domain-event-adoption`，防止只有 schema 没有真实 producer/consumer ③ S6 将 consumed evidence provenance 从 SHOULD 收紧为 MUST ④ S7 要求每个平台 evidence 逐行记录 `platform / command / runUrlOrArtifactPath / date / commit / result / qualifier`。
 
 ---
 
@@ -50,9 +56,40 @@
 
 > 本章基于对 `src/` 全量代码、`openspec/changes`、`openspec/specs`、`docs/architecture` 的事实扫描。每个结论都附带文件证据。**这是"治理层在 mossx 当前阶段应该怎么做"的回答。**
 
+### 0.0 2026-05-20 readiness 复核
+
+当前代码事实显示 harness governance 不是文档态：
+
+- `src/features/governance/evidence/**` 已有 typed evidence、snapshot、reader 与 adapter。
+- `src/features/status-panel/utils/policies/**` 已有 policy chain 与 bridge policies。
+- `src/features/status-panel/components/audit/**` 已有 policy audit surface。
+- `src/features/threads/domain-events/**` 已有 schema、factory 与 subscribe-only runtime foundation。
+- `src/features/threads/contracts/realtimeEventBatcher.ts`、`src/features/messages/components/messagesTimelineVirtualization.ts`、`vite.config.ts` 已有结构基座第一切片。
+
+但 release-grade readiness 仍缺九个闭环：
+
+1. `useGovernanceEvidence()` 读取的 evidence 需要包装成 `GovernanceEvidenceSnapshot` 并注入 `buildCheckpointViewModel()`。
+2. large-file / heavy-test-noise / runtime gates 需要从“配置存在”升级为“artifact result evidence 可消费”。
+3. `AgentDomainEvent` 需要至少一个 bounded runtime producer/consumer path。
+4. long-list virtualization 需要 browser-level scroll evidence，不能只依赖 jsdom proxy。
+5. bundle chunking 需要真实 webview startup timing，或者继续显式记录 unsupported 并绑定 follow-up。
+6. consumed governance evidence 需要 provenance：source、observed-at、parser/adapter identity、artifact identity、degradation reason。
+7. policy decisions 需要 replay fixture，证明 frozen snapshot 可复现 audit decision，而不是依赖 live filesystem。
+8. recovery 行为需要可测试：missing/malformed/stale/duplicate evidence 不得击穿 checkpoint。
+9. Windows/macOS/Linux evidence 与 sync/archive handoff 需要闭环，缺 Windows/Linux 只能停在 95% 附近，不能声称 99%。
+
+因此当前进度判定为 **约 70% foundation-ready**；`advance-harness-governance-to-90` 保留原 change id，但下一阶段目标已从“90% floor”升级为“95%-99% governance-layer readiness”。
+
+生产级执行加固要求：
+
+1. S1 必须先解决当前 `StatusPanel.tsx` 中 `checkpoint` useMemo 早于 `useGovernanceEvidence()` 的实现顺序问题，再把 frozen snapshot 注入 `buildCheckpointViewModel()`；禁止通过 conditional hook 绕过。
+2. S3 不能只跑 `check:agent-domain-event-schema`；必须新增 `check:agent-domain-event-adoption`，证明至少一个 bounded producer/consumer path 真实存在。
+3. S6 中所有参与 policy audit 的 consumed evidence 必须具备 source id 与 observed-at；经 parser/adapter 或 artifact 来源的证据必须带对应 identity，缺失必须显式 qualification。
+4. S7 的三平台证据必须按平台逐行记录命令、run URL 或 artifact path、日期、commit、结果和 qualifier；缺 Windows/Linux 实证时只能停在 95% 附近，不能声称 99%。
+
 ### 0.1 一句话定调
 
-> **mossx 不是"要建治理层"，而是"治理层已经长出来了，需要正式化"。** 当前阶段的最大风险不是抽象不够，而是 ① 现有治理资产没有统一旗帜，分散在 5-6 个 feature 里 ② `app-shell.tsx` 等超大协调器阻挡了全局接缝 ③ adapter/loader/parser 的 contract 没有被提升为治理法律，加引擎成本仍会线性增长。
+> **mossx 不是"要建治理层"，而是"治理层已经长出来了，需要闭合真实运行路径"。** 当前阶段的最大风险不是抽象不够，而是 ① evidence 已展示但 policy input 未完全闭合 ② gate 配置存在不等于 gate result 被消费 ③ 结构基座第一切片已落地但 browser/runtime 证据仍弱。
 
 ### 0.2 ✅ 走在正确方向上（保留 + 强化）
 
@@ -218,7 +255,7 @@ src-tauri/src/engine + codex/shared  ─→ MCP Governance IPC
 5. **两条 GitHub sentry 是硬约束，不是建议**：涉及新增/修改 tests 的 change 必须满足 `.github/workflows/heavy-test-noise-sentry.yml` 等价约束；涉及 spec/fixture/source 体积增长的 change 必须满足 `.github/workflows/large-file-governance.yml` 等价约束。
 6. **跨平台是产品属性，不是 CI 附录**：mossx 是通用桌面客户端，治理层代码不得写入 POSIX-only 路径、shell quoting、newline、可执行名或平台条件语义；差异必须封装在 adapter/IPC 层，并在 ubuntu/macos/windows 三端验证。
 
-**收口判定**：截至 v1.6，harness governance 的设计阶段已经完成第一轮闭环；剩余工作是执行、验证、归档，而不是继续增加新概念。
+**收口判定**：截至 v1.9，harness governance 的核心与结构基座第一切片已经完成，但 90% 只能作为最低 floor。要达到 95%-99%，`advance-harness-governance-to-90` 必须闭合真实 policy path、gate result evidence、domain-event adoption、browser/runtime 证据、provenance/replay、safe recovery、operator handoff、三平台 evidence 与 sync/archive handoff。最新提案已经把 stale parallel plan 移除，并将 S1/S3/S6/S7 收紧为可执行门禁；剩余工作是按切片实施与验证，不是继续扩写新概念。
 
 ---
 
@@ -745,6 +782,9 @@ steps:
 | v1.4 | 2026-05-17 | 陈湘宁 × AI Co-Architect | **治理阻塞提案校准版**：补齐 bundle chunking、long-list virtualization、realtime batching、mega hub split 与 harness 治理层的强关联，明确它们是治理交付基座而非外围性能优化。 |
 | v1.5 | 2026-05-17 | 陈湘宁 × AI Co-Architect | **治理设计收口版**：补齐 OpenSpec 执行队列与依赖矩阵，明确 9 个 governance changes 的实施层级、并行边界与收口判定；后续进入执行/验证/归档，不再继续扩写战略概念。 |
 | v1.6 | 2026-05-17 | 陈湘宁 × AI Co-Architect | **实施约束加固版**：把 heavy-test-noise sentry、large-file governance sentry 与 Win/macOS/Linux 三平台兼容写入治理实施硬约束；修正 runtime contract 任务文案，防止实施阶段把 contract 立法误读成 capability spec。 |
+| v1.7 | 2026-05-20 | 陈湘宁 × AI Co-Architect | **90% readiness 校准版**：复核当前代码与提案后，将 harness governance 当前状态校准为约 70% foundation-ready；新增 `advance-harness-governance-to-90` 作为总控 change，承接 snapshot injection、gate result evidence、domain-event adoption、browser scroll evidence、webview timing evidence 与后续 one-hub split。 |
+| v1.8 | 2026-05-20 | 陈湘宁 × AI Co-Architect | **95%-99% release-grade readiness 校准版**：把 90% 改为最低 floor，补齐 provenance/replay、safe recovery、operator handoff、Win/macOS/Linux evidence、sync/archive handoff 的总控要求；明确 95% 与 99% 的证据差异，避免把局部闭环误报为整体成熟。 |
+| v1.9 | 2026-05-20 | 陈湘宁 × AI Co-Architect | **生产级执行加固版**：移除总控 design 中的重复旧计划；补强 S1 `StatusPanel` hook/useMemo 顺序约束、S3 domain-event adoption checker、S6 consumed evidence provenance MUST、S7 per-platform evidence row schema。 |
 
 ---
 

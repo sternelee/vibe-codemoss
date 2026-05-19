@@ -13,7 +13,7 @@ OpenSpec workflow and governance for `mossx`, covering change lifecycle, main sp
 - Spec artifacts: `openspec/specs/*`
 - Change workflow artifacts: `openspec/changes/<change-id>/{proposal,design,tasks,verification}.md`
 - Archive: `openspec/changes/archive/*`
-- Current workspace state: active changes = `11`, archive changes = `316`, main specs = `269`
+- Current workspace state: active changes = `12`, archive changes = `316`, main specs = `269`
 
 ## Entry Surfaces
 
@@ -68,6 +68,14 @@ The archive included `formalize-engine-runtime-contract` with an explicit extern
 - `optimize-long-list-virtualization`
 - `optimize-bundle-chunking`
 
+### Harness Governance Release-Grade Readiness Set
+
+- `advance-harness-governance-to-90`
+  - Purpose: coordinate the remaining closure work required to move harness governance from first-slice foundation readiness to a 95%-99% governance-layer readiness bar. The change id keeps the earlier 90% wording for OpenSpec continuity; 90% is now the floor, not the final target.
+  - Current calibration: existing substrate changes are treated as first-slice complete with residual evidence gaps, not as total governance closure.
+  - Key gaps: live `GovernanceEvidenceSnapshot` injection into checkpoint policy input, artifact-backed gate result evidence, one bounded domain-event runtime adoption path, browser-level long-list evidence, trustworthy webview startup timing evidence or explicit unsupported rationale, evidence provenance/replay, safe recovery, operator handoff, and three-platform evidence.
+  - Production-grade hardening: S1 must resolve the current `StatusPanel` hook/useMemo ordering seam before snapshot injection; S3 requires a real `check:agent-domain-event-adoption` gate beyond schema checks; S6 treats consumed evidence provenance as mandatory; S7 requires per-platform evidence rows with command, artifact/run URL, date, commit, result, and qualifier.
+
 ### Harness Governance Extension / Follow-up Set
 
 - `add-cross-workspace-cost-admin-view`
@@ -82,6 +90,8 @@ The archive included `formalize-engine-runtime-contract` with an explicit extern
 - `harden-claude-sidebar-list-timeout-fallback`
 
 > Harness governance closure status on 2026-05-20: the archived core and extension changes listed above were synchronized into `openspec/specs/**` and moved to `openspec/changes/archive/**`. Deferred contracts intentionally preserve their no-telemetry and no-EventBus boundaries.
+
+> Harness governance readiness calibration on 2026-05-20: current implementation is approximately 70% foundation-ready. The `advance-harness-governance-to-90` change is the active coordinating plan for the remaining closure work. Its target has been raised from a 90% minimum floor to 95%-99% governance-layer readiness by adding provenance/replay, cross-platform evidence, recovery, operator handoff, and archive closure requirements. It does not modify product code in its planning pass.
 
 > Current status should be read from each change directory itself. `project.md` tracks workspace inventory and governance boundaries, not task-by-task execution detail.
 
@@ -106,6 +116,8 @@ Current-branch code inventory shows harness/governance implementation traces in:
 - `.github/workflows/ci.yml`
 
 This snapshot is intentionally evidence-oriented. Archived harness governance completion evidence now lives in the archived change directories and main specs.
+
+Current code review also identified a live closure gap: `useGovernanceEvidence()` feeds the dock evidence surface, while `buildCheckpointViewModel()` currently supports `governanceSnapshot` input but the live `StatusPanel` construction path still needs to pass a frozen snapshot into that policy input. This is the first task in `advance-harness-governance-to-90`.
 
 ## Namespace Policy
 
@@ -149,6 +161,9 @@ This snapshot is intentionally evidence-oriented. Archived harness governance co
 
 ## Update History
 
+- 2026-05-20: Added active change `advance-harness-governance-to-90` to coordinate the remaining harness governance readiness work. Calibrated the current state as first-slice foundation-ready rather than fully closed: evidence bridge, policy chain, audit surface, event runtime, batching, virtualization, chunking, and one hub split exist, but live snapshot injection, artifact-backed gate evidence, first runtime domain-event adoption, browser scroll evidence, and webview timing evidence remain open. Refreshed inventory to active=12, archive=316, specs=269.
+- 2026-05-20: Upgraded `advance-harness-governance-to-90` from a 90% readiness floor to a 95%-99% governance-layer readiness plan. Added release-grade requirements for evidence provenance, deterministic replay, recovery behavior, operator handoff, Windows/macOS/Linux evidence, and sync/archive closure while preserving the existing change id for OpenSpec continuity.
+- 2026-05-20: Hardened `advance-harness-governance-to-90` after production-grade review by removing a stale duplicate execution summary from `design.md`, adding explicit S1 `StatusPanel` hook/useMemo ordering constraints, requiring `check:agent-domain-event-adoption`, tightening consumed evidence provenance to MUST semantics, and defining per-platform implementation-evidence rows for 99% claims.
 - 2026-05-20: Archived nine harness governance changes (`formalize-engine-runtime-contract`, `add-engine-capability-matrix-spec`, `evolve-context-ledger-to-cost-budget`, `evolve-checkpoint-to-policy-chain`, `add-agent-domain-event-schema`, `add-capability-aware-policy-router`, `add-policy-decision-audit-surface`, `add-governance-telemetry-loop`, `wire-agent-domain-event-runtime`) after syncing delta specs into main specs and recording closure evidence. `formalize-engine-runtime-contract` carries an explicit external-CI qualifier because remote three-platform CI was not directly observable from the local closure session. Refreshed inventory to active=11, archive=316, specs=269.
 - 2026-05-19: Recalibrated `project.md` against current `feature/v0.5.0-md` code and active proposal inventory. Workspace counts are now active=20, archive=307, specs=260. Harness governance is no longer described as implementation-unstarted; current-branch code traces exist and must be reconciled through fresh validation before sync/archive.
 - 2026-05-19: Recalibrated the harness governance proposal set for `feature/v0.5.0-md` only. Prior `feature/v0.5` implementation artifacts are explicitly excluded from the current baseline; all harness governance implementation must be redone from the current branch facts.
