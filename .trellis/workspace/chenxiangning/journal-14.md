@@ -1257,3 +1257,51 @@ Notes:
 ### Next Steps
 
 - None - task complete
+
+
+## Session 506: 拆分消息线程解析职责
+
+**Date**: 2026-05-20
+**Task**: 拆分消息线程解析职责
+**Branch**: `feature/v0.5.0-md`
+
+### Summary
+
+将 useThreadMessaging 的 engine/thread resolution、thread kind 判断、start-for-send、Claude pending candidate rebind 抽出为 useThreadMessagingThreadResolution；useThreadMessaging.ts 从 2550 行降到 2366 行，large-file watch 从 16 降到 15。
+
+### Main Changes
+
+完成 harness 大文件治理下一切片：
+- 新增 useThreadMessagingThreadResolution.ts，封装消息发送前的 engine/thread resolution、thread id compatibility、startThreadForMessageSend。
+- 迁出 Claude pending native session confirmation 与 candidate transcript rebind 逻辑，并保留原 debug/error 行为。
+- useThreadMessaging.ts 保留 send 主流程和对外 API，行数从 2550 降至 2366，低于 feature-hotpath warn>2400 线。
+
+验证：
+- npm run typecheck
+- npx vitest run src/features/threads/hooks/useThreadMessaging*.test.tsx
+- npm run check:large-files:near-threshold
+- npm run check:large-files:gate
+- git diff --check
+
+备注：
+- heavy-test-noise-sentry 继续按阶段策略 deferred 到整体收口阶段。
+- 未纳入未跟踪 OpenSpec 目录 openspec/changes/evolve-harness-governance-closed-loop/。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `779c07b8` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
