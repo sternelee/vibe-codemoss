@@ -1159,3 +1159,52 @@ Notes:
 ### Next Steps
 
 - None - task complete
+
+
+## Session 504: 拆分线程动作加载职责
+
+**Date**: 2026-05-20
+**Task**: 拆分线程动作加载职责
+**Branch**: `feature/v0.5.0-md`
+
+### Summary
+
+将 useThreadActions 的 older pagination、session catalog、history loading 状态拆成独立 hook；主 hotpath 文件从 2748 行降至 2392 行，large-file watch 从 18 降至 17。
+
+### Main Changes
+
+完成 harness 大文件治理下一切片：
+- 拆出 useThreadActionsLoadOlder.ts，承接 loadOlderThreadsForWorkspace 的 catalog/runtime 分页、标题映射、归档过滤和 cursor 更新逻辑。
+- 拆出 useThreadActionsSessionCatalog.ts，封装 workspace session catalog 的 active/archived 加载。
+- 拆出 useThreadHistoryLoadingState.ts，隔离 history loading 状态机。
+- useThreadActions.ts 保持对外返回 API 不变，行数从 2748 降至 2392，低于 feature-hotpath warn>2400 线。
+
+验证：
+- npm run typecheck
+- npx vitest run src/features/threads/hooks/useThreadActions*.test.ts*
+- npm run check:large-files:near-threshold
+- npm run check:large-files:gate
+- git diff --check
+
+备注：
+- heavy-test-noise-sentry 按阶段策略 deferred 到整体收口阶段。
+- 未纳入未跟踪 OpenSpec 目录 openspec/changes/evolve-harness-governance-closed-loop/。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `58da5764` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
