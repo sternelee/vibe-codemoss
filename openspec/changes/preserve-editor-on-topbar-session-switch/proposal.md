@@ -28,6 +28,7 @@ desktop workspace chat 支持“左侧聊天 + 右侧文件编辑器”的 edito
   - 保留 editor 时只执行 `setSelectedDiffPath(null)`。
   - 不保留 editor 时继续走原来的 `exitDiffView()` 和回 chat 行为。
 - 新增 helper 和单测，防止后续把 `exitDiffView()` 重新放回 preserve-editor 分支。
+- Follow-up：将同一保护扩展到非 topbar 的 session navigation 入口，包括 notification / status panel navigation、latest/sidebar-style selection、search result navigation、keyboard session cycling，避免 Codex 多会话切换时 center surface 被先打回 chat 造成闪烁。
 
 ## Capabilities
 
@@ -50,3 +51,4 @@ desktop workspace chat 支持“左侧聊天 + 右侧文件编辑器”的 edito
 - The preserve-editor branch must not call a full diff exit path that changes `centerMode` to `chat`.
 - When no editor file is active, when in compact layout, or when switching across workspaces, existing fallback behavior remains intact.
 - Regression tests cover preserve and fallback branches.
+- Notification / status-panel / keyboard-cycle 等非 topbar 入口复用同一 preservation policy，不得在同 workspace editor split 切 session 时 collapse right panel 或 full exit editor/diff path。

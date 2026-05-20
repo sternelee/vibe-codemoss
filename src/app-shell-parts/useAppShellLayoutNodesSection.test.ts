@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   getThreadSelectDiffCleanupAction,
+  shouldCollapseRightPanelOnThreadSelect,
   shouldPreserveEditorOnThreadSelect,
 } from "./threadEditorPreservation";
 
@@ -60,5 +61,25 @@ describe("getThreadSelectDiffCleanupAction", () => {
 
   it("keeps the existing full diff exit behavior when editor split is not preserved", () => {
     expect(getThreadSelectDiffCleanupAction(false)).toBe("exit-diff-view");
+  });
+});
+
+describe("shouldCollapseRightPanelOnThreadSelect", () => {
+  it("keeps right-side surfaces stable while preserving the editor", () => {
+    expect(
+      shouldCollapseRightPanelOnThreadSelect({
+        preserveEditor: true,
+        requestedCollapse: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("honors requested collapse when editor preservation is not active", () => {
+    expect(
+      shouldCollapseRightPanelOnThreadSelect({
+        preserveEditor: false,
+        requestedCollapse: true,
+      }),
+    ).toBe(true);
   });
 });

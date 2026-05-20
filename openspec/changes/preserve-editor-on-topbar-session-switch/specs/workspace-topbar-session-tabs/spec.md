@@ -26,6 +26,18 @@
 - **AND** 系统 MAY 清理 selected diff path
 - **AND** 系统 MUST NOT 通过 full diff exit path 把 `centerMode` 切回 `chat`
 
+#### Scenario: non-topbar same-workspace session navigation preserves visible editor split
+- **GIVEN** 用户位于 desktop workspace chat
+- **AND** 当前 `centerMode` 为 `editor`
+- **AND** 当前 workspace 存在 active editor file 与 open editor tabs
+- **WHEN** 用户通过 notification、status panel、latest conversation、sidebar-style list、global search result 或 keyboard cycle 切换到同一 workspace 的另一个 session
+- **THEN** 系统 MUST 切换到目标 `threadId`
+- **AND** editor split MUST 保持可见
+- **AND** active editor file 与 open editor tabs MUST 保留
+- **AND** session navigation MUST NOT collapse adjacent panels solely because of the session switch
+- **AND** 系统 MAY 清理 selected diff path
+- **AND** 系统 MUST NOT 通过 full diff exit path 把 `centerMode` 切回 `chat`
+
 #### Scenario: non-editor tab switch keeps existing fallback behavior
 - **WHEN** 用户不在 editor split、没有 active editor file，或处于 compact / phone / tablet 布局
 - **THEN** topbar session switch MAY 继续使用既有回 chat 行为

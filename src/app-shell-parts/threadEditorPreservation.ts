@@ -22,3 +22,13 @@ export function shouldPreserveEditorOnThreadSelect({
 export function getThreadSelectDiffCleanupAction(preserveEditor: boolean) {
   return preserveEditor ? "clear-selected-diff" : "exit-diff-view";
 }
+
+export function shouldCollapseRightPanelOnThreadSelect({
+  preserveEditor,
+  requestedCollapse,
+}: {
+  preserveEditor: boolean;
+  requestedCollapse: boolean;
+}) {
+  return requestedCollapse && !preserveEditor;
+}
