@@ -1695,6 +1695,29 @@ export function useThreadEventHandlers({
         }, { force: true });
         return false;
       }
+      if (diagnostic.firstDeltaAt !== null || diagnostic.deltaCount > 0) {
+        const lifecycle = getThreadLifecycleSnapshot(threadId);
+        emitTurnDiagnostic("turn-completed-deferred-bypassed", {
+          workspaceId,
+          threadId,
+          turnId: normalizedTurnId,
+          elapsedMs: Math.max(0, now - diagnostic.startedAt),
+          firstDeltaAtMs:
+            diagnostic.firstDeltaAt === null
+              ? null
+              : Math.max(0, diagnostic.firstDeltaAt - diagnostic.startedAt),
+          deltaCount: diagnostic.deltaCount,
+          blockerCount: blockers.length,
+          remainingBlockers: blockers,
+          isProcessing: lifecycle.isProcessing,
+          activeTurnId: lifecycle.activeTurnId,
+          diagnosticCategory: "codex-collab-terminal-order",
+          reason:
+            "turn/completed arrived after assistant stream ingress with remaining Codex collaboration blockers",
+          ...buildThreadStreamCorrelationDimensions(threadId),
+        }, { force: true });
+        return false;
+      }
       diagnostic.deferredCompletion = diagnostic.deferredCompletion ?? {
         workspaceId,
         threadId,

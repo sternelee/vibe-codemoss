@@ -1072,6 +1072,55 @@ describe("useThreadEventHandlers diagnostics", () => {
     ]);
   });
 
+  it("bypasses codex completion deferral when assistant stream ingress arrived before turn completion", () => {
+    const onDebug = vi.fn();
+    const options = makeOptions(onDebug);
+    const { result } = renderHook(() => useThreadEventHandlers(options));
+
+    act(() => {
+      result.current.onTurnStarted("ws-1", "thread-1", "turn-1");
+      result.current.onItemStarted("ws-1", "thread-1", {
+        id: "agent-call-1",
+        type: "collabAgentToolCall",
+        tool: "spawn_agent",
+        status: "running",
+      });
+      result.current.onAgentMessageDelta({
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        itemId: "assistant-1",
+        delta: "visible answer tail",
+      });
+    });
+    options.markProcessing.mockClear();
+    options.setActiveTurnId.mockClear();
+
+    act(() => {
+      result.current.onTurnCompleted("ws-1", "thread-1", "turn-1");
+    });
+
+    expect(options.markProcessing).toHaveBeenCalledWith("thread-1", false);
+    expect(options.setActiveTurnId).toHaveBeenCalledWith("thread-1", null);
+    const labels = collectDiagnosticCalls(onDebug).map((entry) => entry.label);
+    expect(labels).not.toContain("thread/session:turn-diagnostic:turn-completed-deferred");
+    const bypassedEntry = collectDiagnosticCalls(onDebug).find(
+      (entry) => entry.label === "thread/session:turn-diagnostic:turn-completed-deferred-bypassed",
+    );
+    expect(bypassedEntry?.payload).toEqual(
+      expect.objectContaining({
+        diagnosticCategory: "codex-collab-terminal-order",
+        deltaCount: 1,
+        blockerCount: 1,
+      }),
+    );
+    expect(bypassedEntry?.payload.remainingBlockers).toEqual([
+      expect.objectContaining({
+        itemType: "collabAgentToolCall",
+        status: "running",
+      }),
+    ]);
+  });
+
   it("bypasses codex completion deferral when final assistant text arrived before turn completion", () => {
     const onDebug = vi.fn();
     const options = makeOptions(onDebug);
