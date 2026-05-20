@@ -711,3 +711,65 @@ Follow-ups: 重新推送并运行 Release workflow，创建 v0.5.0 release。
 ### Next Steps
 
 - None - task complete
+
+
+## Session 537: 修复 Codex 终态 identity 缺失卡住生成
+
+**Date**: 2026-05-21
+**Task**: 修复 Codex 终态 identity 缺失卡住生成
+**Branch**: `feature/v0.5.0-md`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+## Summary
+
+修复 Codex 偶发 final assistant 已可见但 composer 仍显示正在生成的问题。
+
+## Root Cause
+
+前两次修复为了避免 terminal event 串到高亮线程，禁止了 active-thread fallback；这个方向是对的，但没有补上安全的 ownership fallback，导致两类真实完成事件被丢弃：
+
+- `turn/completed` 缺 `threadId` 时无法使用已知 `turnId -> threadId` evidence 清算。
+- thread-owned assistant completion 缺 `turnId` 时不触发 bounded reconcile。
+
+## Changes
+
+- 在 `useAppServerEvents` 中记录 bounded `workspaceId + turnId -> threadId` ownership。
+- `turn/completed` 缺 `threadId` 时只从 recorded ownership 或唯一 active-turn resolver 恢复目标线程，不回退到 highlighted thread。
+- assistant completion 缺 `turnId` 时使用 `__unknown_turn__` 做 thread-scoped reconcile，仍通过 terminal-drift guard 清 processing。
+- 新增 OpenSpec change `fix-codex-terminal-identity-recovery`。
+- 更新 `.trellis/spec/guides/cross-layer-thinking-guide.md`，固化 realtime terminal ownership contract。
+
+## Validation
+
+- `npm exec vitest run src/features/app/hooks/useAppServerEvents.completion-turn-id.test.tsx src/features/threads/hooks/useThreadRealtimeHistoryReconcile.test.ts src/features/threads/hooks/useThreads.integration.test.tsx src/features/threads/hooks/useThreadsTerminalDrift.test.ts`
+- `npm exec vitest run src/features/app/hooks/useAppServerEvents.test.tsx src/features/app/hooks/useAppServerEvents.realtime-contract.test.tsx src/features/app/hooks/useAppServerEvents.routing.test.tsx src/features/app/hooks/useAppServerEvents.completion-turn-id.test.tsx`
+- `npm run typecheck`
+- `npm run lint`
+- `npm run check:runtime-contracts`
+- `npm run doctor:strict`
+- `npm run test`
+- `openspec validate fix-codex-terminal-identity-recovery --strict --no-interactive`
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b2a04097` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
