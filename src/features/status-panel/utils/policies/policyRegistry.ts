@@ -78,12 +78,27 @@ export function evaluatePolicyChain(
   evidence: CheckpointPolicyEvidence,
   policies: readonly Policy[] = defaultPolicyRegistry.list(),
 ): PolicyChainResult {
+  const seenPolicyDecisions = new Set<string>();
   const normalizedPolicies = policies.some((policy) => policy.id === corePolicy.id)
     ? policies
     : [corePolicy, ...policies];
   const decisions = normalizedPolicies
     .filter((policy) => policy.appliesTo(evidence))
-    .map((policy) => policy.evaluate(evidence));
+    .map((policy) => policy.evaluate(evidence))
+    .filter((decision) => {
+      const key = [
+        decision.policyId,
+        decision.sourceId ?? "",
+        decision.evidenceSnapshotId ?? "",
+        decision.degradationReason ?? "",
+        decision.staleAt ?? "",
+      ].join("\0");
+      if (seenPolicyDecisions.has(key)) {
+        return false;
+      }
+      seenPolicyDecisions.add(key);
+      return true;
+    });
   const mostSevereDecision = resolveMostSevereDecision(decisions);
 
   return {

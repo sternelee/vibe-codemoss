@@ -1,3 +1,4 @@
+export * from "./domainEventGovernanceConsumer";
 export * from "./eventFactories";
 export * from "./eventRuntime";
 export * from "./eventTypes";

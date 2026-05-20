@@ -17,9 +17,11 @@ export type GateEvidenceInput = {
   readonly summary: string;
   readonly sourcePath?: string;
   readonly updatedAt?: string;
+  readonly staleAt?: string;
   readonly degraded?: boolean;
   readonly degradationReason?: string;
   readonly payload?: GovernanceEvidence["payload"];
+  readonly provenance?: GovernanceEvidence["provenance"];
 };
 
 export type ConsolidatedHarnessGateDecision = {
@@ -91,9 +93,11 @@ export function createGateGovernanceEvidence(input: GateEvidenceInput): Governan
     title: input.title,
     summary: input.summary,
     updatedAt: input.updatedAt,
+    staleAt: input.staleAt,
     degraded: input.degraded ?? false,
     degradationReason: input.degradationReason,
     payload: input.payload ?? createDefaultGatePayload(input),
+    provenance: input.provenance,
   });
 }
 

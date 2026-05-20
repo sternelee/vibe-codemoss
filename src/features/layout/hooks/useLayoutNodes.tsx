@@ -135,6 +135,7 @@ import {
   recordTopbarSessionActivation,
   type TopbarSessionWindows,
 } from "./topbarSessionTabs";
+import { buildWorkspaceHeaderGroups } from "./workspaceHeaderGroups";
 
 const GitDiffPanel = lazy(() =>
   import("../../git/components/GitDiffPanel").then((m) => ({ default: m.GitDiffPanel })),
@@ -1050,37 +1051,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     [isEditorFileMaximized, onOpenFile, onToggleEditorFileMaximized],
   );
   const groupedWorkspacesForHeader = useMemo(() => {
-    const worktreesByParent = new Map<string, WorkspaceInfo[]>();
-    const getSortOrder = (value?: number | null) =>
-      Number.isFinite(value) ? Number(value) : Number.MAX_SAFE_INTEGER;
-    const sortByOrderAndName = (a: WorkspaceInfo, b: WorkspaceInfo) => {
-      const orderDiff = getSortOrder(a.settings.sortOrder) - getSortOrder(b.settings.sortOrder);
-      if (orderDiff !== 0) {
-        return orderDiff;
-      }
-      return a.name.localeCompare(b.name);
-    };
-
-    options.workspaces
-      .filter((entry) => (entry.kind ?? "main") === "worktree" && Boolean(entry.parentId))
-      .forEach((worktree) => {
-        const parentId = worktree.parentId as string;
-        const bucket = worktreesByParent.get(parentId) ?? [];
-        bucket.push(worktree);
-        worktreesByParent.set(parentId, bucket);
-      });
-
-    worktreesByParent.forEach((entries) => {
-      entries.sort(sortByOrderAndName);
-    });
-
-    return options.groupedWorkspaces.map((group) => ({
-      ...group,
-      workspaces: group.workspaces.flatMap((workspace) => {
-        const worktrees = worktreesByParent.get(workspace.id) ?? [];
-        return worktrees.length > 0 ? [workspace, ...worktrees] : [workspace];
-      }),
-    }));
+    return buildWorkspaceHeaderGroups(options.groupedWorkspaces, options.workspaces);
   }, [options.groupedWorkspaces, options.workspaces]);
 
   topbarSessionWindowsRef.current = pruneTopbarSessionWindows(

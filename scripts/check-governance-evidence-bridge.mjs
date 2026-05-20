@@ -4,9 +4,14 @@ import process from "node:process";
 
 const ROOT = process.cwd();
 const EVIDENCE_DIR = path.join(ROOT, "src/features/governance/evidence");
+const STATUS_PANEL_COMPONENT = path.join(
+  ROOT,
+  "src/features/status-panel/components/StatusPanel.tsx",
+);
 const POLICY_DIR = path.join(ROOT, "src/features/status-panel/utils/policies");
 
 const requiredFiles = [
+  STATUS_PANEL_COMPONENT,
   path.join(EVIDENCE_DIR, "types.ts"),
   path.join(EVIDENCE_DIR, "governanceEvidence.ts"),
   path.join(EVIDENCE_DIR, "governanceEvidenceBridge.ts"),
@@ -92,6 +97,33 @@ for (const forbidden of [
 
 if (bridgePolicySource.includes("verdictContribution: \"blocked\"")) {
   fail("bridge-fed policies must not contribute blocked");
+}
+
+const statusPanelSource = readText(STATUS_PANEL_COMPONENT);
+for (const token of [
+  "GovernanceEvidenceSection",
+  "useGovernanceEvidence(",
+  "createFrozenGovernanceEvidenceSnapshot",
+  "governanceSnapshot",
+  "buildCheckpointViewModel({",
+]) {
+  if (!statusPanelSource.includes(token)) {
+    fail(`StatusPanel.tsx missing live bridge token "${token}"`);
+  }
+}
+
+if (
+  statusPanelSource.indexOf("useGovernanceEvidence(") >
+  statusPanelSource.indexOf("buildCheckpointViewModel({")
+) {
+  fail("StatusPanel must collect governance evidence before checkpoint construction");
+}
+
+const checkpointCallIndex = statusPanelSource.indexOf("buildCheckpointViewModel({");
+const checkpointCallEndIndex = statusPanelSource.indexOf("})", checkpointCallIndex);
+const checkpointCallSource = statusPanelSource.slice(checkpointCallIndex, checkpointCallEndIndex);
+if (!checkpointCallSource.includes("governanceSnapshot")) {
+  fail("StatusPanel must pass governanceSnapshot into buildCheckpointViewModel");
 }
 
 const packageJson = JSON.parse(readText(path.join(ROOT, "package.json")));

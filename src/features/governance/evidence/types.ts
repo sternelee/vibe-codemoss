@@ -57,6 +57,17 @@ export type GovernanceEvidencePayload =
       readonly shouldInterruptRuntime: false;
     };
 
+export type GovernanceEvidenceProvenance = {
+  readonly sourceType: "workspace" | "artifact" | "runtime" | "adapter" | "fixture";
+  readonly sourceId: string;
+  readonly observedAt: string;
+  readonly parserId?: string;
+  readonly adapterId?: string;
+  readonly artifactPath?: string;
+  readonly artifactHash?: string;
+  readonly qualifier?: string;
+};
+
 export type GovernanceEvidence = {
   readonly id: string;
   readonly source: GovernanceEvidenceSource;
@@ -68,6 +79,7 @@ export type GovernanceEvidence = {
   readonly title: string;
   readonly summary: string;
   readonly payload?: GovernanceEvidencePayload;
+  readonly provenance?: GovernanceEvidenceProvenance;
 };
 
 export type GovernanceEvidenceSnapshot = {

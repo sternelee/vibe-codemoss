@@ -32,6 +32,12 @@ describe("governanceEvidence", () => {
       updatedAt: "1970-01-01T00:00:00.000Z",
       title: "Script",
       summary: "Failed",
+      provenance: {
+        sourceType: "workspace",
+        sourceId: "script:test",
+        observedAt: "1970-01-01T00:00:00.000Z",
+        qualifier: "minimal-generated-provenance",
+      },
     });
   });
 
@@ -71,6 +77,12 @@ describe("governanceEvidence", () => {
           updatedAt: "1970-01-01T00:00:00.000Z",
           title: "Tasks",
           summary: "partial",
+          provenance: {
+            sourceType: "workspace",
+            sourceId: "openspec:tasks",
+            observedAt: "1970-01-01T00:00:00.000Z",
+            qualifier: "minimal-generated-provenance",
+          },
         },
         {
           id: "workflow:governance",
@@ -80,6 +92,12 @@ describe("governanceEvidence", () => {
           updatedAt: "1970-01-01T00:00:00.000Z",
           title: "Workflow",
           summary: "ok",
+          provenance: {
+            sourceType: "workspace",
+            sourceId: "workflow:governance",
+            observedAt: "1970-01-01T00:00:00.000Z",
+            qualifier: "minimal-generated-provenance",
+          },
         },
       ],
     });
@@ -131,7 +149,49 @@ describe("governanceEvidence", () => {
     });
 
     expect(Object.isFrozen(healthySnapshot.evidence[0]?.payload)).toBe(true);
+    expect(Object.isFrozen(healthySnapshot.evidence[0]?.provenance)).toBe(true);
     expect(healthySnapshot.id).not.toBe(degradedSnapshot.id);
+  });
+
+  it("derives snapshot identity from provenance metadata", () => {
+    const firstSnapshot = createGovernanceEvidenceSnapshot({
+      evidence: [
+        createGovernanceEvidence({
+          id: "large-file:.artifacts/report.json",
+          source: "large-file",
+          status: "pass",
+          title: "Large-file",
+          summary: "ok",
+          provenance: {
+            sourceType: "artifact",
+            sourceId: "large-file:.artifacts/report.json",
+            observedAt: "2026-05-20T00:00:00.000Z",
+            artifactPath: ".artifacts/report.json",
+            artifactHash: "hash-a",
+          },
+        }),
+      ],
+    });
+    const secondSnapshot = createGovernanceEvidenceSnapshot({
+      evidence: [
+        createGovernanceEvidence({
+          id: "large-file:.artifacts/report.json",
+          source: "large-file",
+          status: "pass",
+          title: "Large-file",
+          summary: "ok",
+          provenance: {
+            sourceType: "artifact",
+            sourceId: "large-file:.artifacts/report.json",
+            observedAt: "2026-05-20T00:00:00.000Z",
+            artifactPath: ".artifacts/report.json",
+            artifactHash: "hash-b",
+          },
+        }),
+      ],
+    });
+
+    expect(firstSnapshot.id).not.toBe(secondSnapshot.id);
   });
 
   it("normalizes audit-facing ids and source paths across Windows and macOS paths", () => {
@@ -162,6 +222,31 @@ describe("governanceEvidence", () => {
       id: "engine-runtime-contract:src/features/threads/replay.json",
       payload: {
         sourcePath: "scripts/realtime-report.json",
+      },
+    });
+  });
+
+  it("normalizes provenance source identity and artifact paths across separators", () => {
+    expect(
+      createGovernanceEvidence({
+        id: "large-file:C:\\work\\mossx\\.artifacts\\large-files-gate.json",
+        source: "large-file",
+        status: "pass",
+        title: "Large-file",
+        summary: "ok",
+        provenance: {
+          sourceType: "artifact",
+          sourceId: "large-file:C:\\work\\mossx\\.artifacts\\large-files-gate.json",
+          observedAt: "2026-05-20T00:00:00.000Z",
+          artifactPath: "C:\\work\\mossx\\.artifacts\\large-files-gate.json",
+          artifactHash: "fixture-hash",
+        },
+      }),
+    ).toMatchObject({
+      id: "large-file:.artifacts/large-files-gate.json",
+      provenance: {
+        sourceId: "large-file:.artifacts/large-files-gate.json",
+        artifactPath: ".artifacts/large-files-gate.json",
       },
     });
   });

@@ -28,6 +28,17 @@ describe("useGovernanceEvidence", () => {
     expect(getWorkspaceFilesMock).not.toHaveBeenCalled();
   });
 
+  it("does not read files when workspace id is missing", () => {
+    const { result } = renderHook(() => useGovernanceEvidence(null, true));
+
+    expect(result.current).toEqual({
+      evidence: [],
+      isLoading: false,
+      error: null,
+    });
+    expect(getWorkspaceFilesMock).not.toHaveBeenCalled();
+  });
+
   it("loads read-only governance evidence from workspace files", async () => {
     getWorkspaceFilesMock.mockResolvedValue({
       files: [
@@ -63,13 +74,25 @@ describe("useGovernanceEvidence", () => {
 
     expect(getWorkspaceFilesMock).toHaveBeenCalledWith("ws-1");
     expect(readWorkspaceFileMock).toHaveBeenCalledWith("ws-1", "openspec/changes/demo/tasks.md");
+    expect(readWorkspaceFileMock).toHaveBeenCalledWith("ws-1", ".artifacts/large-files-gate.json");
+    expect(readWorkspaceFileMock).toHaveBeenCalledWith(
+      "ws-1",
+      ".artifacts/large-files-near-threshold.json",
+    );
+    expect(readWorkspaceFileMock).toHaveBeenCalledWith("ws-1", ".artifacts/heavy-test-noise.json");
     expect(readWorkspaceFileMock).toHaveBeenCalledWith("ws-1", "package.json");
     expect(result.current.evidence.map((entry) => entry.id)).toEqual([
       "openspec:tasks",
+      "large-file:.artifacts/large-files-gate.json",
+      "large-file:.artifacts/large-files-near-threshold.json",
+      "heavy-test-noise:.artifacts/heavy-test-noise.json",
       "script:harness",
       "workflow:governance",
       "trellis:session-record",
     ]);
+    expect(
+      result.current.evidence.filter((entry) => entry.degradationReason === "governance-artifact-missing"),
+    ).toHaveLength(3);
   });
 
   it("returns degraded evidence when workspace listing fails", async () => {
@@ -80,7 +103,7 @@ describe("useGovernanceEvidence", () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(result.current.error).toBe("bridge unavailable");
-    expect(result.current.evidence).toEqual([
+    expect(result.current.evidence).toMatchObject([
       {
         id: "governance:workspace-read",
         source: "workflow",

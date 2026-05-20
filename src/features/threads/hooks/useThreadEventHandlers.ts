@@ -32,6 +32,10 @@ import {
   buildCodexLivenessDiagnostic,
 } from "../utils/codexConversationLiveness";
 import {
+  domainEventFactories,
+  type DomainEventRuntimeController,
+} from "../domain-events";
+import {
   TURN_FIRST_DELTA_WARNING_MS,
   TURN_STALL_WARNING_MS,
   applyActiveExecutionItemEvent,
@@ -153,6 +157,7 @@ type ThreadEventHandlersOptions = {
     threadId: string;
     itemId: string;
   }) => void;
+  domainEventController?: DomainEventRuntimeController | null;
 };
 
 export function useThreadEventHandlers({
@@ -189,6 +194,7 @@ export function useThreadEventHandlers({
   onTurnTerminalExternal,
   onCollaborationModeResolved,
   onExitPlanModeToolCompleted,
+  domainEventController = null,
 }: ThreadEventHandlersOptions) {
   const threadLifecycleSnapshotRef = useRef<Map<string, ThreadLifecycleSnapshot>>(new Map());
   const turnDiagnosticsRef = useRef<Map<string, TurnDiagnosticState>>(new Map());
@@ -1063,6 +1069,39 @@ export function useThreadEventHandlers({
     [dispatch, noteCodexTurnProgressEvidence, safeMessageActivity],
   );
 
+  const emitTurnDomainEvent = useCallback(
+    (
+      workspaceId: string,
+      threadId: string,
+      turnId: string,
+      status: "completed" | "failed",
+      payload?: { durationMs?: number | null; errorMessage?: string },
+    ) => {
+      if (!domainEventController || !turnId.trim()) {
+        return;
+      }
+      const common = {
+        occurredAt: new Date().toISOString(),
+        workspaceId,
+        sessionId: threadId,
+        engine: inferThreadEngine(threadId),
+        turnId,
+      };
+      domainEventController.emitInternal(
+        status === "completed"
+          ? domainEventFactories.turnCompleted({
+              ...common,
+              durationMs: payload?.durationMs ?? null,
+            })
+          : domainEventFactories.turnFailed({
+              ...common,
+              errorMessage: payload?.errorMessage ?? "turn failed",
+            }),
+      );
+    },
+    [domainEventController],
+  );
+
   const onTurnStartedTracked = useCallback(
     (workspaceId: string, threadId: string, turnId: string) => {
       const startedAt = Date.now();
@@ -1587,12 +1626,22 @@ export function useThreadEventHandlers({
       if (diagnostic && diagnostic.turnId !== normalizedTurnId) {
         return handled || fallbackApplied;
       }
+      emitTurnDomainEvent(
+        workspaceId,
+        threadId,
+        normalizedTurnId,
+        "completed",
+        {
+          durationMs: diagnostic ? Math.max(0, Date.now() - diagnostic.startedAt) : null,
+        },
+      );
       finalizeTurnDiagnostic(threadId, "completed");
       return handled || fallbackApplied;
     },
     [
       dispatch,
       emitTurnDiagnostic,
+      emitTurnDomainEvent,
       finalizeTurnDiagnostic,
       getThreadLifecycleSnapshot,
       interruptedThreadsRef,
@@ -1752,6 +1801,9 @@ export function useThreadEventHandlers({
       if (diagnostic && diagnostic.turnId !== normalizedTurnId) {
         return;
       }
+      emitTurnDomainEvent(workspaceId, threadId, normalizedTurnId, "failed", {
+        errorMessage: payload.message,
+      });
       finalizeTurnDiagnostic(threadId, "error", {
         message: payload.message,
         willRetry: payload.willRetry,
@@ -1759,6 +1811,7 @@ export function useThreadEventHandlers({
     },
     [
       finalizeTurnDiagnostic,
+      emitTurnDomainEvent,
       flushPendingRealtimeEvents,
       markRealtimeTurnTerminal,
       onTurnError,
@@ -1804,6 +1857,9 @@ export function useThreadEventHandlers({
       if (diagnostic && diagnostic.turnId !== normalizedTurnId) {
         return;
       }
+      emitTurnDomainEvent(workspaceId, threadId, normalizedTurnId, "failed", {
+        errorMessage: payload.message,
+      });
       finalizeTurnDiagnostic(threadId, "error", {
         message: payload.message,
         diagnosticCategory: "resume_stalled",
@@ -1816,6 +1872,7 @@ export function useThreadEventHandlers({
     },
     [
       finalizeTurnDiagnostic,
+      emitTurnDomainEvent,
       flushPendingRealtimeEvents,
       markRealtimeTurnTerminal,
       onTurnStalled,

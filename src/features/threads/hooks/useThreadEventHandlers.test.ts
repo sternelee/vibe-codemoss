@@ -6,6 +6,10 @@ import {
   CODEX_TURN_NO_PROGRESS_STALL_MS,
   useThreadEventHandlers,
 } from "./useThreadEventHandlers";
+import {
+  createDomainEventRuntimeController,
+  type DomainEventRuntimeController,
+} from "../domain-events";
 import { useThreadItemEvents } from "./useThreadItemEvents";
 import {
   noteThreadVisibleRender,
@@ -230,6 +234,7 @@ function makeOptions(onDebug = vi.fn()) {
     onAgentMessageCompletedExternal: vi.fn(),
     onCollaborationModeResolved: vi.fn(),
     onExitPlanModeToolCompleted: vi.fn(),
+    domainEventController: null as DomainEventRuntimeController | null,
   };
 }
 
@@ -291,6 +296,61 @@ describe("useThreadEventHandlers diagnostics", () => {
     expect(stalledEntry?.payload.isProcessing).toBe(true);
     expect(stalledEntry?.payload.activeTurnId).toBe("turn-1");
     expect(stalledEntry?.payload.hasExecutionItem).toBe(false);
+  });
+
+  it("emits bounded turn completed domain events through the internal controller", () => {
+    const domainEventController = createDomainEventRuntimeController();
+    const subscriber = vi.fn();
+    domainEventController.runtime.subscribe(subscriber);
+    const options = makeOptions();
+    options.domainEventController = domainEventController;
+    const { result } = renderHook(() => useThreadEventHandlers(options));
+
+    act(() => {
+      result.current.onTurnStarted("ws-1", "thread-1", "turn-1");
+      vi.advanceTimersByTime(125);
+      result.current.onTurnCompleted("ws-1", "thread-1", "turn-1");
+    });
+
+    expect(subscriber).toHaveBeenCalledTimes(1);
+    expect(subscriber).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "turn.completed",
+        workspaceId: "ws-1",
+        sessionId: "thread-1",
+        turnId: "turn-1",
+        durationMs: 125,
+      }),
+    );
+  });
+
+  it("emits bounded turn failed domain events through the internal controller", () => {
+    const domainEventController = createDomainEventRuntimeController();
+    const subscriber = vi.fn();
+    domainEventController.runtime.subscribe(subscriber);
+    const options = makeOptions();
+    options.domainEventController = domainEventController;
+    const { result } = renderHook(() => useThreadEventHandlers(options));
+
+    act(() => {
+      result.current.onTurnStarted("ws-1", "thread-1", "turn-1");
+      result.current.onTurnError("ws-1", "thread-1", "turn-1", {
+        message: "boom",
+        willRetry: false,
+        engine: "codex",
+      });
+    });
+
+    expect(subscriber).toHaveBeenCalledTimes(1);
+    expect(subscriber).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "turn.failed",
+        workspaceId: "ws-1",
+        sessionId: "thread-1",
+        turnId: "turn-1",
+        errorMessage: "boom",
+      }),
+    );
   });
 
   it("emits a waiting-for-first-delta diagnostic when no chunk arrives", () => {

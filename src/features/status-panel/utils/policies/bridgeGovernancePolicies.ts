@@ -16,7 +16,10 @@ function contributionForEvidence(
   evidence: GovernanceEvidence,
   maxFailContribution: Extract<PolicyVerdictContribution, "needs_review" | "running" | "ready">,
 ): PolicyVerdictContribution {
-  if (evidence.status === "pass") {
+  if (evidence.degraded || evidence.staleAt) {
+    return maxFailContribution;
+  }
+  if (evidence.status === "pass" && !evidence.degraded && !evidence.staleAt) {
     return "ready";
   }
   if (evidence.status === "fail" || evidence.status === "warn" || evidence.status === "unknown") {

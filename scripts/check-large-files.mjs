@@ -52,6 +52,7 @@ function parseArgs(argv) {
     mode: "report",
     markdownOutput: null,
     baselineOutput: null,
+    jsonOutput: null,
     baselineFile: null,
     policyFile: null,
     root: process.cwd(),
@@ -85,6 +86,11 @@ function parseArgs(argv) {
     }
     if (token === "--baseline-output") {
       config.baselineOutput = readOptionValue(argv, index, "--baseline-output");
+      index += 1;
+      continue;
+    }
+    if (token === "--json-output") {
+      config.jsonOutput = readOptionValue(argv, index, "--json-output");
       index += 1;
       continue;
     }
@@ -499,6 +505,27 @@ function buildBaselineJson(scan, generatedAt) {
   ) + "\n";
 }
 
+function buildStructuredReportJson(scan, generatedAt) {
+  const blockingItems = scan.results.filter((item) => item.status === "new" || item.status === "regressed");
+  const status = blockingItems.length > 0 ? "fail" : scan.results.length > 0 ? "warn" : "pass";
+  return JSON.stringify(
+    {
+      schemaVersion: 1,
+      gate: "large-files",
+      generatedAt,
+      status,
+      scope: scan.scope,
+      policyVersion: scan.policyVersion,
+      baselineLoaded: scan.baselineLoaded,
+      findingCount: scan.results.length,
+      blockingCount: blockingItems.length,
+      results: scan.results,
+    },
+    null,
+    2,
+  ) + "\n";
+}
+
 async function writeOptionalOutput(root, outputPath, content) {
   const absolutePath = path.resolve(root, outputPath);
   await fs.mkdir(path.dirname(absolutePath), { recursive: true });
@@ -551,6 +578,13 @@ export async function main(argv = process.argv.slice(2)) {
     const baselineJson = buildBaselineJson(scan, generatedAt);
     const baselinePath = await writeOptionalOutput(options.root, options.baselineOutput, baselineJson);
     console.log(`Baseline JSON written: ${toRepoPath(path.relative(options.root, baselinePath))}`);
+  }
+
+  if (options.jsonOutput) {
+    const generatedAt = new Date().toISOString();
+    const reportJson = buildStructuredReportJson(scan, generatedAt);
+    const reportPath = await writeOptionalOutput(options.root, options.jsonOutput, reportJson);
+    console.log(`Structured JSON report written: ${toRepoPath(path.relative(options.root, reportPath))}`);
   }
 
   const blockingItems = scan.results.filter((item) => item.status === "new" || item.status === "regressed");

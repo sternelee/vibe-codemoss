@@ -311,6 +311,38 @@ test("cli fails fast when --baseline-file is missing a path instead of consuming
   assert.match(`${result.stdout}\n${result.stderr}`, /Missing value for --baseline-file/);
 });
 
+test("cli writes structured JSON report for governance evidence consumers", async () => {
+  await withTempDir(async (root) => {
+    const outputPath = path.join(root, "large-files.json");
+    const result = spawnSync(
+      process.execPath,
+      [
+        "scripts/check-large-files.mjs",
+        "--root",
+        root,
+        "--threshold",
+        "5",
+        "--mode",
+        "report",
+        "--json-output",
+        outputPath,
+      ],
+      {
+        cwd: process.cwd(),
+        encoding: "utf8",
+      },
+    );
+
+    assert.equal(result.status, 0);
+    const report = JSON.parse(await fs.readFile(outputPath, "utf8"));
+    assert.equal(report.schemaVersion, 1);
+    assert.equal(report.gate, "large-files");
+    assert.equal(report.status, "pass");
+    assert.equal(report.findingCount, 0);
+    assert.deepEqual(report.results, []);
+  });
+});
+
 function expectPaths(paths) {
   assert.deepEqual(paths.sort(), [
     ".github/workflows/large-file-governance.yml",

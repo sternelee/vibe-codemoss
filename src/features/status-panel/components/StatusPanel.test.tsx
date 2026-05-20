@@ -787,6 +787,70 @@ describe("StatusPanel", () => {
     expect(screen.queryByRole("button", { name: /OpenSpec tasks/ })).toBeNull();
   });
 
+  it("feeds dock governance evidence into checkpoint policy audit", () => {
+    mockUseGovernanceEvidence.mockReturnValue({
+      evidence: [
+        {
+          id: "openspec:tasks",
+          source: "openspec",
+          status: "warn",
+          degraded: false,
+          updatedAt: "1970-01-01T00:00:00.000Z",
+          title: "OpenSpec tasks",
+          summary: "1/2 task(s) complete.",
+        },
+      ],
+      isLoading: false,
+      error: null,
+    });
+
+    render(
+      <StatusPanel
+        workspaceId="ws-1"
+        items={[editToolItem]}
+        isProcessing={false}
+        variant="dock"
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Result"));
+    fireEvent.click(screen.getByText("statusPanel.audit.title"));
+
+    expect(screen.getByText("openspecGovernancePolicy")).toBeTruthy();
+    expect(screen.getByText("statusPanel.policy.openspecGovernancePolicy.warn")).toBeTruthy();
+  });
+
+  it("keeps compact checkpoint popover policy audit hidden for governance evidence", () => {
+    mockUseGovernanceEvidence.mockReturnValue({
+      evidence: [
+        {
+          id: "openspec:tasks",
+          source: "openspec",
+          status: "warn",
+          degraded: false,
+          updatedAt: "1970-01-01T00:00:00.000Z",
+          title: "OpenSpec tasks",
+          summary: "1/2 task(s) complete.",
+        },
+      ],
+      isLoading: false,
+      error: null,
+    });
+
+    render(
+      <StatusPanel
+        workspaceId="ws-1"
+        items={[editToolItem]}
+        isProcessing={false}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Result"));
+
+    expect(screen.queryByText("statusPanel.audit.title")).toBeNull();
+    expect(screen.queryByText("openspecGovernancePolicy")).toBeNull();
+  });
+
   it("opens the original diff panel when clicking file row diff action", () => {
     const onOpenDiffPath = vi.fn();
     render(

@@ -6,6 +6,7 @@ import type {
 
 const DEFAULT_UPDATED_AT = "1970-01-01T00:00:00.000Z";
 const REPO_PATH_ANCHORS = [
+  ".artifacts/",
   ".github/",
   ".trellis/",
   "docs/",
@@ -73,8 +74,29 @@ function normalizePayload(
   return { ...payload };
 }
 
+function normalizeProvenance(
+  evidence: GovernanceEvidence,
+): GovernanceEvidence["provenance"] {
+  const provenance =
+    evidence.provenance ?? {
+      sourceType: "workspace",
+      sourceId: evidence.id,
+      observedAt: evidence.updatedAt,
+      qualifier: "minimal-generated-provenance",
+    };
+  return {
+    ...provenance,
+    sourceId: normalizeGovernanceEvidenceId(provenance.sourceId),
+    observedAt: normalizeIsoTimestamp(provenance.observedAt),
+    artifactPath: provenance.artifactPath
+      ? normalizeGovernanceEvidencePath(provenance.artifactPath)
+      : undefined,
+  };
+}
+
 function cloneEvidence(evidence: GovernanceEvidence): GovernanceEvidence {
   const payload = normalizePayload(evidence.payload);
+  const provenance = normalizeProvenance(evidence);
   return {
     ...evidence,
     id: normalizeGovernanceEvidenceId(evidence.id),
@@ -83,6 +105,7 @@ function cloneEvidence(evidence: GovernanceEvidence): GovernanceEvidence {
     updatedAt: normalizeIsoTimestamp(evidence.updatedAt),
     staleAt: evidence.staleAt ? normalizeIsoTimestamp(evidence.staleAt) : undefined,
     payload: payload ? Object.freeze(payload) : undefined,
+    provenance: provenance ? Object.freeze(provenance) : undefined,
   };
 }
 
@@ -159,6 +182,7 @@ export function createGovernanceEvidenceSnapshot(input: {
           entry.staleAt ?? "",
           entry.updatedAt,
           entry.payload ? JSON.stringify(entry.payload) : "",
+          entry.provenance ? JSON.stringify(entry.provenance) : "",
         ].join(":"),
       )
       .join("|");

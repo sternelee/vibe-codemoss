@@ -81,6 +81,40 @@ describe("policy registry", () => {
     expect(result.decisions.at(-1)?.verdictContribution).toBe("no_contribution");
   });
 
+  it("deduplicates repeated policy decisions without dropping distinct sources", () => {
+    const duplicatePolicy = constantPolicy("duplicate", "needs_review");
+    const distinctPolicy: Policy = {
+      id: "duplicate",
+      appliesTo() {
+        return true;
+      },
+      evaluate() {
+        return {
+          policyId: "duplicate",
+          verdictContribution: "needs_review",
+          reasonKey: "statusPanel.policy.duplicate",
+          sourceId: "large-file",
+          evidenceSnapshotId: "snapshot-1",
+        };
+      },
+    };
+
+    const result = evaluatePolicyChain(baseEvidence({ hasEvidence: true }), [
+      duplicatePolicy,
+      duplicatePolicy,
+      distinctPolicy,
+    ]);
+
+    expect(result.decisions.filter((entry) => entry.policyId === "duplicate")).toEqual([
+      expect.objectContaining({
+        sourceId: null,
+      }),
+      expect.objectContaining({
+        sourceId: "large-file",
+      }),
+    ]);
+  });
+
   it("registers and unregisters optional policies without removing corePolicy", () => {
     const registry = createPolicyRegistry();
     registry.register(constantPolicy("temporary", "ready"));

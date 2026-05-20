@@ -21,6 +21,7 @@ export type GovernanceEvidenceAdapterInput = {
   readonly degraded?: boolean;
   readonly degradationReason?: string;
   readonly payload?: GovernanceEvidence["payload"];
+  readonly provenance?: GovernanceEvidence["provenance"];
 };
 
 export function createHarnessGovernanceEvidence(

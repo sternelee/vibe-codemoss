@@ -82,6 +82,10 @@ import {
 import { normalizeSharedSessionEngine } from "../../shared-session/utils/sharedSessionEngines";
 import { type ConversationCompletionEmailMetadata } from "../utils/conversationCompletionEmail";
 import { buildThreadBackgroundActivityProjection } from "../utils/threadBackgroundActivityProjection";
+import {
+  createDomainEventGovernanceConsumer,
+  createDomainEventRuntimeController,
+} from "../domain-events";
 
 const AUTO_TITLE_REQUEST_TIMEOUT_MS = 8_000;
 const AUTO_TITLE_MAX_ATTEMPTS = 2;
@@ -193,6 +197,20 @@ export function useThreads({
     loadSidebarSnapshot(),
     createInitialThreadState,
   );
+  const domainEventRuntimeController = useMemo(
+    () => createDomainEventRuntimeController(),
+    [],
+  );
+  const domainEventGovernanceConsumer = useMemo(
+    () => createDomainEventGovernanceConsumer(domainEventRuntimeController.runtime),
+    [domainEventRuntimeController],
+  );
+  useEffect(() => {
+    domainEventGovernanceConsumer.getSnapshot();
+    return () => {
+      domainEventGovernanceConsumer.unsubscribe();
+    };
+  }, [domainEventGovernanceConsumer]);
   const loadedThreadsRef = useRef<Record<string, boolean>>({});
   const threadStatusByIdRef = useRef(state.threadStatusById);
   const itemsByThreadRef = useRef(state.itemsByThread);
@@ -2142,6 +2160,7 @@ export function useThreads({
     pushThreadErrorMessage,
     onDebug,
     onWorkspaceConnected: handleWorkspaceConnected,
+    domainEventController: domainEventRuntimeController,
     applyCollabThreadLinks,
     approvalAllowlistRef,
     pendingInterruptsRef,

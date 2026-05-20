@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { collectGovernanceEvidence } from "./collectGovernanceEvidence";
+import { readGateArtifactEvidence } from "./gateArtifactEvidenceReader";
 import { openspecEvidenceReaderInternals, readOpenSpecEvidence } from "./openspecEvidenceReader";
 import { readScriptEvidence } from "./scriptEvidenceReader";
 import { readTrellisEvidence } from "./trellisEvidenceReader";
@@ -21,7 +22,7 @@ describe("governance evidence readers", () => {
       "openspec/changes/b/tasks.md": "- [X] done\n- [x] done\n",
     });
 
-    await expect(readOpenSpecEvidence(snapshot)).resolves.toEqual([
+    await expect(readOpenSpecEvidence(snapshot)).resolves.toMatchObject([
       {
         id: "openspec:tasks",
         source: "openspec",
@@ -39,7 +40,7 @@ describe("governance evidence readers", () => {
       "openspec/changes/a/tasks.md": "## no checkboxes\n",
     });
 
-    await expect(readOpenSpecEvidence(snapshot)).resolves.toEqual([
+    await expect(readOpenSpecEvidence(snapshot)).resolves.toMatchObject([
       {
         id: "openspec:tasks",
         source: "openspec",
@@ -79,7 +80,7 @@ describe("governance evidence readers", () => {
       }),
     });
 
-    await expect(readScriptEvidence(snapshot)).resolves.toEqual([
+    await expect(readScriptEvidence(snapshot)).resolves.toMatchObject([
       {
         id: "script:harness",
         source: "script",
@@ -97,7 +98,7 @@ describe("governance evidence readers", () => {
       "package.json": "{not-json",
     });
 
-    await expect(readScriptEvidence(snapshot)).resolves.toEqual([
+    await expect(readScriptEvidence(snapshot)).resolves.toMatchObject([
       {
         id: "script:harness",
         source: "script",
@@ -122,7 +123,7 @@ describe("governance evidence readers", () => {
           ".github/workflows/heavy-test-noise-sentry.yml",
         ],
       }),
-    ).toEqual([
+    ).toMatchObject([
       {
         id: "workflow:governance",
         source: "workflow",
@@ -136,7 +137,7 @@ describe("governance evidence readers", () => {
   });
 
   it("marks missing required workflows as fail evidence", () => {
-    expect(readWorkflowEvidence({ files: [".github/workflows/large-file-governance.yml"] })).toEqual([
+    expect(readWorkflowEvidence({ files: [".github/workflows/large-file-governance.yml"] })).toMatchObject([
       {
         id: "workflow:governance",
         source: "workflow",
@@ -149,12 +150,169 @@ describe("governance evidence readers", () => {
     ]);
   });
 
+  it("converts gate artifact JSON reports into governance evidence", async () => {
+    const largeFileGateReport = JSON.stringify({
+      schemaVersion: 1,
+      gate: "large-files",
+      generatedAt: "2026-05-20T00:00:00.000Z",
+      status: "pass",
+      scope: "fail",
+      findingCount: 0,
+      blockingCount: 0,
+      results: [],
+    });
+    const heavyTestNoiseReport =
+      "{\r\n\"schemaVersion\":1,\r\n\"gate\":\"heavy-test-noise\",\r\n\"generatedAt\":\"2026-05-20T00:00:00.000Z\",\r\n\"status\":\"fail\",\r\n\"breachCount\":3\r\n}";
+    const snapshot = createSnapshot({
+      ".artifacts/large-files-gate.json": largeFileGateReport,
+      ".artifacts/large-files-near-threshold.json": JSON.stringify({
+        schemaVersion: 1,
+        gate: "large-files",
+        generatedAt: "2026-05-20T00:00:00.000Z",
+        status: "warn",
+        scope: "warn",
+        findingCount: 2,
+        blockingCount: 0,
+        results: [],
+      }),
+      ".artifacts/heavy-test-noise.json": heavyTestNoiseReport,
+    });
+    const largeFileHash =
+      await crypto.subtle.digest("SHA-256", new TextEncoder().encode(largeFileGateReport));
+    const expectedLargeFileHash = Array.from(new Uint8Array(largeFileHash))
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+
+    await expect(readGateArtifactEvidence(snapshot)).resolves.toMatchObject([
+      {
+        id: "large-file:.artifacts/large-files-gate.json",
+        source: "large-file",
+        status: "pass",
+        degraded: false,
+        title: "Large-file hard gate",
+        payload: {
+          kind: "large-file",
+          scope: "fail",
+          sourcePath: ".artifacts/large-files-gate.json",
+        },
+        provenance: {
+          sourceType: "artifact",
+          sourceId: "large-file:.artifacts/large-files-gate.json",
+          observedAt: "2026-05-20T00:00:00.000Z",
+          parserId: "large-file-json-report@1",
+          adapterId: "gate-artifact-evidence-reader@1",
+          artifactPath: ".artifacts/large-files-gate.json",
+          artifactHash: expectedLargeFileHash,
+        },
+      },
+      {
+        id: "large-file:.artifacts/large-files-near-threshold.json",
+        source: "large-file",
+        status: "warn",
+        degraded: false,
+        title: "Large-file near-threshold watch",
+        payload: {
+          kind: "large-file",
+          scope: "warn",
+          sourcePath: ".artifacts/large-files-near-threshold.json",
+        },
+      },
+      {
+        id: "heavy-test-noise:.artifacts/heavy-test-noise.json",
+        source: "heavy-test-noise",
+        status: "warn",
+        degraded: false,
+        title: "Heavy test noise sentry",
+        payload: {
+          kind: "heavy-test-noise",
+          breachCount: 3,
+          sourcePath: ".artifacts/heavy-test-noise.json",
+        },
+        provenance: {
+          sourceType: "artifact",
+          sourceId: "heavy-test-noise:.artifacts/heavy-test-noise.json",
+          observedAt: "2026-05-20T00:00:00.000Z",
+          parserId: "heavy-test-noise-json-report@1",
+          adapterId: "gate-artifact-evidence-reader@1",
+          artifactPath: ".artifacts/heavy-test-noise.json",
+        },
+      },
+    ]);
+  });
+
+  it("degrades missing and malformed gate artifacts without throwing", async () => {
+    const snapshot = createSnapshot({
+      ".artifacts/large-files-gate.json": "{not-json",
+    });
+
+    const evidence = await readGateArtifactEvidence(snapshot);
+
+    expect(evidence).toHaveLength(3);
+    expect(evidence[0]).toMatchObject({
+      id: "large-file:.artifacts/large-files-gate.json",
+      source: "large-file",
+      status: "unknown",
+      degraded: true,
+      degradationReason: "governance-artifact-malformed",
+      provenance: {
+        sourceType: "artifact",
+        sourceId: "large-file:.artifacts/large-files-gate.json",
+        observedAt: "1970-01-01T00:00:00.000Z",
+        adapterId: "gate-artifact-evidence-reader@1",
+        artifactPath: ".artifacts/large-files-gate.json",
+        qualifier: "artifact-malformed",
+      },
+    });
+    expect(evidence[1]).toMatchObject({
+      id: "large-file:.artifacts/large-files-near-threshold.json",
+      source: "large-file",
+      status: "unknown",
+      degraded: true,
+      degradationReason: "governance-artifact-missing",
+      provenance: {
+        qualifier: "artifact-missing",
+      },
+    });
+    expect(evidence[2]).toMatchObject({
+      id: "heavy-test-noise:.artifacts/heavy-test-noise.json",
+      source: "heavy-test-noise",
+      status: "unknown",
+      degraded: true,
+      degradationReason: "governance-artifact-missing",
+    });
+  });
+
+  it("does not treat stale artifact evidence as fresh passing evidence", async () => {
+    const snapshot = createSnapshot({
+      ".artifacts/large-files-gate.json": JSON.stringify({
+        schemaVersion: 1,
+        gate: "large-files",
+        generatedAt: "2026-05-18T00:00:00.000Z",
+        status: "pass",
+        scope: "fail",
+        findingCount: 0,
+        blockingCount: 0,
+        results: [],
+      }),
+    });
+
+    const evidence = await readGateArtifactEvidence(snapshot);
+
+    expect(evidence[0]).toMatchObject({
+      id: "large-file:.artifacts/large-files-gate.json",
+      status: "pass",
+      degraded: true,
+      degradationReason: "governance-artifact-stale",
+      staleAt: "2026-05-19T00:00:00.000Z",
+    });
+  });
+
   it("parses stable Trellis session records but keeps Trellis optional", async () => {
     const snapshot = createSnapshot({
       ".trellis/workspace/dev/index.md": "Total Sessions: 12\n",
     });
 
-    await expect(readTrellisEvidence(snapshot)).resolves.toEqual([
+    await expect(readTrellisEvidence(snapshot)).resolves.toMatchObject([
       {
         id: "trellis:session-record",
         source: "trellis",
@@ -168,7 +326,7 @@ describe("governance evidence readers", () => {
   });
 
   it("degrades Trellis evidence when the schema is absent", async () => {
-    await expect(readTrellisEvidence(createSnapshot({}))).resolves.toEqual([
+    await expect(readTrellisEvidence(createSnapshot({}))).resolves.toMatchObject([
       {
         id: "trellis:session-record",
         source: "trellis",
@@ -210,10 +368,19 @@ describe("governance evidence readers", () => {
 
     expect(evidence.map((entry) => entry.id)).toEqual([
       "openspec:tasks",
+      "large-file:.artifacts/large-files-gate.json",
+      "large-file:.artifacts/large-files-near-threshold.json",
+      "heavy-test-noise:.artifacts/heavy-test-noise.json",
       "script:harness",
       "workflow:governance",
       "trellis:session-record",
     ]);
-    expect(readPaths).toEqual(["openspec/changes/a/tasks.md", "package.json"]);
+    expect(readPaths).toEqual([
+      "openspec/changes/a/tasks.md",
+      ".artifacts/large-files-gate.json",
+      ".artifacts/large-files-near-threshold.json",
+      ".artifacts/heavy-test-noise.json",
+      "package.json",
+    ]);
   });
 });

@@ -19,6 +19,7 @@ import type { ConversationItem, GitFileStatus, TurnPlan } from "../../../types";
 import type { EngineType, ThreadTokenUsage } from "../../../types";
 import { isEngineCapabilityAvailable } from "../../engine/engineCapabilityMatrix";
 import { useStatusPanelData } from "../hooks/useStatusPanelData";
+import { createFrozenGovernanceEvidenceSnapshot } from "../../governance/evidence";
 import { useGovernanceEvidence } from "../../governance/evidence/useGovernanceEvidence";
 import type { FileChangeSummary, SubagentInfo, TabType } from "../types";
 import {
@@ -285,29 +286,6 @@ export const StatusPanel = memo(function StatusPanel({
   );
   const canonicalCheckpointFileFacts =
     workspaceGitFiles !== undefined ? workspaceFileChanges : null;
-  const checkpoint = useMemo(
-    () =>
-      buildCheckpointViewModel({
-        todos: usePlanAsTaskList ? codexTaskItems : todos,
-        subagents,
-        fileChanges,
-        commands,
-        isProcessing,
-        generatedSummary: resolveCheckpointGeneratedSummary(effectiveItems),
-        canonicalFileFacts: canonicalCheckpointFileFacts,
-      }),
-    [
-      canonicalCheckpointFileFacts,
-      commands,
-      codexTaskItems,
-      effectiveItems,
-      fileChanges,
-      isProcessing,
-      subagents,
-      todos,
-      usePlanAsTaskList,
-    ],
-  );
   const displayedFileChanges =
     workspaceGitFiles !== undefined ? workspaceFileChanges : fileChanges;
   const displayedTotalAdditions =
@@ -406,6 +384,52 @@ export const StatusPanel = memo(function StatusPanel({
       });
     },
     [variant],
+  );
+
+  const activeTab =
+    variant === "dock"
+      ? openTab &&
+          isDockTabVisible(variant, openTab, showPlanTab, visibleDockTabs, dockTabAvailability)
+        ? openTab
+        : preferredTab
+      : openTab;
+  const governanceEvidenceState = useGovernanceEvidence(
+    workspaceId,
+    variant === "dock" && activeTab === "checkpoint" && Boolean(workspaceId),
+  );
+  const governanceSnapshot = useMemo(
+    () =>
+      governanceEvidenceState.evidence.length > 0
+        ? createFrozenGovernanceEvidenceSnapshot({
+            evidence: governanceEvidenceState.evidence,
+          })
+        : null,
+    [governanceEvidenceState.evidence],
+  );
+  const checkpoint = useMemo(
+    () =>
+      buildCheckpointViewModel({
+        todos: usePlanAsTaskList ? codexTaskItems : todos,
+        subagents,
+        fileChanges,
+        commands,
+        isProcessing,
+        generatedSummary: resolveCheckpointGeneratedSummary(effectiveItems),
+        canonicalFileFacts: canonicalCheckpointFileFacts,
+        governanceSnapshot,
+      }),
+    [
+      canonicalCheckpointFileFacts,
+      commands,
+      codexTaskItems,
+      effectiveItems,
+      fileChanges,
+      governanceSnapshot,
+      isProcessing,
+      subagents,
+      todos,
+      usePlanAsTaskList,
+    ],
   );
 
   const tabDefinitions = useMemo<Record<TabType, StatusPanelTabDefinition>>(
@@ -524,18 +548,6 @@ export const StatusPanel = memo(function StatusPanel({
       variant,
       visibleDockTabs,
     ],
-  );
-
-  const activeTab =
-    variant === "dock"
-      ? openTab &&
-          isDockTabVisible(variant, openTab, showPlanTab, visibleDockTabs, dockTabAvailability)
-        ? openTab
-        : preferredTab
-      : openTab;
-  const governanceEvidenceState = useGovernanceEvidence(
-    workspaceId,
-    variant === "dock" && activeTab === "checkpoint" && Boolean(workspaceId),
   );
 
   if (!expanded) return null;

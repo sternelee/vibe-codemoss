@@ -81,4 +81,38 @@ describe("bridge governance policies", () => {
       "costBudgetGovernancePolicy",
     ]);
   });
+
+  it("keeps degraded pass evidence in needs_review instead of treating it as fresh ready", () => {
+    const snapshot = createFrozenGovernanceEvidenceSnapshot({
+      id: "snapshot-stale",
+      evidence: [
+        createHarnessGovernanceEvidence({
+          id: "large-file:.artifacts/large-files-gate.json",
+          source: "large-file",
+          status: "pass",
+          title: "Large-file hard gate",
+          summary: "0 blocking findings, but artifact is stale.",
+          staleAt: "2026-05-19T00:00:00.000Z",
+          degraded: true,
+          degradationReason: "governance-artifact-stale",
+          payload: {
+            kind: "large-file",
+            scope: "fail",
+            sourcePath: ".artifacts/large-files-gate.json",
+          },
+        }),
+      ],
+    });
+
+    const decision = bridgeGovernancePolicies
+      .find((policy) => policy.id === "largeFileGovernancePolicy")
+      ?.evaluate(baseEvidence({ governanceSnapshot: snapshot }));
+
+    expect(decision).toMatchObject({
+      policyId: "largeFileGovernancePolicy",
+      verdictContribution: "needs_review",
+      degradationReason: "governance-artifact-stale",
+      staleAt: "2026-05-19T00:00:00.000Z",
+    });
+  });
 });
