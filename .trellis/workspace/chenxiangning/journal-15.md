@@ -773,3 +773,55 @@ Follow-ups: 重新推送并运行 Release workflow，创建 v0.5.0 release。
 ### Next Steps
 
 - None - task complete
+
+
+## Session 538: 回滚 Codex 终止漂移恢复链路
+
+**Date**: 2026-05-21
+**Task**: 回滚 Codex 终止漂移恢复链路
+**Branch**: `feature/v0.5.0-md`
+
+### Summary
+
+按用户要求完整回滚 Codex 终止/漂移恢复修复链路，避免已结束会话被迟到事件复活。
+
+### Main Changes
+
+## 背景
+用户反馈 Codex 会话在上一轮修复后仍会偶发无法正常结束，并出现已终止对话被迟到状态复活的问题。
+
+## 本次处理
+- 撤销未提交的二次补丁，避免继续叠加错误方向。
+- 通过语义 revert 回滚以下运行时修复提交：
+  - 3e258333 fix(codex): 收紧后台终止漂移恢复边界
+  - 12af3ccb Fix
+  - b2a04097 fix(codex): 修复终态 identity 缺失卡住生成
+- 删除对应 OpenSpec 变更与测试资产，恢复到这些修复进入前的运行时行为。
+- 不回滚 release、Markdown、sidebar、workspace 等无关正常功能。
+
+## 验证
+- npm exec vitest run src/features/app/hooks/useAppServerEvents.test.tsx src/features/app/hooks/useAppServerEvents.realtime-contract.test.tsx src/features/app/hooks/useAppServerEvents.routing.test.tsx src/features/app/hooks/useAppServerEvents.tokenUsage.test.tsx src/features/app/hooks/useAppServerEvents.completion-turn-id.test.tsx src/features/threads/hooks/useThreadEventHandlers.test.ts src/features/threads/hooks/useThreadItemEvents.test.ts src/features/threads/hooks/useThreads.integration.test.tsx
+- npm run typecheck
+- npm run lint
+- npm run check:runtime-contracts
+- npm run doctor:strict
+- git diff --cached --check
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4456ed67` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
