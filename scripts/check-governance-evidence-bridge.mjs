@@ -22,6 +22,8 @@ const requiredFiles = [
   path.join(EVIDENCE_DIR, "governanceEvidenceBridge.ts"),
   path.join(EVIDENCE_DIR, "harnessEvidenceAdapters.ts"),
   path.join(EVIDENCE_DIR, "collectGovernanceEvidence.ts"),
+  path.join(EVIDENCE_DIR, "projectGovernanceProfile.ts"),
+  path.join(EVIDENCE_DIR, "evidenceAdapters.ts"),
   path.join(POLICY_DIR, "bridgeGovernancePolicies.ts"),
   path.join(POLICY_DIR, "policyTypes.ts"),
 ].map((filePath) => path.normalize(filePath));
@@ -55,7 +57,9 @@ for (const token of [
   }
 }
 
-const bridgeSource = readText(path.join(EVIDENCE_DIR, "governanceEvidenceBridge.ts"));
+const bridgeSource = readText(
+  path.join(EVIDENCE_DIR, "governanceEvidenceBridge.ts"),
+);
 for (const token of [
   "createHarnessGovernanceEvidence",
   "createFrozenGovernanceEvidenceSnapshot",
@@ -66,7 +70,9 @@ for (const token of [
   }
 }
 
-const adapterSource = readText(path.join(EVIDENCE_DIR, "harnessEvidenceAdapters.ts"));
+const adapterSource = readText(
+  path.join(EVIDENCE_DIR, "harnessEvidenceAdapters.ts"),
+);
 for (const token of [
   "createCostBudgetGovernanceEvidence",
   "createCapabilityGovernanceEvidence",
@@ -79,12 +85,76 @@ for (const token of [
   }
 }
 
+const profileSource = readText(
+  path.join(EVIDENCE_DIR, "projectGovernanceProfile.ts"),
+);
+for (const token of [
+  "ProjectGovernanceProfile",
+  "deriveProjectGovernanceProfile",
+  "governance.config.json",
+  "SCRIPT_TO_GATE",
+  "WORKFLOW_TO_GATE",
+]) {
+  if (!profileSource.includes(token)) {
+    fail(
+      `projectGovernanceProfile.ts missing dynamic profile token "${token}"`,
+    );
+  }
+}
+
+const evidenceAdapterSource = readText(
+  path.join(EVIDENCE_DIR, "evidenceAdapters.ts"),
+);
+for (const token of [
+  "EvidenceAdapter",
+  "appliesTo(profile",
+  "selectEvidenceAdapters",
+  "gate-artifact-adapter@1",
+  "ecosystem-verification-adapter@1",
+]) {
+  if (!evidenceAdapterSource.includes(token)) {
+    fail(`evidenceAdapters.ts missing applicability token "${token}"`);
+  }
+}
+
+const collectSource = readText(
+  path.join(EVIDENCE_DIR, "collectGovernanceEvidence.ts"),
+);
+for (const token of [
+  "deriveProjectGovernanceProfile(snapshot)",
+  "selectEvidenceAdapters(profile)",
+]) {
+  if (!collectSource.includes(token)) {
+    fail(
+      `collectGovernanceEvidence.ts must select evidence through profile-aware adapters: missing "${token}"`,
+    );
+  }
+}
+for (const forbidden of [
+  "readGateArtifactEvidence(snapshot)",
+  "readScriptEvidence(snapshot)",
+  "readWorkflowEvidence(snapshot)",
+  "readTrellisEvidence(snapshot)",
+]) {
+  if (collectSource.includes(forbidden)) {
+    fail(
+      `collectGovernanceEvidence.ts must not call fixed global reader directly: ${forbidden}`,
+    );
+  }
+}
+
 const policyTypeSource = readText(path.join(POLICY_DIR, "policyTypes.ts"));
-if (!policyTypeSource.includes("governanceSnapshot: GovernanceEvidenceSnapshot | null")) {
+if (
+  !policyTypeSource.includes(
+    "governanceSnapshot: GovernanceEvidenceSnapshot | null",
+  )
+) {
   fail("CheckpointPolicyEvidence must carry the injected governance snapshot");
 }
 if (!policyTypeSource.includes("enforcement: PolicyDecisionEnforcement")) {
-  fail("PolicyDecision must carry structured advisory enforcement classification");
+  fail(
+    "PolicyDecision must carry structured advisory enforcement classification",
+  );
 }
 for (const token of [
   "evidenceObservedAt?: string",
@@ -97,7 +167,9 @@ for (const token of [
   }
 }
 
-const bridgePolicySource = readText(path.join(POLICY_DIR, "bridgeGovernancePolicies.ts"));
+const bridgePolicySource = readText(
+  path.join(POLICY_DIR, "bridgeGovernancePolicies.ts"),
+);
 for (const forbidden of [
   "useGovernanceEvidence",
   "getWorkspaceFiles",
@@ -113,15 +185,17 @@ for (const forbidden of [
   }
 }
 
-if (bridgePolicySource.includes("verdictContribution: \"blocked\"")) {
+if (bridgePolicySource.includes('verdictContribution: "blocked"')) {
   fail("bridge-fed policies must not contribute blocked");
 }
-if (!bridgePolicySource.includes("Exclude<PolicyVerdictContribution, \"blocked\">")) {
+if (
+  !bridgePolicySource.includes('Exclude<PolicyVerdictContribution, "blocked">')
+) {
   fail("bridge-fed policies must type-exclude blocked contributions");
 }
 for (const token of [
   "engineRuntimeGovernancePolicy",
-  "source: \"engine-runtime-contract\"",
+  'source: "engine-runtime-contract"',
   "ADVISORY_CONTRIBUTION_SEVERITY",
   "evidenceObservedAt",
   "evidenceArtifactPath",
@@ -150,26 +224,34 @@ if (
   statusPanelSource.indexOf("useGovernanceEvidence(") >
   statusPanelSource.indexOf("buildCheckpointViewModel({")
 ) {
-  fail("StatusPanel must collect governance evidence before checkpoint construction");
+  fail(
+    "StatusPanel must collect governance evidence before checkpoint construction",
+  );
 }
 
-const checkpointCallIndex = statusPanelSource.indexOf("buildCheckpointViewModel({");
-const checkpointCallEndIndex = statusPanelSource.indexOf("})", checkpointCallIndex);
-const checkpointCallSource = statusPanelSource.slice(checkpointCallIndex, checkpointCallEndIndex);
+const checkpointCallIndex = statusPanelSource.indexOf(
+  "buildCheckpointViewModel({",
+);
+const checkpointCallEndIndex = statusPanelSource.indexOf(
+  "})",
+  checkpointCallIndex,
+);
+const checkpointCallSource = statusPanelSource.slice(
+  checkpointCallIndex,
+  checkpointCallEndIndex,
+);
 if (!checkpointCallSource.includes("governanceSnapshot")) {
-  fail("StatusPanel must pass governanceSnapshot into buildCheckpointViewModel");
+  fail(
+    "StatusPanel must pass governanceSnapshot into buildCheckpointViewModel",
+  );
 }
 
 const checkpointPanelSource = readText(CHECKPOINT_PANEL_COMPONENT);
 for (const token of [
   "buildCheckpointSectionProjection",
   "checkpointSections.advisorySignals",
-  "checkpointSections.evidenceTrail",
   "checkpointSections.suggestedActions",
-  "evidenceTrail.observed",
-  "evidenceTrail.artifact",
-  "evidenceTrail.hash",
-  "evidenceTrail.qualifier",
+  "PolicyDecisionAuditPanel",
 ]) {
   if (!checkpointPanelSource.includes(token)) {
     fail(`CheckpointPanel.tsx missing advisory section token "${token}"`);
@@ -177,8 +259,13 @@ for (const token of [
 }
 
 const packageJson = JSON.parse(readText(path.join(ROOT, "package.json")));
-if (packageJson.scripts?.["check:governance-evidence-bridge"] !== "node scripts/check-governance-evidence-bridge.mjs") {
-  fail("package.json must expose check:governance-evidence-bridge through a Node entrypoint");
+if (
+  packageJson.scripts?.["check:governance-evidence-bridge"] !==
+  "node scripts/check-governance-evidence-bridge.mjs"
+) {
+  fail(
+    "package.json must expose check:governance-evidence-bridge through a Node entrypoint",
+  );
 }
 
 if (process.exitCode) {

@@ -1,9 +1,18 @@
 import { createGateGovernanceEvidence } from "./harnessEvidenceAdapters";
 import { normalizeGovernanceEvidenceId } from "./governanceEvidence";
-import type { GovernanceEvidence, GovernanceEvidenceStatus, WorkspaceGovernanceSnapshot } from "./types";
+import type {
+  GovernanceGateProfile,
+  ProjectGovernanceProfile,
+} from "./projectGovernanceProfile";
+import type {
+  GovernanceEvidence,
+  GovernanceEvidenceStatus,
+  WorkspaceGovernanceSnapshot,
+} from "./types";
 
 const LARGE_FILE_GATE_ARTIFACT = ".artifacts/large-files-gate.json";
-const LARGE_FILE_NEAR_THRESHOLD_ARTIFACT = ".artifacts/large-files-near-threshold.json";
+const LARGE_FILE_NEAR_THRESHOLD_ARTIFACT =
+  ".artifacts/large-files-near-threshold.json";
 const HEAVY_TEST_NOISE_ARTIFACT = ".artifacts/heavy-test-noise.json";
 const GATE_ARTIFACT_ADAPTER_ID = "gate-artifact-evidence-reader@1";
 const LARGE_FILE_REPORT_PARSER_ID = "large-file-json-report@1";
@@ -29,7 +38,12 @@ type HeavyTestNoiseReport = {
 };
 
 function normalizeArtifactStatus(value: unknown): GovernanceEvidenceStatus {
-  if (value === "pass" || value === "warn" || value === "fail" || value === "unknown") {
+  if (
+    value === "pass" ||
+    value === "warn" ||
+    value === "fail" ||
+    value === "unknown"
+  ) {
     return value;
   }
   return "unknown";
@@ -55,7 +69,10 @@ function parseJsonArtifact<T>(text: string): T | null {
   }
 }
 
-function isLargeFileReport(report: LargeFileReport | null, expectedScope: "fail" | "warn"): report is LargeFileReport {
+function isLargeFileReport(
+  report: LargeFileReport | null,
+  expectedScope: "fail" | "warn",
+): report is LargeFileReport {
   return (
     report?.schemaVersion === 1 &&
     report.gate === "large-files" &&
@@ -63,7 +80,9 @@ function isLargeFileReport(report: LargeFileReport | null, expectedScope: "fail"
   );
 }
 
-function isHeavyTestNoiseReport(report: HeavyTestNoiseReport | null): report is HeavyTestNoiseReport {
+function isHeavyTestNoiseReport(
+  report: HeavyTestNoiseReport | null,
+): report is HeavyTestNoiseReport {
   return report?.schemaVersion === 1 && report.gate === "heavy-test-noise";
 }
 
@@ -85,7 +104,9 @@ function resolveArtifactFreshness(generatedAt: string | undefined): {
       degradationReason: "governance-artifact-observed-at-invalid",
     };
   }
-  const staleAt = new Date(generatedTime + ARTIFACT_STALE_AFTER_MS).toISOString();
+  const staleAt = new Date(
+    generatedTime + ARTIFACT_STALE_AFTER_MS,
+  ).toISOString();
   if (Date.now() > Date.parse(staleAt)) {
     return {
       degraded: true,
@@ -101,19 +122,26 @@ function createMissingArtifactEvidence(input: {
   source: "large-file" | "heavy-test-noise";
   title: string;
   artifactPath: string;
+  command?: string;
 }): GovernanceEvidence {
   return createGateGovernanceEvidence({
     id: input.id,
     source: input.source,
     status: "unknown",
     title: input.title,
-    summary: `${input.artifactPath} is missing; run the corresponding governance check to produce result evidence.`,
+    summary: `${input.artifactPath} is missing; ${
+      input.command
+        ? `run \`${input.command}\``
+        : "run the corresponding governance check"
+    } to produce result evidence.`,
     sourcePath: input.artifactPath,
     degraded: true,
     degradationReason: "governance-artifact-missing",
     provenance: {
       sourceType: "artifact",
-      sourceId: normalizeGovernanceEvidenceId(`${input.source}:${input.artifactPath}`),
+      sourceId: normalizeGovernanceEvidenceId(
+        `${input.source}:${input.artifactPath}`,
+      ),
       observedAt: "1970-01-01T00:00:00.000Z",
       adapterId: GATE_ARTIFACT_ADAPTER_ID,
       artifactPath: input.artifactPath,
@@ -139,7 +167,9 @@ function createMalformedArtifactEvidence(input: {
     degradationReason: "governance-artifact-malformed",
     provenance: {
       sourceType: "artifact",
-      sourceId: normalizeGovernanceEvidenceId(`${input.source}:${input.artifactPath}`),
+      sourceId: normalizeGovernanceEvidenceId(
+        `${input.source}:${input.artifactPath}`,
+      ),
       observedAt: "1970-01-01T00:00:00.000Z",
       adapterId: GATE_ARTIFACT_ADAPTER_ID,
       artifactPath: input.artifactPath,
@@ -152,9 +182,14 @@ async function readLargeFileArtifactEvidence(
   snapshot: WorkspaceGovernanceSnapshot,
   artifactPath: string,
   expectedScope: "fail" | "warn",
+  gate?: GovernanceGateProfile,
 ): Promise<GovernanceEvidence> {
   const artifactText = await snapshot.readFile(artifactPath);
-  const title = expectedScope === "fail" ? "Large-file hard gate" : "Large-file near-threshold watch";
+  const title =
+    gate?.name ??
+    (expectedScope === "fail"
+      ? "Large-file hard gate"
+      : "Large-file near-threshold watch");
   const id = `large-file:${artifactPath}`;
   if (!artifactText) {
     return createMissingArtifactEvidence({
@@ -162,6 +197,7 @@ async function readLargeFileArtifactEvidence(
       source: "large-file",
       title,
       artifactPath,
+      command: gate?.command,
     });
   }
 
@@ -177,9 +213,12 @@ async function readLargeFileArtifactEvidence(
   }
 
   const status = normalizeArtifactStatus(report.status);
-  const findingCount = typeof report.findingCount === "number" ? report.findingCount : 0;
-  const blockingCount = typeof report.blockingCount === "number" ? report.blockingCount : 0;
-  const observedAt = typeof report.generatedAt === "string" ? report.generatedAt : undefined;
+  const findingCount =
+    typeof report.findingCount === "number" ? report.findingCount : 0;
+  const blockingCount =
+    typeof report.blockingCount === "number" ? report.blockingCount : 0;
+  const observedAt =
+    typeof report.generatedAt === "string" ? report.generatedAt : undefined;
   const freshness = resolveArtifactFreshness(observedAt);
   return createGateGovernanceEvidence({
     id,
@@ -215,14 +254,17 @@ async function readLargeFileArtifactEvidence(
 
 async function readHeavyTestNoiseArtifactEvidence(
   snapshot: WorkspaceGovernanceSnapshot,
+  artifactPath = HEAVY_TEST_NOISE_ARTIFACT,
+  gate?: GovernanceGateProfile,
 ): Promise<GovernanceEvidence> {
-  const artifactText = await snapshot.readFile(HEAVY_TEST_NOISE_ARTIFACT);
+  const artifactText = await snapshot.readFile(artifactPath);
   if (!artifactText) {
     return createMissingArtifactEvidence({
-      id: `heavy-test-noise:${HEAVY_TEST_NOISE_ARTIFACT}`,
+      id: `heavy-test-noise:${artifactPath}`,
       source: "heavy-test-noise",
-      title: "Heavy test noise sentry",
-      artifactPath: HEAVY_TEST_NOISE_ARTIFACT,
+      title: gate?.name ?? "Heavy test noise sentry",
+      artifactPath,
+      command: gate?.command,
     });
   }
 
@@ -230,23 +272,25 @@ async function readHeavyTestNoiseArtifactEvidence(
   const artifactHash = await createSha256Digest(artifactText);
   if (!isHeavyTestNoiseReport(report)) {
     return createMalformedArtifactEvidence({
-      id: `heavy-test-noise:${HEAVY_TEST_NOISE_ARTIFACT}`,
+      id: `heavy-test-noise:${artifactPath}`,
       source: "heavy-test-noise",
-      title: "Heavy test noise sentry",
-      artifactPath: HEAVY_TEST_NOISE_ARTIFACT,
+      title: gate?.name ?? "Heavy test noise sentry",
+      artifactPath,
     });
   }
 
-  const breachCount = typeof report.breachCount === "number" ? report.breachCount : 0;
-  const observedAt = typeof report.generatedAt === "string" ? report.generatedAt : undefined;
+  const breachCount =
+    typeof report.breachCount === "number" ? report.breachCount : 0;
+  const observedAt =
+    typeof report.generatedAt === "string" ? report.generatedAt : undefined;
   const freshness = resolveArtifactFreshness(observedAt);
   return createGateGovernanceEvidence({
-    id: `heavy-test-noise:${HEAVY_TEST_NOISE_ARTIFACT}`,
+    id: `heavy-test-noise:${artifactPath}`,
     source: "heavy-test-noise",
     status: normalizeArtifactStatus(report.status),
-    title: "Heavy test noise sentry",
+    title: gate?.name ?? "Heavy test noise sentry",
     summary: `${breachCount} noisy heavy-test breach(es) detected.`,
-    sourcePath: HEAVY_TEST_NOISE_ARTIFACT,
+    sourcePath: artifactPath,
     updatedAt: observedAt,
     staleAt: freshness.staleAt,
     degraded: freshness.degraded,
@@ -254,15 +298,15 @@ async function readHeavyTestNoiseArtifactEvidence(
     payload: {
       kind: "heavy-test-noise",
       breachCount,
-      sourcePath: HEAVY_TEST_NOISE_ARTIFACT,
+      sourcePath: artifactPath,
     },
     provenance: {
       sourceType: "artifact",
-      sourceId: `heavy-test-noise:${HEAVY_TEST_NOISE_ARTIFACT}`,
+      sourceId: `heavy-test-noise:${artifactPath}`,
       observedAt: observedAt ?? "1970-01-01T00:00:00.000Z",
       parserId: HEAVY_TEST_NOISE_REPORT_PARSER_ID,
       adapterId: GATE_ARTIFACT_ADAPTER_ID,
-      artifactPath: HEAVY_TEST_NOISE_ARTIFACT,
+      artifactPath,
       artifactHash: artifactHash ?? undefined,
       qualifier: artifactHash ? undefined : "artifact-hash-unavailable",
     },
@@ -271,14 +315,59 @@ async function readHeavyTestNoiseArtifactEvidence(
 
 export async function readGateArtifactEvidence(
   snapshot: WorkspaceGovernanceSnapshot,
+  profile?: Pick<ProjectGovernanceProfile, "gates">,
 ): Promise<GovernanceEvidence[]> {
-  const [largeFileGate, largeFileNearThreshold, heavyTestNoise] = await Promise.all([
-    readLargeFileArtifactEvidence(snapshot, LARGE_FILE_GATE_ARTIFACT, "fail"),
-    readLargeFileArtifactEvidence(snapshot, LARGE_FILE_NEAR_THRESHOLD_ARTIFACT, "warn"),
-    readHeavyTestNoiseArtifactEvidence(snapshot),
-  ]);
+  const gates = profile?.gates ?? [
+    {
+      name: "Large-file hard gate",
+      artifactPath: LARGE_FILE_GATE_ARTIFACT,
+      source: "large-file" as const,
+      severity: "fail" as const,
+    },
+    {
+      name: "Large-file near-threshold watch",
+      artifactPath: LARGE_FILE_NEAR_THRESHOLD_ARTIFACT,
+      source: "large-file" as const,
+      severity: "warn" as const,
+    },
+    {
+      name: "Heavy test noise sentry",
+      artifactPath: HEAVY_TEST_NOISE_ARTIFACT,
+      source: "heavy-test-noise" as const,
+      severity: "warn" as const,
+    },
+  ];
 
-  return [largeFileGate, largeFileNearThreshold, heavyTestNoise];
+  const evidence = await Promise.all(
+    gates.map((gate) => {
+      if (gate.source === "heavy-test-noise") {
+        return readHeavyTestNoiseArtifactEvidence(
+          snapshot,
+          gate.artifactPath,
+          gate,
+        );
+      }
+      if (gate.source === "large-file") {
+        return readLargeFileArtifactEvidence(
+          snapshot,
+          gate.artifactPath,
+          gate.severity === "warn" ? "warn" : "fail",
+          gate,
+        );
+      }
+      return Promise.resolve(
+        createMissingArtifactEvidence({
+          id: `script:${gate.artifactPath}`,
+          source: "large-file",
+          title: gate.name,
+          artifactPath: gate.artifactPath,
+          command: gate.command,
+        }),
+      );
+    }),
+  );
+
+  return evidence;
 }
 
 export const gateArtifactEvidenceReaderInternals = {

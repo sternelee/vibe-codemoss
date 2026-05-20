@@ -73,26 +73,70 @@ describe("useGovernanceEvidence", () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(getWorkspaceFilesMock).toHaveBeenCalledWith("ws-1");
-    expect(readWorkspaceFileMock).toHaveBeenCalledWith("ws-1", "openspec/changes/demo/tasks.md");
-    expect(readWorkspaceFileMock).toHaveBeenCalledWith("ws-1", ".artifacts/large-files-gate.json");
+    expect(readWorkspaceFileMock).toHaveBeenCalledWith(
+      "ws-1",
+      "openspec/changes/demo/tasks.md",
+    );
+    expect(readWorkspaceFileMock).toHaveBeenCalledWith(
+      "ws-1",
+      ".artifacts/large-files-gate.json",
+    );
+    expect(readWorkspaceFileMock).not.toHaveBeenCalledWith(
+      "ws-1",
+      ".artifacts/large-files-near-threshold.json",
+    );
+    expect(readWorkspaceFileMock).toHaveBeenCalledWith(
+      "ws-1",
+      ".artifacts/heavy-test-noise.json",
+    );
+    expect(readWorkspaceFileMock).toHaveBeenCalledWith("ws-1", "package.json");
+    expect(result.current.evidence.map((entry) => entry.id)).toEqual([
+      "heavy-test-noise:.artifacts/heavy-test-noise.json",
+      "large-file:.artifacts/large-files-gate.json",
+      "openspec:tasks",
+      "script:harness",
+      "workflow:governance",
+    ]);
+    expect(
+      result.current.evidence.filter(
+        (entry) => entry.degradationReason === "governance-artifact-missing",
+      ),
+    ).toHaveLength(2);
+  });
+
+  it("reads near-threshold artifact only when the project exposes that gate", async () => {
+    getWorkspaceFilesMock.mockResolvedValue({
+      files: ["package.json"],
+      directories: [],
+      gitignored_files: [],
+      gitignored_directories: [],
+    });
+    readWorkspaceFileMock.mockImplementation(async (_workspaceId, path) => {
+      if (path === "package.json") {
+        return {
+          content: JSON.stringify({
+            scripts: {
+              "check:large-files:near-threshold":
+                "node scripts/check-large-files.mjs",
+            },
+          }),
+          truncated: false,
+        };
+      }
+      return { content: "", truncated: false };
+    });
+
+    const { result } = renderHook(() => useGovernanceEvidence("ws-1", true));
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
     expect(readWorkspaceFileMock).toHaveBeenCalledWith(
       "ws-1",
       ".artifacts/large-files-near-threshold.json",
     );
-    expect(readWorkspaceFileMock).toHaveBeenCalledWith("ws-1", ".artifacts/heavy-test-noise.json");
-    expect(readWorkspaceFileMock).toHaveBeenCalledWith("ws-1", "package.json");
-    expect(result.current.evidence.map((entry) => entry.id)).toEqual([
-      "openspec:tasks",
-      "large-file:.artifacts/large-files-gate.json",
+    expect(result.current.evidence.map((entry) => entry.id)).toContain(
       "large-file:.artifacts/large-files-near-threshold.json",
-      "heavy-test-noise:.artifacts/heavy-test-noise.json",
-      "script:harness",
-      "workflow:governance",
-      "trellis:session-record",
-    ]);
-    expect(
-      result.current.evidence.filter((entry) => entry.degradationReason === "governance-artifact-missing"),
-    ).toHaveLength(3);
+    );
   });
 
   it("returns degraded evidence when workspace listing fails", async () => {

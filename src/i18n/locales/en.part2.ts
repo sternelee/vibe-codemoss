@@ -2069,7 +2069,17 @@ const enPart2 = {
       title: "Governance evidence",
       loading: "Reading evidence...",
       empty: "No governance evidence",
-      count: "{{count}} evidence item(s)",
+      count: "{{count}} evidence item(s) · {{needsAction}} need action",
+      group: {
+        needs_action: "Needs action · {{count}}",
+        watch: "Watch · {{count}}",
+        passed: "Passed · {{count}}",
+      },
+      meta: {
+        source: "Source: {{source}}",
+        artifact: "Artifact: {{path}}",
+        action: "Action: resolve {{reason}}",
+      },
       status: {
         pass: "Pass",
         warn: "Warn",
@@ -2082,12 +2092,23 @@ const enPart2 = {
       session: "Session",
       engine: "Engine",
       model: "Model",
+      sessionId: "Session ID",
+      tokens: "Tokens",
+      tokenBreakdownLabel: "Token usage breakdown",
       known: "Pricing matched",
       partial: "Partial estimate",
       unknownModel: "Unknown model",
+      pricingSource: "Pricing source: {{source}} · {{date}}",
+      historyDegraded:
+        "Cost history is continuing in memory because localStorage writes failed.",
+      accumulated: {
+        session: "Session {{amount}}",
+        today: "Today {{amount}}",
+        month: "Month {{amount}}",
+      },
       degraded: {
         "pricing-unavailable":
-          "No traceable pricing is available for this model; cost is not silently treated as zero.",
+          "No traceable pricing is available for {{engine}}/{{model}}; cost is not silently treated as zero.",
         "pricing-stale":
           "The pricing fixture is stale; this cost is informational only.",
         "usage-unavailable": "No token usage is available for cost projection.",
@@ -2097,6 +2118,11 @@ const enPart2 = {
       },
     },
     budget: {
+      unconfigured:
+        "Budget is unconfigured. This is guidance, not a failed budget check.",
+      unsetShort: "Budget unset",
+      barLabel: "Budget usage progress",
+      progress: "{{amount}} / {{limit}}",
       threshold: {
         info: "Info threshold reached: {{amount}} / {{threshold}}",
         warn: "Warn threshold reached: {{amount}} / {{threshold}}",
@@ -2182,6 +2208,35 @@ const enPart2 = {
         qualifierLabel: "Qualifier",
         degradedLabel: "Degraded",
         staleLabel: "Stale",
+        snapshotRecorded: "Snapshot recorded",
+        hashRecorded: "Verified",
+        policy: {
+          buildValidationPolicy: "Build validation",
+          costBudgetGovernancePolicy: "Cost budget",
+          heavyTestNoiseGovernancePolicy: "Heavy test noise",
+          largeFileGovernancePolicy: "Large-file governance",
+          lintValidationPolicy: "Lint validation",
+          openspecGovernancePolicy: "OpenSpec governance",
+          testsValidationPolicy: "Tests validation",
+          typecheckValidationPolicy: "Typecheck validation",
+        },
+        sourceName: {
+          build: "Build",
+          costBudget: "Cost budget",
+          heavyTestNoise: "Heavy test noise",
+          largeFile: "Large file",
+          lint: "Lint",
+          openspec: "OpenSpec",
+          tests: "Tests",
+          trellis: "Trellis",
+          typecheck: "Typecheck",
+        },
+        reason: {
+          governanceArtifactMalformed: "Evidence file has invalid format",
+          governanceEvidenceUnavailable: "Evidence cannot be parsed yet",
+          pricingUnavailable: "Model pricing is unknown",
+          stale: "Evidence is stale",
+        },
         source: "Source: {{source}}",
         snapshot: "Snapshot: {{id}}",
         observed: "Observed: {{time}}",

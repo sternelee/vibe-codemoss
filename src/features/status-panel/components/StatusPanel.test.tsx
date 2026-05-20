@@ -959,9 +959,6 @@ describe("StatusPanel", () => {
       screen.getByText("statusPanel.checkpoint.sections.advisorySignals"),
     ).toBeTruthy();
     expect(
-      screen.getByText("statusPanel.checkpoint.sections.evidenceTrail"),
-    ).toBeTruthy();
-    expect(
       screen.getByText("statusPanel.checkpoint.sections.suggestedActions"),
     ).toBeTruthy();
     expect(
@@ -1052,9 +1049,11 @@ describe("StatusPanel", () => {
     ).toBeTruthy();
   });
 
-  it("keeps long checkpoint evidence provenance collapsed into bounded chips", () => {
+  it("keeps checkpoint raw evidence provenance out of the primary UI", () => {
     const longArtifactPath =
       ".artifacts/governance/reports/2026/05/20/very-long-checkpoint-evidence-artifact-with-runtime-contract-and-platform-qualifier.json";
+    const longArtifactHash =
+      "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
     mockUseGovernanceEvidence.mockReturnValue({
       evidence: [
         {
@@ -1070,8 +1069,7 @@ describe("StatusPanel", () => {
             sourceId: "large-file:long-artifact",
             observedAt: "2026-05-20T07:00:00.000Z",
             artifactPath: longArtifactPath,
-            artifactHash:
-              "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+            artifactHash: longArtifactHash,
           },
         },
       ],
@@ -1091,13 +1089,19 @@ describe("StatusPanel", () => {
     fireEvent.click(screen.getByText("Result"));
 
     expect(
-      screen.getByText("statusPanel.checkpoint.sections.evidenceTrail"),
-    ).toBeTruthy();
+      screen.queryByText("statusPanel.checkpoint.sections.evidenceTrail"),
+    ).toBeNull();
     expect(document.body.textContent).not.toContain(longArtifactPath);
-    const chipValues = Array.from(
-      document.querySelectorAll(".sp-checkpoint-evidence-trail-chip-value"),
-    ).map((entry) => entry.textContent ?? "");
-    expect(chipValues.some((entry) => entry.includes("…"))).toBe(true);
+    expect(document.body.textContent).not.toContain(longArtifactHash);
+    expect(document.body.textContent).not.toContain(
+      "very-long-checkpoint-evidence-artifact-with-runtime-contract-and-platform-qualifier.json",
+    );
+    expect(document.body.textContent).not.toContain(
+      "statusPanel.checkpoint.evidenceTrail.hashRecorded",
+    );
+    expect(
+      document.querySelector(".sp-checkpoint-evidence-trail-list"),
+    ).toBeNull();
   });
 
   it("keeps compact checkpoint popover policy audit hidden for governance evidence", () => {
@@ -1133,7 +1137,11 @@ describe("StatusPanel", () => {
     expect(
       screen.getByText("statusPanel.checkpoint.advisory.count"),
     ).toBeTruthy();
-    expect(screen.getByText("openspec")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "statusPanel.checkpoint.evidenceTrail.sourceName.openspec",
+      ),
+    ).toBeTruthy();
     expect(screen.queryByText("statusPanel.audit.title")).toBeNull();
     expect(screen.queryByText("openspecGovernancePolicy")).toBeNull();
   });
@@ -1970,6 +1978,90 @@ describe("StatusPanel", () => {
     expect(screen.getByText("statusPanel.cost.session: $0.01")).toBeTruthy();
     expect(screen.getByText("statusPanel.cost.engine: codex")).toBeTruthy();
     expect(screen.getByText("statusPanel.cost.model: gpt-5.4")).toBeTruthy();
+    expect(
+      screen.getByText("statusPanel.cost.sessionId: thread-cost"),
+    ).toBeTruthy();
+    expect(screen.getByText("statusPanel.budget.unconfigured")).toBeTruthy();
+  });
+
+  it("renders token-only cost state for unknown pricing without silent zero", () => {
+    render(
+      <StatusPanel
+        items={[editToolItem]}
+        isProcessing={false}
+        variant="dock"
+        selectedEngine="codex"
+        selectedModelId="gpt-5.5"
+        activeThreadId="thread-cost"
+        activeTokenUsage={{
+          total: {
+            totalTokens: 2000,
+            inputTokens: 1200,
+            cachedInputTokens: 200,
+            outputTokens: 800,
+            reasoningOutputTokens: 100,
+          },
+          last: {
+            totalTokens: 2000,
+            inputTokens: 1200,
+            cachedInputTokens: 200,
+            outputTokens: 800,
+            reasoningOutputTokens: 100,
+          },
+          modelContextWindow: 200000,
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Result"));
+
+    expect(screen.getByText("statusPanel.cost.session: —")).toBeTruthy();
+    expect(screen.getByText("statusPanel.cost.tokens: 2.0k")).toBeTruthy();
+    expect(
+      screen.getByLabelText("statusPanel.cost.tokenBreakdownLabel"),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/statusPanel\.cost\.degraded\.pricing-unavailable/),
+    ).toBeTruthy();
+  });
+
+  it("gates expanded cost modules behind statusPanel costV2 flag", () => {
+    window.localStorage.setItem("ccgui.flags.statusPanel.costV2", "1");
+    render(
+      <StatusPanel
+        items={[editToolItem]}
+        isProcessing={false}
+        variant="dock"
+        selectedEngine="codex"
+        selectedModelId="gpt-5.4"
+        activeThreadId="thread-cost"
+        activeTokenUsage={{
+          total: {
+            totalTokens: 2000,
+            inputTokens: 1200,
+            cachedInputTokens: 200,
+            outputTokens: 800,
+            reasoningOutputTokens: 100,
+          },
+          last: {
+            totalTokens: 2000,
+            inputTokens: 1200,
+            cachedInputTokens: 200,
+            outputTokens: 800,
+            reasoningOutputTokens: 100,
+          },
+          modelContextWindow: 200000,
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Result"));
+
+    expect(
+      screen.getByLabelText("statusPanel.cost.tokenBreakdownLabel"),
+    ).toBeTruthy();
+    expect(screen.getByLabelText("statusPanel.budget.barLabel")).toBeTruthy();
+    window.localStorage.removeItem("ccgui.flags.statusPanel.costV2");
   });
 
   it("shows dock todo and subagent tabs again once status data exists", () => {

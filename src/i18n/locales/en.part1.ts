@@ -746,6 +746,17 @@ const enPart1 = {
     // Other settings
     otherDescription:
       "History completion, model mapping, and other configurations.",
+    costBudgetTitle: "Cost budget",
+    costBudgetDescription:
+      "Set a local monthly budget for the StatusPanel BudgetBar and cost guidance.",
+    costBudgetMonthlyLimit: "Monthly budget limit (USD)",
+    costBudgetSave: "Save budget",
+    costBudgetClear: "Clear budget",
+    costBudgetUnset:
+      "No budget is configured. The cost panel will still show usage and pricing state.",
+    costBudgetCurrent: "Current monthly budget: {{amount}}",
+    costBudgetStorageDegraded:
+      "Budget is saved in memory only because localStorage writes failed.",
     releaseNotesDescription:
       "Review feature updates and fixes from every release.",
     openReleaseNotes: "Open release notes",

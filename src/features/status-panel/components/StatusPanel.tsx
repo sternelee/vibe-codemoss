@@ -19,7 +19,10 @@ import type { ConversationItem, GitFileStatus, TurnPlan } from "../../../types";
 import type { EngineType, ThreadTokenUsage } from "../../../types";
 import { isEngineCapabilityAvailable } from "../../engine/engineCapabilityMatrix";
 import { useStatusPanelData } from "../hooks/useStatusPanelData";
-import { createFrozenGovernanceEvidenceSnapshot } from "../../governance/evidence";
+import {
+  createFrozenGovernanceEvidenceSnapshot,
+  createHarnessGovernanceEvidence,
+} from "../../governance/evidence";
 import { useGovernanceEvidence } from "../../governance/evidence/useGovernanceEvidence";
 import type { FileChangeSummary, SubagentInfo, TabType } from "../types";
 import {
@@ -36,6 +39,7 @@ import { UserConversationTimelinePanel } from "./UserConversationTimelinePanel";
 import { resolveUserConversationTimeline } from "../utils/userConversationTimeline";
 import { CostBudgetSection } from "./CostBudgetSection";
 import { GovernanceEvidenceSection } from "./GovernanceEvidenceSection";
+import { projectCostRecord } from "../../context-ledger/cost-budget";
 
 interface StatusPanelProps extends CodeAnnotationBridgeProps {
   workspaceId?: string | null;
@@ -107,7 +111,12 @@ const DOCK_TAB_ORDER: readonly TabType[] = [
   "plan",
 ];
 
-const POPOVER_TAB_ORDER: readonly TabType[] = ["todo", "subagent", "checkpoint", "plan"];
+const POPOVER_TAB_ORDER: readonly TabType[] = [
+  "todo",
+  "subagent",
+  "checkpoint",
+  "plan",
+];
 
 function resolvePreferredTab(
   variant: "popover" | "dock",
@@ -117,7 +126,13 @@ function resolvePreferredTab(
 ): TabType | null {
   if (variant === "dock") {
     const isVisible = (tab: TabType) =>
-      isDockTabVisible(variant, tab, showPlanTab, visibleDockTabs, dockTabAvailability);
+      isDockTabVisible(
+        variant,
+        tab,
+        showPlanTab,
+        visibleDockTabs,
+        dockTabAvailability,
+      );
 
     if (isVisible("plan")) {
       return "plan";
@@ -238,7 +253,10 @@ export const StatusPanel = memo(function StatusPanel({
   const codexTaskItems = useMemo(() => {
     if (usePlanAsTaskList && plan && plan.steps.length > 0) {
       return plan.steps.map((step) => {
-        const statusForDisplay = resolvePlanStepStatusForDisplay(step.status, isProcessing);
+        const statusForDisplay = resolvePlanStepStatusForDisplay(
+          step.status,
+          isProcessing,
+        );
         return {
           content: step.step,
           status:
@@ -257,7 +275,9 @@ export const StatusPanel = memo(function StatusPanel({
     [codexTaskItems],
   );
   const codexTaskTotal = codexTaskItems.length;
-  const codexTaskInProgress = codexTaskItems.some((item) => item.status === "in_progress");
+  const codexTaskInProgress = codexTaskItems.some(
+    (item) => item.status === "in_progress",
+  );
   const userConversationTimeline = useMemo(
     () =>
       resolveUserConversationTimeline(effectiveItems, {
@@ -265,38 +285,35 @@ export const StatusPanel = memo(function StatusPanel({
       }),
     [effectiveItems, isCodexEngine],
   );
-  const workspaceFileChanges = useMemo<FileChangeSummary[]>(
-    () => {
-      const diffByPath = new Map(
-        (workspaceGitDiffs ?? []).map((entry) => [entry.path, entry.diff]),
-      );
-      return (workspaceGitFiles ?? []).map((entry) => ({
-        filePath: entry.path,
-        fileName: entry.path.split(/[\\/]/).pop() ?? entry.path,
-        status:
-          entry.status === "A" || entry.status === "D" || entry.status === "R"
-            ? entry.status
-            : "M",
-        additions: entry.additions,
-        deletions: entry.deletions,
-        diff: diffByPath.get(entry.path),
-      }));
-    },
-    [workspaceGitDiffs, workspaceGitFiles],
-  );
+  const workspaceFileChanges = useMemo<FileChangeSummary[]>(() => {
+    const diffByPath = new Map(
+      (workspaceGitDiffs ?? []).map((entry) => [entry.path, entry.diff]),
+    );
+    return (workspaceGitFiles ?? []).map((entry) => ({
+      filePath: entry.path,
+      fileName: entry.path.split(/[\\/]/).pop() ?? entry.path,
+      status:
+        entry.status === "A" || entry.status === "D" || entry.status === "R"
+          ? entry.status
+          : "M",
+      additions: entry.additions,
+      deletions: entry.deletions,
+      diff: diffByPath.get(entry.path),
+    }));
+  }, [workspaceGitDiffs, workspaceGitFiles]);
   const canonicalCheckpointFileFacts =
     workspaceGitFiles !== undefined ? workspaceFileChanges : null;
   const displayedFileChanges =
     workspaceGitFiles !== undefined ? workspaceFileChanges : fileChanges;
   const displayedTotalAdditions =
     workspaceGitFiles !== undefined
-      ? workspaceGitTotals?.additions ??
-        workspaceFileChanges.reduce((sum, entry) => sum + entry.additions, 0)
+      ? (workspaceGitTotals?.additions ??
+        workspaceFileChanges.reduce((sum, entry) => sum + entry.additions, 0))
       : totalAdditions;
   const displayedTotalDeletions =
     workspaceGitFiles !== undefined
-      ? workspaceGitTotals?.deletions ??
-        workspaceFileChanges.reduce((sum, entry) => sum + entry.deletions, 0)
+      ? (workspaceGitTotals?.deletions ??
+        workspaceFileChanges.reduce((sum, entry) => sum + entry.deletions, 0))
       : totalDeletions;
   const shouldShowTodoTab = usePlanAsTaskList
     ? hasTabData(codexTaskCompleted, codexTaskTotal)
@@ -314,13 +331,21 @@ export const StatusPanel = memo(function StatusPanel({
     [shouldShowPlanTab, shouldShowSubagentTab, shouldShowTodoTab],
   );
   const [openTab, setOpenTab] = useState<TabType | null>(() =>
-    resolvePreferredTab(variant, showPlanTab, visibleDockTabs, dockTabAvailability),
+    resolvePreferredTab(
+      variant,
+      showPlanTab,
+      visibleDockTabs,
+      dockTabAvailability,
+    ),
   );
 
   useEffect(() => {
     if (variant !== "popover" || !openTab) return;
     function handleClickOutside(event: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+      if (
+        panelRef.current &&
+        !panelRef.current.contains(event.target as Node)
+      ) {
         setOpenTab(null);
       }
     }
@@ -348,7 +373,13 @@ export const StatusPanel = memo(function StatusPanel({
   const resolvedPreferredDockTab =
     variant === "dock" &&
     preferredDockTab &&
-    isDockTabVisible(variant, preferredDockTab, showPlanTab, visibleDockTabs, dockTabAvailability)
+    isDockTabVisible(
+      variant,
+      preferredDockTab,
+      showPlanTab,
+      visibleDockTabs,
+      dockTabAvailability,
+    )
       ? preferredDockTab
       : null;
 
@@ -363,7 +394,13 @@ export const StatusPanel = memo(function StatusPanel({
     if (variant === "dock") {
       if (
         !openTab ||
-        !isDockTabVisible(variant, openTab, showPlanTab, visibleDockTabs, dockTabAvailability)
+        !isDockTabVisible(
+          variant,
+          openTab,
+          showPlanTab,
+          visibleDockTabs,
+          dockTabAvailability,
+        )
       ) {
         setOpenTab(preferredTab);
       }
@@ -372,7 +409,14 @@ export const StatusPanel = memo(function StatusPanel({
     if (openTab === "plan" && !showPlanTab) {
       setOpenTab(preferredTab);
     }
-  }, [dockTabAvailability, openTab, preferredTab, showPlanTab, variant, visibleDockTabs]);
+  }, [
+    dockTabAvailability,
+    openTab,
+    preferredTab,
+    showPlanTab,
+    variant,
+    visibleDockTabs,
+  ]);
 
   const handleTabClick = useCallback(
     (tab: TabType) => {
@@ -389,7 +433,13 @@ export const StatusPanel = memo(function StatusPanel({
   const activeTab =
     variant === "dock"
       ? openTab &&
-          isDockTabVisible(variant, openTab, showPlanTab, visibleDockTabs, dockTabAvailability)
+        isDockTabVisible(
+          variant,
+          openTab,
+          showPlanTab,
+          visibleDockTabs,
+          dockTabAvailability,
+        )
         ? openTab
         : preferredTab
       : openTab;
@@ -397,14 +447,69 @@ export const StatusPanel = memo(function StatusPanel({
     workspaceId,
     variant === "dock" && activeTab === "checkpoint" && Boolean(workspaceId),
   );
+  const costGovernanceEvidence = useMemo(() => {
+    if (!selectedEngine || !activeTokenUsage) {
+      return [];
+    }
+    const costRecord = projectCostRecord({
+      engine: selectedEngine,
+      model: selectedModelId,
+      usage: activeTokenUsage,
+      scope: "session",
+    });
+    const evidence = [];
+    if (costRecord.degradationReason === "pricing-unavailable") {
+      evidence.push(
+        createHarnessGovernanceEvidence({
+          id: `cost-budget:pricing:${selectedEngine}:${selectedModelId ?? "unknown"}`,
+          source: "cost-budget",
+          status: "unknown",
+          degraded: true,
+          degradationReason: "pricing-unavailable",
+          title: "Pricing unavailable",
+          summary: `${selectedEngine}/${selectedModelId ?? "unknown model"} has usage but no traceable pricing source.`,
+          provenance: {
+            sourceType: "runtime",
+            sourceId: activeThreadId ?? "active-thread",
+            observedAt: new Date(0).toISOString(),
+            qualifier: "token-only-cost-mode",
+          },
+        }),
+      );
+    }
+    if (!costRecord.degraded && costRecord.amountUsd != null) {
+      evidence.push(
+        createHarnessGovernanceEvidence({
+          id: `cost-budget:unconfigured:${activeThreadId ?? "active-thread"}`,
+          source: "cost-budget",
+          status: "warn",
+          degraded: false,
+          title: "Budget unconfigured",
+          summary:
+            "Cost can be projected, but no session budget is configured.",
+          provenance: {
+            sourceType: "runtime",
+            sourceId: activeThreadId ?? "active-thread",
+            observedAt: new Date(0).toISOString(),
+            qualifier: "budget-unconfigured",
+          },
+        }),
+      );
+    }
+    return evidence;
+  }, [activeThreadId, activeTokenUsage, selectedEngine, selectedModelId]);
   const governanceSnapshot = useMemo(
     () =>
-      governanceEvidenceState.evidence.length > 0
+      governanceEvidenceState.evidence.length + costGovernanceEvidence.length >
+      0
         ? createFrozenGovernanceEvidenceSnapshot({
-            evidence: governanceEvidenceState.evidence,
+            evidence: [
+              ...governanceEvidenceState.evidence,
+              ...costGovernanceEvidence,
+            ],
           })
         : null,
-    [governanceEvidenceState.evidence],
+    [costGovernanceEvidence, governanceEvidenceState.evidence],
   );
   const checkpoint = useMemo(
     () =>
@@ -448,7 +553,9 @@ export const StatusPanel = memo(function StatusPanel({
             dockTabAvailability,
           ),
         badge: (
-          <span className="sp-tab-count">{userConversationTimeline.items.length}</span>
+          <span className="sp-tab-count">
+            {userConversationTimeline.items.length}
+          </span>
         ),
       },
       todo: {
@@ -457,18 +564,30 @@ export const StatusPanel = memo(function StatusPanel({
         icon: ListChecks,
         visible:
           variant === "dock"
-            ? isDockTabVisible(variant, "todo", showPlanTab, visibleDockTabs, dockTabAvailability)
+            ? isDockTabVisible(
+                variant,
+                "todo",
+                showPlanTab,
+                visibleDockTabs,
+                dockTabAvailability,
+              )
             : shouldShowTodoTab,
         badge: (
           <span className="sp-tab-count">
-            {usePlanAsTaskList ? `${codexTaskCompleted}/${codexTaskTotal}` : `${todoCompleted}/${todoTotal}`}
+            {usePlanAsTaskList
+              ? `${codexTaskCompleted}/${codexTaskTotal}`
+              : `${todoCompleted}/${todoTotal}`}
           </span>
         ),
-        loading: isProcessing && (usePlanAsTaskList ? codexTaskInProgress : hasInProgressTodo),
+        loading:
+          isProcessing &&
+          (usePlanAsTaskList ? codexTaskInProgress : hasInProgressTodo),
       },
       subagent: {
         tab: "subagent",
-        labelKey: isCodexEngine ? "statusPanel.tabAgents" : "statusPanel.tabSubagents",
+        labelKey: isCodexEngine
+          ? "statusPanel.tabAgents"
+          : "statusPanel.tabSubagents",
         icon: Bot,
         visible:
           variant === "dock"
@@ -480,7 +599,11 @@ export const StatusPanel = memo(function StatusPanel({
                 dockTabAvailability,
               )
             : shouldShowSubagentTab,
-        badge: <span className="sp-tab-count">{subagentCompleted}/{subagentTotal}</span>,
+        badge: (
+          <span className="sp-tab-count">
+            {subagentCompleted}/{subagentTotal}
+          </span>
+        ),
         loading: isProcessing && hasRunningSubagent,
       },
       checkpoint: {
@@ -509,9 +632,19 @@ export const StatusPanel = memo(function StatusPanel({
         icon: ListTodo,
         visible:
           variant === "dock"
-            ? isDockTabVisible(variant, "plan", showPlanTab, visibleDockTabs, dockTabAvailability)
+            ? isDockTabVisible(
+                variant,
+                "plan",
+                showPlanTab,
+                visibleDockTabs,
+                dockTabAvailability,
+              )
             : shouldShowPlanTab,
-        badge: <span className="sp-tab-count">{planCompleted}/{planTotal}</span>,
+        badge: (
+          <span className="sp-tab-count">
+            {planCompleted}/{planTotal}
+          </span>
+        ),
         loading: isProcessing && isPlanMode,
       },
       command: {
@@ -558,7 +691,9 @@ export const StatusPanel = memo(function StatusPanel({
 
   const contentNode = (
     <>
-      {activeTab === "todo" && <TodoList todos={usePlanAsTaskList ? codexTaskItems : todos} />}
+      {activeTab === "todo" && (
+        <TodoList todos={usePlanAsTaskList ? codexTaskItems : todos} />
+      )}
       {activeTab === "subagent" && (
         <SubagentList
           subagents={subagents}
@@ -574,7 +709,10 @@ export const StatusPanel = memo(function StatusPanel({
         <>
           {variant === "dock" ? (
             <GovernanceEvidenceSection
-              evidence={governanceEvidenceState.evidence}
+              evidence={[
+                ...governanceEvidenceState.evidence,
+                ...costGovernanceEvidence,
+              ]}
               isLoading={governanceEvidenceState.isLoading}
             />
           ) : null}
@@ -647,7 +785,10 @@ export const StatusPanel = memo(function StatusPanel({
   const orderedTabs = variant === "dock" ? DOCK_TAB_ORDER : POPOVER_TAB_ORDER;
 
   return (
-    <div className={`sp-root${variant === "dock" ? " sp-root--dock" : ""}`} ref={panelRef}>
+    <div
+      className={`sp-root${variant === "dock" ? " sp-root--dock" : ""}`}
+      ref={panelRef}
+    >
       {variant === "dock" ? (
         <>
           <div className="sp-tabs sp-tabs--dock">
@@ -665,15 +806,21 @@ export const StatusPanel = memo(function StatusPanel({
                     aria-expanded={activeTab === definition.tab}
                   >
                     <Icon size={14} className="sp-tab-icon" />
-                    <span className="sp-tab-label">{t(definition.labelKey)}</span>
+                    <span className="sp-tab-label">
+                      {t(definition.labelKey)}
+                    </span>
                     {definition.badge}
-                    {definition.loading ? <span className="sp-tab-loading" /> : null}
+                    {definition.loading ? (
+                      <span className="sp-tab-loading" />
+                    ) : null}
                   </button>
                 );
               })}
           </div>
           <div className="sp-dock-shell">
-            <div className="sp-popover-content sp-dock-content">{contentNode}</div>
+            <div className="sp-popover-content sp-dock-content">
+              {contentNode}
+            </div>
           </div>
         </>
       ) : (
@@ -698,9 +845,13 @@ export const StatusPanel = memo(function StatusPanel({
                     aria-expanded={activeTab === definition.tab}
                   >
                     <Icon size={14} className="sp-tab-icon" />
-                    <span className="sp-tab-label">{t(definition.labelKey)}</span>
+                    <span className="sp-tab-label">
+                      {t(definition.labelKey)}
+                    </span>
                     {definition.badge}
-                    {definition.loading ? <span className="sp-tab-loading" /> : null}
+                    {definition.loading ? (
+                      <span className="sp-tab-loading" />
+                    ) : null}
                   </button>
                 );
               })}

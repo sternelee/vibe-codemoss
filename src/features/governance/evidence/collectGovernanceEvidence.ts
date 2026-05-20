@@ -1,25 +1,17 @@
-import { readOpenSpecEvidence } from "./openspecEvidenceReader";
-import { readGateArtifactEvidence } from "./gateArtifactEvidenceReader";
-import { readScriptEvidence } from "./scriptEvidenceReader";
-import { readTrellisEvidence } from "./trellisEvidenceReader";
+import { selectEvidenceAdapters } from "./evidenceAdapters";
+import { deriveProjectGovernanceProfile } from "./projectGovernanceProfile";
 import type { GovernanceEvidence, WorkspaceGovernanceSnapshot } from "./types";
-import { readWorkflowEvidence } from "./workflowEvidenceReader";
 
 export async function collectGovernanceEvidence(
   snapshot: WorkspaceGovernanceSnapshot,
 ): Promise<GovernanceEvidence[]> {
-  const [openspecEvidence, gateArtifactEvidence, scriptEvidence, trellisEvidence] = await Promise.all([
-    readOpenSpecEvidence(snapshot),
-    readGateArtifactEvidence(snapshot),
-    readScriptEvidence(snapshot),
-    readTrellisEvidence(snapshot),
-  ]);
+  const profile = await deriveProjectGovernanceProfile(snapshot);
+  const adapters = selectEvidenceAdapters(profile);
+  const adapterEvidence = await Promise.all(
+    adapters.map((adapter) => adapter.collect({ snapshot, profile })),
+  );
 
-  return [
-    ...openspecEvidence,
-    ...gateArtifactEvidence,
-    ...scriptEvidence,
-    ...readWorkflowEvidence(snapshot),
-    ...trellisEvidence,
-  ];
+  return adapterEvidence
+    .flat()
+    .sort((left, right) => left.id.localeCompare(right.id, "en"));
 }

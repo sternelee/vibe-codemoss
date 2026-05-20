@@ -1,5 +1,6 @@
 import { createGovernanceEvidence } from "./governanceEvidence";
 import { hasGovernancePath } from "./pathUtils";
+import type { ProjectGovernanceProfile } from "./projectGovernanceProfile";
 import type { GovernanceEvidence, WorkspaceGovernanceSnapshot } from "./types";
 
 const GOVERNANCE_WORKFLOWS = [
@@ -9,18 +10,30 @@ const GOVERNANCE_WORKFLOWS = [
 
 export function readWorkflowEvidence(
   snapshot: Pick<WorkspaceGovernanceSnapshot, "files">,
+  profile?: Pick<ProjectGovernanceProfile, "workflows">,
 ): GovernanceEvidence[] {
-  const present = GOVERNANCE_WORKFLOWS.filter((workflowPath) =>
+  const workflowPaths = profile?.workflows ?? GOVERNANCE_WORKFLOWS;
+  const present = workflowPaths.filter((workflowPath) =>
     hasGovernancePath(snapshot.files, workflowPath),
   );
+
+  if (workflowPaths.length === 0) {
+    return [];
+  }
 
   return [
     createGovernanceEvidence({
       id: "workflow:governance",
       source: "workflow",
-      status: present.length === GOVERNANCE_WORKFLOWS.length ? "pass" : "fail",
+      status: present.length === workflowPaths.length ? "pass" : "warn",
       title: "Governance workflows",
-      summary: `${present.length}/${GOVERNANCE_WORKFLOWS.length} required workflow(s) present.`,
+      summary: `${present.length}/${workflowPaths.length} detected workflow(s) present.`,
+      provenance: {
+        sourceType: "workspace",
+        sourceId: ".github/workflows",
+        observedAt: "1970-01-01T00:00:00.000Z",
+        qualifier: "profile-scoped-workflows",
+      },
     }),
   ];
 }
@@ -28,4 +41,3 @@ export function readWorkflowEvidence(
 export const workflowEvidenceReaderInternals = {
   GOVERNANCE_WORKFLOWS,
 };
-

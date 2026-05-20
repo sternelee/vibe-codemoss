@@ -21,10 +21,7 @@ import type {
   FileChangeSummary,
 } from "../types";
 import { resolveCheckpointValidationProfile } from "../utils/checkpoint";
-import {
-  buildCheckpointSectionProjection,
-  type CheckpointEvidenceTrailItem,
-} from "../utils/checkpointSections";
+import { buildCheckpointSectionProjection } from "../utils/checkpointSections";
 import { CheckpointCommitDialog } from "./CheckpointCommitDialog";
 import { FileChangesList } from "./FileChangesList";
 import { PolicyDecisionAuditPanel } from "./audit/PolicyDecisionAuditPanel";
@@ -66,8 +63,18 @@ const VERDICT_ICON = {
 } as const;
 
 const MAX_INLINE_SOURCES = 2;
-const MAX_INLINE_TOKEN_LENGTH = 48;
-const MAX_HASH_TOKEN_LENGTH = 18;
+
+const EVIDENCE_SOURCE_LABEL_KEYS: Record<string, string> = {
+  build: "build",
+  "cost-budget": "costBudget",
+  "heavy-test-noise": "heavyTestNoise",
+  "large-file": "largeFile",
+  lint: "lint",
+  openspec: "openspec",
+  tests: "tests",
+  trellis: "trellis",
+  typecheck: "typecheck",
+};
 
 export const CheckpointPanel = memo(function CheckpointPanel({
   checkpoint,
@@ -241,21 +248,13 @@ export const CheckpointPanel = memo(function CheckpointPanel({
   );
   const advisorySourceSummary = useMemo(
     () =>
-      summarizeSources(
+      summarizeEvidenceSources(
+        t,
         checkpointSections.advisorySignals
           .map((entry) => entry.sourceId)
           .filter((entry): entry is string => Boolean(entry)),
       ),
-    [checkpointSections.advisorySignals],
-  );
-  const evidenceSourceSummary = useMemo(
-    () =>
-      summarizeSources(
-        checkpointSections.evidenceTrail
-          .map((entry) => entry.sourceId)
-          .filter((entry): entry is string => Boolean(entry)),
-      ),
-    [checkpointSections.evidenceTrail],
+    [checkpointSections.advisorySignals, t],
   );
 
   useEffect(() => {
@@ -509,30 +508,6 @@ export const CheckpointPanel = memo(function CheckpointPanel({
             </div>
           ) : null}
         </div>
-        {!compact && checkpointSections.evidenceTrail.length > 0 ? (
-          <details className="sp-checkpoint-disclosure sp-checkpoint-evidence-trail-disclosure">
-            <summary className="sp-checkpoint-inline-heading sp-checkpoint-disclosure-summary">
-              <span className="sp-checkpoint-section-title">
-                {t("statusPanel.checkpoint.sections.evidenceTrail")}
-              </span>
-              <span className="sp-checkpoint-action-hint">
-                {t("statusPanel.checkpoint.evidenceTrail.count", {
-                  count: checkpointSections.evidenceTrail.length,
-                })}
-              </span>
-              {evidenceSourceSummary ? (
-                <span className="sp-checkpoint-action-hint sp-checkpoint-summary-token">
-                  {evidenceSourceSummary}
-                </span>
-              ) : null}
-            </summary>
-            <ul className="sp-checkpoint-evidence-trail-list">
-              {checkpointSections.evidenceTrail.map((entry) => (
-                <EvidenceTrailRow key={entry.id} entry={entry} t={t} />
-              ))}
-            </ul>
-          </details>
-        ) : null}
       </section>
 
       {!compact ? (
@@ -982,116 +957,26 @@ function copyTextToClipboard(value: string) {
   void navigator.clipboard.writeText(value);
 }
 
-function summarizeSources(sources: readonly string[]) {
+function summarizeEvidenceSources(t: TFunction, sources: readonly string[]) {
   const uniqueSources = Array.from(new Set(sources));
-  if (uniqueSources.length <= MAX_INLINE_SOURCES) {
-    return uniqueSources.join(", ");
-  }
-  return `${uniqueSources.slice(0, MAX_INLINE_SOURCES).join(", ")} +${uniqueSources.length - MAX_INLINE_SOURCES}`;
-}
-
-function shortenToken(value: string, maxLength = MAX_INLINE_TOKEN_LENGTH) {
-  const trimmed = value.trim();
-  if (trimmed.length <= maxLength) {
-    return trimmed;
-  }
-  const headLength = Math.max(12, Math.floor(maxLength * 0.58));
-  const tailLength = Math.max(8, maxLength - headLength - 1);
-  return `${trimmed.slice(0, headLength)}…${trimmed.slice(-tailLength)}`;
-}
-
-function EvidenceTrailRow({
-  entry,
-  t,
-}: {
-  entry: CheckpointEvidenceTrailItem;
-  t: TFunction;
-}) {
-  return (
-    <li className="sp-checkpoint-evidence-trail-item">
-      <div className="sp-checkpoint-evidence-trail-main">
-        <span className="sp-checkpoint-evidence-badge">{entry.policyId}</span>
-        {entry.sourceId ? (
-          <span className="sp-checkpoint-evidence-source">
-            {entry.sourceId}
-          </span>
-        ) : null}
-      </div>
-      <div className="sp-checkpoint-evidence-trail-meta">
-        {entry.evidenceSnapshotId ? (
-          <EvidenceTrailChip
-            label={t("statusPanel.checkpoint.evidenceTrail.snapshotLabel")}
-            value={entry.evidenceSnapshotId}
-          />
-        ) : null}
-        {entry.observedAt ? (
-          <EvidenceTrailChip
-            label={t("statusPanel.checkpoint.evidenceTrail.observedLabel")}
-            value={entry.observedAt}
-          />
-        ) : null}
-        {entry.artifactPath ? (
-          <EvidenceTrailChip
-            label={t("statusPanel.checkpoint.evidenceTrail.artifactLabel")}
-            value={entry.artifactPath}
-          />
-        ) : null}
-        {entry.artifactHash ? (
-          <EvidenceTrailChip
-            label={t("statusPanel.checkpoint.evidenceTrail.hashLabel")}
-            value={entry.artifactHash}
-            maxLength={MAX_HASH_TOKEN_LENGTH}
-          />
-        ) : null}
-        {entry.qualifier ? (
-          <EvidenceTrailChip
-            label={t("statusPanel.checkpoint.evidenceTrail.qualifierLabel")}
-            value={entry.qualifier}
-            tone="muted"
-          />
-        ) : null}
-        {entry.degradationReason ? (
-          <EvidenceTrailChip
-            label={t("statusPanel.checkpoint.evidenceTrail.degradedLabel")}
-            value={entry.degradationReason}
-            tone="muted"
-          />
-        ) : null}
-        {entry.staleAt ? (
-          <EvidenceTrailChip
-            label={t("statusPanel.checkpoint.evidenceTrail.staleLabel")}
-            value={entry.staleAt}
-            tone="muted"
-          />
-        ) : null}
-      </div>
-    </li>
+  const displaySources = uniqueSources.map(
+    (source) => evidenceSourceLabel(t, source) ?? source,
   );
+  if (displaySources.length <= MAX_INLINE_SOURCES) {
+    return displaySources.join(", ");
+  }
+  return `${displaySources.slice(0, MAX_INLINE_SOURCES).join(", ")} +${displaySources.length - MAX_INLINE_SOURCES}`;
 }
 
-function EvidenceTrailChip({
-  label,
-  value,
-  maxLength = MAX_INLINE_TOKEN_LENGTH,
-  tone = "default",
-}: {
-  label: string;
-  value: string;
-  maxLength?: number;
-  tone?: "default" | "muted";
-}) {
-  const compactValue = shortenToken(value, maxLength);
-  return (
-    <span
-      className={`sp-checkpoint-evidence-trail-chip${tone === "muted" ? " is-muted" : ""}`}
-      title={`${label}: ${value}`}
-    >
-      <span className="sp-checkpoint-evidence-trail-chip-label">{label}</span>
-      <span className="sp-checkpoint-evidence-trail-chip-value">
-        {compactValue}
-      </span>
-    </span>
-  );
+function evidenceSourceLabel(t: TFunction, value: string | null) {
+  if (!value) {
+    return null;
+  }
+  const key = EVIDENCE_SOURCE_LABEL_KEYS[value];
+  if (key) {
+    return t(`statusPanel.checkpoint.evidenceTrail.sourceName.${key}`);
+  }
+  return value;
 }
 
 function renderToken(t: TFunction, token: CheckpointMessageToken) {

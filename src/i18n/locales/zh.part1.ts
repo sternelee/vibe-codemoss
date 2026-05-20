@@ -826,6 +826,15 @@ const zhPart1 = {
 
     // 其他设置
     otherDescription: "历史记录补全、模型映射等其他配置。",
+    costBudgetTitle: "成本预算",
+    costBudgetDescription:
+      "设置本机月度预算，用于 StatusPanel 的 BudgetBar 和成本提示。",
+    costBudgetMonthlyLimit: "月度预算上限（USD）",
+    costBudgetSave: "保存预算",
+    costBudgetClear: "清除预算",
+    costBudgetUnset: "当前未配置预算，成本面板只展示用量和 pricing 状态。",
+    costBudgetCurrent: "当前月度预算：{{amount}}",
+    costBudgetStorageDegraded: "预算只能以内存态保存，localStorage 写入失败。",
     releaseNotesDescription: "查看每个版本的新功能与修复内容。",
     openReleaseNotes: "打开版本记录",
 
@@ -1383,8 +1392,10 @@ const zhPart1 = {
     sessionManagementCurtainReload: "重新加载会话",
     sessionManagementCurtainLoading: "正在加载会话...",
     sessionManagementCurtainEmpty: "这条会话暂无可展示消息。",
-    sessionManagementCurtainLoadTimeout: "会话历史暂时加载较慢，可稍后刷新或继续等待。",
-    sessionManagementCurtainMissingWorkspacePath: "当前会话缺少工作区路径，暂时无法读取历史。",
+    sessionManagementCurtainLoadTimeout:
+      "会话历史暂时加载较慢，可稍后刷新或继续等待。",
+    sessionManagementCurtainMissingWorkspacePath:
+      "当前会话缺少工作区路径，暂时无法读取历史。",
     sessionManagementCurtainRoleUser: "你",
     sessionManagementCurtainRoleAssistant: "助手",
     sessionManagementCurtainRoleReasoning: "思考",
@@ -2312,7 +2323,8 @@ const zhPart1 = {
     memoryContextSummaryCount: "{{count}} 条记忆",
     memoryContextViewSentDetails: "查看发送详情",
     memoryContextSentDetailsTitle: "真实发送的记忆详情",
-    memoryContextSentDetailsHint: "这里展示实际注入到本轮主会话的 project-memory-pack payload。",
+    memoryContextSentDetailsHint:
+      "这里展示实际注入到本轮主会话的 project-memory-pack payload。",
     memoryContextCloseDetails: "关闭记忆发送详情",
     memoryContextSourceManual: "手动选择",
     memoryContextSourceMemoryReference: "记忆引用",
@@ -2526,8 +2538,10 @@ const zhPart1 = {
     memoryReferenceScope: "引用范围",
     memoryReferenceOff: "本次发送",
     memoryReferenceOn: "记忆已开启",
-    memoryReferenceOffHint: "只读检索项目记忆，生成本次 Memory Brief；发送后自动关闭。",
-    memoryReferenceArmedHint: "本次发送会只读查询项目记忆，生成可追踪的 Memory Brief。",
+    memoryReferenceOffHint:
+      "只读检索项目记忆，生成本次 Memory Brief；发送后自动关闭。",
+    memoryReferenceArmedHint:
+      "本次发送会只读查询项目记忆，生成可追踪的 Memory Brief。",
     memoryReferenceDialogTitle: "记忆引用",
     memoryReferenceConfirm: "开启引用",
     noteCardSelection: "本次已关联便签 {{count}} 条",

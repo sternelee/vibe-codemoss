@@ -10,7 +10,9 @@ import {
 } from "./bridgeGovernancePolicies";
 import type { CheckpointPolicyEvidence } from "./policyTypes";
 
-function baseEvidence(overrides: Partial<CheckpointPolicyEvidence> = {}): CheckpointPolicyEvidence {
+function baseEvidence(
+  overrides: Partial<CheckpointPolicyEvidence> = {},
+): CheckpointPolicyEvidence {
   return {
     failedCommand: null,
     failedCommandKind: null,
@@ -83,6 +85,32 @@ describe("bridge governance policies", () => {
       "engineRuntimeGovernancePolicy",
       "costBudgetGovernancePolicy",
     ]);
+  });
+
+  it("does not invent warnings for non-applicable missing governance capabilities", () => {
+    const snapshot = createFrozenGovernanceEvidenceSnapshot({
+      id: "python-profile-snapshot",
+      evidence: [
+        createHarnessGovernanceEvidence({
+          id: "ecosystem:python:verification",
+          source: "script",
+          status: "pass",
+          title: "Python verification surface",
+          summary: "Detected Python project metadata.",
+        }),
+      ],
+    });
+
+    const decision = bridgeGovernancePolicies
+      .find((policy) => policy.id === "largeFileGovernancePolicy")
+      ?.evaluate(baseEvidence({ governanceSnapshot: snapshot }));
+
+    expect(decision).toMatchObject({
+      policyId: "largeFileGovernancePolicy",
+      verdictContribution: "no_contribution",
+      enforcement: "informational",
+      sourceId: null,
+    });
   });
 
   it("preserves provenance fields for evidence trail rendering", () => {
@@ -259,7 +287,9 @@ describe("bridge governance policies", () => {
     });
 
     const decisions = bridgeGovernancePolicies
-      .map((policy) => policy.evaluate(baseEvidence({ governanceSnapshot: snapshot })))
+      .map((policy) =>
+        policy.evaluate(baseEvidence({ governanceSnapshot: snapshot })),
+      )
       .filter((decision) => decision.verdictContribution !== "no_contribution");
 
     expect(decisions.map((decision) => decision.verdictContribution)).toEqual([
@@ -269,7 +299,11 @@ describe("bridge governance policies", () => {
       "needs_review",
       "needs_review",
     ]);
-    expect(decisions.every((decision) => decision.enforcement === "advisory")).toBe(true);
-    expect(decisions.every((decision) => decision.verdictContribution !== "blocked")).toBe(true);
+    expect(
+      decisions.every((decision) => decision.enforcement === "advisory"),
+    ).toBe(true);
+    expect(
+      decisions.every((decision) => decision.verdictContribution !== "blocked"),
+    ).toBe(true);
   });
 });

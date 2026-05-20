@@ -10,6 +10,13 @@ export type SessionBudgetConfig = {
   };
 };
 
+export type MonthlyBudgetConfig = {
+  currency: "USD";
+  monthlyLimitUsd: number | null;
+  warnRatio: number;
+  exceededRatio: number;
+};
+
 export type BudgetThresholdSignal = {
   sessionId: string;
   tier: BudgetThresholdTier;

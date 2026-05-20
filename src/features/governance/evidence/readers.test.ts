@@ -1,13 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { collectGovernanceEvidence } from "./collectGovernanceEvidence";
 import { readGateArtifactEvidence } from "./gateArtifactEvidenceReader";
-import { openspecEvidenceReaderInternals, readOpenSpecEvidence } from "./openspecEvidenceReader";
+import {
+  openspecEvidenceReaderInternals,
+  readOpenSpecEvidence,
+} from "./openspecEvidenceReader";
+import {
+  createGovernanceConfigTemplate,
+  deriveProjectGovernanceProfile,
+} from "./projectGovernanceProfile";
 import { readScriptEvidence } from "./scriptEvidenceReader";
 import { readTrellisEvidence } from "./trellisEvidenceReader";
 import type { WorkspaceGovernanceSnapshot } from "./types";
 import { readWorkflowEvidence } from "./workflowEvidenceReader";
 
-function createSnapshot(files: Record<string, string>): WorkspaceGovernanceSnapshot {
+function createSnapshot(
+  files: Record<string, string>,
+): WorkspaceGovernanceSnapshot {
   const normalizedFiles = Object.keys(files);
   return {
     files: normalizedFiles,
@@ -49,7 +58,8 @@ describe("governance evidence readers", () => {
         degradationReason: "governance-evidence-unavailable",
         updatedAt: "1970-01-01T00:00:00.000Z",
         title: "OpenSpec tasks",
-        summary: "1 task file(s) found, but none had parseable checkbox progress.",
+        summary:
+          "1 task file(s) found, but none had parseable checkbox progress.",
         payload: {
           kind: "legacy-workspace-evidence",
         },
@@ -58,7 +68,9 @@ describe("governance evidence readers", () => {
   });
 
   it("keeps OpenSpec task parsing local and deterministic", () => {
-    expect(openspecEvidenceReaderInternals.parseTaskProgress("- [x] a\n- [ ] b\n")).toEqual({
+    expect(
+      openspecEvidenceReaderInternals.parseTaskProgress("- [x] a\n- [ ] b\n"),
+    ).toEqual({
       complete: 1,
       total: 2,
     });
@@ -93,24 +105,21 @@ describe("governance evidence readers", () => {
     ]);
   });
 
-  it("degrades script evidence for malformed package json", async () => {
+  it("degrades script evidence for malformed package json when read directly", async () => {
     const snapshot = createSnapshot({
       "package.json": "{not-json",
     });
 
     await expect(readScriptEvidence(snapshot)).resolves.toMatchObject([
       {
-        id: "script:harness",
+        id: "script:package-json",
         source: "script",
         status: "unknown",
         degraded: true,
-        degradationReason: "governance-evidence-unavailable",
+        degradationReason: "package-json-malformed",
         updatedAt: "1970-01-01T00:00:00.000Z",
-        title: "Harness check scripts",
+        title: "Package scripts",
         summary: "package.json scripts could not be parsed.",
-        payload: {
-          kind: "legacy-workspace-evidence",
-        },
       },
     ]);
   });
@@ -131,21 +140,25 @@ describe("governance evidence readers", () => {
         degraded: false,
         updatedAt: "1970-01-01T00:00:00.000Z",
         title: "Governance workflows",
-        summary: "2/2 required workflow(s) present.",
+        summary: "2/2 detected workflow(s) present.",
       },
     ]);
   });
 
-  it("marks missing required workflows as fail evidence", () => {
-    expect(readWorkflowEvidence({ files: [".github/workflows/large-file-governance.yml"] })).toMatchObject([
+  it("marks missing detected workflows as advisory evidence", () => {
+    expect(
+      readWorkflowEvidence({
+        files: [".github/workflows/large-file-governance.yml"],
+      }),
+    ).toMatchObject([
       {
         id: "workflow:governance",
         source: "workflow",
-        status: "fail",
+        status: "warn",
         degraded: false,
         updatedAt: "1970-01-01T00:00:00.000Z",
         title: "Governance workflows",
-        summary: "1/2 required workflow(s) present.",
+        summary: "1/2 detected workflow(s) present.",
       },
     ]);
   });
@@ -162,7 +175,7 @@ describe("governance evidence readers", () => {
       results: [],
     });
     const heavyTestNoiseReport =
-      "{\r\n\"schemaVersion\":1,\r\n\"gate\":\"heavy-test-noise\",\r\n\"generatedAt\":\"2026-05-20T00:00:00.000Z\",\r\n\"status\":\"fail\",\r\n\"breachCount\":3\r\n}";
+      '{\r\n"schemaVersion":1,\r\n"gate":"heavy-test-noise",\r\n"generatedAt":"2026-05-20T00:00:00.000Z",\r\n"status":"fail",\r\n"breachCount":3\r\n}';
     const snapshot = createSnapshot({
       ".artifacts/large-files-gate.json": largeFileGateReport,
       ".artifacts/large-files-near-threshold.json": JSON.stringify({
@@ -177,8 +190,10 @@ describe("governance evidence readers", () => {
       }),
       ".artifacts/heavy-test-noise.json": heavyTestNoiseReport,
     });
-    const largeFileHash =
-      await crypto.subtle.digest("SHA-256", new TextEncoder().encode(largeFileGateReport));
+    const largeFileHash = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(largeFileGateReport),
+    );
     const expectedLargeFileHash = Array.from(new Uint8Array(largeFileHash))
       .map((byte) => byte.toString(16).padStart(2, "0"))
       .join("");
@@ -326,7 +341,9 @@ describe("governance evidence readers", () => {
   });
 
   it("degrades Trellis evidence when the schema is absent", async () => {
-    await expect(readTrellisEvidence(createSnapshot({}))).resolves.toMatchObject([
+    await expect(
+      readTrellisEvidence(createSnapshot({})),
+    ).resolves.toMatchObject([
       {
         id: "trellis:session-record",
         source: "trellis",
@@ -335,7 +352,8 @@ describe("governance evidence readers", () => {
         degradationReason: "governance-evidence-unavailable",
         updatedAt: "1970-01-01T00:00:00.000Z",
         title: "Trellis session record",
-        summary: "No Trellis workspace index was found; OpenSpec/script/workflow evidence is still available.",
+        summary:
+          "No Trellis workspace index was found; OpenSpec/script/workflow evidence is still available.",
         payload: {
           kind: "legacy-workspace-evidence",
         },
@@ -343,7 +361,7 @@ describe("governance evidence readers", () => {
     ]);
   });
 
-  it("collects evidence without writing through the snapshot reader", async () => {
+  it("collects profile-aware evidence without writing through the snapshot reader", async () => {
     const readPaths: string[] = [];
     const snapshot: WorkspaceGovernanceSnapshot = {
       files: [
@@ -358,7 +376,11 @@ describe("governance evidence readers", () => {
           return "- [x] done\n";
         }
         if (path === "package.json") {
-          return JSON.stringify({ scripts: {} });
+          return JSON.stringify({
+            scripts: {
+              "check:large-files:gate": "node scripts/check-large-files.mjs",
+            },
+          });
         }
         return null;
       },
@@ -367,20 +389,163 @@ describe("governance evidence readers", () => {
     const evidence = await collectGovernanceEvidence(snapshot);
 
     expect(evidence.map((entry) => entry.id)).toEqual([
-      "openspec:tasks",
-      "large-file:.artifacts/large-files-gate.json",
-      "large-file:.artifacts/large-files-near-threshold.json",
       "heavy-test-noise:.artifacts/heavy-test-noise.json",
+      "large-file:.artifacts/large-files-gate.json",
+      "openspec:tasks",
       "script:harness",
       "workflow:governance",
-      "trellis:session-record",
     ]);
     expect(readPaths).toEqual([
-      "openspec/changes/a/tasks.md",
-      ".artifacts/large-files-gate.json",
-      ".artifacts/large-files-near-threshold.json",
-      ".artifacts/heavy-test-noise.json",
       "package.json",
+      "governance.config.json",
+      "openspec/changes/a/tasks.md",
+      ".artifacts/heavy-test-noise.json",
+      ".artifacts/large-files-gate.json",
     ]);
+  });
+
+  it("does not emit mossx harness evidence for a generic repository", async () => {
+    const evidence = await collectGovernanceEvidence(
+      createSnapshot({
+        "README.md": "# generic\n",
+      }),
+    );
+
+    expect(evidence).toEqual([]);
+  });
+
+  it("keeps malformed package.json visible in profile-aware collection", async () => {
+    const evidence = await collectGovernanceEvidence(
+      createSnapshot({
+        "package.json": "{bad-json",
+      }),
+    );
+
+    expect(evidence).toMatchObject([
+      {
+        id: "script:package-json",
+        source: "script",
+        status: "unknown",
+        degraded: true,
+        degradationReason: "package-json-malformed",
+      },
+    ]);
+  });
+
+  it("derives project governance profiles across common ecosystems", async () => {
+    await expect(
+      deriveProjectGovernanceProfile(
+        createSnapshot({
+          "package.json": JSON.stringify({ scripts: { lint: "eslint ." } }),
+          "tsconfig.json": "{}",
+          "pnpm-lock.yaml": "",
+        }),
+      ),
+    ).resolves.toMatchObject({
+      ecosystems: ["node", "typescript"],
+      packageManagers: ["pnpm"],
+      scripts: { lint: "eslint ." },
+    });
+
+    await expect(
+      deriveProjectGovernanceProfile(
+        createSnapshot({ "pyproject.toml": "[tool.pytest.ini_options]\r\n" }),
+      ),
+    ).resolves.toMatchObject({
+      ecosystems: ["python"],
+    });
+    await expect(
+      deriveProjectGovernanceProfile(
+        createSnapshot({ "Cargo.toml": "[package]\n" }),
+      ),
+    ).resolves.toMatchObject({
+      ecosystems: ["rust"],
+    });
+    await expect(
+      deriveProjectGovernanceProfile(
+        createSnapshot({ "go.mod": "module example\n" }),
+      ),
+    ).resolves.toMatchObject({
+      ecosystems: ["go"],
+    });
+    await expect(
+      deriveProjectGovernanceProfile(
+        createSnapshot({ "pom.xml": "<project />\n" }),
+      ),
+    ).resolves.toMatchObject({
+      ecosystems: ["maven"],
+    });
+    await expect(
+      deriveProjectGovernanceProfile(
+        createSnapshot({ "build.gradle.kts": "plugins {}\n" }),
+      ),
+    ).resolves.toMatchObject({
+      ecosystems: ["gradle"],
+    });
+    await expect(
+      deriveProjectGovernanceProfile(
+        createSnapshot({
+          "package.json": JSON.stringify({ scripts: { build: "vite build" } }),
+          "Cargo.toml": "[package]\n",
+          "src-tauri/Cargo.toml": "[package]\n",
+        }),
+      ),
+    ).resolves.toMatchObject({
+      ecosystems: ["node", "rust"],
+    });
+  });
+
+  it("merges optional governance config without suppressing auto evidence", async () => {
+    const profile = await deriveProjectGovernanceProfile(
+      createSnapshot({
+        "package.json": JSON.stringify({ scripts: { test: "vitest" } }),
+        "governance.config.json": JSON.stringify({
+          version: 1,
+          gates: [
+            {
+              name: "Custom audit",
+              artifact: ".artifacts/custom-audit.json",
+              severity: "warn",
+            },
+          ],
+        }),
+      }),
+    );
+
+    expect(profile.scripts).toMatchObject({ test: "vitest" });
+    expect(profile.gates).toContainEqual(
+      expect.objectContaining({
+        name: "Custom audit",
+        artifactPath: ".artifacts/custom-audit.json",
+        source: "config",
+      }),
+    );
+  });
+
+  it("keeps auto profile when governance config is malformed", async () => {
+    const profile = await deriveProjectGovernanceProfile(
+      createSnapshot({
+        "package.json": JSON.stringify({ scripts: { build: "vite build" } }),
+        "governance.config.json": "{bad-json",
+      }),
+    );
+
+    expect(profile.scripts).toMatchObject({ build: "vite build" });
+    expect(profile.configEvidence).toMatchObject([
+      {
+        id: "governance-config:parse",
+        status: "warn",
+        degraded: true,
+      },
+    ]);
+  });
+
+  it("creates a minimal governance config template without mossx defaults", () => {
+    const template = createGovernanceConfigTemplate();
+
+    expect(template).toContain('"version": 1');
+    expect(template).toContain('"scripts": []');
+    expect(template).not.toContain("check:large-files:gate");
+    expect(template).not.toContain("heavy-test-noise");
   });
 });
