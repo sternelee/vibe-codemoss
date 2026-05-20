@@ -494,3 +494,51 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 532: 统一 StatusPanel 证据与成本字号
+
+**Date**: 2026-05-20
+**Task**: 统一 StatusPanel 证据与成本字号
+**Branch**: `feature/v0.5.0-md`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+## 目标
+统一 StatusPanel 中治理证据与成本预算视图的字号，消除同一卡片内标题、正文、chip、badge 参差不齐的问题，并沉淀防回归规范。
+
+## 主要改动
+- 在 `src/styles/status-panel.css` 为 `.sp-governance-evidence` 与 `.sp-cost-budget` 定义 scoped typography 变量。
+- 将 governance evidence 与 cost budget 区域的 label/copy/meta 字号统一为同一局部尺度。
+- 在 `.trellis/spec/frontend/component-guidelines.md` 新增 StatusPanel Evidence / Cost Dense Typography 场景，约束局部字号 ownership 与防回归审查点。
+
+## 验证
+- `npm run check:large-files` 通过。
+- 同回合曾执行 `npm run lint` 通过；最终改动为 CSS 数值与文档补充。
+
+## 影响范围
+- 仅影响 StatusPanel 治理证据与成本预算区域的视觉字号。
+- 未改动组件逻辑、runtime contract、service bridge 或数据模型。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7ffc4d2d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
