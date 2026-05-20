@@ -53,7 +53,7 @@
 
 ### Summary
 
-(Add summary)
+收口 Settings 项目会话管理：完成 OpenSpec 校准、磁盘事实源 catalog、folder tree、row progressive details、只读 session curtain 与 Codex 渐进历史加载。
 
 ### Main Changes
 
@@ -70,6 +70,43 @@
 | Hash | Message |
 |------|---------|
 | `1f3fe6df` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 523: 标记会话管理提交收口
+
+**Date**: 2026-05-20
+**Task**: 标记会话管理提交收口
+**Branch**: `feature/v0.5.0-md`
+
+### Summary
+
+标记 `refactor-workspace-session-management` closeout checklist 已提交，确保 OpenSpec tasks 与实际提交状态一致。
+
+### Main Changes
+
+| Area | Description |
+|------|-------------|
+| OpenSpec | 将 `refactor-workspace-session-management/tasks.md` 的 closeout commit checklist 标记为完成，确保任务文档和实际提交状态一致。 |
+| Verification | `openspec validate refactor-workspace-session-management --strict --no-interactive` 通过；`git diff --check` 针对该 tasks 变更通过。 |
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `80ee6532` | (see git log) |
 
 ### Testing
 
