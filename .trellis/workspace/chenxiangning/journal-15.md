@@ -152,3 +152,58 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 525: 修复会话管理 heavy gate 遗留问题
+
+**Date**: 2026-05-20
+**Task**: 修复会话管理 heavy gate 遗留问题
+**Branch**: `feature/v0.5.0-md`
+
+### Summary
+
+稳定会话目录 hook 依赖，补齐拆分后的类型/i18n/测试契约，并通过 heavy-test-noise、typecheck、lint 与 OpenSpec 校验。
+
+### Main Changes
+
+## 完成内容
+
+- 修复 `useWorkspaceSessionCatalog` 因 filters 对象引用变化导致的重复 reload / heavy timeout。
+- 补齐 Session Management 拆分后的 helper/type export/import，使 settings 相关测试恢复通过。
+- 修正 i18n split 文件尾部语法问题，并更新 query contract 测试预期中的 `folderId: null`。
+- 新增并归档 Trellis task：`05-20-fix-workspace-session-catalog-heavy-test-timeout`。
+
+## 验证
+
+- `npx vitest run src/features/settings/components/settings-view/hooks/useWorkspaceSessionCatalog.test.tsx --reporter verbose`
+- `npx vitest run src/features/settings/components/settings-view/sections/SessionManagementSection.test.tsx --reporter verbose`
+- `npx vitest run src/features/settings/components/SettingsView.test.tsx -t "SettingsView Session management" --reporter verbose`
+- `npm run typecheck`
+- `npm run lint`
+- `npm run check:heavy-test-noise`
+- `openspec validate refactor-workspace-session-management --strict --no-interactive`
+
+## 结果
+
+- `.artifacts/heavy-test-noise.json`: `status=pass`, `exitCode=0`, `breachCount=0`。
+- 仅剩 npm 环境警告 `Unknown user config "electron_mirror"`，不属于 test noise breach。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a59ceac2` | (see git log) |
+| `ae19ab3d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
