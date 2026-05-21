@@ -424,7 +424,7 @@ pub(crate) fn normalize_inbound_settings(
         next.mailbox_folder = "INBOX".to_string();
     }
     next.allowed_senders = normalize_allowed_senders(&next.allowed_senders, fallback_recipient);
-    next.poll_interval_seconds = next.poll_interval_seconds.clamp(60, 3600);
+    next.poll_interval_seconds = next.poll_interval_seconds.clamp(10, 3600);
     next.action_window_hours = next.action_window_hours.clamp(1, 168);
     next.read_only_mode = true;
     match next.provider {
@@ -2040,6 +2040,19 @@ mod tests {
         assert!(requires_imap_client_identity(&EmailSenderProvider::Mail163));
         assert!(!requires_imap_client_identity(&EmailSenderProvider::Qq));
         assert!(!requires_imap_client_identity(&EmailSenderProvider::Custom));
+    }
+
+    #[test]
+    fn inbound_settings_preserve_ten_second_poll_interval() {
+        let normalized = normalize_inbound_settings(
+            &EmailInboundSettings {
+                poll_interval_seconds: 10,
+                ..EmailInboundSettings::default()
+            },
+            "",
+        );
+
+        assert_eq!(normalized.poll_interval_seconds, 10);
     }
 
     fn temp_ledger_path(name: &str) -> PathBuf {

@@ -65,6 +65,22 @@ The system SHALL send a compact completion email that helps the user decide the 
 - **THEN** the completion email MUST use the final visible assistant text as the repair/result section
 - **AND** the completion email MUST NOT include file change facts, tool invocation summaries, command output, diff content, card metadata, or reasoning/thinking text
 
+#### Scenario: multiple visible assistant messages in one completed turn are preserved
+
+- **WHEN** the target turn contains more than one assistant message after the current user request
+- **AND** the last assistant final message is a short follow-up or confirmation
+- **THEN** the completion email MUST anchor on the last completed assistant final message
+- **AND** the repair/result section MUST include all non-empty assistant message text between the current user request and that final message, in visible order
+- **AND** the completion email MUST still exclude tool cards, file change cards, diffs, command output, review cards, generated image cards, and reasoning/thinking text
+
+#### Scenario: mail-driven continuation email does not reuse previous turn content
+
+- **WHEN** a user reply email drives the same session into the next turn
+- **THEN** the next completion email intent MUST bind to the new turn started by that reply
+- **AND** the email body builder MUST only select an assistant final message completed after that intent was armed
+- **AND** if the new turn completion event arrives before the new assistant final message is visible in client items, the system MUST retry email body construction
+- **AND** the system MUST NOT reuse the previous turn's final assistant message to send a duplicate completion email
+
 #### Scenario: subject identifies the engine session and workspace
 
 - **WHEN** a completion email is sent

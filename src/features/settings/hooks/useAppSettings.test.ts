@@ -159,6 +159,31 @@ describe("useAppSettings", () => {
     expect(result.current.settings.webServiceToken).toBe("durable-token");
   });
 
+  it("preserves 10 second email inbound polling interval while loading settings", async () => {
+    getAppSettingsMock.mockResolvedValue({
+      emailInbound: {
+        enabled: true,
+        provider: "custom",
+        imapHost: "imap.example.com",
+        imapPort: 993,
+        security: "ssl_tls",
+        username: "user@example.com",
+        mailboxFolder: "INBOX",
+        allowedSenders: ["sender@example.com"],
+        pollIntervalSeconds: 10,
+        readOnlyMode: true,
+        actionWindowHours: 24,
+        debugStorageEnabled: false,
+      },
+    } as AppSettings);
+
+    const { result } = renderHook(() => useAppSettings());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.settings.emailInbound?.pollIntervalSeconds).toBe(10);
+  });
+
   it("normalizes blank Web Service fixed token to null before persisting", async () => {
     getAppSettingsMock.mockResolvedValue({} as AppSettings);
     const { result } = renderHook(() => useAppSettings());

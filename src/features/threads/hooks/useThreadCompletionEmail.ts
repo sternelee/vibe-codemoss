@@ -26,6 +26,7 @@ export type CompletionEmailIntent = {
   armedAt: number;
   status: CompletionEmailIntentStatus;
   mailDrivenSessionEnabled?: boolean;
+  bindsNextTurnOnly?: boolean;
 };
 
 type UseThreadCompletionEmailOptions = {
@@ -136,6 +137,7 @@ export function useThreadCompletionEmail({
           [threadId]: {
             ...current,
             targetTurnId: normalizedTurnId,
+            bindsNextTurnOnly: false,
           },
         };
       });
@@ -181,10 +183,14 @@ export function useThreadCompletionEmail({
       setCompletionEmailIntentByThread((prev) => ({
         ...prev,
         [normalizedThreadId]: {
-          targetTurnId: turnId ?? activeTurnIdByThreadRef.current[normalizedThreadId] ?? null,
+          targetTurnId:
+            turnId === undefined
+              ? activeTurnIdByThreadRef.current[normalizedThreadId] ?? null
+              : turnId,
           armedAt: Date.now(),
           status: "armed",
           mailDrivenSessionEnabled: true,
+          bindsNextTurnOnly: turnId === null,
         },
       }));
     },
@@ -207,6 +213,7 @@ export function useThreadCompletionEmail({
         currentIntent.targetTurnId === turnId ||
         (
           currentIntent.targetTurnId === null &&
+          currentIntent.bindsNextTurnOnly !== true &&
           activeTurnIdByThreadRef.current[resolvedThreadId] === turnId
         );
       if (!matchesTarget) {
@@ -235,7 +242,10 @@ export function useThreadCompletionEmail({
       const buildResult = buildConversationCompletionEmail(
         itemsByThreadRef.current[resolvedThreadId] ?? [],
         getCompletionEmailMetadata(workspaceId, resolvedThreadId, turnId),
-        { mailDrivenSessionEnabled: currentIntent.mailDrivenSessionEnabled === true },
+        {
+          mailDrivenSessionEnabled: currentIntent.mailDrivenSessionEnabled === true,
+          minAssistantFinalCompletedAt: currentIntent.armedAt,
+        },
       );
       if (buildResult.status === "skipped") {
         const currentAttempt = completionEmailBuildAttemptsRef.current[key] ?? 0;

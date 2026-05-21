@@ -16,6 +16,7 @@ const REPLY_DELIMITER = "--- Reply above this line ---";
 
 type ConversationCompletionEmailBuildOptions = {
   mailDrivenSessionEnabled?: boolean;
+  minAssistantFinalCompletedAt?: number;
 };
 
 type MessageItem = Extract<ConversationItem, { kind: "message" }>;
@@ -240,7 +241,23 @@ function buildNextRecommendations(assistantMessage: string): string[] {
   return ["回到 Moss 会话查看完整结果，确认是否需要继续执行下一步。"];
 }
 
-function findFinalAssistantIndex(items: ConversationItem[]): number {
+function isAssistantCompletedAfter(
+  item: MessageItem,
+  minCompletedAt: number | undefined,
+): boolean {
+  if (typeof minCompletedAt !== "number") {
+    return true;
+  }
+  return (
+    typeof item.finalCompletedAt === "number" &&
+    item.finalCompletedAt >= minCompletedAt
+  );
+}
+
+function findFinalAssistantIndex(
+  items: ConversationItem[],
+  options: ConversationCompletionEmailBuildOptions,
+): number {
   for (let index = items.length - 1; index >= 0; index -= 1) {
     const item = items[index];
     if (
@@ -248,10 +265,15 @@ function findFinalAssistantIndex(items: ConversationItem[]): number {
       isMessageItem(item) &&
       item.role === "assistant" &&
       item.isFinal === true &&
+      isAssistantCompletedAfter(item, options.minAssistantFinalCompletedAt) &&
       nonEmptyText(item.text)
     ) {
       return index;
     }
+  }
+
+  if (typeof options.minAssistantFinalCompletedAt === "number") {
+    return -1;
   }
 
   for (let index = items.length - 1; index >= 0; index -= 1) {
@@ -283,6 +305,30 @@ function findUserIndexBefore(items: ConversationItem[], beforeIndex: number): nu
   return -1;
 }
 
+function collectAssistantVisibleTextForTurn(
+  items: ConversationItem[],
+  userIndex: number,
+  assistantIndex: number,
+): string {
+  const textParts: string[] = [];
+  for (let index = userIndex + 1; index <= assistantIndex; index += 1) {
+    const item = items[index];
+    if (!item || !isMessageItem(item) || item.role !== "assistant") {
+      continue;
+    }
+    const text = nonEmptyText(item.text);
+    if (!text) {
+      continue;
+    }
+    const previous = textParts[textParts.length - 1];
+    if (previous && compactLine(previous) === compactLine(text)) {
+      continue;
+    }
+    textParts.push(text);
+  }
+  return textParts.join("\n\n").trim();
+}
+
 export function buildConversationCompletionEmail(
   items: ConversationItem[],
   metadata: ConversationCompletionEmailMetadata,
@@ -296,7 +342,7 @@ export function buildConversationCompletionEmail(
     return { status: "skipped", reason: "missing_metadata" };
   }
 
-  const assistantIndex = findFinalAssistantIndex(items);
+  const assistantIndex = findFinalAssistantIndex(items, options);
   if (assistantIndex < 0) {
     return { status: "skipped", reason: "missing_assistant_message" };
   }
@@ -309,7 +355,9 @@ export function buildConversationCompletionEmail(
   const userItem = items[userIndex] as MessageItem;
   const assistantItem = items[assistantIndex] as MessageItem;
   const userMessage = nonEmptyText(userItem.text) || "[Image-only message]";
-  const assistantMessage = nonEmptyText(assistantItem.text);
+  const assistantMessage =
+    collectAssistantVisibleTextForTurn(items, userIndex, assistantIndex) ||
+    nonEmptyText(assistantItem.text);
   if (!assistantMessage) {
     return { status: "skipped", reason: "missing_assistant_message" };
   }

@@ -92,7 +92,7 @@
 - Completion email 正文默认只包含状态、本轮修复信息、下一步建议、回复指令和 Moss context，不再发送完整长回答。
 - Completion email subject 必须包含可读 engine、session name、workspace name，并对过长名称做字符安全截断。
 - Completion email 正文必须包含本轮用户请求，方便用户在邮箱里理解上下文。
-- Completion email 的本轮修复信息来自客户端可见的最终 assistant message；必须排除 reasoning/thinking、tool call、file change card、diff、command output、review/image card 等非正文内容。
+- Completion email 的本轮修复信息来自本轮客户端可见的 assistant 正文块；同一轮内如果存在先输出长结果、末尾再追加短确认的多个 assistant message，必须按顺序合并，不能只取最后一条短消息；仍必须排除 reasoning/thinking、tool call、file change card、diff、command output、review/image card 等非正文内容。
 - 可回复邮件具备 headers、Subject Tag、Body Anchor、signed context 的冗余 session binding；任一可用锚点仍必须通过 token/signature/latest 校验。
 - 用户回复 `继续`、`下一步`、`ACTION: NEXT` 能继续最新 actionable session；用户直接写自然语言需求时，系统把新增内容作为 `CHANGE` 指令继续当前 session。
 - 多 `ACTION`、过期 token、重复 reply、旧邮件 reply、签名失败、非白名单发件人均不会自动执行。
@@ -108,9 +108,10 @@
 当前工作区实现与人工验收后的最终 MVP 行为如下：
 
 - `src/features/threads/utils/conversationCompletionEmail.ts` 负责生成邮件标题与正文。标题形态为 `Moss completed - <Engine> · <Session> · <Workspace>`，后端在 actionable 模式下继续追加 `[Moss #<short-session>]` subject tag。正文包含“本轮用户请求 / 本轮修复信息 / 下一步建议 / 如何回复”，并保留 `Reply above this line` 与 `MOSS CONTEXT` fallback。
-- 邮件正文只取用户能在客户端最终消息区域看到的文本：优先 `isFinal` assistant message，或 `最终消息` 与 `推理过程` 边界之间的内容；file change、tool invocation、diff、command output、review、generated image、thinking/reasoning 卡片都不进入邮件。
+- 邮件正文只取用户能在客户端最终消息区域看到的文本：以本轮最后完成的 `isFinal` assistant message 为锚点，从本轮 user message 之后按顺序合并所有 assistant message 正文，避免 Codex 在同一轮先输出长项目扫描、末尾再追加短确认时邮件只拿到短确认；file change、tool invocation、diff、command output、review、generated image、thinking/reasoning 卡片都不进入邮件。
 - `src-tauri/src/email/session_continuation.rs` 负责 outgoing ledger、reply token hash、signature、Subject Tag、Body Anchor、MOSS CONTEXT、inbound filtering、reply parsing、dedupe 与 command ledger。无关邮件直接 ignored，不保存 subject/body/sender detail；Moss-like rejected candidate 只保存 sanitized reason。
 - `src/features/threads/hooks/useThreadCompletionEmail.ts` 中用户点选发送邮件时会创建 `mailDrivenSessionEnabled: true` 的 intent；目标 turn settle 后发送可回复 completion email。若 Codex/Claude 首轮消息落盘与 terminal event 存在短暂竞态，发送逻辑会重试构建，避免第一次点选邮件却没发出。
 - `src/features/threads/hooks/useMailDrivenSessionContinuation.ts` 周期性检查 inbox、claim queued command，确认 workspace active 后调用 `sendUserMessageToThread(..., { skipPromptExpansion: true })` 投递到原 thread；执行完成后自动 arm 下一封可回复 completion email，形成邮件驱动闭环。
+- 邮件回复驱动下一轮执行时，completion email intent 必须绑定到下一轮新 turn，而不能回退到上一轮 active turn；邮件正文构建必须只使用 intent armed 之后完成的 assistant final message。若新 turn completion event 先到而最终消息尚未进入 `items`，必须进入 build retry，不能复用上一轮 final message 发送重复邮件。
 - `src/features/settings/components/settings-view/sections/EmailSenderSettings.tsx` 将设置页拆成 `文档 / 发送配置 / 收信监听 / 邮件会话`。邮件会话 tab 只展示 Moss 相关 session 与 sanitized timeline，支持刷新、清理已处理记录、查看邮件、打开对应 session；普通无关邮件不入库、不展示。
 - 当前用户人工测试已覆盖：发送 completion email、邮箱回复继续、直接自然语言回复、收件箱过滤、邮件会话跳转、126 IMAP 收信、标题可读性、正文排除 file/tool/card 信息。

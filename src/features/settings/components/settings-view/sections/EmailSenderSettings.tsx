@@ -890,6 +890,7 @@ export function EmailSenderSettings({
                   value={String(inboundDraft.pollIntervalSeconds)}
                   onChange={(event) => updateInboundDraft({ pollIntervalSeconds: Number.parseInt(event.target.value, 10) || 300 })}
                   inputMode="numeric"
+                  min={10}
                 />
               </div>
             </div>

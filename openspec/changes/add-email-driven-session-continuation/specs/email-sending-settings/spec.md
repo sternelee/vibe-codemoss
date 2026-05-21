@@ -23,6 +23,13 @@
 - **AND** 系统 MUST 展示或应用允许发件人策略，默认只接受配置收件箱或明确白名单来源
 - **AND** 系统 MUST 展示 read-only 收信状态，说明默认不会删除、移动或标记远端邮箱邮件
 
+#### Scenario: inbound polling interval accepts ten seconds
+
+- **WHEN** 用户将收信监听轮询间隔设置为 `10` 秒
+- **THEN** 系统 MUST 保存并展示 `10` 秒
+- **AND** 前端 settings normalize、backend inbound settings normalize 和客户端收信轮询 runtime MUST NOT 将该值重置为 `60` 秒
+- **AND** 系统 MAY 继续将小于 `10` 秒的值 clamp 到 `10` 秒
+
 #### Scenario: mail session management is visible
 
 - **WHEN** 用户打开邮件会话管理

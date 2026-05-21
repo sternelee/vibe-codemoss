@@ -419,7 +419,7 @@ function normalizeAppSettings(
             .filter(Boolean)
         : [],
       pollIntervalSeconds: Number.isFinite(inboundSettings?.pollIntervalSeconds)
-        ? Math.max(60, Math.min(3600, Math.trunc(inboundSettings?.pollIntervalSeconds ?? 300)))
+        ? Math.max(10, Math.min(3600, Math.trunc(inboundSettings?.pollIntervalSeconds ?? 300)))
         : 300,
       readOnlyMode: true,
       actionWindowHours: Number.isFinite(inboundSettings?.actionWindowHours)

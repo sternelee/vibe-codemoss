@@ -114,6 +114,41 @@ describe("useMailDrivenSessionContinuation", () => {
     unmount();
   });
 
+  it("honors a 10 second inbox polling interval from listener status", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-21T10:00:00Z"));
+    getEmailInboundListenerStatusMock.mockResolvedValue({
+      enabled: true,
+      readOnly: true,
+      connectionState: "ready",
+      lastCheckedAt: null,
+      nextCheckAt: null,
+      acceptedCount: 0,
+      queuedCount: 0,
+      needsConfirmationCount: 0,
+      rejectedCount: 0,
+      ignoredCount: 0,
+      pollingIntervalSeconds: 10,
+    });
+
+    const { unmount } = renderHook(() =>
+      useMailDrivenSessionContinuation({
+        activeWorkspace: workspace,
+        sendUserMessageToThread: vi.fn(),
+        armMailDrivenCompletionEmail: vi.fn(),
+      }),
+    );
+
+    await flushMicrotasks();
+    expect(checkEmailInboxMock).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(15_000);
+    await flushMicrotasks();
+    expect(checkEmailInboxMock).toHaveBeenCalledTimes(2);
+
+    unmount();
+  });
+
   it("does not reschedule polling after unmount while a poll is in flight", async () => {
     vi.useFakeTimers();
     let resolveClaim: (value: { command: null }) => void = () => {};

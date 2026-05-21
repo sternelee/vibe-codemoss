@@ -66,6 +66,70 @@ describe("buildConversationCompletionEmail", () => {
     expect(result.request.textBody).toContain("- **修复收信失败**");
   });
 
+  it("does not reuse an assistant final message completed before the current email intent was armed", () => {
+    const result = buildConversationCompletionEmail(
+      [
+        { id: "u1", kind: "message", role: "user", text: "第一轮请求" },
+        {
+          id: "a1",
+          kind: "message",
+          role: "assistant",
+          text: "第一轮结果。",
+          isFinal: true,
+          finalCompletedAt: 1_000,
+        },
+      ],
+      { ...baseMetadata, turnId: "turn-2" },
+      {
+        mailDrivenSessionEnabled: true,
+        minAssistantFinalCompletedAt: 2_000,
+      },
+    );
+
+    expect(result).toEqual({
+      status: "skipped",
+      reason: "missing_assistant_message",
+    });
+  });
+
+  it("uses the latest assistant final message completed after the current email intent was armed", () => {
+    const result = buildConversationCompletionEmail(
+      [
+        { id: "u1", kind: "message", role: "user", text: "第一轮请求" },
+        {
+          id: "a1",
+          kind: "message",
+          role: "assistant",
+          text: "第一轮结果。",
+          isFinal: true,
+          finalCompletedAt: 1_000,
+        },
+        { id: "u2", kind: "message", role: "user", text: "第二轮请求" },
+        {
+          id: "a2",
+          kind: "message",
+          role: "assistant",
+          text: "第二轮结果。",
+          isFinal: true,
+          finalCompletedAt: 2_500,
+        },
+      ],
+      { ...baseMetadata, turnId: "turn-2" },
+      {
+        mailDrivenSessionEnabled: true,
+        minAssistantFinalCompletedAt: 2_000,
+      },
+    );
+
+    expect(result.status).toBe("ready");
+    if (result.status !== "ready") {
+      return;
+    }
+    expect(result.request.textBody).toContain("第二轮请求");
+    expect(result.request.textBody).toContain("第二轮结果");
+    expect(result.request.textBody).not.toContain("第一轮结果");
+  });
+
   it("puts engine and a shortened session name in the email subject", () => {
     const result = buildConversationCompletionEmail(
       [
@@ -157,6 +221,57 @@ describe("buildConversationCompletionEmail", () => {
     }
     expect(result.request.textBody).toContain("13 个测试全部通过");
     expect(result.request.textBody).not.toContain("Controller 集成测试");
+  });
+
+  it("keeps all visible assistant text in the completed turn instead of only the last short final", () => {
+    const items: ConversationItem[] = [
+      { id: "u1", kind: "message", role: "user", text: "项目分析" },
+      {
+        id: "a-scan",
+        kind: "message",
+        role: "assistant",
+        text: [
+          "已完成项目扫描，给你先给结论：",
+          "",
+          "项目结论：这是一个可运行的 Spring Boot 多端认证演示服务。",
+          "",
+          "核心架构",
+          "- 入口：Spring Boot 2.7.18 + Java 11 + Maven。",
+          "- 分层：controller / service / security / repository。",
+        ].join("\n"),
+      },
+      {
+        id: "tool-1",
+        kind: "tool",
+        toolType: "commandExecution",
+        title: "mvn test",
+        detail: "test output",
+        status: "completed",
+      },
+      {
+        id: "a-confirm",
+        kind: "message",
+        role: "assistant",
+        text: "我再补一个小确认：当前工作区有少量未提交变更，本次我未做进一步修改。",
+        isFinal: true,
+        finalCompletedAt: 2_000,
+      },
+    ];
+
+    const result = buildConversationCompletionEmail(items, baseMetadata, {
+      mailDrivenSessionEnabled: true,
+      minAssistantFinalCompletedAt: 1_000,
+    });
+
+    expect(result.status).toBe("ready");
+    if (result.status !== "ready") {
+      return;
+    }
+    expect(result.request.textBody).toContain("已完成项目扫描，给你先给结论");
+    expect(result.request.textBody).toContain("项目结论：这是一个可运行的 Spring Boot 多端认证演示服务");
+    expect(result.request.textBody).toContain("我再补一个小确认");
+    expect(result.request.textBody).not.toContain("mvn test");
+    expect(result.request.textBody).not.toContain("test output");
   });
 
   it("omits file change and tool cards from the email body", () => {
