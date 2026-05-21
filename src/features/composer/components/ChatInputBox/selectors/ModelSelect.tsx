@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Claude, Gemini } from '@lobehub/icons';
 import xuanzhonIcon from '../../../../../assets/xuanzhong.svg';
 import type { ModelInfo, ProviderId } from '../types';
 import type { ProviderModelGroup } from '../modelOptions';
@@ -47,10 +46,12 @@ const ModelIcon = ({ provider, size = 16 }: { provider?: string; size?: number }
     case 'codex':
       return <EngineIcon engine="codex" size={size} style={imgStyle} />;
     case 'gemini':
-      return <Gemini.Color size={size} />;
+      return <EngineIcon engine="gemini" size={size} style={imgStyle} />;
+    case 'opencode':
+      return <EngineIcon engine="opencode" size={size} style={imgStyle} />;
     case 'claude':
     default:
-      return <Claude.Color size={size} />;
+      return <EngineIcon engine="claude" size={size} style={imgStyle} />;
   }
 };
 

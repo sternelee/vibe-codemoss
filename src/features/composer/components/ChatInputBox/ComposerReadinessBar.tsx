@@ -3,7 +3,7 @@ import { EngineIcon } from '../../../engine/components/EngineIcon';
 import type { ComposerSendReadiness } from '../../utils/composerSendReadiness';
 import type { ModelInfo, ProviderId } from './types';
 import type { ProviderModelGroup } from './modelOptions';
-import { ModelSelect } from './selectors';
+import { ModelSelect } from './selectors/ModelSelect';
 
 function parseContextChipCount(chip: string, prefix: string) {
   if (!chip.startsWith(prefix)) {

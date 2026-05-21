@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Claude, Gemini } from '@lobehub/icons';
 import { AVAILABLE_PROVIDERS } from '../types';
 import type { ProviderId } from '../types';
 import { EngineIcon } from '../../../../engine/components/EngineIcon';
@@ -22,15 +21,15 @@ const ProviderIcon = ({ providerId, size = 16 }: { providerId: string; size?: nu
   const imgStyle = { width: size, height: size, flexShrink: 0 } as const;
   switch (providerId) {
     case 'claude':
-      return <Claude.Color size={size} />;
+      return <EngineIcon engine="claude" size={size} style={imgStyle} />;
     case 'codex':
       return <EngineIcon engine="codex" size={size} style={imgStyle} />;
     case 'gemini':
-      return <Gemini.Color size={size} />;
+      return <EngineIcon engine="gemini" size={size} style={imgStyle} />;
     case 'opencode':
       return <EngineIcon engine="opencode" size={size} style={imgStyle} />;
     default:
-      return <Claude.Color size={size} />;
+      return <EngineIcon engine="claude" size={size} style={imgStyle} />;
   }
 };
 

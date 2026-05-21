@@ -3,11 +3,6 @@ import { fireEvent, render, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ConfigSelect } from './ConfigSelect';
 
-vi.mock('@lobehub/icons', () => ({
-  Claude: { Color: () => <span data-testid="mock-claude-icon" /> },
-  Gemini: { Color: () => <span data-testid="mock-gemini-icon" /> },
-}));
-
 vi.mock('../../../../../assets/model-icons/openai.svg', () => ({
   default: 'mock-openai-icon.svg',
 }));

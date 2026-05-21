@@ -16,19 +16,6 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-vi.mock("@lobehub/icons", () => ({
-  Claude: {
-    Color: ({ size }: { size?: number }) => (
-      <span data-testid="claude-icon" style={{ width: size, height: size }} />
-    ),
-  },
-  Gemini: {
-    Color: ({ size }: { size?: number }) => (
-      <span data-testid="gemini-icon" style={{ width: size, height: size }} />
-    ),
-  },
-}));
-
 vi.mock("../../../../engine/components/EngineIcon", () => ({
   EngineIcon: ({ engine }: { engine: string }) => (
     <span data-testid={`${engine}-icon`} />
