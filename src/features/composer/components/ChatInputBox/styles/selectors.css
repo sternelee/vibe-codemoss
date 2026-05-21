@@ -41,6 +41,15 @@
     transform 0.2s ease;
 }
 
+.selector-button-mode-icon {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 13px;
+  color: currentColor;
+  font-size: 13px;
+  line-height: 13px;
+}
+
 .selector-button-mode-trigger.is-flashing {
   color: color-mix(in srgb, var(--accent-primary, #2563eb) 76%, white 24%);
   background: color-mix(in srgb, var(--accent-primary, #2563eb) 18%, transparent);
@@ -180,33 +189,35 @@
   border-color: color-mix(in srgb, var(--accent-primary, #2563eb) 34%, transparent);
 }
 
-/* Icon-only config button (circle shape like "+" in reference) */
 .selector-button.config-button {
   width: 30px;
   padding: 0;
   justify-content: center;
-  border-radius: 50%;
+  border-radius: 8px;
 }
 
 .selector-button.selector-provider-button {
   width: 30px;
   padding: 0;
   justify-content: center;
-  border-radius: 50%;
+  border-radius: 8px;
 }
 
 .selector-button.selector-shortcut-button {
   width: 30px;
   padding: 0;
   justify-content: center;
-  border-radius: 50%;
+  border-radius: 8px;
 }
 
 .selector-button.selector-tool-dock-toggle {
   flex: 0 0 auto;
-  width: 30px;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
   padding: 0;
   justify-content: center;
+  border-radius: 9px;
   border-color: color-mix(in srgb, var(--input-focus-border) 30%, var(--input-border));
   color: var(--text-primary);
 }
@@ -215,6 +226,21 @@
   font-size: 15px;
   line-height: 1;
   opacity: 0.78;
+}
+
+.selector-reasoning-button.is-icon-only {
+  width: 28px;
+  min-width: 28px;
+  padding: 0;
+  justify-content: center;
+  gap: 0;
+}
+
+.selector-reasoning-button.is-icon-only .codicon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  line-height: 16px;
 }
 
 .button-area-primary-row .codicon {
@@ -246,6 +272,10 @@
   display: none;
 }
 
+.button-area-primary-row .button-area-model-slot + .selector-reasoning-wrap .selector-reasoning-button.is-icon-only > .codicon:not([class*="chevron"]) {
+  display: inline-flex;
+}
+
 .button-area.is-tool-dock-open .selector-tool-dock-toggle {
   background: color-mix(in srgb, var(--input-focus-border, #2563eb) 14%, var(--selector-pill-bg, transparent));
   border-color: color-mix(in srgb, var(--input-focus-border, #2563eb) 48%, transparent);
@@ -269,6 +299,14 @@
   padding-right: 8px;
 }
 
+.button-area-primary-row .button-area-model-slot + .selector-reasoning-wrap .selector-reasoning-button.is-icon-only {
+  width: 28px;
+  min-width: 28px;
+  padding: 0;
+  justify-content: center;
+  gap: 0;
+}
+
 .button-area-primary-row .selector-button:hover {
   background: color-mix(in srgb, var(--selector-pill-hover, transparent) 72%, transparent);
   border-color: transparent;
@@ -286,50 +324,170 @@
   border-color: transparent;
 }
 
-.button-area-tool-dock .selector-button {
+.button-area-inline-tools .selector-button {
   flex: 0 0 auto;
 }
 
-.button-area-tool-grid .selector-button {
-  width: 34px;
-  min-width: 34px;
-  height: 34px;
+.button-area-inline-tools .selector-button {
+  width: 28px;
+  min-width: 28px;
+  max-width: 28px;
+  height: 32px;
   padding: 0;
   justify-content: center;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--selector-pill-bg, transparent) 84%, transparent);
+  border-radius: 9px;
+  background: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  color: var(--text-secondary);
 }
 
-.button-area-tool-grid .selector-button:hover {
-  background: color-mix(in srgb, var(--selector-pill-hover, transparent) 92%, var(--input-focus-border, #2563eb) 8%);
+.button-area-inline-tools .selector-button:hover {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-primary);
 }
 
-.button-area-tool-grid .config-button,
-.button-area-tool-grid .selector-provider-button,
-.button-area-tool-grid .selector-shortcut-button {
-  width: 34px;
-  min-width: 34px;
+.button-area-inline-tools .config-button,
+.button-area-inline-tools .selector-provider-button,
+.button-area-inline-tools .selector-shortcut-button {
+  width: 28px;
+  min-width: 28px;
+  max-width: 28px;
   padding: 0;
-  border-radius: 50%;
+  border-radius: 9px;
 }
 
-.button-area-tool-grid .selector-button-text,
-.button-area-tool-grid .selector-button-mode-chevron {
+.button-area-inline-tools .selector-button-text,
+.button-area-inline-tools .selector-button-mode-chevron {
   display: none;
 }
 
-.button-area-tool-grid .selector-button .codicon {
-  font-size: 15px;
-  width: 15px;
-  height: 15px;
-  line-height: 15px;
+.button-area-inline-tools .selector-button .codicon {
+  font-size: 17px;
+  width: 17px;
+  height: 17px;
+  line-height: 17px;
+  color: currentColor;
 }
 
-.button-area-tool-grid .selector-button img,
-.button-area-tool-grid .selector-button svg {
-  width: 15px !important;
-  height: 15px !important;
-  flex-basis: 15px;
+.button-area-inline-tools .selector-button img,
+.button-area-inline-tools .selector-button svg {
+  width: 17px !important;
+  height: 17px !important;
+  flex-basis: 17px;
+  color: currentColor;
+  stroke: currentColor;
+}
+
+.button-area-inline-tools .selector-button .selector-button-mode-icon {
+  flex-basis: 17px;
+}
+
+.button-area-inline-tools .selector-reasoning-button.is-icon-only {
+  width: 28px;
+  min-width: 28px;
+  max-width: 28px;
+  height: 32px;
+}
+
+.button-area-inline-tools .composer-memory-reference-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  min-width: 28px;
+  max-width: 28px;
+  height: 32px;
+}
+
+.button-area-inline-tools .composer-memory-reference-toggle {
+  --composer-tool-selected-color: #2563eb;
+  width: 28px;
+  min-width: 28px;
+  max-width: 28px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-secondary);
+}
+
+.button-area-inline-tools .composer-memory-reference-toggle:hover {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--text-primary);
+}
+
+.button-area-inline-tools .composer-memory-reference-toggle.is-armed,
+.button-area-inline-tools .composer-memory-reference-toggle.is-always {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--composer-tool-selected-color);
+}
+
+.button-area-inline-tools .composer-memory-reference-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  color: currentColor;
+}
+
+.button-area-inline-tools .composer-memory-reference-icon::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: -1px;
+  width: 9px;
+  height: 5px;
+  border-left: 2.5px solid var(--composer-tool-selected-color);
+  border-bottom: 2.5px solid var(--composer-tool-selected-color);
+  border-radius: 1px;
+  opacity: 0;
+  transform: rotate(-45deg);
+  transform-origin: center;
+}
+
+.button-area-inline-tools .composer-memory-reference-toggle.is-armed .composer-memory-reference-icon::after,
+.button-area-inline-tools .composer-memory-reference-toggle.is-always .composer-memory-reference-icon::after {
+  opacity: 1;
+}
+
+.button-area-inline-tools .composer-memory-reference-toggle svg {
+  width: 17px;
+  height: 17px;
+  color: currentColor;
+  stroke: currentColor;
+}
+
+:root[data-theme="dark"] .button-area-inline-tools .composer-memory-reference-toggle.is-armed,
+:root[data-theme="dark"] .button-area-inline-tools .composer-memory-reference-toggle.is-always,
+:root[data-theme="dim"] .button-area-inline-tools .composer-memory-reference-toggle.is-armed,
+:root[data-theme="dim"] .button-area-inline-tools .composer-memory-reference-toggle.is-always {
+  --composer-tool-selected-color: #60a5fa;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .button-area-inline-tools .composer-memory-reference-toggle.is-armed,
+  :root:not([data-theme]) .button-area-inline-tools .composer-memory-reference-toggle.is-always {
+    --composer-tool-selected-color: #60a5fa;
+  }
+}
+
+.button-area-inline-tools .button-area-main-token .token-indicator {
+  min-height: 32px;
+}
+
+.button-area-inline-tools .button-area-main-token .token-indicator-ring {
+  width: 17px;
+  height: 17px;
 }
 
 /* Responsive text hiding for selector buttons */
@@ -442,10 +600,64 @@
 .selector-dropdown--model {
   width: max-content;
   min-width: 252px;
-  max-width: min(90vw, 560px);
-  max-height: min(56vh, 460px);
+  max-width: min(90vw, 440px);
+  max-height: min(48vh, 380px);
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+.selector-model-groups {
+  padding: 4px 0;
+}
+
+.selector-model-group-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px 4px;
+  color: var(--dropdown-title-color, #8A9096);
+  font-size: 13px;
+  font-weight: 450;
+  line-height: 18px;
+  user-select: none;
+}
+
+.selector-model-group-divider {
+  height: 1px;
+  margin: 5px 8px 4px;
+  background: var(--dropdown-divider-color, #E9ECF1);
+}
+
+.selector-option.selector-option--model-compact {
+  min-height: 34px;
+  padding: 5px 10px;
+  gap: 10px;
+}
+
+.selector-model-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 520;
+  line-height: 20px;
+}
+
+.selector-model-check-slot {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.selector-model-check-slot img {
+  width: 18px;
+  height: 18px;
 }
 
 .selector-dropdown--mode {
@@ -507,6 +719,29 @@
 .selector-option .codicon {
   font-size: 14px;
   width: 16px;
+}
+
+.selector-option .mode-icon {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  color: currentColor;
+  font-size: 18px;
+  line-height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.selector-option--reasoning > .codicon {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  font-size: 18px;
+  line-height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .selector-option-agent-icon {
@@ -1020,7 +1255,8 @@
   }
 
   .mode-icon {
-    filter: brightness(0) invert(95%) sepia(4%) saturate(120%) hue-rotate(192deg) brightness(98%) contrast(90%);
+    color: currentColor;
+    filter: none;
   }
 
   .selector-dropdown-title {

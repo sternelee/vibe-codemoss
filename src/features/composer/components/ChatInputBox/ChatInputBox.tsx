@@ -17,6 +17,7 @@ import type {
   ManualMemoryItem,
   NoteCardItem,
   PermissionMode,
+  ProviderId,
   PromptItem,
   SkillItem,
 } from './types.js';
@@ -72,6 +73,15 @@ import {
   isLinuxImeCompatibilityPlatform,
   shouldTriggerFileTagRenderOnSpaceKey,
 } from './utils/imeCompatibility.js';
+import {
+  MODEL_CONFIG_PROVIDERS,
+  isRelevantModelStorageKey,
+  readModelStorageSnapshot,
+  resolveAvailableModels,
+  resolveModelConfigProvider,
+  resolveProviderModelGroups,
+  type ModelStorageSnapshot,
+} from './modelOptions.js';
 import type { CommitSnapshotOptions, UndoRedoSnapshot } from './hooks/useUndoRedoHistory.js';
 import { perfTimer } from '../../utils/debug.js';
 import { DEBOUNCE_TIMING } from '../../constants/performance.js';
@@ -278,6 +288,9 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
       localStorage.setItem(BANNER_DISMISSED_KEY, 'true');
       setShowOpenSourceBanner(false);
     }, []);
+    const [modelStorageSnapshot, setModelStorageSnapshot] = useState<ModelStorageSnapshot>(
+      () => readModelStorageSnapshot(),
+    );
 
     // Internal attachments state (if not provided externally)
     const [internalAttachments, setInternalAttachments] = useState<Attachment[]>([]);
@@ -291,6 +304,51 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
     const completionSelectedRef = useRef(false);
     const shiftEnterRef = useRef(false);
     const [hasContent, setHasContent] = useState(false);
+
+    useEffect(() => {
+      const refreshModelStorageSnapshot = () => {
+        setModelStorageSnapshot(readModelStorageSnapshot());
+      };
+      const handleStorageChange = (event: StorageEvent) => {
+        if (isRelevantModelStorageKey(event.key)) {
+          refreshModelStorageSnapshot();
+        }
+      };
+      const handleCustomStorageChange = (event: CustomEvent<{ key: string }>) => {
+        if (isRelevantModelStorageKey(event.detail?.key)) {
+          refreshModelStorageSnapshot();
+        }
+      };
+
+      window.addEventListener('storage', handleStorageChange);
+      window.addEventListener('localStorageChange', handleCustomStorageChange as EventListener);
+      return () => {
+        window.removeEventListener('storage', handleStorageChange);
+        window.removeEventListener('localStorageChange', handleCustomStorageChange as EventListener);
+      };
+    }, []);
+
+    const availableModels = useMemo(
+      () => resolveAvailableModels({
+        currentProvider,
+        models,
+        selectedModel,
+        modelStorageSnapshot,
+      }),
+      [currentProvider, modelStorageSnapshot, models, selectedModel],
+    );
+    const providerModelGroups = useMemo(
+      () => resolveProviderModelGroups({
+        currentProvider,
+        models,
+        selectedModel,
+        modelStorageSnapshot,
+        providerAvailability,
+        resolveProviderLabel: (providerId, fallbackLabel) =>
+          t(`providers.${providerId}.label`, { defaultValue: fallbackLabel }),
+      }),
+      [currentProvider, modelStorageSnapshot, models, providerAvailability, selectedModel, t],
+    );
 
     // Flag to track if we're updating from external value
     const isExternalUpdateRef = useRef(false);
@@ -1205,6 +1263,22 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
       },
       [onModelSelect]
     );
+    const handleProviderModelSelect = useCallback(
+      (providerId: ProviderId, modelId: string) => {
+        if (providerId !== currentProvider) {
+          onProviderSelect?.(providerId);
+        }
+        onModelSelect?.(modelId);
+      },
+      [currentProvider, onModelSelect, onProviderSelect]
+    );
+    const handleOpenCurrentProviderModelSettings = useCallback(() => {
+      onOpenModelSettings?.(resolveModelConfigProvider(currentProvider));
+    }, [currentProvider, onOpenModelSettings]);
+    const handleRefreshCurrentProviderModelConfig = useCallback(() => {
+      return onRefreshModelConfig?.(resolveModelConfigProvider(currentProvider));
+    }, [currentProvider, onRefreshModelConfig]);
+    const supportsModelConfigActions = MODEL_CONFIG_PROVIDERS.has(currentProvider);
 
     /**
      * Focus input box
@@ -1436,6 +1510,24 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
               onJumpToRequest={onJumpToRequest}
               onExpandContextSources={onExpandContextSources}
               contextSourcesExpanded={contextSourcesExpanded}
+              selectedModel={selectedModel}
+              models={availableModels}
+              modelGroups={onProviderSelect ? providerModelGroups : undefined}
+              onModelSelect={onModelSelect ? handleModelSelect : undefined}
+              onProviderModelSelect={
+                onModelSelect && onProviderSelect ? handleProviderModelSelect : undefined
+              }
+              onAddModel={
+                onOpenModelSettings && supportsModelConfigActions
+                  ? handleOpenCurrentProviderModelSettings
+                  : undefined
+              }
+              onRefreshModelConfig={
+                onRefreshModelConfig && supportsModelConfigActions
+                  ? handleRefreshCurrentProviderModelConfig
+                  : undefined
+              }
+              isModelConfigRefreshing={isModelConfigRefreshing}
               onRemoveFromQueue={onRemoveFromQueue}
               onFuseFromQueue={onFuseFromQueue}
               canFuseFromQueue={canFuseFromQueue}
@@ -1626,6 +1718,7 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
               toolSurface={(
                 <ContextBar
                   surface="tool-popover"
+                  showUsage={false}
                   isLoading={isLoading}
                   onAddAttachment={handleAddAttachment}
                   currentProvider={currentProvider}

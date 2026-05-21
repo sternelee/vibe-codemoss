@@ -36,6 +36,78 @@ vi.mock("../../../../engine/components/EngineIcon", () => ({
 }));
 
 describe("ModelSelect", () => {
+  it("renders the readiness trigger with provider and selected model chrome", () => {
+    const onChange = vi.fn();
+
+    render(
+      <ModelSelect
+        value="demo"
+        currentProvider="codex"
+        providerLabel="Codex"
+        triggerVariant="readiness"
+        onChange={onChange}
+        models={[{ id: "demo", label: "demo" }]}
+      />,
+    );
+
+    const trigger = screen.getByRole("button", { name: "chat.currentModel:demo" });
+
+    expect(trigger.className).toContain("composer-readiness-target-button");
+    expect(trigger.textContent).toContain("Codex");
+    expect(trigger.textContent).toContain("demo");
+
+    fireEvent.click(trigger);
+    const dropdownOption = screen.getAllByText("demo").find((node) => {
+      return node.closest(".selector-option");
+    });
+    expect(dropdownOption).toBeTruthy();
+    fireEvent.click(dropdownOption!);
+
+    expect(onChange).toHaveBeenCalledWith("demo");
+  });
+
+  it("renders compact grouped provider models and selects provider plus model", () => {
+    const onChange = vi.fn();
+    const onProviderModelChange = vi.fn();
+
+    render(
+      <ModelSelect
+        value="gpt-5.4"
+        currentProvider="codex"
+        providerLabel="Codex"
+        triggerVariant="readiness"
+        onChange={onChange}
+        onProviderModelChange={onProviderModelChange}
+        models={[{ id: "gpt-5.4", label: "GPT-5.4" }]}
+        modelGroups={[
+          {
+            providerId: "claude",
+            providerLabel: "Claude Code",
+            enabled: true,
+            models: [{ id: "claude-sonnet-4-6", label: "Sonnet 4.6", description: "hidden" }],
+          },
+          {
+            providerId: "codex",
+            providerLabel: "Codex",
+            enabled: true,
+            models: [{ id: "gpt-5.4", label: "GPT-5.4", description: "hidden" }],
+          },
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "chat.currentModel:models.codex.gpt54.label" }));
+
+    expect(screen.getByText("Claude Code")).toBeTruthy();
+    expect(screen.getAllByText("Codex").length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByText("hidden")).toBeNull();
+
+    fireEvent.click(screen.getByText("Sonnet 4.6"));
+
+    expect(onProviderModelChange).toHaveBeenCalledWith("claude", "claude-sonnet-4-6");
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it("does not display the first model when no model value is selected", () => {
     render(
       <ModelSelect

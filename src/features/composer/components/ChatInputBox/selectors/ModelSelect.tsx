@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Claude, Gemini } from '@lobehub/icons';
 import xuanzhonIcon from '../../../../../assets/xuanzhong.svg';
-import type { ModelInfo } from '../types';
+import type { ModelInfo, ProviderId } from '../types';
+import type { ProviderModelGroup } from '../modelOptions';
 import { EngineIcon } from '../../../../engine/components/EngineIcon';
 
 interface ModelSelectProps {
@@ -10,6 +11,10 @@ interface ModelSelectProps {
   onChange: (modelId: string) => void;
   models?: ModelInfo[];  // Optional dynamic model list
   currentProvider?: string;  // Current provider type
+  providerLabel?: string;
+  triggerVariant?: 'default' | 'readiness';
+  modelGroups?: ProviderModelGroup[];
+  onProviderModelChange?: (providerId: ProviderId, modelId: string) => void;
   onAddModel?: () => void;  // Navigate to model management
   onRefreshConfig?: () => Promise<void> | void; // Refresh current provider config
   isRefreshingConfig?: boolean;
@@ -58,6 +63,10 @@ export const ModelSelect = ({
   onChange,
   models = [],
   currentProvider = 'claude',
+  providerLabel,
+  triggerVariant = 'default',
+  modelGroups,
+  onProviderModelChange,
   onAddModel,
   onRefreshConfig,
   isRefreshingConfig = false,
@@ -103,6 +112,9 @@ export const ModelSelect = ({
     }
     return model.description;
   };
+  const currentModelLabel = currentModel ? getModelLabel(currentModel) : t('models.selectModel');
+  const resolvedProviderLabel = providerLabel ?? t(`providers.${currentProvider}.label`);
+  const hasGroupedModels = Boolean(modelGroups && modelGroups.length > 0);
 
   /**
    * Toggle dropdown
@@ -119,6 +131,15 @@ export const ModelSelect = ({
     onChange(modelId);
     setIsOpen(false);
   }, [onChange]);
+
+  const handleGroupedSelect = useCallback((providerId: ProviderId, modelId: string) => {
+    if (onProviderModelChange) {
+      onProviderModelChange(providerId, modelId);
+    } else {
+      onChange(modelId);
+    }
+    setIsOpen(false);
+  }, [onChange, onProviderModelChange]);
 
   const handleAddModelClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
@@ -167,16 +188,39 @@ export const ModelSelect = ({
   }, [isOpen]);
 
   return (
-    <div style={{ position: 'relative', display: 'inline-block' }}>
+    <div
+      className={triggerVariant === 'readiness' ? 'composer-readiness-model-select' : undefined}
+      style={{ position: 'relative', display: 'inline-block' }}
+    >
       <button
         ref={buttonRef}
-        className="selector-button"
+        className={triggerVariant === 'readiness' ? 'composer-readiness-target composer-readiness-target-button' : 'selector-button'}
         onClick={handleToggle}
-        title={t('chat.currentModel', { model: currentModel ? getModelLabel(currentModel) : t('models.selectModel') })}
+        title={t('chat.currentModel', { model: currentModelLabel })}
+        aria-label={t('chat.currentModel', { model: currentModelLabel })}
       >
-        <ModelIcon provider={currentProvider} size={12} />
-        <span className="selector-button-text">{currentModel ? getModelLabel(currentModel) : t('models.selectModel')}</span>
-        <span className={`codicon codicon-chevron-${isOpen ? 'up' : 'down'}`} style={{ fontSize: '10px', marginLeft: '2px' }} />
+        {triggerVariant === 'readiness' ? (
+          <>
+            <span className="composer-readiness-icon" aria-hidden="true">
+              <ModelIcon provider={currentProvider} size={17} />
+            </span>
+            <span className="composer-readiness-provider">
+              {resolvedProviderLabel}
+            </span>
+            <span className="composer-readiness-divider" aria-hidden="true">
+              /
+            </span>
+            <span className="composer-readiness-model">
+              {currentModelLabel}
+            </span>
+          </>
+        ) : (
+          <>
+            <ModelIcon provider={currentProvider} size={12} />
+            <span className="selector-button-text">{currentModelLabel}</span>
+            <span className={`codicon codicon-chevron-${isOpen ? 'up' : 'down'}`} style={{ fontSize: '10px', marginLeft: '2px' }} />
+          </>
+        )}
       </button>
 
       {isOpen && (
@@ -191,27 +235,60 @@ export const ModelSelect = ({
             zIndex: 10000,
           }}
         >
-          <div className="selector-dropdown-title">{t('models.selectModel')}</div>
-          {effectiveModels.map((model) => (
-            <div
-              key={model.id}
-              className={`selector-option ${model.id === value ? 'selected' : ''}`}
-              onClick={() => handleSelect(model.id)}
-            >
-              <ModelIcon provider={currentProvider} size={20} />
-              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-                <span>{getModelLabel(model)}</span>
-                {getModelDescription(model) && (
-                  <span className="model-description">{getModelDescription(model)}</span>
-                )}
-              </div>
-              <div style={{ width: 20, height: 20, flexShrink: 0, marginLeft: 'auto' }}>
-                {model.id === value && (
-                  <img src={xuanzhonIcon} style={{ width: 20, height: 20 }} aria-hidden />
-                )}
-              </div>
+          {hasGroupedModels ? (
+            <div className="selector-model-groups">
+              {modelGroups!.map((group, groupIndex) => (
+                <div key={group.providerId} className="selector-model-group">
+                  {groupIndex > 0 && <div className="selector-model-group-divider" />}
+                  <div className="selector-model-group-title">
+                    <span>{group.providerLabel}</span>
+                  </div>
+                  {group.models.map((model) => {
+                    const isSelected = group.providerId === currentProvider && model.id === value;
+                    return (
+                      <div
+                        key={`${group.providerId}:${model.id}`}
+                        className={`selector-option selector-option--model-compact ${isSelected ? 'selected' : ''}`}
+                        onClick={() => handleGroupedSelect(group.providerId, model.id)}
+                      >
+                        <ModelIcon provider={group.providerId} size={18} />
+                        <span className="selector-model-label">{getModelLabel(model)}</span>
+                        <div className="selector-model-check-slot">
+                          {isSelected && (
+                            <img src={xuanzhonIcon} aria-hidden />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
-          ))}
+          ) : (
+            <>
+              <div className="selector-dropdown-title">{t('models.selectModel')}</div>
+              {effectiveModels.map((model) => (
+                <div
+                  key={model.id}
+                  className={`selector-option ${model.id === value ? 'selected' : ''}`}
+                  onClick={() => handleSelect(model.id)}
+                >
+                  <ModelIcon provider={currentProvider} size={20} />
+                  <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+                    <span>{getModelLabel(model)}</span>
+                    {getModelDescription(model) && (
+                      <span className="model-description">{getModelDescription(model)}</span>
+                    )}
+                  </div>
+                  <div style={{ width: 20, height: 20, flexShrink: 0, marginLeft: 'auto' }}>
+                    {model.id === value && (
+                      <img src={xuanzhonIcon} style={{ width: 20, height: 20 }} aria-hidden />
+                    )}
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
           {(onAddModel || onRefreshConfig) && (
             <>
               <div className="selector-divider" />

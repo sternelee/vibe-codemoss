@@ -307,7 +307,7 @@ export const AVAILABLE_MODES: ModeInfo[] = [
   {
     id: 'bypassPermissions',
     label: 'Auto Mode',
-    icon: 'codicon-zap',
+    icon: 'codicon-robot',
     tooltip: 'Bypass all permission checks',
     description: 'Fully automated, bypasses all permission checks [use with caution]',
   },
@@ -379,31 +379,31 @@ export const REASONING_LEVELS: ReasoningInfo[] = [
   {
     id: 'low',
     label: 'Low',
-    icon: 'codicon-circle-small',
+    icon: 'codicon-lightbulb-empty',
     description: 'Quick responses with basic reasoning',
   },
   {
     id: 'medium',
     label: 'Medium',
-    icon: 'codicon-circle-filled',
+    icon: 'codicon-lightbulb',
     description: 'Balanced thinking (default)',
   },
   {
     id: 'high',
     label: 'High',
-    icon: 'codicon-circle-large-filled',
+    icon: 'codicon-lightbulb-autofix',
     description: 'Deep reasoning for complex tasks',
   },
   {
     id: 'xhigh',
     label: 'Extra High',
-    icon: 'codicon-flame',
+    icon: 'codicon-lightbulb-sparkle',
     description: 'Extra high reasoning depth',
   },
   {
     id: 'max',
     label: 'Max',
-    icon: 'codicon-rocket',
+    icon: 'codicon-search-sparkle',
     description: 'Maximum reasoning depth',
   },
 ];

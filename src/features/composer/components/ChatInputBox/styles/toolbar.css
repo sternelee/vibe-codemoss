@@ -2,13 +2,14 @@
    Bottom Toolbar
    ============================================================ */
 .button-area {
+  --composer-toolbar-icon-gap: 2px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   justify-content: space-between;
   gap: 0;
   min-height: var(--composer-control-band-height, 44px);
-  padding: 1px 12px;
+  padding: 2px 8px;
   border-top: 1px solid var(--composer-toolbar-border, transparent);
   background: color-mix(in srgb, var(--input-bg) 78%, transparent);
   font-family: inherit;
@@ -18,32 +19,32 @@
   position: relative;
   z-index: 30;
   /* Bottom border-radius since ButtonArea is now the last element inside the box */
-  border-bottom-left-radius: 20px;
-  border-bottom-right-radius: 20px;
+  border-bottom-left-radius: 14px;
+  border-bottom-right-radius: 14px;
 }
 
 .button-area-primary-row {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 3px;
+  gap: var(--composer-toolbar-icon-gap);
   width: 100%;
-  min-height: 32px;
+  min-height: 34px;
   min-width: 0;
 }
 
 .button-area-left {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--composer-toolbar-icon-gap);
   flex: 0 1 auto;
   min-width: 0;
   overflow: visible;
 }
 
 .button-area-left--primary {
-  gap: 3px;
-  padding-right: 10px;
+  gap: var(--composer-toolbar-icon-gap);
+  padding-right: 4px;
 }
 
 .button-area-model-slot {
@@ -55,15 +56,17 @@
 .button-area-main-surface {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  justify-content: center;
+  gap: 0;
   flex: 0 0 auto;
   min-width: 0;
+  height: 32px;
 }
 
 .button-area-context-surface {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--composer-toolbar-icon-gap);
   flex: 0 1 auto;
   min-width: 0;
 }
@@ -72,7 +75,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 30px;
+  height: 32px;
+  min-width: 40px;
   padding: 0;
   border: none;
   border-radius: 0;
@@ -82,7 +86,7 @@
 .button-area-main-token .token-indicator {
   font-size: 13px;
   font-weight: 600;
-  gap: 5px;
+  gap: var(--composer-toolbar-icon-gap);
 }
 
 .button-area-main-surface .context-bar--tool-popover {
@@ -96,7 +100,7 @@
 }
 
 .button-area-main-surface .context-bar--tool-popover .context-dual-usage {
-  height: 30px;
+  height: 32px;
   padding: 0;
   border: none;
   background: transparent;
@@ -104,9 +108,12 @@
 
 .button-area-status-panel-toggle {
   flex: 0 0 auto;
-  width: 30px;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
   padding: 0;
   justify-content: center;
+  border-radius: 9px;
 }
 
 .button-area-right {
@@ -117,96 +124,33 @@
   flex-shrink: 0;
 }
 
-.button-area-tool-dock {
-  position: absolute;
-  left: 12px;
-  bottom: calc(100% - 5px);
-  width: max-content;
-  max-width: calc(100vw - 32px);
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(8px) scale(0.98);
-  transform-origin: left bottom;
-  transition:
-    opacity 0.14s ease,
-    transform 0.16s ease;
-  z-index: 40;
-}
-
-.button-area.is-tool-dock-open .button-area-tool-dock {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateY(0) scale(1);
-}
-
-.button-area-tool-popover {
-  position: relative;
+.button-area-inline-tools {
   display: flex;
   align-items: center;
   flex-wrap: nowrap;
-  gap: 6px;
-  width: fit-content;
-  max-width: 100%;
-  padding: 9px;
-  border: 1px solid var(--composer-tool-popover-border, var(--composer-toolbar-border, transparent));
-  border-radius: 22px;
-  background:
-    linear-gradient(
-      145deg,
-      color-mix(in srgb, var(--composer-tool-popover-bg, var(--input-bg)) 98%, white 8%) 0%,
-      color-mix(in srgb, var(--composer-tool-popover-bg, var(--input-bg)) 90%, black 10%) 100%
-    );
-  box-shadow: var(--composer-tool-popover-shadow, 0 18px 44px rgba(0, 0, 0, 0.22));
-  backdrop-filter: blur(18px);
-  overflow: visible;
-}
-
-.button-area-tool-popover::after {
-  content: "";
-  position: absolute;
-  left: 16px;
-  bottom: -6px;
-  width: 11px;
-  height: 11px;
-  border-right: 1px solid var(--composer-tool-popover-border, var(--composer-toolbar-border, transparent));
-  border-bottom: 1px solid var(--composer-tool-popover-border, var(--composer-toolbar-border, transparent));
-  background: color-mix(in srgb, var(--composer-tool-popover-bg, var(--input-bg)) 94%, transparent);
-  transform: rotate(45deg);
-}
-
-.button-area-tool-popover-header {
-  display: none;
-}
-
-.button-area-tool-popover-title {
-  color: var(--text-primary);
-  font-size: 12px;
-  font-weight: 650;
-  letter-spacing: 0.02em;
-}
-
-.button-area-tool-popover-hint {
-  color: var(--text-muted);
-  font-size: 10.5px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.button-area-tool-grid {
-  display: flex;
-  align-items: center;
-  flex-wrap: nowrap;
-  gap: 6px;
-}
-
-.button-area-tool-popover-divider {
-  display: none;
+  gap: 1px;
+  min-width: 0;
+  animation: button-area-inline-tools-enter 0.14s ease-out;
 }
 
 .button-area-tool-surface {
   display: flex;
   align-items: center;
+  justify-content: center;
   min-width: 0;
+  height: 32px;
+}
+
+@keyframes button-area-inline-tools-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 /* ============================================================

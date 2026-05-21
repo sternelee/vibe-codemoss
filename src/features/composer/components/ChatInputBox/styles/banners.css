@@ -22,12 +22,36 @@
   background: color-mix(in srgb, var(--input-bg) 88%, var(--context-bar-bg) 12%);
 }
 
+.composer-readiness-target-group,
 .composer-readiness-target,
 .composer-readiness-activity {
   display: flex;
   align-items: center;
   min-width: 0;
   gap: 7px;
+}
+
+.composer-readiness-target-group {
+  flex-wrap: nowrap;
+}
+
+.composer-readiness-model-select {
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.composer-readiness-target-button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+  max-width: 100%;
+}
+
+.composer-readiness-target-button:hover {
+  color: var(--text-primary);
 }
 
 .composer-readiness-activity {
@@ -74,7 +98,7 @@
   max-width: 112px;
   min-height: 22px;
   padding: 0 9px;
-  border-radius: 999px;
+  border-radius: 6px;
   border: 1px solid color-mix(in srgb, var(--button-primary) 28%, transparent);
   background: color-mix(in srgb, var(--button-primary) 12%, transparent);
   color: var(--button-primary);

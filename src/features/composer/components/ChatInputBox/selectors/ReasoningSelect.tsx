@@ -54,6 +54,8 @@ export const ReasoningSelect = ({
     const fallback = REASONING_LEVELS.find(l => l.id === levelId)?.[field] || levelId;
     return t(key, { defaultValue: fallback });
   };
+  const triggerLabel = currentLevel ? getReasoningText(currentLevel.id, 'label') : resolvedDefaultLabel;
+  const triggerIcon = currentLevel?.icon ?? 'codicon-lightbulb';
 
   /**
    * Toggle dropdown
@@ -100,25 +102,30 @@ export const ReasoningSelect = ({
   }, [isOpen]);
 
   return (
-    <div style={{ position: 'relative', display: 'inline-block' }}>
+    <div className="selector-reasoning-wrap" style={{ position: 'relative', display: 'inline-block' }}>
       <button
         ref={buttonRef}
-        className="selector-button"
+        className={`selector-button selector-reasoning-button${currentLevel ? ' is-icon-only' : ''}`}
         onClick={handleToggle}
         disabled={disabled}
+        aria-label={triggerLabel}
         title={t('reasoning.title', { defaultValue: 'Select reasoning depth' })}
       >
-        <span className="codicon codicon-lightbulb" />
-        <span className="selector-button-text">
-          {currentLevel ? getReasoningText(currentLevel.id, 'label') : resolvedDefaultLabel}
-        </span>
-        <span className={`codicon codicon-chevron-${isOpen ? 'up' : 'down'}`} style={{ fontSize: '10px', marginLeft: '2px' }} />
+        <span className={`codicon ${triggerIcon}`} />
+        {!currentLevel && (
+          <span className="selector-button-text">
+            {resolvedDefaultLabel}
+          </span>
+        )}
+        {!currentLevel && (
+          <span className={`codicon codicon-chevron-${isOpen ? 'up' : 'down'}`} style={{ fontSize: '10px', marginLeft: '2px' }} />
+        )}
       </button>
 
       {isOpen && (
         <div
           ref={dropdownRef}
-          className="selector-dropdown"
+          className="selector-dropdown selector-dropdown--reasoning"
           style={{
             position: 'absolute',
             bottom: '100%',
@@ -152,7 +159,7 @@ export const ReasoningSelect = ({
           {visibleLevels.map((level) => (
             <div
               key={level.id}
-              className={`selector-option ${level.id === value ? 'selected' : ''}`}
+              className={`selector-option selector-option--reasoning ${level.id === value ? 'selected' : ''}`}
               onClick={() => handleSelect(level.id)}
               title={getReasoningText(level.id, 'description')}
             >

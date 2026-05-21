@@ -2,21 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { useTranslation } from 'react-i18next';
 import { AVAILABLE_MODES, type PermissionMode } from '../types';
 import xuanzhonIcon from '../../../../../assets/xuanzhong.svg';
-import morenmoshiIcon from '../../../../../assets/morenmoshi.svg';
-import guihuamoshiIcon from '../../../../../assets/guihuamoshi.svg';
-import dailimoshiIcon from '../../../../../assets/dailimoshi.svg';
-import zidongmoshiIcon from '../../../../../assets/zidongmoshi.svg';
 import {
   MODE_SELECT_FLASH_DURATION_MS,
   MODE_SELECT_FLASH_EVENT,
 } from './modeSelectFlash';
-
-const MODE_ICONS: Record<string, string> = {
-  default: morenmoshiIcon,
-  plan: guihuamoshiIcon,
-  acceptEdits: dailimoshiIcon,
-  bypassPermissions: zidongmoshiIcon,
-};
 
 interface ModeSelectProps {
   value: PermissionMode;
@@ -230,7 +219,10 @@ export const ModeSelect = ({
         style={flashingButtonStyle}
         title={getModeText(currentMode.id, 'tooltip') || `${t('chat.currentMode', { mode: getModeText(currentMode.id, 'label') })}`}
       >
-        <img src={MODE_ICONS[currentMode.id]} style={{ width: 12, height: 12, flexShrink: 0 }} aria-hidden />
+        <span
+          className={`codicon ${currentMode.icon} selector-button-mode-icon`}
+          aria-hidden="true"
+        />
         <span className="selector-button-text">{getModeText(currentMode.id, 'label')}</span>
         <span
           className={`codicon codicon-chevron-${isOpen ? 'up' : 'down'} selector-button-mode-chevron${isChevronFlashing ? ' is-flashing' : ''}`}
@@ -262,7 +254,10 @@ export const ModeSelect = ({
                 cursor: mode.disabled ? 'not-allowed' : 'pointer',
               }}
             >
-              <img src={MODE_ICONS[mode.id]} className="mode-icon" style={{ width: 18, height: 18, flexShrink: 0 }} aria-hidden />
+              <span
+                className={`codicon ${mode.icon} mode-icon`}
+                aria-hidden="true"
+              />
               <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
                 <span>{getModeText(mode.id, 'label')}</span>
                 <span className="mode-description">{getModeText(mode.id, 'description')}</span>

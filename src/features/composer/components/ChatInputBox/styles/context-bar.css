@@ -109,6 +109,87 @@
   display: none;
 }
 
+.button-area-inline-tools .context-bar--tool-popover {
+  display: flex;
+  align-items: center;
+  width: auto;
+  gap: 1px;
+}
+
+.button-area-inline-tools .context-bar--tool-popover .context-tools,
+.button-area-inline-tools .context-bar--tool-popover .context-tools-right,
+.button-area-inline-tools .context-bar--tool-popover .context-live-canvas-controls {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex: 0 0 auto;
+}
+
+.button-area-inline-tools .context-bar--tool-popover .context-tool-btn {
+  width: 28px;
+  min-width: 28px;
+  max-width: 28px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+  color: var(--text-secondary);
+}
+
+.button-area-inline-tools .context-bar--tool-popover .context-tool-btn:hover:not(:disabled) {
+  background: transparent;
+  border-color: transparent;
+  transform: none;
+  color: var(--text-primary);
+}
+
+.button-area-inline-tools .context-bar--tool-popover .context-tool-btn.is-active {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--text-primary);
+}
+
+.button-area-inline-tools .context-bar--tool-popover .context-tool-label,
+.button-area-inline-tools .context-bar--tool-popover .context-tool-divider {
+  display: none;
+}
+
+.button-area-inline-tools .context-bar--tool-popover .context-tool-btn svg,
+.button-area-inline-tools .context-bar--tool-popover .context-tool-btn .codicon {
+  width: 17px;
+  height: 17px;
+  font-size: 17px;
+  line-height: 17px;
+  color: currentColor;
+  stroke: currentColor;
+}
+
+.button-area-inline-tools .context-bar--tool-popover .context-token-indicator,
+.button-area-inline-tools .context-bar--tool-popover .context-dual-usage {
+  height: 32px;
+  min-width: 40px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.button-area-inline-tools .context-bar--tool-popover .context-dual-usage::before {
+  display: none;
+}
+
+.button-area-inline-tools .context-bar--tool-popover .context-dual-usage-ring,
+.button-area-inline-tools .context-bar--tool-popover .token-indicator-ring {
+  width: 17px;
+  height: 17px;
+}
+
 .button-area-tool-popover .context-bar--tool-popover,
 .button-area-tool-popover .context-tools,
 .button-area-tool-popover .context-tools-right,
@@ -244,23 +325,69 @@
 }
 
 .context-completion-email-btn {
+  --composer-tool-selected-color: #2563eb;
   color: var(--text-secondary);
 }
 
+.context-completion-email-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  color: currentColor;
+}
+
+.context-completion-email-icon::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: -1px;
+  width: 9px;
+  height: 5px;
+  border-left: 2.5px solid var(--composer-tool-selected-color);
+  border-bottom: 2.5px solid var(--composer-tool-selected-color);
+  border-radius: 1px;
+  opacity: 0;
+  transform: rotate(-45deg);
+  transform-origin: center;
+}
+
 .context-completion-email-btn:hover:not(:disabled) {
-  background: color-mix(in srgb, #2563eb 12%, transparent);
-  color: #2563eb;
+  background: color-mix(in srgb, var(--composer-tool-selected-color) 12%, transparent);
+  color: var(--composer-tool-selected-color);
 }
 
 .context-completion-email-btn.is-active {
-  background: color-mix(in srgb, #2563eb 15%, transparent);
-  color: #2563eb;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, #2563eb 30%, transparent);
+  background: transparent;
+  border-color: transparent;
+  color: var(--composer-tool-selected-color);
+  box-shadow: none;
+}
+
+.context-completion-email-btn.is-active .context-completion-email-icon::after {
+  opacity: 1;
 }
 
 :root[data-theme="dark"] .context-completion-email-btn.is-active,
 :root[data-theme="dim"] .context-completion-email-btn.is-active {
-  color: #93c5fd;
+  --composer-tool-selected-color: #60a5fa;
+}
+
+:root[data-theme="dark"] .context-completion-email-btn.is-active .context-completion-email-icon::after,
+:root[data-theme="dim"] .context-completion-email-btn.is-active .context-completion-email-icon::after {
+  border-color: var(--composer-tool-selected-color);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .context-completion-email-btn.is-active {
+    --composer-tool-selected-color: #60a5fa;
+  }
+
+  :root:not([data-theme]) .context-completion-email-btn.is-active .context-completion-email-icon::after {
+    border-color: var(--composer-tool-selected-color);
+  }
 }
 
 .context-live-canvas-controls {
@@ -273,6 +400,7 @@
 }
 
 .context-live-canvas-btn {
+  --composer-tool-selected-color: #2563eb;
   color: var(--text-primary);
   border: none;
   background: transparent;
@@ -286,20 +414,35 @@
   opacity: 1;
 }
 
+.context-live-canvas-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  color: currentColor;
+}
+
 .context-live-canvas-btn .context-tool-label {
   color: var(--text-primary);
 }
 
 .context-live-canvas-dot {
   position: absolute;
-  right: 7px;
-  bottom: 7px;
+  right: 0;
+  top: -1px;
   margin-left: 0;
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--text-primary) 42%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--input-border) 86%, transparent);
+  width: 9px;
+  height: 5px;
+  border-left: 2.5px solid var(--composer-tool-selected-color);
+  border-bottom: 2.5px solid var(--composer-tool-selected-color);
+  border-radius: 1px;
+  background: transparent;
+  box-shadow: none;
+  opacity: 0;
+  transform: rotate(-45deg);
+  transform-origin: center;
 }
 
 .context-live-canvas-btn:hover {
@@ -308,12 +451,12 @@
 
 .context-live-canvas-btn.is-active {
   background: transparent;
-  color: #166534;
+  color: var(--composer-tool-selected-color);
   box-shadow: none;
 }
 
 .context-live-canvas-btn.is-active svg {
-  color: #166534;
+  color: var(--composer-tool-selected-color);
 }
 
 .context-live-canvas-btn--focus-follow.is-active svg {
@@ -322,20 +465,17 @@
 }
 
 .context-live-canvas-btn.is-active .context-tool-label {
-  color: #166534;
+  color: var(--composer-tool-selected-color);
 }
 
 .context-live-canvas-btn.is-active .context-live-canvas-dot {
-  background: #166534;
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, #166534 46%, transparent),
-    0 0 6px color-mix(in srgb, #166534 48%, transparent);
+  opacity: 1;
 }
 
 :root[data-theme="dark"] .context-live-canvas-btn.is-active,
 :root[data-theme="dim"] .context-live-canvas-btn.is-active {
+  --composer-tool-selected-color: #60a5fa;
   background: transparent;
-  color: #cfe8de;
   box-shadow: none;
 }
 
@@ -343,34 +483,28 @@
 :root[data-theme="dim"] .context-live-canvas-btn.is-active svg,
 :root[data-theme="dark"] .context-live-canvas-btn.is-active .context-tool-label,
 :root[data-theme="dim"] .context-live-canvas-btn.is-active .context-tool-label {
-  color: #b8dece;
+  color: var(--composer-tool-selected-color);
 }
 
 :root[data-theme="dark"] .context-live-canvas-btn.is-active .context-live-canvas-dot,
 :root[data-theme="dim"] .context-live-canvas-btn.is-active .context-live-canvas-dot {
-  background: #3aa77c;
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, #2f7f67 46%, transparent),
-    0 0 7px color-mix(in srgb, #3aa77c 44%, transparent);
+  border-color: var(--composer-tool-selected-color);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) .context-live-canvas-btn.is-active {
+    --composer-tool-selected-color: #60a5fa;
     background: transparent;
-    color: #cfe8de;
     box-shadow: none;
   }
 
   :root:not([data-theme]) .context-live-canvas-btn.is-active svg,
   :root:not([data-theme]) .context-live-canvas-btn.is-active .context-tool-label {
-    color: #b8dece;
+    color: var(--composer-tool-selected-color);
   }
 
   :root:not([data-theme]) .context-live-canvas-btn.is-active .context-live-canvas-dot {
-    background: #3aa77c;
-    box-shadow:
-      0 0 0 1px color-mix(in srgb, #2f7f67 46%, transparent),
-      0 0 7px color-mix(in srgb, #3aa77c 44%, transparent);
+    border-color: var(--composer-tool-selected-color);
   }
 }
 

@@ -78,6 +78,7 @@ export const ContextBar: React.FC<ContextBarProps> = memo(({
   percentage = null,
   usedTokens,
   maxTokens,
+  showUsage = true,
   contextDualViewEnabled = false,
   dualContextUsage = null,
   claudeContextUsage = null,
@@ -410,11 +411,11 @@ export const ContextBar: React.FC<ContextBarProps> = memo(({
     }
   }, [disableCompactionButton, onRequestContextCompaction, releaseManualCompactionPending]);
 
-  const shouldShowLegacyTokenIndicator = !(currentProvider === 'codex' && contextDualViewEnabled);
+  const shouldShowLegacyTokenIndicator = showUsage && !(currentProvider === 'codex' && contextDualViewEnabled);
   const hasPrimaryUsageTools = Boolean(
     onAddAttachment ||
       (shouldShowLegacyTokenIndicator && (percentage !== null || usedTokens !== undefined || claudeContextUsage)) ||
-      (contextDualViewEnabled && dualUsageSummary),
+      (showUsage && contextDualViewEnabled && dualUsageSummary),
   );
   const hasExternalContext = Boolean(
     selectedContextChips.length > 0 ||
@@ -455,7 +456,7 @@ export const ContextBar: React.FC<ContextBarProps> = memo(({
             </div>
           )}
 
-          {contextDualViewEnabled && dualUsageSummary && (
+          {showUsage && contextDualViewEnabled && dualUsageSummary && (
             <div
               className={`context-dual-usage context-dual-usage--${dualUsageSummary.stateClass}`}
               role="status"
@@ -669,7 +670,9 @@ export const ContextBar: React.FC<ContextBarProps> = memo(({
             }
             aria-pressed={completionEmailSelected}
           >
-            <Mail size={14} aria-hidden />
+            <span className="context-completion-email-icon" aria-hidden>
+              <Mail size={14} />
+            </span>
           </button>
         )}
 
@@ -688,9 +691,11 @@ export const ContextBar: React.FC<ContextBarProps> = memo(({
                 }
                 aria-pressed={liveAutoFollowEnabled}
               >
-                <Crosshair size={13} aria-hidden />
+                <span className="context-live-canvas-icon" aria-hidden>
+                  <Crosshair size={13} />
+                  <span className="context-live-canvas-dot" />
+                </span>
                 <span className="context-tool-label">{t('messages.liveAutoFollowToggle')}</span>
-                <span className="context-live-canvas-dot" aria-hidden />
               </button>
             )}
             {showCollapseMiddleStepsControl && (
@@ -710,9 +715,11 @@ export const ContextBar: React.FC<ContextBarProps> = memo(({
                 }
                 aria-pressed={collapseLiveMiddleStepsEnabled}
               >
-                <ListCollapse size={13} aria-hidden />
+                <span className="context-live-canvas-icon" aria-hidden>
+                  <ListCollapse size={13} />
+                  <span className="context-live-canvas-dot" />
+                </span>
                 <span className="context-tool-label">{t('messages.collapseMiddleStepsToggle')}</span>
-                <span className="context-live-canvas-dot" aria-hidden />
               </button>
             )}
           </div>

@@ -10,6 +10,23 @@ vi.mock('react-i18next', () => ({
 }));
 
 describe('ReasoningSelect', () => {
+  it('shows the selected effort trigger as icon-only', () => {
+    const { container } = render(
+      <ReasoningSelect
+        value="low"
+        onChange={vi.fn()}
+        options={['low', 'medium']}
+      />,
+    );
+
+    const trigger = screen.getByRole('button', { name: 'Low' });
+
+    expect(trigger.querySelector('.selector-button-text')).toBeNull();
+    expect(trigger.querySelector('.codicon-lightbulb-empty')).toBeTruthy();
+    expect(trigger.querySelector('[class*="codicon-chevron"]')).toBeNull();
+    expect(container.querySelector('.selector-reasoning-button.is-icon-only')).toBeTruthy();
+  });
+
   it('does not fall back to all levels when explicit options are empty', () => {
     render(
       <ReasoningSelect

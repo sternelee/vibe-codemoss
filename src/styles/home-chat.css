@@ -574,7 +574,7 @@
 }
 
 .home-chat-composer-host .chat-input-box {
-  border-radius: 30px;
+  border-radius: 16px;
   border-color: var(--home-chat-border);
   box-shadow:
     0 22px 54px rgba(0, 0, 0, 0.22),
@@ -628,12 +628,12 @@
 
 .home-chat-composer-host .input-editable-wrapper {
   padding: 22px 24px 14px;
-  min-height: 138px;
+  min-height: 93px;
   max-height: 288px;
 }
 
 .home-chat-composer-host .input-editable {
-  min-height: calc(1.5em * 3);
+  min-height: calc(1.5em * 1);
   color: var(--text-primary);
   font-size: 15px;
   line-height: 1.5;
@@ -647,15 +647,15 @@
 .home-chat-composer-host .composer-readiness-bar {
   min-height: var(--home-chat-control-band-height);
   padding: 5px 14px;
-  border-top-left-radius: 30px;
-  border-top-right-radius: 30px;
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
 }
 
 .home-chat-composer-host .button-area {
   min-height: var(--home-chat-control-band-height);
   padding: 4px 14px;
-  border-bottom-left-radius: 30px;
-  border-bottom-right-radius: 30px;
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
 }
 
 .home-chat-composer-host .button-area-primary-row {
@@ -665,6 +665,10 @@
 .home-chat-composer-host .button-area-left,
 .home-chat-composer-host .button-area-right {
   gap: 8px;
+}
+
+.home-chat-composer-host .button-area-left.button-area-left--primary {
+  gap: 2px;
 }
 
 .home-chat-composer-host .attach-button,
@@ -693,6 +697,72 @@
   color: var(--text-primary);
 }
 
+.home-chat-composer-host .button-area-inline-tools .selector-button,
+.home-chat-composer-host .button-area-inline-tools .selector-button.config-button,
+.home-chat-composer-host .button-area-inline-tools .selector-button.selector-provider-button,
+.home-chat-composer-host .button-area-inline-tools .selector-button.selector-shortcut-button,
+.home-chat-composer-host .button-area-inline-tools .selector-button.selector-plan-mode-button,
+.home-chat-composer-host .button-area-inline-tools .selector-reasoning-button.is-icon-only {
+  width: 28px;
+  min-width: 28px;
+  max-width: 28px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-secondary);
+}
+
+.home-chat-composer-host .button-area-inline-tools .selector-button:hover,
+.home-chat-composer-host .button-area-inline-tools .selector-button.config-button:hover,
+.home-chat-composer-host .button-area-inline-tools .selector-button.selector-provider-button:hover,
+.home-chat-composer-host .button-area-inline-tools .selector-button.selector-shortcut-button:hover,
+.home-chat-composer-host .button-area-inline-tools .selector-button.selector-plan-mode-button:hover,
+.home-chat-composer-host .button-area-inline-tools .selector-reasoning-button.is-icon-only:hover {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--text-primary);
+}
+
+.home-chat-composer-host .button-area-inline-tools .selector-button.selector-plan-mode-button.active {
+  background: transparent;
+  border-color: transparent;
+}
+
+.home-chat-composer-host .button-area-inline-tools .selector-button svg,
+.home-chat-composer-host .button-area-inline-tools .selector-button .codicon,
+.home-chat-composer-host .button-area-inline-tools .composer-memory-reference-toggle svg,
+.home-chat-composer-host .button-area-inline-tools .context-tool-btn svg,
+.home-chat-composer-host .button-area-inline-tools .context-tool-btn .codicon {
+  color: currentColor;
+  stroke: currentColor;
+}
+
+.home-chat-composer-host .button-area-inline-tools .composer-memory-reference-toggle,
+.home-chat-composer-host .button-area-inline-tools .context-tool-btn {
+  width: 28px;
+  min-width: 28px;
+  max-width: 28px;
+  height: 32px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-secondary);
+}
+
+.home-chat-composer-host .button-area-inline-tools .composer-memory-reference-toggle:hover,
+.home-chat-composer-host .button-area-inline-tools .context-tool-btn:hover:not(:disabled),
+.home-chat-composer-host .button-area-inline-tools .context-tool-btn.is-active {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-primary);
+}
+
 [data-theme="light"] .home-chat .home-chat-composer-host .attach-button,
 [data-theme="light"] .home-chat .home-chat-composer-host .selector-button {
   border-color: rgba(15, 23, 42, 0.08);
@@ -702,6 +772,22 @@
 [data-theme="light"] .home-chat .home-chat-composer-host .attach-button:hover,
 [data-theme="light"] .home-chat .home-chat-composer-host .selector-button:hover {
   background: rgba(15, 23, 42, 0.08);
+}
+
+[data-theme="light"] .home-chat .home-chat-composer-host .button-area-inline-tools .selector-button,
+[data-theme="light"] .home-chat .home-chat-composer-host .button-area-inline-tools .composer-memory-reference-toggle,
+[data-theme="light"] .home-chat .home-chat-composer-host .button-area-inline-tools .context-tool-btn {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+[data-theme="light"] .home-chat .home-chat-composer-host .button-area-inline-tools .selector-button:hover,
+[data-theme="light"] .home-chat .home-chat-composer-host .button-area-inline-tools .composer-memory-reference-toggle:hover,
+[data-theme="light"] .home-chat .home-chat-composer-host .button-area-inline-tools .context-tool-btn:hover:not(:disabled) {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-primary);
 }
 
 @media (prefers-color-scheme: light) {
@@ -715,6 +801,89 @@
   :root:not([data-theme]) .home-chat .home-chat-composer-host .selector-button:hover {
     background: rgba(15, 23, 42, 0.08);
   }
+
+  :root:not([data-theme]) .home-chat .home-chat-composer-host .button-area-inline-tools .selector-button,
+  :root:not([data-theme]) .home-chat .home-chat-composer-host .button-area-inline-tools .composer-memory-reference-toggle,
+  :root:not([data-theme]) .home-chat .home-chat-composer-host .button-area-inline-tools .context-tool-btn {
+    border-color: transparent;
+    background: transparent;
+    color: var(--text-secondary);
+  }
+
+  :root:not([data-theme]) .home-chat .home-chat-composer-host .button-area-inline-tools .selector-button:hover,
+  :root:not([data-theme]) .home-chat .home-chat-composer-host .button-area-inline-tools .composer-memory-reference-toggle:hover,
+  :root:not([data-theme]) .home-chat .home-chat-composer-host .button-area-inline-tools .context-tool-btn:hover:not(:disabled) {
+    border-color: transparent;
+    background: transparent;
+    color: var(--text-primary);
+  }
+
+}
+
+.home-chat-composer-host .button-area-inline-tools .context-completion-email-btn.is-active,
+.home-chat-composer-host .button-area-inline-tools .context-live-canvas-btn.is-active,
+.home-chat-composer-host .button-area-inline-tools .composer-memory-reference-toggle.is-armed,
+.home-chat-composer-host .button-area-inline-tools .composer-memory-reference-toggle.is-always {
+  --composer-tool-selected-color: #2563eb;
+  color: var(--composer-tool-selected-color);
+}
+
+:root[data-theme="dark"]
+  .home-chat-composer-host
+  .button-area-inline-tools
+  .context-completion-email-btn.is-active,
+:root[data-theme="dark"]
+  .home-chat-composer-host
+  .button-area-inline-tools
+  .context-live-canvas-btn.is-active,
+:root[data-theme="dark"]
+  .home-chat-composer-host
+  .button-area-inline-tools
+  .composer-memory-reference-toggle.is-armed,
+:root[data-theme="dark"]
+  .home-chat-composer-host
+  .button-area-inline-tools
+  .composer-memory-reference-toggle.is-always,
+:root[data-theme="dim"]
+  .home-chat-composer-host
+  .button-area-inline-tools
+  .context-completion-email-btn.is-active,
+:root[data-theme="dim"]
+  .home-chat-composer-host
+  .button-area-inline-tools
+  .context-live-canvas-btn.is-active,
+:root[data-theme="dim"]
+  .home-chat-composer-host
+  .button-area-inline-tools
+  .composer-memory-reference-toggle.is-armed,
+:root[data-theme="dim"]
+  .home-chat-composer-host
+  .button-area-inline-tools
+  .composer-memory-reference-toggle.is-always {
+  --composer-tool-selected-color: #60a5fa;
+  color: var(--composer-tool-selected-color);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme])
+    .home-chat-composer-host
+    .button-area-inline-tools
+    .context-completion-email-btn.is-active,
+  :root:not([data-theme])
+    .home-chat-composer-host
+    .button-area-inline-tools
+    .context-live-canvas-btn.is-active,
+  :root:not([data-theme])
+    .home-chat-composer-host
+    .button-area-inline-tools
+    .composer-memory-reference-toggle.is-armed,
+  :root:not([data-theme])
+    .home-chat-composer-host
+    .button-area-inline-tools
+    .composer-memory-reference-toggle.is-always {
+    --composer-tool-selected-color: #60a5fa;
+    color: var(--composer-tool-selected-color);
+  }
 }
 
 .home-chat-composer-host .selector-button-text {
@@ -723,8 +892,8 @@
 }
 
 .home-chat-composer-host .submit-button {
-  width: 34px;
-  height: 34px;
+  width: 26px;
+  height: 26px;
   background: rgba(255, 255, 255, 0.76);
   color: #171717;
 }
@@ -753,6 +922,17 @@
   color: rgba(15, 23, 42, 0.3);
 }
 
+.home-chat .home-chat-composer-host .submit-button.stop-button {
+  background: var(--error-color, #f44336) url('../assets/icon.png') center / cover no-repeat;
+}
+
+.home-chat .home-chat-composer-host .submit-button.stop-button:hover:not(:disabled) {
+  background: var(--error-color, #f44336) url('../assets/icon.png') center / cover no-repeat;
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--error-color, #f44336) 28%, transparent);
+  opacity: 0.9;
+  transform: none;
+}
+
 @media (prefers-color-scheme: light) {
   :root:not([data-theme]) .home-chat .home-chat-composer-host .submit-button {
     background: rgba(15, 23, 42, 0.84);
@@ -766,6 +946,17 @@
   :root:not([data-theme]) .home-chat .home-chat-composer-host .submit-button:disabled {
     background: rgba(15, 23, 42, 0.12);
     color: rgba(15, 23, 42, 0.3);
+  }
+
+  :root:not([data-theme]) .home-chat .home-chat-composer-host .submit-button.stop-button {
+    background: var(--error-color, #f44336) url('../assets/icon.png') center / cover no-repeat;
+  }
+
+  :root:not([data-theme]) .home-chat .home-chat-composer-host .submit-button.stop-button:hover:not(:disabled) {
+    background: var(--error-color, #f44336) url('../assets/icon.png') center / cover no-repeat;
+    box-shadow: 0 8px 22px color-mix(in srgb, var(--error-color, #f44336) 28%, transparent);
+    opacity: 0.9;
+    transform: none;
   }
 }
 
@@ -856,12 +1047,12 @@
 
   .home-chat-composer-host .input-editable-wrapper {
     padding: 20px 18px 12px;
-    min-height: 126px;
+    min-height: 84px;
   }
 
   .home-chat-composer-host .input-editable {
     font-size: 14px;
-    min-height: calc(1.48em * 3);
+    min-height: calc(1.48em * 1);
   }
 
   .home-chat-composer-host .button-area {
@@ -910,7 +1101,7 @@
   }
 
   .home-chat-composer-host .chat-input-box {
-    border-radius: 24px;
+    border-radius: 14px;
   }
 
   .home-chat-composer-host {
@@ -919,7 +1110,7 @@
 
   .home-chat-composer-host .input-editable-wrapper {
     padding: 18px 14px 10px;
-    min-height: 116px;
+    min-height: 74px;
     max-height: 240px;
   }
 

@@ -1,6 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import { EngineIcon } from '../../../engine/components/EngineIcon';
 import type { ComposerSendReadiness } from '../../utils/composerSendReadiness';
+import type { ModelInfo, ProviderId } from './types';
+import type { ProviderModelGroup } from './modelOptions';
+import { ModelSelect } from './selectors';
 
 function parseContextChipCount(chip: string, prefix: string) {
   if (!chip.startsWith(prefix)) {
@@ -15,6 +18,15 @@ type ComposerReadinessBarProps = {
   onJumpToRequest?: () => void;
   onExpandContextSources?: () => void;
   contextSourcesExpanded?: boolean;
+  selectedModel?: string;
+  models?: ModelInfo[];
+  modelGroups?: ProviderModelGroup[];
+  currentProvider?: string;
+  onModelSelect?: (modelId: string) => void;
+  onProviderModelSelect?: (providerId: ProviderId, modelId: string) => void;
+  onAddModel?: () => void;
+  onRefreshModelConfig?: () => Promise<void> | void;
+  isModelConfigRefreshing?: boolean;
 };
 
 export function ComposerReadinessBar({
@@ -22,6 +34,15 @@ export function ComposerReadinessBar({
   onJumpToRequest,
   onExpandContextSources,
   contextSourcesExpanded = false,
+  selectedModel,
+  models,
+  modelGroups,
+  currentProvider,
+  onModelSelect,
+  onProviderModelSelect,
+  onAddModel,
+  onRefreshModelConfig,
+  isModelConfigRefreshing,
 }: ComposerReadinessBarProps) {
   const { t } = useTranslation();
   const modeLabel = readiness.target.modeLabel ?? readiness.target.accessModeLabel;
@@ -71,19 +92,37 @@ export function ComposerReadinessBar({
         activity: readiness.activity.shortLabel,
       })}
     >
-      <div className="composer-readiness-target" title={readiness.activity.detailLabel}>
-        <span className="composer-readiness-icon" aria-hidden="true">
-          <EngineIcon engine={readiness.target.engine} size={17} />
-        </span>
-        <span className="composer-readiness-provider">
-          {readiness.target.providerLabel}
-        </span>
-        <span className="composer-readiness-divider" aria-hidden="true">
-          /
-        </span>
-        <span className="composer-readiness-model">
-          {readiness.target.modelLabel}
-        </span>
+      <div className="composer-readiness-target-group" title={readiness.activity.detailLabel}>
+        {onModelSelect ? (
+          <ModelSelect
+            value={selectedModel ?? ''}
+            onChange={onModelSelect}
+            models={models}
+            modelGroups={modelGroups}
+            currentProvider={currentProvider ?? readiness.target.engine}
+            providerLabel={readiness.target.providerLabel}
+            triggerVariant="readiness"
+            onProviderModelChange={onProviderModelSelect}
+            onAddModel={onAddModel}
+            onRefreshConfig={onRefreshModelConfig}
+            isRefreshingConfig={Boolean(isModelConfigRefreshing)}
+          />
+        ) : (
+          <div className="composer-readiness-target">
+            <span className="composer-readiness-icon" aria-hidden="true">
+              <EngineIcon engine={readiness.target.engine} size={17} />
+            </span>
+            <span className="composer-readiness-provider">
+              {readiness.target.providerLabel}
+            </span>
+            <span className="composer-readiness-divider" aria-hidden="true">
+              /
+            </span>
+            <span className="composer-readiness-model">
+              {readiness.target.modelLabel}
+            </span>
+          </div>
+        )}
         {modeLabel ? (
           <span className="composer-readiness-chip">
             {modeLabel}
