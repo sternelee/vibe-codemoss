@@ -960,7 +960,15 @@ export function useThreadMessaging({
         ) {
           return false;
         }
-        const reboundThreadId = await refreshThread(workspace.id, threadId);
+        let reboundThreadId: string | null = null;
+        let refreshErrorMessage: string | null = null;
+        try {
+          reboundThreadId = await refreshThread(workspace.id, threadId);
+        } catch (refreshError) {
+          refreshErrorMessage =
+            refreshError instanceof Error ? refreshError.message : String(refreshError);
+          reboundThreadId = null;
+        }
         const acceptedTurnResolution =
           codexPreSendAcceptedTurnResolution ??
           resolveCodexAcceptedTurnFact({
@@ -1017,15 +1025,19 @@ export function useThreadMessaging({
           });
         };
         if (!reboundThreadId) {
+          const canUseFirstSendDraftReplacement =
+            canUseLocalFirstSendCodexDraftReplacement({
+              resolution: acceptedTurnResolution,
+              hasLocalUserIntent: Boolean(optimisticUserItem),
+            });
+          const canUseFreshDraftReplacementForMalformedThreadId =
+            isInvalidReviewThreadIdError(errorMessage) && canUseFirstSendDraftReplacement;
+          const canUseFreshDraftReplacementForMissingThread =
+            isCodexMissingThreadBindingError(errorMessage) &&
+            canUseFirstSendDraftReplacement;
           const canUseFreshDraftReplacement =
-            isInvalidReviewThreadIdError(errorMessage) ||
-            (
-              isCodexMissingThreadBindingError(errorMessage) &&
-              canUseLocalFirstSendCodexDraftReplacement({
-                resolution: acceptedTurnResolution,
-                hasLocalUserIntent: Boolean(optimisticUserItem),
-              })
-            );
+            canUseFreshDraftReplacementForMalformedThreadId ||
+            canUseFreshDraftReplacementForMissingThread;
           if (!canUseFreshDraftReplacement) {
             return false;
           }
@@ -1046,7 +1058,9 @@ export function useThreadMessaging({
                 outcome: "fresh",
                 acceptedTurnFact: acceptedTurnResolution.fact,
                 source: acceptedTurnResolution.source,
-                reason: errorMessage,
+                reason: refreshErrorMessage
+                  ? `${errorMessage}; refresh failed: ${refreshErrorMessage}`
+                  : errorMessage,
               }),
               reasonCode: staleRecoveryClassification?.reasonCode ?? null,
               staleReason: staleRecoveryClassification?.staleReason ?? null,

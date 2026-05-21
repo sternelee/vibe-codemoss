@@ -1887,6 +1887,47 @@ describe("useThreadMessaging", () => {
     });
   });
 
+  it("does not fresh-replace a durable codex thread when invalid thread id cannot be refreshed", async () => {
+    vi.mocked(sendUserMessage).mockResolvedValueOnce({
+      error: {
+        message:
+          "invalid thread id: invalid character: expected an optional prefix of `urn:uuid:` followed by [0-9a-fA-F-], found `d` at 1",
+      },
+    } as never);
+    const refreshThread = vi.fn(async () => null);
+    const startThreadForWorkspace = vi.fn(async () => "thread-should-not-start");
+    const { result, pushThreadErrorMessage } = makeHook("codex", {
+      activeThreadId: "durable-thread-id",
+      ensuredThreadId: "durable-thread-id",
+      startThreadForWorkspace,
+      refreshThread,
+      itemsByThread: {
+        "durable-thread-id": [
+          {
+            id: "user-durable-before-invalid-id",
+            kind: "message",
+            role: "user",
+            text: "accepted earlier",
+          },
+        ],
+      },
+    });
+
+    await act(async () => {
+      await result.current.sendUserMessage("follow up after invalid id");
+    });
+
+    await waitFor(() => {
+      expect(refreshThread).toHaveBeenCalledWith("ws-1", "durable-thread-id");
+      expect(startThreadForWorkspace).not.toHaveBeenCalled();
+      expect(sendUserMessage).toHaveBeenCalledTimes(1);
+      expect(pushThreadErrorMessage).toHaveBeenCalledWith(
+        "durable-thread-id",
+        expect.any(String),
+      );
+    });
+  });
+
   it("does not silently replace a stale codex thread when durable local activity exists", async () => {
     vi.mocked(sendUserMessage).mockResolvedValueOnce({
       error: {
@@ -2000,6 +2041,122 @@ describe("useThreadMessaging", () => {
         "ws-1",
         "thread-fresh-local-draft",
         expect.any(Number),
+      );
+    });
+  });
+
+  it("freshly resends first prompt when stale refresh throws before draft can rebind", async () => {
+    vi.mocked(sendUserMessage)
+      .mockResolvedValueOnce({
+        error: {
+          message: "thread not found: legacy-thread-id",
+        },
+      } as never)
+      .mockResolvedValueOnce({
+        result: { turn: { id: "turn-fresh-refresh-throw" } },
+      } as never);
+    const refreshThread = vi.fn(async () => {
+      throw new Error("thread not found: legacy-thread-id");
+    });
+    const startThreadForWorkspace = vi.fn(async () => "thread-fresh-refresh-throw");
+    const dispatch = vi.fn();
+    const { result, pushThreadErrorMessage, onDebug } = makeHook("codex", {
+      activeThreadId: "legacy-thread-id",
+      ensuredThreadId: "legacy-thread-id",
+      startThreadForWorkspace,
+      refreshThread,
+      dispatch,
+      codexAcceptedTurnByThread: {
+        "legacy-thread-id": {
+          fact: "empty-draft",
+          source: "thread-start",
+          updatedAt: 1,
+        },
+      },
+    });
+
+    await act(async () => {
+      await result.current.sendUserMessage("hello codex");
+    });
+
+    await waitFor(() => {
+      expect(refreshThread).toHaveBeenCalledWith("ws-1", "legacy-thread-id");
+      expect(startThreadForWorkspace).toHaveBeenCalledWith("ws-1", {
+        activate: true,
+        engine: "codex",
+      });
+      expect(sendUserMessage).toHaveBeenCalledTimes(2);
+      expect(sendUserMessage).toHaveBeenNthCalledWith(
+        2,
+        "ws-1",
+        "thread-fresh-refresh-throw",
+        "hello codex",
+        expect.any(Object),
+      );
+      expect(dispatch).toHaveBeenCalledWith({
+        type: "setActiveThreadId",
+        workspaceId: "ws-1",
+        threadId: "thread-fresh-refresh-throw",
+      });
+      expect(dispatch).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "renameThreadId",
+          oldThreadId: "legacy-thread-id",
+          newThreadId: "thread-fresh-refresh-throw",
+        }),
+      );
+      expect(pushThreadErrorMessage).not.toHaveBeenCalled();
+      expect(onDebug).toHaveBeenCalledWith(
+        expect.objectContaining({
+          label: "turn/start draft fresh fallback",
+          payload: expect.objectContaining({
+            outcome: "fresh",
+            acceptedTurnFact: "empty-draft",
+            reason: expect.stringContaining("refresh failed"),
+          }),
+        }),
+      );
+    });
+  });
+
+  it("does not fresh-replace a durable stale codex thread when refresh throws", async () => {
+    vi.mocked(sendUserMessage).mockResolvedValueOnce({
+      error: {
+        message: "thread not found: durable-thread-id",
+      },
+    } as never);
+    const refreshThread = vi.fn(async () => {
+      throw new Error("thread not found: durable-thread-id");
+    });
+    const startThreadForWorkspace = vi.fn(async () => "thread-should-not-start");
+    const { result, pushThreadErrorMessage } = makeHook("codex", {
+      activeThreadId: "durable-thread-id",
+      ensuredThreadId: "durable-thread-id",
+      startThreadForWorkspace,
+      refreshThread,
+      itemsByThread: {
+        "durable-thread-id": [
+          {
+            id: "assistant-durable-earlier",
+            kind: "message",
+            role: "assistant",
+            text: "durable answer",
+          },
+        ],
+      },
+    });
+
+    await act(async () => {
+      await result.current.sendUserMessage("follow up");
+    });
+
+    await waitFor(() => {
+      expect(refreshThread).toHaveBeenCalledWith("ws-1", "durable-thread-id");
+      expect(startThreadForWorkspace).not.toHaveBeenCalled();
+      expect(sendUserMessage).toHaveBeenCalledTimes(1);
+      expect(pushThreadErrorMessage).toHaveBeenCalledWith(
+        "durable-thread-id",
+        expect.any(String),
       );
     });
   });
