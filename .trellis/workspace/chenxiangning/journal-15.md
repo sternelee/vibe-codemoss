@@ -989,3 +989,61 @@ Follow-ups: 重新推送并运行 Release workflow，创建 v0.5.0 release。
 ### Next Steps
 
 - None - task complete
+
+
+## Session 542: 脱敏邮箱授权码输入
+
+**Date**: 2026-05-21
+**Task**: 脱敏邮箱授权码输入
+**Branch**: `feature/v0.5.1`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+## 本次交付
+
+完成邮件发送设置中授权码 / App Password 输入框的 UI 层脱敏收口，并同步回写 OpenSpec 提案。
+
+## 主要改动
+
+- 授权码输入框默认改为 `password` 类型，避免设置页和截图里直接暴露 secret。
+- 新增显示/隐藏 icon 切换，使用 lucide `Eye` / `EyeOff`，按钮具备 aria-label/title。
+- 切换仅改变当前输入框可见性，不改变 secret 保存、清除、测试发送或提交 payload 语义。
+- 同步中英文 i18n 文案：显示授权码 / 隐藏授权码。
+- 同步回写 OpenSpec：在 proposal 和 `email-sending-settings` capability 中明确“默认脱敏 + UI-only 切换”契约。
+
+## Review 结论
+
+- 变更为纯 UI 层，不触碰后端 secret 存储、Tauri bridge payload 或 SMTP/IMAP 行为。
+- 输入框仍保持原 `Label htmlFor` 可访问路径，新增 icon button 有可访问名称。
+- 测试覆盖默认 masked、显示/隐藏切换、保存后仍保持 masked。
+
+## 验证结果
+
+- `npx vitest run src/features/settings/components/settings-view/sections/EmailSenderSettings.test.tsx` 通过。
+- `npm run lint` 通过。
+- `npm run typecheck` 通过。
+- `openspec validate add-email-driven-session-continuation --strict --no-interactive` 通过。
+- `git diff --check` 通过。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `90f35cbc` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
