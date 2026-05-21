@@ -57,7 +57,7 @@ export function renderAppShell(ctx: any) {
     handleDebugClick, handleDeletePrompt, handleDeleteQueued, handleDeleteThreadPromptCancel, handleDeleteThreadPromptConfirm, handleDeleteWorkspaceConversations, handleDeleteWorkspaceConversationsInSettings, handleDraftChange,
     handleDragToInProgress, handleDropWorkspacePaths, handleEditQueued, handleEnsureWorkspaceThreadsForSettings, handleExitEditor, handleExitWorkspaceEditor, handleGenerateCommitMessage, handleGitIssuesChange,
     handleGitPanelModeChange, handleGitPullRequestCommentsChange, handleGitPullRequestDiffsChange, handleGitPullRequestsChange, handleInsertComposerText, handleKanbanCreateTask, handleLockPanel, handleMovePrompt,
-    handleMoveWorkspace, handleOpenComposerKanbanPanel, handleOpenFile, handleOpenHomeChat, handleOpenModelSettings, handleOpenRenameWorktree, handleOpenSearchPalette, handleOpenSpecHub,
+    handleMoveWorkspace, handleOpenComposerKanbanPanel, handleOpenFile, handleOpenHomeChat, handleOpenMailSession, handleOpenModelSettings, handleOpenRenameWorktree, handleOpenSearchPalette, handleOpenSpecHub,
     handleOpenTaskConversation, handleRetryTaskRun, handleResumeTaskRun, handleCancelTaskRun, handleForkTaskRun, handleOpenWorkspaceFile, handleOpenWorkspaceHome, handlePickGitRoot, handlePointerMove, handlePointerUp, handlePush, handleRefreshAccountRateLimits,
     handleRenamePromptCancel, handleRenamePromptChange, handleRenamePromptConfirm, handleRenameThread, handleRenameWorktreeCancel, handleRenameWorktreeChange, handleRenameWorktreeConfirm, handleResize,
     handleRevealActiveWorkspace, handleRevealGeneralPrompts, handleRevealWorkspacePrompts, handleRevertAllGitChanges, handleRevertGitFile, handleReviewPromptKeyDown, handleSearchPaletteMoveSelection, handleSelectAgent,
@@ -404,6 +404,7 @@ export function renderAppShell(ctx: any) {
                   setAppSettings(next);
                   await queueSaveSettings(next);
                 }}
+                onOpenMailSession={handleOpenMailSession}
                 onRunCodexDoctor={doctor}
                 onRunClaudeDoctor={claudeDoctor}
                 activeWorkspace={activeWorkspace}

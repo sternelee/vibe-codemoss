@@ -1801,6 +1801,48 @@ export function AppShell() {
     updateWorkspaceSettings,
     workspaces,
   });
+
+  const handleOpenMailSession = useCallback(
+    (target: {
+      sessionId: string;
+      workspaceId: string;
+      threadId: string;
+      turnId: string;
+    }) => {
+      const workspace = workspaces.find((entry) => entry.id === target.workspaceId) ?? null;
+      const threadId = target.threadId?.trim();
+      if (!workspace || !threadId) {
+        alertError(t("settings.emailOpenSessionUnavailable"));
+        return;
+      }
+      closeSettings();
+      navigateToThread(target.workspaceId, threadId);
+      const hasThread = (threadsByWorkspace[target.workspaceId] ?? []).some(
+        (thread) => thread.id === threadId,
+      );
+      if (!hasThread) {
+        void listThreadsForWorkspaceTracked(workspace).catch((error) => {
+          addDebugEntry({
+            id: `${Date.now()}-email-mail-session-open-fallback-error`,
+            timestamp: Date.now(),
+            source: "error",
+            label: "email/mail-session open fallback",
+            payload: error instanceof Error ? error.message : String(error),
+          });
+        });
+      }
+    },
+    [
+      addDebugEntry,
+      alertError,
+      closeSettings,
+      listThreadsForWorkspaceTracked,
+      navigateToThread,
+      t,
+      threadsByWorkspace,
+      workspaces,
+    ],
+  );
   const {
     worktreePrompt,
     worktreeCreateResult,
@@ -1949,7 +1991,11 @@ export function AppShell() {
     const title = activeWorkspace
       ? `ccgui - ${activeWorkspace.name}`
       : "ccgui";
-    void getCurrentWindow().setTitle(title).catch(() => {});
+    try {
+      void getCurrentWindow().setTitle(title).catch(() => {});
+    } catch {
+      // 普通浏览器没有 Tauri window internals，dev-server 预览时跳过窗口标题同步。
+    }
   }, [activeWorkspace]);
 
   useWorkspaceRestore({
@@ -2102,7 +2148,7 @@ export function AppShell() {
     handleCloseFileTab, handleCollaborationModeResolved, handleCommit, handleCommitAndPush, handleCommitAndSync, handleCommitMessageChange, handleCopyDebug, handleCopyThread,
     handleCreateBranch, handleCreatePrompt, handleDebugClick, handleDeletePrompt, handleDeleteQueued, handleDeleteThreadPromptCancel, handleDeleteThreadPromptConfirm, handleDraftChange,
     handleDropWorkspacePaths, handleEditQueued, handleEnsureWorkspaceThreadsForSettings, handleExitEditor, handleGenerateCommitMessage, handleGitIssuesChange, handleGitPanelModeChange, handleGitPullRequestCommentsChange,
-    handleGitPullRequestDiffsChange, handleGitPullRequestsChange, handleInsertComposerText, handleLockPanel, handleMovePrompt, handleOpenDetachedFileExplorer, handleOpenFile, handleOpenModelSettings, handleRefreshModelConfig, handleOpenRenameWorktree, handleResolvedClaudeThinkingVisibleChange,
+    handleGitPullRequestDiffsChange, handleGitPullRequestsChange, handleInsertComposerText, handleLockPanel, handleMovePrompt, handleOpenDetachedFileExplorer, handleOpenFile, handleOpenMailSession, handleOpenModelSettings, handleRefreshModelConfig, handleOpenRenameWorktree, handleResolvedClaudeThinkingVisibleChange,
     handlePickGitRoot, handlePush, handleRenamePromptCancel, handleRenamePromptChange, handleRenamePromptConfirm, handleRenameThread,
     handleRenameWorktreeCancel, handleRenameWorktreeChange, handleRenameWorktreeConfirm, handleRevealGeneralPrompts, handleRevealWorkspacePrompts, handleRevertAllGitChanges, handleRevertGitFile,
     handleReviewPromptKeyDown, handleSelectAgent, handleSelectCommit, handleSelectDiff, handleSelectModel, handleSelectOpenAppId, handleSelectOpenCodeAgent, handleSelectOpenCodeVariant, handleSelectStatusPanelSubagent,

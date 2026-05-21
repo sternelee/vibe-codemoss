@@ -108,6 +108,22 @@ vi.mock("../../../services/tauri", () => ({
   interruptTurn: vi.fn(),
   projectMemoryUpdate: vi.fn(),
   projectMemoryCreate: vi.fn(),
+  getEmailInboundListenerStatus: vi.fn().mockResolvedValue({
+    enabled: false,
+    readOnly: true,
+    connectionState: "disabled",
+    lastCheckedAt: null,
+    nextCheckAt: null,
+    acceptedCount: 0,
+    queuedCount: 0,
+    needsConfirmationCount: 0,
+    rejectedCount: 0,
+    ignoredCount: 0,
+    pollingIntervalSeconds: 300,
+  }),
+  checkEmailInbox: vi.fn(),
+  claimNextEmailMailCommand: vi.fn().mockResolvedValue({ command: null }),
+  completeEmailMailCommand: vi.fn(),
 }));
 
 vi.mock("../../shared-session/services/sharedSessions", () => ({

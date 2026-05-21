@@ -100,6 +100,14 @@ const startupState = vi.hoisted(() => {
   };
 });
 
+const tauriWindowMocks = vi.hoisted(() => {
+  const setTitle = vi.fn(async () => undefined);
+  return {
+    getCurrentWindow: vi.fn(() => ({ setTitle })),
+    setTitle,
+  };
+});
+
 function createNoopFunction() {
   return vi.fn();
 }
@@ -252,9 +260,7 @@ vi.mock("./services/tauri", () => ({
 }));
 
 vi.mock("@tauri-apps/api/window", () => ({
-  getCurrentWindow: () => ({
-    setTitle: vi.fn(async () => undefined),
-  }),
+  getCurrentWindow: tauriWindowMocks.getCurrentWindow,
 }));
 
 vi.mock("@tauri-apps/api/path", () => ({
@@ -1225,6 +1231,12 @@ describe("AppShell startup", () => {
       typeof updater === "function" ? updater(startupState.appSettings) : updater,
     );
     startupState.queueSaveSettings = vi.fn(async (next) => next);
+    tauriWindowMocks.setTitle.mockReset();
+    tauriWindowMocks.setTitle.mockResolvedValue(undefined);
+    tauriWindowMocks.getCurrentWindow.mockReset();
+    tauriWindowMocks.getCurrentWindow.mockImplementation(() => ({
+      setTitle: tauriWindowMocks.setTitle,
+    }));
     resetStartupTraceForTests();
     consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     consoleInfoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
@@ -1282,6 +1294,21 @@ describe("AppShell startup", () => {
       expect.stringContaining("Maximum update depth exceeded"),
     );
     expect(startupState.renderCtx?.effectiveSelectedModelId).toBe("gpt-5.5");
+  });
+
+  it("mounts in a web preview when Tauri window metadata is unavailable", async () => {
+    tauriWindowMocks.getCurrentWindow.mockImplementation(() => {
+      throw new TypeError("undefined is not an object (evaluating 'window.__TAURI_INTERNALS__.metadata')");
+    });
+
+    const view = render(<AppShell />);
+
+    await waitFor(() => {
+      expect(view.getByTestId("app-shell-sentinel")).toBeTruthy();
+    });
+    expect(consoleErrorSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining("__TAURI_INTERNALS__"),
+    );
   });
 
   it("does not clear the global composer defaults before app settings finish loading", async () => {

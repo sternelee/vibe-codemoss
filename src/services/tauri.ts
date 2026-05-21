@@ -4,10 +4,19 @@ import { open } from "@tauri-apps/plugin-dialog";
 import type {
   AppSettings,
   EmailSendError,
+  EmailInboundListenerStatus,
+  EmailInboundSettingsView,
+  EmailMailSessionList,
   EmailSenderSettingsView,
   EmailSendResult,
+  CheckEmailInboxRequest,
+  CheckEmailInboxResult,
+  ClaimMailCommandResult,
+  CompleteMailCommandRequest,
+  MutateMailSessionRequest,
   SendConversationCompletionEmailRequest,
   SendTestEmailRequest,
+  UpdateEmailInboundSettingsRequest,
   UpdateEmailSenderSettingsRequest,
   LocalUsageSnapshot,
   LocalUsageStatistics,
@@ -1242,6 +1251,46 @@ export async function sendConversationCompletionEmail(
   request: SendConversationCompletionEmailRequest,
 ): Promise<EmailSendResult> {
   return invokeEmailCommand<EmailSendResult>("send_conversation_completion_email", { request });
+}
+
+export async function getEmailInboundSettings(): Promise<EmailInboundSettingsView> {
+  return invoke<EmailInboundSettingsView>("get_email_inbound_settings");
+}
+
+export async function updateEmailInboundSettings(
+  request: UpdateEmailInboundSettingsRequest,
+): Promise<EmailInboundSettingsView> {
+  return invoke<EmailInboundSettingsView>("update_email_inbound_settings", { request });
+}
+
+export async function getEmailInboundListenerStatus(): Promise<EmailInboundListenerStatus> {
+  return invoke<EmailInboundListenerStatus>("get_email_inbound_listener_status");
+}
+
+export async function checkEmailInbox(
+  request: CheckEmailInboxRequest = {},
+): Promise<CheckEmailInboxResult> {
+  return invoke<CheckEmailInboxResult>("check_email_inbox", { request });
+}
+
+export async function listEmailMailSessions(): Promise<EmailMailSessionList> {
+  return invoke<EmailMailSessionList>("list_email_mail_sessions");
+}
+
+export async function mutateEmailMailSession(
+  request: MutateMailSessionRequest,
+): Promise<EmailMailSessionList> {
+  return invoke<EmailMailSessionList>("mutate_email_mail_session", { request });
+}
+
+export async function claimNextEmailMailCommand(): Promise<ClaimMailCommandResult> {
+  return invoke<ClaimMailCommandResult>("claim_next_email_mail_command");
+}
+
+export async function completeEmailMailCommand(
+  request: CompleteMailCommandRequest,
+): Promise<EmailMailSessionList> {
+  return invoke<EmailMailSessionList>("complete_email_mail_command", { request });
 }
 
 export type WebServerStatus = {

@@ -26,6 +26,7 @@ import { useThreadSelectors } from "./useThreadSelectors";
 import { useThreadStatus } from "./useThreadStatus";
 import { useThreadUserInput } from "./useThreadUserInput";
 import { useThreadCompletionEmail } from "./useThreadCompletionEmail";
+import { useMailDrivenSessionContinuation } from "./useMailDrivenSessionContinuation";
 import { useThreadRealtimeHistoryReconcile } from "./useThreadRealtimeHistoryReconcile";
 import {
   resolveClaudeContinuationThreadId as resolveClaudeContinuationThreadIdFromState,
@@ -350,6 +351,7 @@ export function useThreads({
   );
   const {
     completionEmailIntentByThread,
+    armMailDrivenCompletionEmail,
     clearCompletionEmailIntent,
     toggleCompletionEmailIntent,
     setActiveTurnIdWithCompletionEmail,
@@ -1570,6 +1572,12 @@ export function useThreads({
     onInputMemoryCaptured: handleInputMemoryCaptured,
     resolveCollaborationRuntimeMode,
     runWithCreateSessionLoading,
+  });
+
+  useMailDrivenSessionContinuation({
+    activeWorkspace,
+    sendUserMessageToThread,
+    armMailDrivenCompletionEmail,
   });
 
   const interruptTurn = useCallback(

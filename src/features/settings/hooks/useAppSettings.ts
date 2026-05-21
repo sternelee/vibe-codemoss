@@ -213,6 +213,20 @@ const defaultSettings: AppSettings = {
     username: "",
     recipientEmail: "",
   },
+  emailInbound: {
+    enabled: false,
+    provider: "custom",
+    imapHost: "",
+    imapPort: 993,
+    security: "ssl_tls",
+    username: "",
+    mailboxFolder: "INBOX",
+    allowedSenders: [],
+    pollIntervalSeconds: 300,
+    readOnlyMode: true,
+    actionWindowHours: 24,
+    debugStorageEnabled: false,
+  },
   preloadGitDiffs: true,
   detachedExternalChangeAwarenessEnabled: true,
   detachedExternalChangeWatcherEnabled: true,
@@ -285,6 +299,7 @@ function normalizeAppSettings(
     : hasStoredSelection
       ? storedOpenAppId
       : (normalizedTargets[0]?.id ?? DEFAULT_OPEN_APP_ID);
+  const inboundSettings = settings.emailInbound;
   return {
     ...settings,
     experimentalCollabEnabled: false,
@@ -383,6 +398,34 @@ function normalizeAppSettings(
         : "ssl_tls",
       username: settings.emailSender?.username?.trim() ?? "",
       recipientEmail: settings.emailSender?.recipientEmail?.trim() ?? "",
+    },
+    emailInbound: {
+      enabled: inboundSettings?.enabled === true,
+      provider: inboundSettings?.provider && allowedEmailSenderProviders.has(inboundSettings.provider)
+        ? inboundSettings.provider
+        : "custom",
+      imapHost: inboundSettings?.imapHost?.trim() ?? "",
+      imapPort: Number.isFinite(inboundSettings?.imapPort)
+        ? Math.max(1, Math.min(65535, Math.trunc(inboundSettings?.imapPort ?? 993)))
+        : 993,
+      security: inboundSettings?.security && allowedEmailSenderSecurity.has(inboundSettings.security)
+        ? inboundSettings.security
+        : "ssl_tls",
+      username: inboundSettings?.username?.trim() ?? "",
+      mailboxFolder: inboundSettings?.mailboxFolder?.trim() || "INBOX",
+      allowedSenders: Array.isArray(inboundSettings?.allowedSenders)
+        ? inboundSettings.allowedSenders
+            .map((sender) => sender.trim())
+            .filter(Boolean)
+        : [],
+      pollIntervalSeconds: Number.isFinite(inboundSettings?.pollIntervalSeconds)
+        ? Math.max(60, Math.min(3600, Math.trunc(inboundSettings?.pollIntervalSeconds ?? 300)))
+        : 300,
+      readOnlyMode: true,
+      actionWindowHours: Number.isFinite(inboundSettings?.actionWindowHours)
+        ? Math.max(1, Math.min(168, Math.trunc(inboundSettings?.actionWindowHours ?? 24)))
+        : 24,
+      debugStorageEnabled: inboundSettings?.debugStorageEnabled === true,
     },
     detachedExternalChangeAwarenessEnabled:
       settings.detachedExternalChangeAwarenessEnabled !== false,

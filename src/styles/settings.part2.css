@@ -371,9 +371,55 @@
   align-items: center;
 }
 
+.settings-session-table {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-mail-session-row,
+.settings-mail-timeline-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--border-muted);
+  border-radius: 8px;
+  background: var(--surface-card);
+}
+
+.settings-mail-timeline-row {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.settings-mail-session-main {
+  min-width: 0;
+}
+
+.settings-mail-session-main strong,
+.settings-mail-session-main .settings-help {
+  overflow-wrap: anywhere;
+}
+
+.settings-mail-session-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 @media (max-width: 760px) {
   .settings-form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .settings-mail-session-row {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-mail-session-actions {
+    justify-content: flex-start;
   }
 }
 

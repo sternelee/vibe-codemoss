@@ -1984,7 +1984,73 @@ const zhPart1 = {
       "无法连接 daemon，请检查远程主机并确认 daemon 已启动。",
     webServiceErrorDaemonAuth: "daemon 鉴权失败，请检查远程后端令牌。",
     emailTitle: "邮件发送",
-    emailDescription: "配置 SMTP 发件能力，供测试发送与后续对话完成提醒使用。",
+    emailDescription: "配置 SMTP 发件、只读收信监听与邮件驱动 session 管理。",
+    emailDocsTab: "文档",
+    emailSendConfigTab: "发送配置",
+    emailInboundTab: "收信监听",
+    emailMailSessionsTab: "邮件会话",
+    emailDocsTitle: "邮件模块文档",
+    emailDocsDesc: "从零说明：为什么要配置、每个字段怎么填、配置完成后怎么用邮件继续 session。",
+    emailDocsPurposeTitle: "这个模块是干什么的",
+    emailDocsPurposeBody:
+      "邮件模块有两件事：第一，把 Moss 的对话完成结果发到你的邮箱，方便你离开电脑后仍能看到进度；第二，在你明确开启邮件回复继续后，让你直接回复邮件来继续、修改、暂停、停止或查询对应 session。它不是普通邮箱客户端，不会展示你的普通邮件。",
+    emailDocsPrepTitle: "配置前先准备什么",
+    emailDocsPrepStepEmail:
+      "准备一个用于 Moss 的邮箱账号。建议用专门邮箱或专门授权码，避免和个人主邮箱混用。",
+    emailDocsPrepStepProtocol:
+      "到邮箱服务商后台打开 SMTP 发信能力；如果要使用收信监听，还要打开 IMAP 收信能力。",
+    emailDocsPrepStepPassword:
+      "获取授权码 / App Password。不要填写邮箱网页登录密码，QQ、163、126 等服务商通常都要求使用授权码。",
+    emailDocsPrepStepRecipient:
+      "决定 Moss 通知要发到哪个收件箱。最常见配置是：发件邮箱和收件箱都是你自己，方便自己回复继续任务。",
+    emailDocsSendTitle: "发送配置",
+    emailDocsSendStepProvider:
+      "邮箱服务商：如果列表里有你的服务商，选 126 / 163 / QQ；否则选自定义 SMTP。",
+    emailDocsSendStepAddress:
+      "发件邮箱和 SMTP 用户名：通常都填完整邮箱地址，例如 name@example.com。发件人名称可以填 Moss，方便你在收件箱里识别。",
+    emailDocsSendStepServer:
+      "SMTP Host / 端口 / 安全模式：自定义 SMTP 时按服务商文档填写。常见组合是 SSL/TLS + 465，或 STARTTLS + 587。",
+    emailDocsSendStepSecret:
+      "授权码 / App Password：填服务商生成的授权码。保存后状态会显示“授权码已保存”，后续不会在普通设置里暴露 secret 明文。",
+    emailDocsSendStepSave:
+      "收件箱：填你要接收 Moss 邮件的地址。保存配置后，先点“发送测试邮件”，能收到测试邮件才说明 SMTP 发信链路可用。",
+    emailDocsInboundTitle: "收信监听",
+    emailDocsInboundStepServer:
+      "启用收信监听后，填写 IMAP Host / 端口。常见 IMAP SSL 端口是 993；如果服务商要求 STARTTLS，再按服务商文档调整。",
+    emailDocsInboundStepFolder:
+      "邮箱文件夹一般填 INBOX。Moss 只从这里读取候选回复，不会把普通邮件当成 session 内容展示。",
+    emailDocsInboundStepAllowlist:
+      "允许发件人填允许驱动 Moss 的邮箱地址，多个地址用逗号分隔。默认建议只允许你自己的收件箱地址。",
+    emailDocsInboundStepPolling:
+      "轮询间隔表示 Moss 多久检查一次邮箱，单位是秒。300 表示 5 分钟检查一次；想更快响应可以调小，但不要过低以免触发邮箱服务商限制。",
+    emailDocsInboundStepCheck:
+      "保存后点“立即检查邮箱”。状态区会显示队列、待确认和异常数量，用来判断是否读到了 Moss 相关回复。",
+    emailDocsAfterSetupTitle: "配置完成之后怎么用",
+    emailDocsUsageStepEnableSend:
+      "先开启邮件发送并保存。以后当你在对话里启用完成邮件通知时，Moss 会在任务完成后把本轮状态、修复摘要和下一步建议发到收件箱。",
+    emailDocsUsageStepEnableSession:
+      "在对话里选择发送完成邮件后，这封邮件默认就支持直接回复继续；不需要再到管理页手动开启。",
+    emailDocsUsageStepReply:
+      "收到可回复邮件后，直接回复“继续”，或直接写一句新的修改要求。Moss 会用邮件里的 session metadata、reply token 和签名把回复绑定回原 workspace/thread/turn。",
+    emailDocsUsageStepTrack:
+      "回到“邮件会话”tab 可以查看每个 Moss 邮件 session 的状态、队列、待确认、异常和 sanitized 时间线；需要时可以打开对应会话或查看邮件事件。",
+    emailDocsExamplesTitle: "使用示例",
+    emailDocsExampleNext: "继续",
+    emailDocsExampleChange: "不要改 UI，优先修后端保存失败的问题。",
+    emailDocsExampleStatus: "状态",
+    emailDocsExamplesBody:
+      "回复“继续”会执行邮件里列出的第一条下一步建议；直接写一句需求会作为下一轮用户意图；也可以回复“状态”“暂停”“停止”。旧的 ACTION/DETAIL 格式仍兼容，但普通使用不需要写。",
+    emailDocsSafetyTitle: "安全边界",
+    emailDocsSafetyStepNoInbox:
+      "Moss 不是邮箱客户端：普通无关邮件不会展示、不会保存、不会进入邮件会话列表。",
+    emailDocsSafetyStepAction:
+      "空回复、多个冲突指令、自动回复或退信，默认不会自动执行，只会忽略或进入待确认。",
+    emailDocsSafetyStepSignature:
+      "过期 token、旧邮件回复、签名失败、非允许发件人或超出当前 session 范围的回复，不会自动启动新任务。",
+    emailDocsSafetyStepReadOnly:
+      "收信监听固定是 read-only：只维护本地 cursor 和去重 ledger，不删除、不移动、不归档、不标记远端邮箱邮件为已读。",
+    emailDocsSafetyHint:
+      "最小可用流程：先完成发送配置并发出测试邮件，再配置收信监听并立即检查邮箱，最后在某个 session 上启用邮件回复继续。只收通知的用户不需要开启邮件回复继续。",
     emailEnableTitle: "启用邮件发送",
     emailEnableDesc: "开启后，后端可以使用已保存的 SMTP 配置发送受控邮件。",
     emailProvider: "邮箱服务商",
@@ -2015,6 +2081,36 @@ const zhPart1 = {
     emailTesting: "发送中…",
     emailTestSent: "测试邮件已发送。",
     emailSecretCleared: "授权码已清除。",
+    emailInboundTitle: "只读收信监听",
+    emailInboundDesc: "只读取 Moss session 回复候选，不删除、不移动、不标记远端邮件。",
+    emailInboundEnabled: "启用收信监听",
+    emailImapHost: "IMAP Host",
+    emailImapPort: "IMAP 端口",
+    emailMailboxFolder: "邮箱文件夹",
+    emailAllowedSenders: "允许发件人",
+    emailPollInterval: "轮询间隔（秒）",
+    emailReadOnlyHint: "Read-only 模式固定开启：客户端只维护本地 cursor 和去重 ledger。",
+    emailInboundSaved: "收信监听设置已保存。",
+    emailInboundChecking: "检查中…",
+    emailInboundCheckNow: "立即检查邮箱",
+    emailInboundCheckDone: "邮箱检查完成，扫描 {{count}} 封候选邮件。",
+    emailInboundStatus: "状态：{{state}}；队列 {{queued}}；待确认 {{confirm}}；异常 {{rejected}}。",
+    emailMailSessionsTitle: "邮件会话",
+    emailMailSessionsDesc: "这里只展示 Moss 相关邮件事件，普通无关邮件不会入库或显示。",
+    emailRefreshSessions: "刷新会话",
+    emailCleanupProcessed: "清理已处理记录",
+    emailNoMailSessions: "还没有 Moss 邮件会话。",
+    emailSessionCounts: "发出 {{outbound}} · 收到 {{inbound}} · 队列 {{queued}} · 待确认 {{confirm}}",
+    emailViewTimeline: "查看邮件",
+    emailOpenSession: "打开会话",
+    emailOpenSessionUnavailable: "暂时无法打开该邮件会话，请确认工作区和对话仍然存在。",
+    emailPauseSession: "暂停",
+    emailResumeSession: "恢复",
+    emailCloseSession: "关闭",
+    emailEnableSessionContinuation: "启用回复继续",
+    emailMailSessionUpdated: "邮件会话已更新。",
+    emailTimelineTitle: "邮件事件时间线",
+    emailTimelineEmpty: "当前会话暂无邮件事件。",
     emailError: {
       disabled: "邮件发送未启用。",
       not_configured: "邮件设置尚未完整配置。",

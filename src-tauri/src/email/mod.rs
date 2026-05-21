@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
+use lettre::message::header::{HeaderName, HeaderValue};
 use lettre::message::Mailbox;
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
@@ -9,9 +10,20 @@ use serde::{Deserialize, Serialize};
 use tauri::State;
 use tokio::sync::Mutex;
 
+mod session_continuation;
+
 use crate::state::AppState;
 use crate::storage::{read_json_file, write_json_file, write_settings};
 use crate::types::{AppSettings, EmailSenderProvider, EmailSenderSecurity, EmailSenderSettings};
+
+pub(crate) use session_continuation::{
+    check_mailbox_with_reader, claim_next_command, complete_command, get_listener_status,
+    ledger_path_from_settings_path, list_mail_sessions, mutate_mail_session,
+    normalize_inbound_settings, prepare_outgoing_continuation, CheckEmailInboxRequest,
+    CheckEmailInboxResult, ClaimMailCommandResult, CompleteMailCommandRequest,
+    EmailInboundSettingsView, EmailMailSessionList, ImapMailboxReader, MemoryMailboxReader,
+    MutateMailSessionRequest, OutgoingContinuationRegistration, UpdateEmailInboundSettingsRequest,
+};
 
 const EMAIL_SECRET_FILE_NAME: &str = "email-sender-secret.json";
 const TEST_EMAIL_SUBJECT: &str = "Moss email test";
@@ -46,10 +58,22 @@ pub(crate) struct SendTestEmailRequest {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct SendConversationCompletionEmailRequest {
     pub(crate) workspace_id: String,
+    #[serde(default)]
+    pub(crate) workspace_name: Option<String>,
     pub(crate) thread_id: String,
+    #[serde(default)]
+    pub(crate) thread_name: Option<String>,
     pub(crate) turn_id: String,
     pub(crate) subject: String,
     pub(crate) text_body: String,
+    #[serde(default, rename = "sessionId")]
+    pub(crate) session_id: Option<String>,
+    #[serde(default, rename = "mailDrivenSessionEnabled")]
+    pub(crate) mail_driven_session_enabled: bool,
+    #[serde(default)]
+    pub(crate) summary: Option<String>,
+    #[serde(default, rename = "nextRecommendations")]
+    pub(crate) next_recommendations: Vec<String>,
     #[serde(default)]
     pub(crate) recipient: Option<String>,
 }
@@ -197,10 +221,142 @@ pub(crate) async fn send_conversation_completion_email(
     state: State<'_, AppState>,
 ) -> Result<EmailSendResult, String> {
     let settings = state.app_settings.lock().await.email_sender.clone();
+    let inbound_settings = state.app_settings.lock().await.email_inbound.clone();
     let secret_store = FileEmailSecretStore::from_settings_path(&state.settings_path);
-    send_conversation_completion_email_core(settings, request, &secret_store)
+    let ledger_path = ledger_path_from_settings_path(&state.settings_path);
+    send_conversation_completion_email_core(
+        settings,
+        inbound_settings.action_window_hours,
+        request,
+        &ledger_path,
+        &secret_store,
+    )
+    .await
+    .map_err(encode_email_error)
+}
+
+#[tauri::command]
+pub(crate) async fn get_email_inbound_settings(
+    state: State<'_, AppState>,
+) -> Result<EmailInboundSettingsView, String> {
+    let app_settings = state.app_settings.lock().await.clone();
+    let settings = normalize_inbound_settings(
+        &app_settings.email_inbound,
+        app_settings.email_sender.recipient_email.as_str(),
+    );
+    Ok(EmailInboundSettingsView {
+        settings,
+        read_only_effective: true,
+    })
+}
+
+#[tauri::command]
+pub(crate) async fn update_email_inbound_settings(
+    request: UpdateEmailInboundSettingsRequest,
+    state: State<'_, AppState>,
+) -> Result<EmailInboundSettingsView, String> {
+    let fallback_recipient = state
+        .app_settings
+        .lock()
         .await
-        .map_err(encode_email_error)
+        .email_sender
+        .recipient_email
+        .clone();
+    let normalized_settings =
+        normalize_inbound_settings(&request.settings, fallback_recipient.as_str());
+    let mut next = state.app_settings.lock().await.clone();
+    next.email_inbound = normalized_settings.clone();
+    write_settings(&state.settings_path, &next)
+        .map_err(|error| format!("failed to write email inbound settings: {error}"))?;
+    *state.app_settings.lock().await = next;
+    Ok(EmailInboundSettingsView {
+        settings: normalized_settings,
+        read_only_effective: true,
+    })
+}
+
+#[tauri::command]
+pub(crate) async fn get_email_inbound_listener_status(
+    state: State<'_, AppState>,
+) -> Result<session_continuation::EmailInboundListenerStatus, String> {
+    let app_settings = state.app_settings.lock().await.clone();
+    let settings = normalize_inbound_settings(
+        &app_settings.email_inbound,
+        app_settings.email_sender.recipient_email.as_str(),
+    );
+    let ledger_path = ledger_path_from_settings_path(&state.settings_path);
+    get_listener_status(&settings, &ledger_path)
+}
+
+#[tauri::command]
+pub(crate) async fn check_email_inbox(
+    request: CheckEmailInboxRequest,
+    state: State<'_, AppState>,
+) -> Result<CheckEmailInboxResult, String> {
+    let app_settings = state.app_settings.lock().await.clone();
+    let settings = normalize_inbound_settings(
+        &app_settings.email_inbound,
+        app_settings.email_sender.recipient_email.as_str(),
+    );
+    if !settings.enabled {
+        return Err("email inbox check failed: inbound listener is disabled".to_string());
+    }
+    let ledger_path = ledger_path_from_settings_path(&state.settings_path);
+    if !request.messages.is_empty() {
+        let reader = MemoryMailboxReader::new(request.messages);
+        return check_mailbox_with_reader(&settings, &ledger_path, &reader);
+    }
+    let secret_store = FileEmailSecretStore::from_settings_path(&state.settings_path);
+    let secret = secret_store
+        .get()
+        .map_err(encode_email_error)?
+        .ok_or_else(|| "email inbox check failed: IMAP secret is required".to_string())?;
+    let check_settings = settings.clone();
+    tokio::task::spawn_blocking(move || {
+        let reader = ImapMailboxReader::new(settings, secret);
+        check_mailbox_with_reader(&check_settings, &ledger_path, &reader)
+    })
+    .await
+    .map_err(|error| format!("email inbox check failed: IMAP task join failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn list_email_mail_sessions(
+    state: State<'_, AppState>,
+) -> Result<EmailMailSessionList, String> {
+    let app_settings = state.app_settings.lock().await.clone();
+    let settings = normalize_inbound_settings(
+        &app_settings.email_inbound,
+        app_settings.email_sender.recipient_email.as_str(),
+    );
+    let ledger_path = ledger_path_from_settings_path(&state.settings_path);
+    list_mail_sessions(&settings, &ledger_path)
+}
+
+#[tauri::command]
+pub(crate) async fn mutate_email_mail_session(
+    request: MutateMailSessionRequest,
+    state: State<'_, AppState>,
+) -> Result<EmailMailSessionList, String> {
+    let ledger_path = ledger_path_from_settings_path(&state.settings_path);
+    mutate_mail_session(&ledger_path, request)
+}
+
+#[tauri::command]
+pub(crate) async fn claim_next_email_mail_command(
+    state: State<'_, AppState>,
+) -> Result<ClaimMailCommandResult, String> {
+    let ledger_path = ledger_path_from_settings_path(&state.settings_path);
+    claim_next_command(&ledger_path)
+}
+
+#[tauri::command]
+pub(crate) async fn complete_email_mail_command(
+    request: CompleteMailCommandRequest,
+    state: State<'_, AppState>,
+) -> Result<EmailMailSessionList, String> {
+    let ledger_path = ledger_path_from_settings_path(&state.settings_path);
+    complete_command(&ledger_path, request)
 }
 
 async fn get_email_sender_settings_core(
@@ -287,23 +443,34 @@ async fn send_test_email_core(
         subject: TEST_EMAIL_SUBJECT.to_string(),
         text_body: "This is a Moss test email. If you received it, your SMTP settings work."
             .to_string(),
+        message_id: None,
+        headers: Vec::new(),
     };
     send_email(settings, &secret, send_request).await
 }
 
 async fn send_conversation_completion_email_core(
     settings: EmailSenderSettings,
+    action_window_hours: i64,
     request: SendConversationCompletionEmailRequest,
+    ledger_path: &Path,
     secret_store: &impl EmailSecretStore,
 ) -> Result<EmailSendResult, EmailSendError> {
-    let (settings, secret, send_request) =
-        prepare_conversation_completion_email(settings, request, secret_store)?;
+    let (settings, secret, send_request) = prepare_conversation_completion_email(
+        settings,
+        action_window_hours,
+        request,
+        ledger_path,
+        secret_store,
+    )?;
     send_email(settings, &secret, send_request).await
 }
 
 fn prepare_conversation_completion_email(
     settings: EmailSenderSettings,
+    action_window_hours: i64,
     request: SendConversationCompletionEmailRequest,
+    ledger_path: &Path,
     secret_store: &impl EmailSecretStore,
 ) -> Result<(EmailSenderSettings, String, EmailSendRequest), EmailSendError> {
     if !settings.enabled {
@@ -323,12 +490,49 @@ fn prepare_conversation_completion_email(
 
     let subject = validate_email_subject(request.subject.as_str())?;
     let text_body = validate_email_text_body(request.text_body.as_str())?;
-
     let secret = secret_store.get()?.ok_or_else(missing_secret)?;
+    let session_id = request
+        .session_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| format!("ms_{}", request.thread_id.trim()));
+    let summary = request
+        .summary
+        .clone()
+        .unwrap_or_else(|| "Completion summary sent.".to_string());
+    let prepared = prepare_outgoing_continuation(
+        ledger_path,
+        OutgoingContinuationRegistration {
+            session_id,
+            workspace_id: request.workspace_id.clone(),
+            workspace_name: request.workspace_name.clone(),
+            thread_id: request.thread_id.clone(),
+            thread_name: request.thread_name.clone(),
+            turn_id: request.turn_id.clone(),
+            subject,
+            summary,
+            next_recommendations: request.next_recommendations.clone(),
+            actionable: request.mail_driven_session_enabled,
+            action_window_hours,
+        },
+        &text_body,
+    )
+    .map_err(|error| {
+        email_error(
+            EmailSendErrorCode::Unknown,
+            false,
+            format!("failed to prepare email continuation metadata: {error}"),
+        )
+    })?;
+
     let send_request = EmailSendRequest {
         to: recipient.to_string(),
-        subject,
-        text_body,
+        subject: prepared.subject,
+        text_body: prepared.text_body,
+        message_id: prepared.message_id,
+        headers: prepared.headers,
     };
     Ok((settings, secret, send_request))
 }
@@ -338,6 +542,8 @@ struct EmailSendRequest {
     to: String,
     subject: String,
     text_body: String,
+    message_id: Option<String>,
+    headers: Vec<(String, String)>,
 }
 
 async fn send_email(
@@ -366,10 +572,24 @@ async fn send_email(
     let to_address = request.to.parse().map_err(|_| invalid_recipient())?;
     let from = Mailbox::new(non_empty(effective.sender_name.clone()), from_address);
     let to = Mailbox::new(None, to_address);
-    let message = Message::builder()
+    let mut builder = Message::builder()
         .from(from)
         .to(to)
-        .subject(request.subject)
+        .subject(request.subject);
+    if request.message_id.is_some() {
+        builder = builder.message_id(request.message_id.clone());
+    }
+    for (name, value) in &request.headers {
+        let header_name = HeaderName::new_from_ascii(name.clone()).map_err(|_| {
+            email_error(
+                EmailSendErrorCode::Unknown,
+                false,
+                "Conversation completion email header is invalid.",
+            )
+        })?;
+        builder = builder.raw_header(HeaderValue::new(header_name, value.clone()));
+    }
+    let message = builder
         .body(request.text_body)
         .map_err(|_| email_error(EmailSendErrorCode::Unknown, false, "Failed to build email."))?;
 
@@ -723,6 +943,30 @@ mod tests {
         (root, settings_path)
     }
 
+    fn completion_request() -> SendConversationCompletionEmailRequest {
+        SendConversationCompletionEmailRequest {
+            workspace_id: "workspace-1".to_string(),
+            workspace_name: None,
+            thread_id: "thread-1".to_string(),
+            thread_name: None,
+            turn_id: "turn-1".to_string(),
+            subject: "Moss conversation completed".to_string(),
+            text_body: "Assistant answer".to_string(),
+            session_id: None,
+            mail_driven_session_enabled: false,
+            summary: None,
+            next_recommendations: Vec::new(),
+            recipient: None,
+        }
+    }
+
+    fn temp_ledger_path(test_name: &str) -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "moss-email-ledger-{test_name}-{}.json",
+            uuid::Uuid::new_v4()
+        ))
+    }
+
     #[test]
     fn provider_presets_apply_backend_defaults() {
         let settings_126 = resolve_effective_settings(&EmailSenderSettings {
@@ -1019,14 +1263,9 @@ mod tests {
         let store = MemoryEmailSecretStore::with_secret("stored-secret");
         let error = prepare_conversation_completion_email(
             EmailSenderSettings::default(),
-            SendConversationCompletionEmailRequest {
-                workspace_id: "workspace-1".to_string(),
-                thread_id: "thread-1".to_string(),
-                turn_id: "turn-1".to_string(),
-                subject: "Moss conversation completed".to_string(),
-                text_body: "Assistant answer".to_string(),
-                recipient: None,
-            },
+            24,
+            completion_request(),
+            &temp_ledger_path("disabled"),
             &store,
         )
         .expect_err("disabled sender should stop before secret lookup");
@@ -1045,14 +1284,9 @@ mod tests {
         let store = MemoryEmailSecretStore::with_secret("stored-secret");
         let error = prepare_conversation_completion_email(
             settings,
-            SendConversationCompletionEmailRequest {
-                workspace_id: "workspace-1".to_string(),
-                thread_id: "thread-1".to_string(),
-                turn_id: "turn-1".to_string(),
-                subject: "Moss conversation completed".to_string(),
-                text_body: "Assistant answer".to_string(),
-                recipient: None,
-            },
+            24,
+            completion_request(),
+            &temp_ledger_path("invalid-recipient"),
             &store,
         )
         .expect_err("invalid recipient");
@@ -1075,14 +1309,9 @@ mod tests {
         let store = MemoryEmailSecretStore::default();
         let error = prepare_conversation_completion_email(
             settings,
-            SendConversationCompletionEmailRequest {
-                workspace_id: "workspace-1".to_string(),
-                thread_id: "thread-1".to_string(),
-                turn_id: "turn-1".to_string(),
-                subject: "Moss conversation completed".to_string(),
-                text_body: "Assistant answer".to_string(),
-                recipient: None,
-            },
+            24,
+            completion_request(),
+            &temp_ledger_path("requires-secret"),
             &store,
         )
         .expect_err("missing secret");
@@ -1104,14 +1333,13 @@ mod tests {
         };
         let (prepared_settings, secret, send_request) = prepare_conversation_completion_email(
             settings.clone(),
+            24,
             SendConversationCompletionEmailRequest {
-                workspace_id: "workspace-1".to_string(),
-                thread_id: "thread-1".to_string(),
-                turn_id: "turn-1".to_string(),
                 subject: "  Moss conversation completed  ".to_string(),
                 text_body: "  User: hi\nAssistant: done  ".to_string(),
-                recipient: None,
+                ..completion_request()
             },
+            &temp_ledger_path("saved-recipient"),
             &MemoryEmailSecretStore::with_secret("stored-secret"),
         )
         .expect("prepared conversation email");
@@ -1136,14 +1364,12 @@ mod tests {
         };
         let (_, _, send_request) = prepare_conversation_completion_email(
             settings,
+            24,
             SendConversationCompletionEmailRequest {
-                workspace_id: "workspace-1".to_string(),
-                thread_id: "thread-1".to_string(),
-                turn_id: "turn-1".to_string(),
-                subject: "Moss conversation completed".to_string(),
-                text_body: "Assistant answer".to_string(),
                 recipient: Some("override@example.com".to_string()),
+                ..completion_request()
             },
+            &temp_ledger_path("override"),
             &MemoryEmailSecretStore::with_secret("stored-secret"),
         )
         .expect("prepared conversation email");
@@ -1164,14 +1390,12 @@ mod tests {
         };
         let (_, _, send_request) = prepare_conversation_completion_email(
             settings,
+            24,
             SendConversationCompletionEmailRequest {
-                workspace_id: "workspace-1".to_string(),
-                thread_id: "thread-1".to_string(),
-                turn_id: "turn-1".to_string(),
-                subject: "Moss conversation completed".to_string(),
-                text_body: "Assistant answer".to_string(),
                 recipient: Some("   ".to_string()),
+                ..completion_request()
             },
+            &temp_ledger_path("blank-recipient"),
             &MemoryEmailSecretStore::with_secret("stored-secret"),
         )
         .expect("prepared conversation email");
@@ -1189,14 +1413,12 @@ mod tests {
         let store = MemoryEmailSecretStore::with_secret("stored-secret");
         let error = prepare_conversation_completion_email(
             settings,
+            24,
             SendConversationCompletionEmailRequest {
-                workspace_id: "workspace-1".to_string(),
-                thread_id: "thread-1".to_string(),
-                turn_id: "turn-1".to_string(),
                 subject: "Moss conversation\ncompleted".to_string(),
-                text_body: "Assistant answer".to_string(),
-                recipient: None,
+                ..completion_request()
             },
+            &temp_ledger_path("bad-subject"),
             &store,
         )
         .expect_err("multiline subject should be rejected");

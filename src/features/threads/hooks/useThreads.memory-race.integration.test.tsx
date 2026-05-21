@@ -159,6 +159,22 @@ vi.mock("../../../services/tauri", () => ({
   projectMemoryUpdate: vi.fn(),
   projectMemoryCompleteTurn: vi.fn(),
   sendConversationCompletionEmail: vi.fn(),
+  getEmailInboundListenerStatus: vi.fn().mockResolvedValue({
+    enabled: false,
+    readOnly: true,
+    connectionState: "disabled",
+    lastCheckedAt: null,
+    nextCheckAt: null,
+    acceptedCount: 0,
+    queuedCount: 0,
+    needsConfirmationCount: 0,
+    rejectedCount: 0,
+    ignoredCount: 0,
+    pollingIntervalSeconds: 300,
+  }),
+  checkEmailInbox: vi.fn(),
+  claimNextEmailMailCommand: vi.fn().mockResolvedValue({ command: null }),
+  completeEmailMailCommand: vi.fn(),
 }));
 
 const workspace: WorkspaceInfo = {
@@ -1425,11 +1441,13 @@ describe("useThreads memory race integration", () => {
         workspaceId: "ws-1",
         threadId: "claude:session-email",
         turnId: "claude-turn-email-1",
+        mailDrivenSessionEnabled: true,
       }),
     );
     const [request] = vi.mocked(sendConversationCompletionEmail).mock.calls[0] ?? [];
-    expect(request?.textBody).toContain("请完成后邮件提醒");
     expect(request?.textBody).toContain("已经完成，可以发送邮件。");
+    expect(request?.textBody).toContain("如何回复");
+    expect(request?.textBody).toContain("继续：执行下一步");
 
     act(() => {
       handlers?.onTurnCompleted?.(

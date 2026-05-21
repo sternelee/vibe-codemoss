@@ -24,16 +24,22 @@ function start(options?: SubscriptionOptions) {
   if (unlisten || listenPromise) {
     return;
   }
-  listenPromise = getCurrentWindow()
-    .onDragDropEvent((event) => {
-      for (const listener of listeners) {
-        try {
-          listener(event as DragDropEvent);
-        } catch (error) {
-          console.error("[drag-drop] listener failed", error);
-        }
+  let currentWindow: ReturnType<typeof getCurrentWindow>;
+  try {
+    currentWindow = getCurrentWindow();
+  } catch (error) {
+    options?.onError?.(error);
+    return;
+  }
+  listenPromise = currentWindow.onDragDropEvent((event) => {
+    for (const listener of listeners) {
+      try {
+        listener(event as DragDropEvent);
+      } catch (error) {
+        console.error("[drag-drop] listener failed", error);
       }
-    }) as Promise<() => void>;
+    }
+  }) as Promise<() => void>;
   listenPromise
     .then((handler) => {
       listenPromise = null;

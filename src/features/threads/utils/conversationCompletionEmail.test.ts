@@ -13,7 +13,7 @@ const baseMetadata = {
 };
 
 describe("buildConversationCompletionEmail", () => {
-  it("builds plain text email from the final user and assistant messages", () => {
+  it("builds completion email from the assistant final answer text", () => {
     const items: ConversationItem[] = [
       { id: "u1", kind: "message", role: "user", text: "Please implement it." },
       { id: "a1", kind: "message", role: "assistant", text: "Done. I changed the files." },
@@ -25,15 +25,141 @@ describe("buildConversationCompletionEmail", () => {
     if (result.status !== "ready") {
       return;
     }
-    expect(result.request.subject).toBe("Moss conversation completed - Moss Workspace");
-    expect(result.request.textBody).toContain("Workspace: Moss Workspace");
-    expect(result.request.textBody).toContain("Thread: Email proposal");
-    expect(result.request.textBody).toContain("User\nPlease implement it.");
-    expect(result.request.textBody).toContain("Assistant\nDone. I changed the files.");
+    expect(result.request.subject).toBe("Moss completed - Codex · Email proposal · Moss Workspace");
+    expect(result.request.textBody).not.toContain("Workspace: Moss Workspace");
+    expect(result.request.textBody).not.toContain("Thread: Email proposal");
+    expect(result.request.textBody).toContain("本轮用户请求");
+    expect(result.request.textBody).toContain("Please implement it.");
+    expect(result.request.textBody).toContain("本轮修复信息");
+    expect(result.request.textBody).toContain("Done. I changed the files.");
+    expect(result.request.textBody).toContain("下一步建议");
+    expect(result.request.textBody).toContain("这封邮件只是完成通知");
+    expect(result.request.textBody).not.toContain("--- Reply above this line ---");
+    expect(result.request.textBody).not.toContain("ACTION: NEXT");
+    expect(result.request.textBody).not.toContain("Moss context");
+    expect(result.request.mailDrivenSessionEnabled).toBe(false);
+    expect(result.request.sessionId).toBe("ms_thread-1");
+    expect(result.request.nextRecommendations?.length).toBeGreaterThan(0);
     expect(result.activityCount).toBe(0);
   });
 
-  it("keeps only file change card summaries in the email body", () => {
+  it("uses human reply instructions for actionable mail-driven sessions", () => {
+    const items: ConversationItem[] = [
+      { id: "u1", kind: "message", role: "user", text: "Continue by email." },
+      { id: "a1", kind: "message", role: "assistant", text: "- **修复收信失败**\n- 下一步检查邮箱" },
+    ];
+
+    const result = buildConversationCompletionEmail(items, baseMetadata, {
+      mailDrivenSessionEnabled: true,
+    });
+
+    expect(result.status).toBe("ready");
+    if (result.status !== "ready") {
+      return;
+    }
+    expect(result.request.mailDrivenSessionEnabled).toBe(true);
+    expect(result.request.textBody).toContain("如何回复");
+    expect(result.request.textBody).toContain("继续：执行下一步");
+    expect(result.request.textBody).toContain("直接写要求");
+    expect(result.request.textBody).toContain("--- Reply above this line ---");
+    expect(result.request.textBody).not.toContain("ACTION: NEXT");
+    expect(result.request.textBody).toContain("- **修复收信失败**");
+  });
+
+  it("puts engine and a shortened session name in the email subject", () => {
+    const result = buildConversationCompletionEmail(
+      [
+        { id: "u1", kind: "message", role: "user", text: "查一下登录为什么失败。" },
+        { id: "a1", kind: "message", role: "assistant", text: "已经定位并修复。" },
+      ],
+      {
+        ...baseMetadata,
+        workspaceName: "springboot-demo",
+        threadName: "登录注册鉴权链路异常排查和 refresh token 文档同步这串非常长的 session 名称",
+        engine: "claude",
+      },
+    );
+
+    expect(result.status).toBe("ready");
+    if (result.status !== "ready") {
+      return;
+    }
+    expect(result.request.subject).toContain("Claude");
+    expect(result.request.subject).toContain("登录注册鉴权链路异常排查");
+    expect(result.request.subject).toContain("...");
+    expect(result.request.subject).toContain("springboot-demo");
+    expect(result.request.subject.length).toBeLessThan(90);
+  });
+
+  it("uses the final answer text before the reasoning boundary for the repair section", () => {
+    const items: ConversationItem[] = [
+      { id: "u1", kind: "message", role: "user", text: "看一下验证结果。" },
+      {
+        id: "a1",
+        kind: "message",
+        role: "assistant",
+        text: [
+          "最终消息 - 05-21 17:13:56",
+          "",
+          "我会先看 Maven/Surefire 的测试报告和当前工作区状态。",
+          "",
+          "本地报告显示当前只有两个测试类：`JwtUtilTest` 和 `UserServiceTest`，共 13 个测试全部通过。",
+          "",
+          "推理过程",
+          "",
+          "- Controller 集成测试：注册、登录、/me、401、409。",
+          "- SecurityConfig 鉴权链测试：匿名接口放行、受保护接口拦截。",
+        ].join("\n"),
+      },
+    ];
+
+    const result = buildConversationCompletionEmail(items, baseMetadata, {
+      mailDrivenSessionEnabled: true,
+    });
+
+    expect(result.status).toBe("ready");
+    if (result.status !== "ready") {
+      return;
+    }
+    expect(result.request.textBody).toContain(
+      "我会先看 Maven/Surefire 的测试报告和当前工作区状态。",
+    );
+    expect(result.request.textBody).toContain(
+      "本地报告显示当前只有两个测试类：`JwtUtilTest` 和 `UserServiceTest`，共 13 个测试全部通过。",
+    );
+    expect(result.request.textBody).not.toContain("Controller 集成测试");
+    expect(result.request.textBody).not.toContain("SecurityConfig 鉴权链测试");
+  });
+
+  it("prefers the assistant item marked as final over later assistant process text", () => {
+    const items: ConversationItem[] = [
+      { id: "u1", kind: "message", role: "user", text: "验证一下。" },
+      {
+        id: "a-final",
+        kind: "message",
+        role: "assistant",
+        isFinal: true,
+        text: "本地报告显示当前只有两个测试类，13 个测试全部通过。",
+      },
+      {
+        id: "a-process",
+        kind: "message",
+        role: "assistant",
+        text: "- Controller 集成测试：注册、登录、/me、401、409。",
+      },
+    ];
+
+    const result = buildConversationCompletionEmail(items, baseMetadata);
+
+    expect(result.status).toBe("ready");
+    if (result.status !== "ready") {
+      return;
+    }
+    expect(result.request.textBody).toContain("13 个测试全部通过");
+    expect(result.request.textBody).not.toContain("Controller 集成测试");
+  });
+
+  it("omits file change and tool cards from the email body", () => {
     const items: ConversationItem[] = [
       { id: "u1", kind: "message", role: "user", text: "Add tests." },
       {
@@ -66,13 +192,13 @@ describe("buildConversationCompletionEmail", () => {
     if (result.status !== "ready") {
       return;
     }
-    expect(result.request.textBody).toContain("File changes");
-    expect(result.request.textBody).toContain("- File changes");
-    expect(result.request.textBody).toContain("- src/a.ts");
-    expect(result.request.textBody).toContain("- src/b.ts");
+    expect(result.request.textBody).toContain("Tests are passing.");
+    expect(result.request.textBody).not.toContain("File changes");
+    expect(result.request.textBody).not.toContain("src/a.ts");
+    expect(result.request.textBody).not.toContain("src/b.ts");
     expect(result.request.textBody).not.toContain("npm test");
     expect(result.request.textBody).not.toContain("PASS src/a.test.ts");
-    expect(result.activityCount).toBe(1);
+    expect(result.activityCount).toBe(0);
   });
 
   it("omits non-file-change activity cards from the email body", () => {
@@ -107,7 +233,6 @@ describe("buildConversationCompletionEmail", () => {
     if (result.status !== "ready") {
       return;
     }
-    expect(result.request.textBody).not.toContain("File changes");
     expect(result.request.textBody).not.toContain("Diff: src/app.ts");
     expect(result.request.textBody).not.toContain("Review: completed");
     expect(result.request.textBody).not.toContain("Generated image: completed");
@@ -115,7 +240,7 @@ describe("buildConversationCompletionEmail", () => {
     expect(result.activityCount).toBe(0);
   });
 
-  it("keeps Windows workspace paths as display metadata", () => {
+  it("keeps workspace paths out of the visible email body", () => {
     const result = buildConversationCompletionEmail(
       [
         { id: "u1", kind: "message", role: "user", text: "Ship it." },
@@ -131,7 +256,89 @@ describe("buildConversationCompletionEmail", () => {
     if (result.status !== "ready") {
       return;
     }
-    expect(result.request.textBody).toContain("Path: C:\\Users\\Chen\\project");
+    expect(result.request.textBody).not.toContain("C:\\Users\\Chen\\project");
+  });
+
+  it("truncates long user context before adding it to the email body", () => {
+    const longUserMessage = `请处理：${"很长的上下文".repeat(180)}`;
+    const result = buildConversationCompletionEmail(
+      [
+        { id: "u1", kind: "message", role: "user", text: longUserMessage },
+        { id: "a1", kind: "message", role: "assistant", text: "已处理。" },
+      ],
+      baseMetadata,
+    );
+
+    expect(result.status).toBe("ready");
+    if (result.status !== "ready") {
+      return;
+    }
+    expect(result.request.textBody).toContain("本轮用户请求");
+    expect(result.request.textBody).toContain("[truncated]");
+    expect(result.request.textBody).not.toContain(longUserMessage);
+  });
+
+  it("keeps the visible final assistant text instead of summarizing it", () => {
+    const finalText = [
+      "可以，我先按你说的来做。先给你一个明确执行计划（先确认后落盘）：",
+      "",
+      "目标：把项目文档同步到当前项目现状，明确“演示级实现 + 生产前必须修复项”。",
+      "",
+      "1. `README.md`：新增“安全与生产配置”与“当前限制/待优化”。",
+      "2. `快速开始.md`：补充 3 分钟可跑环境与默认凭证/配置警告。",
+      "",
+      "收到。你确认了就按这个方向直接改。",
+      "我先等你点头（回复“开始”/“按这个范围来”即可），然后我会立刻落地三处文档更新。",
+    ].join("\n");
+
+    const result = buildConversationCompletionEmail(
+      [
+        { id: "u1", kind: "message", role: "user", text: "先更新一下项目文档" },
+        { id: "a1", kind: "message", role: "assistant", text: finalText },
+      ],
+      baseMetadata,
+      { mailDrivenSessionEnabled: true },
+    );
+
+    expect(result.status).toBe("ready");
+    if (result.status !== "ready") {
+      return;
+    }
+    expect(result.request.textBody).toContain(finalText);
+    expect(result.request.textBody).not.toContain("完整内容请回到 Moss 客户端会话查看");
+  });
+
+  it("caps extremely long assistant final text", () => {
+    const longAnswer = Array.from({ length: 80 }, (_, index) => `line ${index}`).join("\n");
+    const result = buildConversationCompletionEmail(
+      [
+        { id: "u1", kind: "message", role: "user", text: "Explain everything." },
+        { id: "a1", kind: "message", role: "assistant", text: longAnswer },
+      ],
+      baseMetadata,
+    );
+
+    expect(result.status).toBe("ready");
+    if (result.status !== "ready") {
+      return;
+    }
+    expect(result.request.textBody).toContain("line 0");
+    expect(result.request.textBody).toContain("line 79");
+
+    const veryLongAnswer = Array.from({ length: 120 }, (_, index) => `line ${index}`).join("\n");
+    const capped = buildConversationCompletionEmail(
+      [
+        { id: "u1", kind: "message", role: "user", text: "Explain everything." },
+        { id: "a1", kind: "message", role: "assistant", text: veryLongAnswer },
+      ],
+      baseMetadata,
+    );
+
+    expect(capped.status).toBe("ready");
+    if (capped.status !== "ready") {
+      return;
+    }
+    expect(capped.request.textBody).toContain("[内容过长，已截断；完整内容请回到 Moss 客户端查看。]");
   });
 
   it("skips when the visible conversation has no assistant answer", () => {

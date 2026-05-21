@@ -165,6 +165,12 @@ export type SettingsViewProps = {
   appSettings: AppSettings;
   openAppIconById: Record<string, string>;
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
+  onOpenMailSession?: (target: {
+    sessionId: string;
+    workspaceId: string;
+    threadId: string;
+    turnId: string;
+  }) => void;
   onRunCodexDoctor?: (
     codexBin: string | null,
     codexArgs: string | null,
@@ -227,6 +233,7 @@ export function SettingsView({
   appSettings,
   openAppIconById,
   onUpdateAppSettings,
+  onOpenMailSession,
   onRunCodexDoctor,
   onRunClaudeDoctor,
   onRunDoctor,
@@ -1840,6 +1847,7 @@ export function SettingsView({
                     t={t}
                     appSettings={appSettings}
                     onUpdateAppSettings={onUpdateAppSettings}
+                    onOpenMailSession={onOpenMailSession}
                   />
                 )}
               </section>

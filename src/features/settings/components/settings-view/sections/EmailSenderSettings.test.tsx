@@ -5,11 +5,21 @@ import type { AppSettings, EmailSenderSettingsView } from "@/types";
 import { EmailSenderSettings } from "./EmailSenderSettings";
 
 const getEmailSenderSettingsMock = vi.fn();
+const getEmailInboundSettingsMock = vi.fn();
+const updateEmailInboundSettingsMock = vi.fn();
+const checkEmailInboxMock = vi.fn();
+const listEmailMailSessionsMock = vi.fn();
+const mutateEmailMailSessionMock = vi.fn();
 const updateEmailSenderSettingsMock = vi.fn();
 const sendTestEmailMock = vi.fn();
 
 vi.mock("@/services/tauri", () => ({
+  checkEmailInbox: (...args: unknown[]) => checkEmailInboxMock(...args),
+  getEmailInboundSettings: (...args: unknown[]) => getEmailInboundSettingsMock(...args),
   getEmailSenderSettings: (...args: unknown[]) => getEmailSenderSettingsMock(...args),
+  listEmailMailSessions: (...args: unknown[]) => listEmailMailSessionsMock(...args),
+  mutateEmailMailSession: (...args: unknown[]) => mutateEmailMailSessionMock(...args),
+  updateEmailInboundSettings: (...args: unknown[]) => updateEmailInboundSettingsMock(...args),
   updateEmailSenderSettings: (...args: unknown[]) => updateEmailSenderSettingsMock(...args),
   sendTestEmail: (...args: unknown[]) => sendTestEmailMock(...args),
 }));
@@ -28,7 +38,21 @@ const emailSender = {
 
 const baseSettings = {
   emailSender,
-} as AppSettings;
+  emailInbound: {
+    enabled: false,
+    provider: "custom",
+    imapHost: "",
+    imapPort: 993,
+    security: "ssl_tls",
+    username: "",
+    mailboxFolder: "INBOX",
+    allowedSenders: [],
+    pollIntervalSeconds: 300,
+    readOnlyMode: true,
+    actionWindowHours: 24,
+    debugStorageEnabled: false,
+  },
+} as unknown as AppSettings;
 
 const enabledEmailSender = {
   ...emailSender,
@@ -56,6 +80,43 @@ describe("EmailSenderSettings", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getEmailSenderSettingsMock.mockResolvedValue(emailView());
+    getEmailInboundSettingsMock.mockResolvedValue({
+      settings: baseSettings.emailInbound,
+      readOnlyEffective: true,
+    });
+    listEmailMailSessionsMock.mockResolvedValue({
+      listener: {
+        enabled: false,
+        readOnly: true,
+        connectionState: "paused",
+        lastCheckedAt: null,
+        nextCheckAt: null,
+        acceptedCount: 0,
+        queuedCount: 0,
+        needsConfirmationCount: 0,
+        rejectedCount: 0,
+        ignoredCount: 0,
+        pollingIntervalSeconds: 300,
+      },
+      sessions: [],
+      timeline: [],
+    });
+    updateEmailInboundSettingsMock.mockImplementation(async (request) => ({
+      settings: request.settings,
+      readOnlyEffective: true,
+    }));
+    checkEmailInboxMock.mockResolvedValue({
+      checkedAt: "2026-05-21T10:00:00Z",
+      readOnly: true,
+      scannedCount: 0,
+      acceptedCount: 0,
+      queuedCount: 0,
+      needsConfirmationCount: 0,
+      rejectedCount: 0,
+      ignoredCount: 0,
+      duplicateCount: 0,
+    });
+    mutateEmailMailSessionMock.mockImplementation(async () => listEmailMailSessionsMock());
     updateEmailSenderSettingsMock.mockImplementation(async (request) => ({
       settings: request.settings,
       secretConfigured: Boolean(request.secret) && !request.clearSecret,
@@ -70,6 +131,36 @@ describe("EmailSenderSettings", () => {
 
   afterEach(() => {
     cleanup();
+  });
+
+  it("shows the docs tab first with email module usage guidance", async () => {
+    render(
+      <EmailSenderSettings
+        t={t}
+        appSettings={baseSettings}
+        onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
+      />,
+    );
+
+    const tabNames = (await screen.findAllByRole("tab")).map((tab) => tab.textContent);
+    expect(tabNames).toEqual([
+      "settings.emailDocsTab",
+      "settings.emailSendConfigTab",
+      "settings.emailInboundTab",
+      "settings.emailMailSessionsTab",
+    ]);
+
+    fireEvent.click(screen.getByRole("tab", { name: "settings.emailDocsTab" }));
+
+    expect(await screen.findByText("settings.emailDocsPurposeTitle")).toBeTruthy();
+    expect(screen.getByText("settings.emailDocsPrepTitle")).toBeTruthy();
+    expect(await screen.findByText("settings.emailDocsSendTitle")).toBeTruthy();
+    expect(screen.getByText("settings.emailDocsInboundTitle")).toBeTruthy();
+    expect(screen.getByText("settings.emailDocsAfterSetupTitle")).toBeTruthy();
+    expect(screen.getByText("settings.emailDocsExamplesTitle")).toBeTruthy();
+    expect(screen.getByText("settings.emailDocsExampleChange")).toBeTruthy();
+    expect(screen.getByText("settings.emailDocsSafetyTitle")).toBeTruthy();
+    expect(screen.getByText("settings.emailDocsSafetyHint")).toBeTruthy();
   });
 
   it("saves provider selection and refreshes backend preset defaults", async () => {
@@ -340,5 +431,82 @@ describe("EmailSenderSettings", () => {
       expect(sendTestEmailMock).toHaveBeenCalledWith({});
     });
     await screen.findByText("bad recipient");
+  });
+
+  it("shows inbound listener and mail session tabs without rendering unrelated inbox mail", async () => {
+    const onOpenMailSession = vi.fn();
+    listEmailMailSessionsMock.mockResolvedValue({
+      listener: {
+        enabled: true,
+        readOnly: true,
+        connectionState: "ready",
+        lastCheckedAt: null,
+        nextCheckAt: null,
+        acceptedCount: 0,
+        queuedCount: 1,
+        needsConfirmationCount: 1,
+        rejectedCount: 0,
+        ignoredCount: 0,
+        pollingIntervalSeconds: 300,
+      },
+      sessions: [
+        {
+          sessionId: "ms_thread-1",
+          workspaceId: "workspace-1",
+          threadId: "thread-1",
+          turnId: "turn-1",
+          workspaceName: "Workspace",
+          threadName: "Mail session",
+          state: "enabled",
+          lastEventAt: "2026-05-21T10:00:00Z",
+          latestAction: "change",
+          latestStatus: "needs_confirmation",
+          latestRejectReason: "missing_action",
+          outboundCount: 1,
+          inboundCount: 1,
+          queuedCount: 0,
+          needsConfirmationCount: 1,
+          latestSummary: "Done",
+        },
+      ],
+      timeline: [
+        {
+          id: "evt-1",
+          sessionId: "ms_thread-1",
+          direction: "inbound",
+          action: "change",
+          status: "needs_confirmation",
+          subject: null,
+          detail: "Use backend only",
+          rejectReason: "missing_action",
+          occurredAt: "2026-05-21T10:00:00Z",
+        },
+      ],
+    });
+
+    render(
+      <EmailSenderSettings
+        t={t}
+        appSettings={baseSettings}
+        onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
+        onOpenMailSession={onOpenMailSession}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole("tab", { name: "settings.emailInboundTab" }));
+    await screen.findByText("settings.emailReadOnlyHint");
+    expect(screen.queryByText("ordinary inbox subject")).toBeNull();
+
+    fireEvent.click(screen.getByRole("tab", { name: "settings.emailMailSessionsTab" }));
+    await screen.findByText("Mail session");
+    fireEvent.click(screen.getByRole("button", { name: "settings.emailOpenSession" }));
+    expect(onOpenMailSession).toHaveBeenCalledWith({
+      sessionId: "ms_thread-1",
+      workspaceId: "workspace-1",
+      threadId: "thread-1",
+      turnId: "turn-1",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "settings.emailViewTimeline" }));
+    await screen.findByText("Use backend only");
   });
 });

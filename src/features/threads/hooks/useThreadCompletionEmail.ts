@@ -15,6 +15,8 @@ import {
 import { resolveCompletionEmailIntentThreadId } from "../utils/completionEmailIntent";
 
 const COMPLETION_EMAIL_POST_SETTLEMENT_DELAY_MS = 0;
+const COMPLETION_EMAIL_RETRY_DELAY_MS = 250;
+const COMPLETION_EMAIL_MAX_BUILD_ATTEMPTS = 4;
 
 type CompletionEmailIntentStatus = "armed" | "sending";
 type CompletionEmailTerminalStatus = "completed" | "error" | "stalled";
@@ -23,6 +25,7 @@ export type CompletionEmailIntent = {
   targetTurnId: string | null;
   armedAt: number;
   status: CompletionEmailIntentStatus;
+  mailDrivenSessionEnabled?: boolean;
 };
 
 type UseThreadCompletionEmailOptions = {
@@ -66,6 +69,7 @@ export function useThreadCompletionEmail({
   >({});
   const completionEmailIntentByThreadRef = useRef(completionEmailIntentByThread);
   const sentCompletionEmailKeysRef = useRef<Set<string>>(new Set());
+  const completionEmailBuildAttemptsRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     completionEmailIntentByThreadRef.current = completionEmailIntentByThread;
@@ -108,6 +112,7 @@ export function useThreadCompletionEmail({
             targetTurnId: activeTurnId,
             armedAt: Date.now(),
             status: "armed",
+            mailDrivenSessionEnabled: true,
           },
         };
       });
@@ -167,6 +172,25 @@ export function useThreadCompletionEmail({
     [],
   );
 
+  const armMailDrivenCompletionEmail = useCallback(
+    (threadId: string, turnId?: string | null) => {
+      const normalizedThreadId = threadId.trim();
+      if (!normalizedThreadId) {
+        return;
+      }
+      setCompletionEmailIntentByThread((prev) => ({
+        ...prev,
+        [normalizedThreadId]: {
+          targetTurnId: turnId ?? activeTurnIdByThreadRef.current[normalizedThreadId] ?? null,
+          armedAt: Date.now(),
+          status: "armed",
+          mailDrivenSessionEnabled: true,
+        },
+      }));
+    },
+    [activeTurnIdByThreadRef],
+  );
+
   const sendCompletionEmailForTurn = useCallback(
     async (workspaceId: string, threadId: string, turnId: string) => {
       const resolvedThreadId = resolveCompletionEmailIntentThreadId(
@@ -189,6 +213,7 @@ export function useThreadCompletionEmail({
         return;
       }
       if (sentCompletionEmailKeysRef.current.has(key)) {
+        delete completionEmailBuildAttemptsRef.current[key];
         clearCompletionEmailIntent(resolvedThreadId, turnId);
         return;
       }
@@ -210,8 +235,39 @@ export function useThreadCompletionEmail({
       const buildResult = buildConversationCompletionEmail(
         itemsByThreadRef.current[resolvedThreadId] ?? [],
         getCompletionEmailMetadata(workspaceId, resolvedThreadId, turnId),
+        { mailDrivenSessionEnabled: currentIntent.mailDrivenSessionEnabled === true },
       );
       if (buildResult.status === "skipped") {
+        const currentAttempt = completionEmailBuildAttemptsRef.current[key] ?? 0;
+        const shouldRetry =
+          currentAttempt < COMPLETION_EMAIL_MAX_BUILD_ATTEMPTS - 1 &&
+          (
+            buildResult.reason === "missing_assistant_message" ||
+            buildResult.reason === "missing_user_message"
+          );
+        if (shouldRetry) {
+          completionEmailBuildAttemptsRef.current[key] = currentAttempt + 1;
+          onDebug?.({
+            id: `${Date.now()}-completion-email-build-retry`,
+            timestamp: Date.now(),
+            source: "client",
+            label: "completion-email/build-retry",
+            payload: {
+              workspaceId,
+              threadId: resolvedThreadId,
+              turnId,
+              reason: buildResult.reason,
+              attempt: currentAttempt + 1,
+              nextDelayMs: COMPLETION_EMAIL_RETRY_DELAY_MS,
+            },
+          });
+          globalThis.setTimeout(() => {
+            void sendCompletionEmailForTurn(workspaceId, resolvedThreadId, turnId);
+          }, COMPLETION_EMAIL_RETRY_DELAY_MS);
+          return;
+        }
+
+        delete completionEmailBuildAttemptsRef.current[key];
         onDebug?.({
           id: `${Date.now()}-completion-email-skipped`,
           timestamp: Date.now(),
@@ -235,8 +291,12 @@ export function useThreadCompletionEmail({
       }
 
       try {
+        delete completionEmailBuildAttemptsRef.current[key];
         sentCompletionEmailKeysRef.current.add(key);
-        const result = await sendConversationCompletionEmail(buildResult.request);
+        const result = await sendConversationCompletionEmail({
+          ...buildResult.request,
+          mailDrivenSessionEnabled: currentIntent.mailDrivenSessionEnabled === true,
+        });
         onDebug?.({
           id: `${Date.now()}-completion-email-sent`,
           timestamp: Date.now(),
@@ -286,6 +346,7 @@ export function useThreadCompletionEmail({
         });
         sentCompletionEmailKeysRef.current.delete(key);
       } finally {
+        delete completionEmailBuildAttemptsRef.current[key];
         clearCompletionEmailIntent(resolvedThreadId, turnId);
       }
     },
@@ -361,6 +422,7 @@ export function useThreadCompletionEmail({
 
   return {
     completionEmailIntentByThread,
+    armMailDrivenCompletionEmail,
     clearCompletionEmailIntent,
     toggleCompletionEmailIntent,
     setActiveTurnIdWithCompletionEmail,

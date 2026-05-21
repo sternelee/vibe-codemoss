@@ -724,6 +724,84 @@ fn default_email_sender_settings() -> EmailSenderSettings {
     EmailSenderSettings::default()
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum EmailInboundSecurity {
+    SslTls,
+    StartTls,
+    None,
+}
+
+impl Default for EmailInboundSecurity {
+    fn default() -> Self {
+        Self::SslTls
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct EmailInboundSettings {
+    #[serde(default)]
+    pub(crate) enabled: bool,
+    #[serde(default)]
+    pub(crate) provider: EmailSenderProvider,
+    #[serde(default, rename = "imapHost")]
+    pub(crate) imap_host: String,
+    #[serde(default = "default_email_inbound_imap_port", rename = "imapPort")]
+    pub(crate) imap_port: u16,
+    #[serde(default)]
+    pub(crate) security: EmailInboundSecurity,
+    #[serde(default)]
+    pub(crate) username: String,
+    #[serde(
+        default = "default_email_inbound_mailbox_folder",
+        rename = "mailboxFolder"
+    )]
+    pub(crate) mailbox_folder: String,
+    #[serde(default, rename = "allowedSenders")]
+    pub(crate) allowed_senders: Vec<String>,
+    #[serde(
+        default = "default_email_inbound_poll_interval_seconds",
+        rename = "pollIntervalSeconds"
+    )]
+    pub(crate) poll_interval_seconds: u64,
+    #[serde(
+        default = "default_email_inbound_read_only_mode",
+        rename = "readOnlyMode"
+    )]
+    pub(crate) read_only_mode: bool,
+    #[serde(
+        default = "default_email_inbound_action_window_hours",
+        rename = "actionWindowHours"
+    )]
+    pub(crate) action_window_hours: i64,
+    #[serde(default, rename = "debugStorageEnabled")]
+    pub(crate) debug_storage_enabled: bool,
+}
+
+impl Default for EmailInboundSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            provider: EmailSenderProvider::Custom,
+            imap_host: String::new(),
+            imap_port: default_email_inbound_imap_port(),
+            security: EmailInboundSecurity::SslTls,
+            username: String::new(),
+            mailbox_folder: default_email_inbound_mailbox_folder(),
+            allowed_senders: Vec::new(),
+            poll_interval_seconds: default_email_inbound_poll_interval_seconds(),
+            read_only_mode: default_email_inbound_read_only_mode(),
+            action_window_hours: default_email_inbound_action_window_hours(),
+            debug_storage_enabled: false,
+        }
+    }
+}
+
+fn default_email_inbound_settings() -> EmailInboundSettings {
+    EmailInboundSettings::default()
+}
+
 fn default_engine_enabled() -> bool {
     true
 }
@@ -734,6 +812,26 @@ fn default_opencode_enabled() -> bool {
 
 fn default_email_sender_smtp_port() -> u16 {
     465
+}
+
+fn default_email_inbound_imap_port() -> u16 {
+    993
+}
+
+fn default_email_inbound_mailbox_folder() -> String {
+    "INBOX".to_string()
+}
+
+fn default_email_inbound_poll_interval_seconds() -> u64 {
+    300
+}
+
+fn default_email_inbound_read_only_mode() -> bool {
+    true
+}
+
+fn default_email_inbound_action_window_hours() -> i64 {
+    24
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -924,6 +1022,8 @@ pub(crate) struct AppSettings {
     pub(crate) system_notification_enabled: bool,
     #[serde(default = "default_email_sender_settings", rename = "emailSender")]
     pub(crate) email_sender: EmailSenderSettings,
+    #[serde(default = "default_email_inbound_settings", rename = "emailInbound")]
+    pub(crate) email_inbound: EmailInboundSettings,
     #[serde(default = "default_preload_git_diffs", rename = "preloadGitDiffs")]
     pub(crate) preload_git_diffs: bool,
     #[serde(
@@ -1546,6 +1646,7 @@ impl Default for AppSettings {
             notification_sound_custom_path: default_notification_sound_custom_path(),
             system_notification_enabled: true,
             email_sender: EmailSenderSettings::default(),
+            email_inbound: EmailInboundSettings::default(),
             preload_git_diffs: default_preload_git_diffs(),
             detached_external_change_awareness_enabled:
                 default_detached_external_change_awareness_enabled(),

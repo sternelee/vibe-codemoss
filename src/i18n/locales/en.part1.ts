@@ -2014,7 +2014,74 @@ const enPart1 = {
       "Daemon authentication failed. Verify remote backend token.",
     emailTitle: "Email sender",
     emailDescription:
-      "Configure SMTP sending for test email and future conversation completion reminders.",
+      "Configure SMTP sending, read-only inbound checks, and mail-driven session management.",
+    emailDocsTab: "Docs",
+    emailSendConfigTab: "Send config",
+    emailInboundTab: "Inbound listener",
+    emailMailSessionsTab: "Mail sessions",
+    emailDocsTitle: "Email module docs",
+    emailDocsDesc:
+      "A beginner guide to why the module exists, how to fill each field, and how to continue a session by email.",
+    emailDocsPurposeTitle: "What this module does",
+    emailDocsPurposeBody:
+      "The email module does two things. First, it sends Moss completion results to your inbox so you can track progress away from the computer. Second, after you explicitly enable reply continuation, it lets you reply to that email to continue, change, pause, stop, or check the matching session. It is not a general email client and does not show ordinary mailbox messages.",
+    emailDocsPrepTitle: "Before you configure it",
+    emailDocsPrepStepEmail:
+      "Prepare an email account for Moss. A dedicated mailbox or dedicated app password is recommended so it is not mixed with your personal mailbox password.",
+    emailDocsPrepStepProtocol:
+      "Enable SMTP in your mail provider settings. If you want inbound listening, also enable IMAP.",
+    emailDocsPrepStepPassword:
+      "Create an authorization code / app password. Do not enter your web login password; providers such as QQ, 163, and 126 usually require an app password.",
+    emailDocsPrepStepRecipient:
+      "Choose the inbox that should receive Moss mail. The common setup is sending from your own mailbox to your own inbox so you can reply and continue work.",
+    emailDocsSendTitle: "Sending setup",
+    emailDocsSendStepProvider:
+      "Provider: choose 126 / 163 / QQ when available, or Custom SMTP for any other provider.",
+    emailDocsSendStepAddress:
+      "Sender email and SMTP username: usually both are the full email address, for example name@example.com. Sender name can be Moss so the message is easy to recognize.",
+    emailDocsSendStepServer:
+      "SMTP host / port / security: for Custom SMTP, copy these from the provider docs. Common combinations are SSL/TLS + 465 or STARTTLS + 587.",
+    emailDocsSendStepSecret:
+      "Authorization code / app password: paste the provider-generated secret. After saving, the UI shows that the secret is saved and normal settings do not expose it as plain text.",
+    emailDocsSendStepSave:
+      "Recipient inbox: enter the address that should receive Moss mail. Save, then send a test email. Receiving the test message means the SMTP sending path works.",
+    emailDocsInboundTitle: "Inbound listener",
+    emailDocsInboundStepServer:
+      "After enabling inbound listening, fill the IMAP host and port. A common IMAP SSL port is 993; use the provider docs if STARTTLS or another port is required.",
+    emailDocsInboundStepFolder:
+      "Mailbox folder is usually INBOX. Moss only reads reply candidates from this folder and does not show ordinary messages as session content.",
+    emailDocsInboundStepAllowlist:
+      "Allowed senders are the addresses allowed to drive Moss, separated by commas. The safest default is your own recipient inbox address only.",
+    emailDocsInboundStepPolling:
+      "Polling interval controls how often Moss checks the mailbox, in seconds. 300 means every 5 minutes. Lower values respond faster but may hit provider limits.",
+    emailDocsInboundStepCheck:
+      "After saving, click Check inbox now. The status line shows queued, needs-confirmation, and rejected counts so you can tell whether Moss-related replies were found.",
+    emailDocsAfterSetupTitle: "How to use it after setup",
+    emailDocsUsageStepEnableSend:
+      "First enable email sending and save. When completion email is enabled for a conversation, Moss sends the turn status, fix summary, and next-step suggestions after the task finishes.",
+    emailDocsUsageStepEnableSession:
+      "After you choose to send a completion email from a conversation, that email supports direct reply continuation by default. There is no separate manual enable step.",
+    emailDocsUsageStepReply:
+      "When you receive an actionable email, reply with “continue” or write one plain instruction. Moss binds the reply back to the original workspace/thread/turn using session metadata, reply token, and signature.",
+    emailDocsUsageStepTrack:
+      "Open the Mail sessions tab to inspect each Moss mail session state, queue, needs-confirmation items, rejected items, and sanitized timeline. You can open the matching session or inspect its mail events from there.",
+    emailDocsExamplesTitle: "Reply examples",
+    emailDocsExampleNext: "continue",
+    emailDocsExampleChange: "Do not change the UI. Fix the backend save failure first.",
+    emailDocsExampleStatus: "status",
+    emailDocsExamplesBody:
+      "Replying “continue” runs the first recommended next step from the email. A plain instruction becomes the next user request. You can also reply “status”, “pause”, or “stop”. The old ACTION/DETAIL format is still accepted but not required.",
+    emailDocsSafetyTitle: "Safety boundaries",
+    emailDocsSafetyStepNoInbox:
+      "Moss is not an email client: ordinary unrelated mail is not shown, stored, or listed as a mail session.",
+    emailDocsSafetyStepAction:
+      "Empty replies, conflicting commands, auto-replies, or bounces do not run automatically; they are ignored or routed to confirmation.",
+    emailDocsSafetyStepSignature:
+      "Expired tokens, stale email replies, failed signatures, disallowed senders, or replies outside the current session scope do not start new work.",
+    emailDocsSafetyStepReadOnly:
+      "Inbound listening is always read-only: Moss only maintains a local cursor and dedupe ledger. It does not delete, move, archive, or mark remote mail as read.",
+    emailDocsSafetyHint:
+      "Minimum working path: finish sending setup and send a test email, then configure inbound listening and check the inbox, then enable reply continuation on a specific session. Notification-only users do not need reply continuation.",
     emailEnableTitle: "Enable email sending",
     emailEnableDesc:
       "When enabled, the backend can send controlled email through the saved SMTP settings.",
@@ -2051,6 +2118,42 @@ const enPart1 = {
     emailTesting: "Sending…",
     emailTestSent: "Test email sent.",
     emailSecretCleared: "Secret cleared.",
+    emailInboundTitle: "Read-only inbound listener",
+    emailInboundDesc:
+      "Reads only Moss session reply candidates without deleting, moving, or marking remote mail.",
+    emailInboundEnabled: "Enable inbound listener",
+    emailImapHost: "IMAP host",
+    emailImapPort: "IMAP port",
+    emailMailboxFolder: "Mailbox folder",
+    emailAllowedSenders: "Allowed senders",
+    emailPollInterval: "Polling interval (seconds)",
+    emailReadOnlyHint:
+      "Read-only mode is always on: Moss tracks progress through local cursor and dedupe ledger.",
+    emailInboundSaved: "Inbound listener settings saved.",
+    emailInboundChecking: "Checking…",
+    emailInboundCheckNow: "Check inbox now",
+    emailInboundCheckDone: "Inbox check completed. Scanned {{count}} candidate messages.",
+    emailInboundStatus:
+      "State: {{state}}; queued {{queued}}; needs confirmation {{confirm}}; rejected {{rejected}}.",
+    emailMailSessionsTitle: "Mail sessions",
+    emailMailSessionsDesc:
+      "Only Moss-related mail events are shown here. Ordinary unrelated mail is not stored or displayed.",
+    emailRefreshSessions: "Refresh sessions",
+    emailCleanupProcessed: "Clean processed records",
+    emailNoMailSessions: "No Moss mail sessions yet.",
+    emailSessionCounts:
+      "Outbound {{outbound}} · inbound {{inbound}} · queued {{queued}} · needs confirmation {{confirm}}",
+    emailViewTimeline: "View mail",
+    emailOpenSession: "Open session",
+    emailOpenSessionUnavailable:
+      "This mail session cannot be opened right now. Check that the workspace and thread still exist.",
+    emailPauseSession: "Pause",
+    emailResumeSession: "Resume",
+    emailCloseSession: "Close",
+    emailEnableSessionContinuation: "Enable reply continuation",
+    emailMailSessionUpdated: "Mail session updated.",
+    emailTimelineTitle: "Mail event timeline",
+    emailTimelineEmpty: "No mail events for this session yet.",
     emailError: {
       disabled: "Email sending is disabled.",
       not_configured: "Email settings are incomplete.",
