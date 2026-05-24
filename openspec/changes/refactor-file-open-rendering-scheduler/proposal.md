@@ -13,6 +13,7 @@
 - 把 `contentHash`、`byteLength`、`lineCount`、line offset/index 等 content-derived metadata 收敛到 document snapshot 层，避免 virtualized renderer 之外仍重复同步扫描全文。
 - 保持现有文件打开、多 tab、AI annotation、Git line marker、Markdown preview、外部同步、detached file explorer 和 open-with-app 行为不回退。
 - 编辑态行号/选区反馈必须优先保持本地即时响应；Composer active-file reference 这类跨区域状态同步必须可延迟、可合并，不能阻塞 editor click/cursor 热路径。
+- 编辑态 AI annotation 入口必须收敛到底部当前文件上下文栏，不得在 editor body 顶部额外插入 sticky toolbar；当前文件栏应保持低噪声，不再暴露 `路径已关联 / 路径已关闭` 这类 footer 切换按钮。
 - Windows 与 macOS 必须作为同级目标平台处理：path normalization、case sensitivity、separator、scroll/event 行为和外部文件监控都需要兼容证据。
 - 不改变 Rust/Tauri 文件读取命令的外部 API，除非后续实现发现必须扩展并另行在 design/tasks 中标记。
 
@@ -23,7 +24,8 @@
 - 不引入新的虚拟滚动库；继续使用项目已有的 `@tanstack/react-virtual`。
 - 不改变文件保存、dirty/conflict 的用户语义。
 - 不扩大到通用 app-wide scheduler 或新 EventBus。
-- 不在本 change 中处理无关 UI 视觉重设计。
+- 不在本 change 中处理无关 UI 视觉重设计；footer 收敛只覆盖当前文件上下文栏和 editor annotation affordance，不重做全局按钮系统。
+- 不删除 Composer active-file reference 的发送/注入语义；本 change 只移除 FileViewPanel footer 中的路径状态切换 UI。
 - 不重做 hover preview、structured preview、PDF/tabular/document preview 的产品交互；但这些 secondary preview surfaces 不得重新引入无边界的全文 split/highlight/parse。
 
 ## What Changes
@@ -37,6 +39,8 @@
 - 对多文件 tab 明确 active-only high-cost contract：open tabs 保存路径和轻量状态，非 active tab 不得预读/预渲染高成本内容。
 - 对 scheduled render work 引入 `snapshotVersion` / `renderEpoch` / cancellation contract：切 tab、切文件、外部刷新、unmount 后的后台 highlight、Markdown chunk、heavy block、external refresh 不得提交到错误视图。
 - 对 editor line-range tracking 引入 local-first / delayed global publish contract：文件面板内部立即更新当前行号和 AI annotation 工具条，Composer/context ledger 只消费合并后的低优先级 range。
+- 对 editor annotation affordance 做回归收敛：移除 editor body 顶部 annotation toolbar，把 `标注给 AI` 放入底部当前文件栏；移除 footer 路径状态切换按钮与内部按钮边框，保持文件阅读/编辑区域不被额外 toolbar 挤占。
+- 对 CodeMirror editor annotation widgets 明确排序 contract：已有 marker 与 draft 必须按 target line / side / insertion order 加入 RangeSet，避免 draft 位于已有 marker 前方时触发 `Ranges must be added sorted` runtime crash。
 - 让 `FilePreviewPopover` 与 structured preview 复用 bounded model 或进入 low-cost fallback，避免 hover / secondary surfaces 成为新的卡顿入口。
 - 为文件打开后卡顿建立 file-specific 性能证据：大 code 文件、大 Markdown、大目录、外部同步、editor split + engine streaming 必须有 before/after 或明确 unsupported evidence；通用 long-list evidence 只能作为 proxy，不得替代 file-open evidence。
 
@@ -64,6 +68,8 @@
   - `src/features/files/utils/fileMarkdownDocument.ts`
   - `src/features/files/components/FileViewPanel.tsx`
   - `src/features/files/components/FileViewBody.tsx`
+  - `src/styles/file-view-panel.css`
+  - `src/styles/file-view-panel.footer.css`
   - `src/features/files/components/FileMarkdownPreview.tsx`
   - `src/features/files/components/FilePreviewPopover.tsx`
   - `src/features/files/components/FileStructuredPreview.tsx`

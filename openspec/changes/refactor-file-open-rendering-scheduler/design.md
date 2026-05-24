@@ -357,6 +357,28 @@ Rules:
 - Switching file, leaving preview/edit surface, or unmounting must clear pending range publication and avoid publishing a stale range.
 - AI annotation in edit mode must use the latest local range, so delayed Composer synchronization cannot make annotation target stale.
 
+### Editor annotation affordance and footer controls
+
+The file editor must not insert a persistent annotation toolbar above CodeMirror. That toolbar competes with the editor viewport and creates a second control surface for the same active file context. Edit-mode annotation controls belong in the bottom current-file footer, where file name, local line range, and the `标注给 AI` action share one compact context.
+
+Footer control rules:
+
+- The current-file footer may show file name, current local line label, and edit-mode `标注给 AI`.
+- The footer must not expose `路径已关联 / 路径已关闭` as a FileViewPanel toggle. Composer may still own active-file reference inclusion, but FileViewPanel should not present a redundant path state button.
+- Footer buttons and the current-file group should stay visually low-noise: no nested per-button borders or secondary outlines inside the footer group.
+- Annotation draft actions should be left-aligned so the action path starts near the draft content instead of floating at the far right edge of the wide editor surface.
+
+CodeMirror annotation widget ordering is part of the same regression boundary. Existing annotation markers and the active draft are both block widgets at line end positions. They must be resolved into a single sorted list before calling `RangeSetBuilder.add`:
+
+```text
+annotation markers + active draft
+  -> clamp target line to document bounds
+  -> sort by target line, widget side, original order
+  -> add to CodeMirror RangeSetBuilder
+```
+
+This prevents the runtime error `Ranges must be added sorted by from position and startSide` when a new draft targets a line before an existing marker, or shares a line with an existing marker.
+
 ### External sync gating
 
 External watcher/polling remains functionally equivalent:

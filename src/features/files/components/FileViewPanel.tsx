@@ -314,6 +314,57 @@ type FileAnnotationDraftState = {
   body: string;
 };
 
+type EditorAnnotationWidgetTarget =
+  | {
+      kind: "marker";
+      annotation: CodeAnnotationSelection;
+      targetLine: number;
+      side: 1;
+      order: number;
+    }
+  | {
+      kind: "draft";
+      draft: FileAnnotationDraftState;
+      targetLine: number;
+      side: 2;
+      order: number;
+    };
+
+export function resolveEditorAnnotationWidgetOrder({
+  annotations,
+  draft,
+  maxLine,
+}: {
+  annotations: CodeAnnotationSelection[];
+  draft: FileAnnotationDraftState | null;
+  maxLine: number;
+}): EditorAnnotationWidgetTarget[] {
+  const widgetTargets: EditorAnnotationWidgetTarget[] = annotations.map(
+    (annotation, index) => ({
+      kind: "marker",
+      annotation,
+      targetLine: Math.min(Math.max(annotation.lineRange.endLine, 1), maxLine),
+      side: 1,
+      order: index,
+    }),
+  );
+  if (draft?.source === "file-edit-mode") {
+    widgetTargets.push({
+      kind: "draft",
+      draft,
+      targetLine: Math.min(Math.max(draft.lineRange.endLine, 1), maxLine),
+      side: 2,
+      order: widgetTargets.length,
+    });
+  }
+  return widgetTargets.sort(
+    (left, right) =>
+      left.targetLine - right.targetLine ||
+      left.side - right.side ||
+      left.order - right.order,
+  );
+}
+
 type AnnotationWidgetCallbacks = {
   onDraftCancel: () => void;
   onDraftConfirm: (bodyOverride?: string) => void;
@@ -492,45 +543,37 @@ function codeAnnotationWidgetsExtension({
   return EditorView.decorations.compute([], (state) => {
     const builder = new RangeSetBuilder<Decoration>();
     const maxLine = state.doc.lines;
-    const sortedAnnotations = [...annotations].sort(
-      (left, right) => left.lineRange.endLine - right.lineRange.endLine,
-    );
-    for (const annotation of sortedAnnotations) {
-      const targetLine = Math.min(Math.max(annotation.lineRange.endLine, 1), maxLine);
-      const line = state.doc.line(targetLine);
-      builder.add(
-        line.to,
-        line.to,
-        Decoration.widget({
-          widget: new CodeAnnotationMarkerWidget(
-            annotation,
-            formatAnnotationLineLabel(annotation.lineRange),
-            labels,
-            callbacks,
-          ),
-          block: true,
-          side: 1,
-        }),
-      );
-    }
-    if (draft?.source === "file-edit-mode") {
-      const targetLine = Math.min(Math.max(draft.lineRange.endLine, 1), maxLine);
-      const line = state.doc.line(targetLine);
-      builder.add(
-        line.to,
-        line.to,
-        Decoration.widget({
-          widget: new CodeAnnotationDraftWidget(
-            draft,
-            formatAnnotationLineLabel(draft.lineRange),
-            labels,
-            callbacks,
-          ),
-          block: true,
-          side: 2,
-        }),
-      );
-    }
+    const widgetTargets = resolveEditorAnnotationWidgetOrder({
+      annotations,
+      draft,
+      maxLine,
+    });
+    widgetTargets.forEach((target) => {
+      const line = state.doc.line(target.targetLine);
+      const decoration =
+        target.kind === "marker"
+          ? Decoration.widget({
+              widget: new CodeAnnotationMarkerWidget(
+                target.annotation,
+                formatAnnotationLineLabel(target.annotation.lineRange),
+                labels,
+                callbacks,
+              ),
+              block: true,
+              side: target.side,
+            })
+          : Decoration.widget({
+              widget: new CodeAnnotationDraftWidget(
+                target.draft,
+                formatAnnotationLineLabel(target.draft.lineRange),
+                labels,
+                callbacks,
+              ),
+              block: true,
+              side: target.side,
+            });
+      builder.add(line.to, line.to, decoration);
+    });
     return builder.finish();
   });
 }
@@ -547,8 +590,6 @@ export function FileViewPanel({
   onActivateTab,
   onCloseTab,
   onCloseAllTabs,
-  fileReferenceMode = "path",
-  onFileReferenceModeChange,
   activeFileLineRange = null,
   onActiveFileLineRangeChange,
   initialMode = "edit",
@@ -1994,18 +2035,6 @@ export function FileViewPanel({
                 {t("files.annotateForAi")}
               </button>
             ) : null}
-            <button
-              type="button"
-              className={`fvp-file-reference-toggle${fileReferenceMode === "path" ? " is-active" : ""}`}
-              onClick={() =>
-                onFileReferenceModeChange?.(fileReferenceMode === "path" ? "none" : "path")
-              }
-              title={t("composer.fileReferenceHint")}
-            >
-              {fileReferenceMode === "path"
-                ? t("composer.fileReferencePathOn")
-                : t("composer.fileReferencePathOff")}
-            </button>
           </div>
         ) : null}
         {mode === "preview" && onInsertText && content.trim().length > 0 && (

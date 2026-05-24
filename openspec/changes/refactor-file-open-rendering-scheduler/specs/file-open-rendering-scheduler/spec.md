@@ -126,6 +126,35 @@ Editor cursor and selection changes MUST keep the file editor responsive and MUS
 - **THEN** the pending publication MUST be cancelled or ignored
 - **AND** it MUST NOT publish a stale line range for a previously active file
 
+### Requirement: Editor annotation controls MUST remain footer-scoped and range-safe
+
+Editor-mode AI annotation controls MUST stay attached to the current file footer context, and CodeMirror annotation widgets MUST be inserted in a deterministic range order.
+
+#### Scenario: edit-mode annotation action is not rendered as a top editor toolbar
+- **WHEN** the user selects or clicks a line in editor mode
+- **THEN** the file body MUST NOT render a sticky top annotation toolbar above CodeMirror
+- **AND** the visible `标注给 AI` action SHOULD live in the bottom current-file footer alongside the file name and local line label
+
+#### Scenario: footer does not expose redundant path state toggle
+- **WHEN** the current-file footer is visible
+- **THEN** it MUST NOT render a `路径已关联 / 路径已关闭` toggle button inside FileViewPanel
+- **AND** removing that footer toggle MUST NOT remove Composer's underlying active-file reference inclusion contract
+
+#### Scenario: footer controls avoid nested button borders
+- **WHEN** the current-file footer displays file name, line label, annotation action, icon actions, or open-app controls
+- **THEN** those inner controls SHOULD avoid nested per-button border chrome
+- **AND** the footer MUST remain usable with existing hover/focus affordances
+
+#### Scenario: edit annotation widgets are added in CodeMirror range order
+- **WHEN** existing edit-mode annotation markers and a new annotation draft target different source lines
+- **THEN** the editor MUST add marker and draft widgets to CodeMirror sorted by target line and widget side
+- **AND** a draft targeting a line before a later marker MUST NOT trigger a `Ranges must be added sorted` runtime error
+
+#### Scenario: same-line marker remains before draft widget
+- **WHEN** an existing edit-mode annotation marker and the active draft target the same line
+- **THEN** the marker widget MUST be ordered before the draft widget for that line
+- **AND** this ordering MUST be covered by focused regression tests
+
 ### Requirement: External file sync MUST advance previews through stable snapshot rules
 
 External file monitoring MUST not directly force high-cost preview rebuilds when the current user context is under render pressure or in default stable reading mode.
