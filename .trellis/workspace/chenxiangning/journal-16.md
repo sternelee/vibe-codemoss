@@ -57,3 +57,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 563: 修复 Claude 第二轮会话白板恢复
+
+**Date**: 2026-05-24
+**Task**: 修复 Claude 第二轮会话白板恢复
+**Branch**: `feature/v0.5.2`
+
+### Summary
+
+修复 Claude history scanner/loader 对 synthetic meta rows 的过滤不一致，补充 issue #529 形态与 nested message.isMeta 回归测试，并保留前端 hydrate 覆盖。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `bcf0537b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
