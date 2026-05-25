@@ -540,3 +540,41 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 574: 收口 Claude 长流式渲染恢复
+
+**Date**: 2026-05-25
+**Task**: 收口 Claude 长流式渲染恢复
+**Branch**: `feature/v0.5.3`
+
+### Summary
+
+完成 Claude 长流式输出折叠渲染、shadow transcript 恢复边界、大文件拆分与收口验证。
+
+### Main Changes
+
+- 修复 Claude 长回复 streaming 期间 Markdown 样式丢失与长文本渲染卡顿：live surface 使用 head/tail 折叠的 lightweight Markdown，final 后恢复完整 Markdown。
+- 增加 live assistant shadow transcript，用于 provider history 缺 final body 时恢复 Claude assistant 正文；收口时补强 concrete turn settle，清理同 item legacy no-turn shadow，避免旧 shadow 被后续 turn 错误恢复。
+- 拆分 useThreadActions/useThreadsReducer 与多组超大测试文件，降低 large-file near-threshold watch 数量，同时保持 public action/reducer contract 不变。
+- 回写 OpenSpec change fix-long-live-assistant-stream-recovery，并通过 strict validate。
+- 验证：focused Vitest 85 tests、tsc、lint、diff check、large-file gate/near-threshold、heavy-test-noise 535 test files 全部通过。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e1cd9db3` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
