@@ -578,3 +578,49 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 575: 稳定 VendorSettingsPanel 测试
+
+**Date**: 2026-05-25
+**Task**: 稳定 VendorSettingsPanel 测试
+**Branch**: `feature/v0.5.3`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+修复 VendorSettingsPanel 在 Windows CI 批量 Vitest 中首个 Codex tab smoke test 偶发超过 5s 的问题。
+
+主要改动：
+- openCodexTab 等待真实 Codex runtime card 内容出现，而不只等待 service mock 被调用。
+- 使用 within(runtimeCard) 将断言限定在 vendor-codex-runtime-card 内，减少全局 accessible tree 扫描成本。
+- 保持产品逻辑不变，只收紧测试查询范围。
+
+验证：
+- node node_modules/vitest/vitest.mjs run --maxWorkers 1 --minWorkers 1 src/features/vendors/components/VendorSettingsPanel.test.tsx
+- node node_modules/vitest/vitest.mjs run --maxWorkers 1 --minWorkers 1 src/features/update/hooks/useUpdater.test.ts src/features/vendors/components/VendorSettingsPanel.test.tsx src/features/vendors/hooks/useGeminiVendorManagement.test.tsx src/features/update/updateReleaseConfig.test.ts
+- npm run doctor:win
+- npm run typecheck
+- npm run lint
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `63a6de5f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
