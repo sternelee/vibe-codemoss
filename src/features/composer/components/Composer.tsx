@@ -1693,8 +1693,8 @@ export const Composer = memo(function Composer({
     }
     onJumpToUserInputRequest?.(activeUserInputRequest);
   }, [activeUserInputRequest, onJumpToUserInputRequest]);
-  const handleExpandContextSources = useCallback(() => {
-    setContextLedgerExpanded(true);
+  const handleToggleContextSources = useCallback(() => {
+    setContextLedgerExpanded((current) => !current);
   }, []);
   const codexContextDualViewEnabled = contextDualViewEnabled && isCodexEngine;
   const contextLedgerProjection = useMemo(
@@ -1880,7 +1880,7 @@ export const Composer = memo(function Composer({
     selectedManualMemories.length > 0 ||
     selectedNoteCards.length > 0 ||
     selectedCodeAnnotations.length > 0 ||
-    contextLedgerExpanded ||
+    (contextLedgerExpanded && contextLedgerProjection.visible) ||
     shouldRenderReviewInlinePrompt;
 
   return (
@@ -2124,11 +2124,12 @@ export const Composer = memo(function Composer({
                   </div>
                 )}
 
-                {contextLedgerExpanded ? (
+                {contextLedgerExpanded && contextLedgerProjection.visible ? (
                   <ContextLedgerPanel
                     projection={contextLedgerProjection}
                     comparison={null}
                     expanded={contextLedgerExpanded}
+                    hideHeader
                     onToggle={() => setContextLedgerExpanded((prev) => !prev)}
                     onExcludeBlock={handleExcludeLedgerBlock}
                     onClearCarryOverBlock={handleClearCarryOverLedgerBlock}
@@ -2268,7 +2269,7 @@ export const Composer = memo(function Composer({
               onModeSelect={handleModeSelect}
               sendReadiness={composerSendReadiness}
               onJumpToRequest={activeUserInputRequest ? handleJumpToUserInputRequest : undefined}
-              onExpandContextSources={contextLedgerProjection.visible ? handleExpandContextSources : undefined}
+              onToggleContextSources={contextLedgerProjection.visible ? handleToggleContextSources : undefined}
               contextSourcesExpanded={contextLedgerExpanded}
               selectedCollaborationModeId={_selectedCollaborationModeId}
               onSelectCollaborationMode={_onSelectCollaborationMode}

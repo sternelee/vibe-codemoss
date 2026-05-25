@@ -259,7 +259,7 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
       messageQueue,
       sendReadiness,
       onJumpToRequest,
-      onExpandContextSources,
+      onToggleContextSources,
       contextSourcesExpanded,
       onRemoveFromQueue,
       onFuseFromQueue,
@@ -1508,7 +1508,7 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
               messageQueue={messageQueue}
               sendReadiness={sendReadiness}
               onJumpToRequest={onJumpToRequest}
-              onExpandContextSources={onExpandContextSources}
+              onToggleContextSources={onToggleContextSources}
               contextSourcesExpanded={contextSourcesExpanded}
               selectedModel={selectedModel}
               models={availableModels}
