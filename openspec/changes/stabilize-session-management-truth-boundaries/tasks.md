@@ -48,7 +48,7 @@
 - [x] 8.2 [P1] Propagate explicit delete tombstones from Settings mutations to workspace thread refresh; input: per-entry delete results; output: deleted thread ids passed through SettingsView -> app shell -> workspace list hydration -> thread actions; verify with focused thread/settings Vitest.
 - [x] 8.3 [P1] Prevent degraded last-good fallback from reviving explicitly deleted sessions; input: `deletedThreadIds` plus uncertain/degraded empty source status; output: deleted rows removed from cached summaries, reducer state, fallback snapshots, visible summaries, and remembered last-good candidates; verify with `useThreadActions` regression.
 - [x] 8.4 [P1] Close stale Settings session curtain when the currently opened session is deleted; input: successful delete results while curtain is loading; output: curtain closes, timeout cleanup runs, stale load sequence is invalidated; verify with `SessionManagementSection` regression.
-- [x] 8.5 [P1] Allow deleting zero-count folder subtrees that only contain empty child folders or stale folder-assignment metadata; input: folder delete core plus exhaustive catalog evidence; output: real assigned sessions anywhere in the subtree still block, stale `folderIdBySessionId` keys are cleaned, and the empty subtree is removed; verify with focused Rust folder-delete regressions.
+- [x] 8.5 [P1] Make folder deletion remove only organization containers; input: folder delete core and folder metadata subtree; output: folder subtree is removed, assignments inside it are promoted to the deleted folder's parent or root, and real sessions are never deleted or used to block deletion; verify with focused Rust folder-delete regressions.
 
 ## Evidence - 2026-05-23
 
@@ -75,5 +75,5 @@
 
 ## Evidence - 2026-05-26
 
-- Focused backend folder regression: `cargo test --manifest-path src-tauri/Cargo.toml workspace_session_folder -- --nocapture` passed, covering stale-assignment cleanup, empty-subtree deletion, real-assignment blocking, and child-folder real-session blocking in lib + daemon targets.
+- Focused backend folder regression: `cargo test --manifest-path src-tauri/Cargo.toml workspace_session_folder -- --nocapture` passed, covering empty-subtree deletion, top-level session promotion to root, nested session promotion to parent, and descendant subtree promotion behavior in lib + daemon targets.
 - Formatting and hygiene: `cargo fmt --manifest-path src-tauri/Cargo.toml --check` and scoped `git diff --check -- src-tauri/src/session_management.rs src-tauri/src/session_management_tests.rs src-tauri/src/bin/cc_gui_daemon/session_folders.rs` passed.

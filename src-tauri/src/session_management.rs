@@ -1425,19 +1425,6 @@ fn folder_subtree_ids(
     }
 }
 
-fn has_existing_catalog_assignment_in_folders(
-    entries: &[WorkspaceSessionCatalogEntry],
-    folder_ids: &HashSet<String>,
-) -> bool {
-    entries.iter().any(|entry| {
-        entry.exists_on_disk
-            && entry
-                .folder_id
-                .as_ref()
-                .is_some_and(|folder_id| folder_ids.contains(folder_id))
-    })
-}
-
 fn would_create_folder_cycle(
     metadata: &WorkspaceSessionCatalogMetadata,
     folder_id: &str,
@@ -1802,7 +1789,7 @@ pub(crate) async fn move_workspace_session_folder_core(
 
 pub(crate) async fn delete_workspace_session_folder_core(
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
-    engine_manager: &engine::EngineManager,
+    _engine_manager: &engine::EngineManager,
     storage_path: &Path,
     workspace_id: String,
     folder_id: String,
@@ -1810,26 +1797,30 @@ pub(crate) async fn delete_workspace_session_folder_core(
     let workspace_id = normalize_workspace_id(&workspace_id)?;
     ensure_workspace_exists(workspaces, &workspace_id).await?;
     let folder_id = normalize_folder_id(&folder_id)?;
-    let scope_catalog = build_workspace_scope_catalog_data(
-        workspaces,
-        engine_manager,
-        storage_path,
-        &workspace_id,
-        SessionCatalogScanMode::Exhaustive,
-    )
-    .await?;
 
     with_catalog_metadata_mutation(storage_path, &workspace_id, |metadata| {
-        if !folder_exists(metadata, &folder_id) {
-            return Err("folder not found".to_string());
-        }
+        let promoted_parent_id = metadata
+            .folders
+            .iter()
+            .find(|folder| folder.id == folder_id)
+            .map(|folder| folder.parent_id.clone())
+            .ok_or_else(|| "folder not found".to_string())?
+            .filter(|parent_id| folder_exists(metadata, parent_id));
         let subtree_ids = folder_subtree_ids(metadata, &folder_id);
-        if has_existing_catalog_assignment_in_folders(&scope_catalog.entries, &subtree_ids) {
-            return Err("folder is not empty; move or clear its contents first".to_string());
+        match promoted_parent_id {
+            Some(parent_id) if !subtree_ids.contains(&parent_id) => {
+                for assigned_folder_id in metadata.folder_id_by_session_id.values_mut() {
+                    if subtree_ids.contains(assigned_folder_id) {
+                        *assigned_folder_id = parent_id.clone();
+                    }
+                }
+            }
+            _ => {
+                metadata
+                    .folder_id_by_session_id
+                    .retain(|_, assigned_folder_id| !subtree_ids.contains(assigned_folder_id));
+            }
         }
-        metadata
-            .folder_id_by_session_id
-            .retain(|_, assigned_folder_id| !subtree_ids.contains(assigned_folder_id));
         metadata
             .folders
             .retain(|folder| !subtree_ids.contains(&folder.id));

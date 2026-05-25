@@ -34,7 +34,7 @@ Session Management 已经完成了 disk-first catalog、Claude source-fact cache
 - 细化 mutation 结果：
   - session folder assignment / archive / delete across owner workspaces MUST 返回 per-entry result。
   - request-level error 只用于请求无法解析或全局前置条件失败。
-  - folder delete 的 non-empty 判定 MUST 基于真实 catalog entries；只有 stale folder-assignment metadata 时应删除 folder 并清理 orphan keys。
+  - folder delete MUST delete only organization containers: remove the folder subtree and promote any session/stale assignments to the deleted folder's parent, or root when no valid parent exists.
 - 对齐 management page limits：
   - Settings Session Management 不再做分页交互；frontend 直接请求 `9999` 条作为管理窗口。
   - frontend 请求的 page size MUST 与 backend cap 明确协商；若 backend cap 截断，UI MUST 展示 cap/degraded，而不是假装当前窗口已完整返回。
@@ -122,7 +122,7 @@ Session Management 已经完成了 disk-first catalog、Claude source-fact cache
 5. last-good 快照按 engine/source 维度更新；一个 engine degraded 不影响其它 engine 保存健康快照；显式删除 tombstone 优先于 degraded continuity fallback。
 6. batch folder move 跨多个 owner workspaces 时返回 per-entry success/failure；成功项更新，失败项保留并可重试。
 7. Settings 请求 `9999` 条 session；若超过 backend cap，UI 能看到 capped/degraded 状态，且不再依赖“更多会话”分页恢复正确性。
-8. 侧栏/Settings 显示 0 的 session folder subtree 若只剩空子文件夹或 stale assignment metadata，删除必须成功并清理 subtree/stale keys；真实 session assignment 仍必须阻断删除。
+8. 删除 session folder 不再因真实 session、空子文件夹或 stale assignment 阻断；系统必须删除 folder subtree，并把其中 session assignment 提升到父层或 root。
 9. `openspec validate stabilize-session-management-truth-boundaries --strict --no-interactive` 与 `openspec validate --all --strict --no-interactive` 通过。
 
 ## Implementation Status - 2026-05-23
@@ -137,4 +137,4 @@ P2 已落地：stable opaque cursor、per-engine last-good snapshot、Settings p
 
 ## Implementation Status - 2026-05-26
 
-用户继续反馈“都是 0 的文件夹删除也报错”。根因是 UI 计数来自 strict catalog 可见行，而 backend folder delete 仍把 raw metadata 或 child folder 结构当作非空 evidence。stale/orphan assignment 或空子文件夹都会让 0 计数 folder 被误判为非空。本次收口将 folder delete 接入 exhaustive catalog evidence 并按 subtree 判定：真实存在的 assigned session 继续阻断；只有空子文件夹和 stale assignment keys 时允许删除整棵 folder subtree，并同步清理 metadata。
+用户继续反馈“都是 0 的文件夹删除也报错”。根因是删除 folder 被实现成“非空不可删”，而真实产品语义更接近“删除组织容器，不删除 session”。本次收口移除 folder delete 的 non-empty 限制：删除目标 folder subtree 时，真实 session 和 stale assignment 都不会阻断；它们会被提升到被删 folder 的父层，顶层 folder 则回到 root/unclassified。

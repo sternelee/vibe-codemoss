@@ -75,19 +75,22 @@ Session Management delete success MUST be treated as explicit removal evidence a
 - **THEN** the curtain MUST close or otherwise leave loading state
 - **AND** stale async load results for the deleted session MUST NOT reopen or repopulate the curtain
 
-### Requirement: Empty Session Folder Subtrees MUST Be Deletable
+### Requirement: Session Folder Deletion MUST Preserve Sessions By Promoting Assignments
 
-Session Management folder deletion MUST distinguish real existing session assignments from structural child folders and stale metadata-only folder assignments. A folder subtree that has no existing catalog entry assigned anywhere inside it MUST be deletable even if it contains child folders or `folderIdBySessionId` still contains orphaned keys pointing inside that subtree; deleting it MUST remove the folder subtree and those stale assignment keys.
+Session Management folder deletion MUST delete only the organization container, never the session records. Deleting a folder MUST remove the target folder subtree. Any session assignment or metadata-only assignment pointing inside the deleted subtree MUST be promoted to the deleted folder's parent folder; when the deleted folder has no valid parent, those assignments MUST be removed so the sessions return to root/unclassified.
 
-#### Scenario: zero-count folder subtree contains stale assignment metadata
-- **WHEN** the visible strict project folder count is zero
-- **AND** the target folder subtree has no existing catalog entries
-- **AND** the subtree may contain child folders
-- **AND** the only folder assignments are metadata keys for sessions that do not exist in the current catalog
+#### Scenario: top-level folder contains real sessions
+- **WHEN** a top-level folder or any descendant folder has existing catalog entries assigned to it
 - **THEN** deleting the folder MUST succeed
-- **AND** child folders inside that empty subtree MUST be removed
-- **AND** stale assignment metadata pointing inside that subtree MUST be removed
+- **AND** the folder subtree MUST be removed
+- **AND** sessions assigned inside that subtree MUST return to root/unclassified
 
-#### Scenario: folder subtree still contains a real session
-- **WHEN** a folder or any descendant folder has an existing catalog entry assigned to it
-- **THEN** deleting the folder MUST still fail with a non-empty folder error
+#### Scenario: nested folder contains real sessions
+- **WHEN** a nested folder has existing catalog entries assigned to it
+- **THEN** deleting that nested folder MUST succeed
+- **AND** sessions assigned inside the deleted subtree MUST move to the deleted folder's parent folder
+
+#### Scenario: folder subtree contains stale assignment metadata
+- **WHEN** `folderIdBySessionId` contains orphaned keys pointing inside the deleted subtree
+- **THEN** deleting the folder MUST succeed
+- **AND** stale assignment metadata MUST be promoted to the deleted folder's parent folder or removed when there is no valid parent

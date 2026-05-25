@@ -791,7 +791,7 @@
     }
 
     #[tokio::test]
-    async fn workspace_session_folder_delete_still_blocks_existing_session_assignments() {
+    async fn workspace_session_folder_delete_promotes_existing_session_assignment_to_root() {
         let base = std::env::temp_dir().join(format!("session-folder-real-{}", Uuid::new_v4()));
         std::fs::create_dir_all(&base).expect("create temp dir");
         let storage_path = base.join("workspaces.json");
@@ -823,25 +823,26 @@
         .await
         .expect("assign real session");
 
-        let delete_error = delete_workspace_session_folder_core(
+        delete_workspace_session_folder_core(
             &workspaces,
             &engine_manager,
             &storage_path,
             "ws-1".to_string(),
-            folder.id,
+            folder.id.clone(),
         )
         .await
-        .expect_err("delete folder with real session must fail");
-        assert_eq!(
-            delete_error,
-            "folder is not empty; move or clear its contents first"
-        );
+        .expect("delete folder with real session");
+        let metadata = read_catalog_metadata(&storage_path, "ws-1").expect("read metadata");
+        assert!(!metadata.folders.iter().any(|item| item.id == folder.id));
+        assert!(!metadata
+            .folder_id_by_session_id
+            .contains_key(&metadata_stable_key_for_session_id("ws-1", "codex-real")));
 
         std::fs::remove_dir_all(base).ok();
     }
 
     #[tokio::test]
-    async fn workspace_session_folder_delete_blocks_existing_session_in_child_folder() {
+    async fn workspace_session_folder_delete_promotes_child_session_assignment_to_parent_folder() {
         let base = std::env::temp_dir().join(format!("session-folder-child-real-{}", Uuid::new_v4()));
         std::fs::create_dir_all(&base).expect("create temp dir");
         let storage_path = base.join("workspaces.json");
@@ -878,24 +879,91 @@
             &storage_path,
             "ws-1".to_string(),
             "codex-child-real".to_string(),
-            Some(child.id),
+            Some(child.id.clone()),
         )
         .await
         .expect("assign real session to child folder");
 
-        let delete_error = delete_workspace_session_folder_core(
+        delete_workspace_session_folder_core(
             &workspaces,
             &engine_manager,
             &storage_path,
             "ws-1".to_string(),
-            parent.id,
+            child.id.clone(),
         )
         .await
-        .expect_err("delete folder subtree with real session must fail");
+        .expect("delete child folder with real session");
+        let metadata = read_catalog_metadata(&storage_path, "ws-1").expect("read metadata");
+        assert!(metadata.folders.iter().any(|item| item.id == parent.id));
+        assert!(!metadata.folders.iter().any(|item| item.id == child.id));
         assert_eq!(
-            delete_error,
-            "folder is not empty; move or clear its contents first"
+            metadata
+                .folder_id_by_session_id
+                .get(&metadata_stable_key_for_session_id("ws-1", "codex-child-real")),
+            Some(&parent.id)
         );
+
+        std::fs::remove_dir_all(base).ok();
+    }
+
+    #[tokio::test]
+    async fn workspace_session_folder_delete_promotes_descendant_session_assignment_to_root() {
+        let base = std::env::temp_dir().join(format!("session-folder-subtree-real-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&base).expect("create temp dir");
+        let storage_path = base.join("workspaces.json");
+        std::fs::write(&storage_path, "[]").expect("seed storage path");
+        let codex_home = base.join("codex-home");
+        write_codex_session_fixture(&codex_home, "codex-descendant-real", "/tmp/ws-1");
+        let workspace = workspace_with_codex_home("ws-1", "Workspace", "/tmp/ws-1", &codex_home);
+        let workspaces = Mutex::new(HashMap::from([(workspace.id.clone(), workspace)]));
+        let engine_manager = engine::EngineManager::new();
+
+        let parent = create_workspace_session_folder_core(
+            &workspaces,
+            &storage_path,
+            "ws-1".to_string(),
+            "Parent".to_string(),
+            None,
+        )
+        .await
+        .expect("create parent folder")
+        .folder;
+        let child = create_workspace_session_folder_core(
+            &workspaces,
+            &storage_path,
+            "ws-1".to_string(),
+            "Child".to_string(),
+            Some(parent.id.clone()),
+        )
+        .await
+        .expect("create child folder")
+        .folder;
+        assign_workspace_session_folder_core(
+            &workspaces,
+            &engine_manager,
+            &storage_path,
+            "ws-1".to_string(),
+            "codex-descendant-real".to_string(),
+            Some(child.id.clone()),
+        )
+        .await
+        .expect("assign real session to child folder");
+
+        delete_workspace_session_folder_core(
+            &workspaces,
+            &engine_manager,
+            &storage_path,
+            "ws-1".to_string(),
+            parent.id.clone(),
+        )
+        .await
+        .expect("delete parent folder subtree with real session");
+        let metadata = read_catalog_metadata(&storage_path, "ws-1").expect("read metadata");
+        assert!(!metadata.folders.iter().any(|item| item.id == parent.id));
+        assert!(!metadata.folders.iter().any(|item| item.id == child.id));
+        assert!(!metadata
+            .folder_id_by_session_id
+            .contains_key(&metadata_stable_key_for_session_id("ws-1", "codex-descendant-real")));
 
         std::fs::remove_dir_all(base).ok();
     }
