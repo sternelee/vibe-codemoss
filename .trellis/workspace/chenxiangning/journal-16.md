@@ -458,3 +458,44 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 572: 合并 Context Ledger 展开收起入口
+
+**Date**: 2026-05-25
+**Task**: 合并 Context Ledger 展开收起入口
+**Branch**: `feature/v0.5.3`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| 项目 | 内容 |
+|------|------|
+| OpenSpec change | `unify-context-ledger-toggle-position` |
+| 代码提交 | `e79604ab fix(composer): 合并上下文来源展开收起入口` |
+| 需求结果 | Context Ledger 展开/收起合并到 Composer readiness bar 右上角，同一位置在 `展开` / `收起` 间切换；展开后的 detail panel 不再显示重复 header。 |
+| Spec 回写 | 已同步 `openspec/specs/context-ledger-surface/spec.md` 与 `openspec/specs/composer-send-readiness-ux/spec.md`；change 内补充 `verification.md` 和 proposal 收口记录。 |
+| 验证 | `openspec validate unify-context-ledger-toggle-position --strict --no-interactive` pass；`openspec validate --all --strict --no-interactive` pass；focused Vitest 4 files / 9 tests pass；scoped ESLint pass；`npm run check:large-files` pass；`git diff --check` pass；`npm run typecheck` pass。 |
+| 边界 | 未修改 prompt assembly、send payload、memory injection、runtime lifecycle；提交时未带入 messages/threads/settings 等无关 dirty worktree 文件。 |
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e79604ab` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
