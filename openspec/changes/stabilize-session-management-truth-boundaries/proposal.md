@@ -138,3 +138,5 @@ P2 已落地：stable opaque cursor、per-engine last-good snapshot、Settings p
 ## Implementation Status - 2026-05-26
 
 用户继续反馈“都是 0 的文件夹删除也报错”。根因是删除 folder 被实现成“非空不可删”，而真实产品语义更接近“删除组织容器，不删除 session”。本次收口移除 folder delete 的 non-empty 限制：删除目标 folder subtree 时，真实 session 和 stale assignment 都不会阻断；它们会被提升到被删 folder 的父层，顶层 folder 则回到 root/unclassified。
+
+CI 收口同步完成：`SettingsView Session management > deletes selected sessions and triggers workspace refresh` 的超时不是 runtime 回归，而是测试仍按旧 contract 等待 `onEnsureWorkspaceThreads("ws-1")`。删除链路现在会把成功删除的 thread ids 作为显式 tombstone 传入刷新，测试已对齐为断言 `onEnsureWorkspaceThreads("ws-1", { deletedThreadIds: ["codex:thread-a"] })`，从而覆盖“删除成功后首页/工作区列表不得从 degraded last-good fallback 复活已删 session”的新契约。
