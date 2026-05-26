@@ -901,3 +901,62 @@ CI 中 SettingsView 删除会话测试仍断言旧刷新签名；更新为包含
 ### Next Steps
 
 - None - task complete
+
+
+## Session 584: 固化项目知识地图基础能力
+
+**Date**: 2026-05-26
+**Task**: 固化项目知识地图基础能力
+**Branch**: `feature/v0.5.3`
+
+### Summary
+
+分批提交 Project Knowledge Map、Codex 响应解析与会话恢复拆分
+
+### Main Changes
+
+本次会话完成工作区基础能力固化与本地分批提交。
+
+提交清单：
+- 14beed0d docs(openspec): 固化项目知识地图当前契约
+- 092508cd feat(project-map): 接入项目知识地图基础能力
+- ee6695b8 fix(engine): 增强 Codex 后台响应解析
+- 581675f6 refactor(sessions): 拆分会话目录与线程恢复逻辑
+
+关键内容：
+- Project Knowledge Map 接入右侧入口、中间 projectMap center mode、图谱 UI、任务抽屉、生成确认、全局/项目本地 storage location。
+- 新增 project-map persistence 与 Tauri project_map_read / project_map_write_snapshot，约束 .ccgui/project-map 写入边界。
+- Project Map worker 统一归一化 evidence packet，限制总 prompt budget，按可读边界截断大 Markdown，并显式标记 PROJECT_MAP_TRUNCATED。
+- Codex Project Map generation 使用 read-only app-server thread event stream，并回写 threadId；Claude/Gemini/OpenCode 共用归一化 prompt 走 sync boundary。
+- Codex prompt service 增强多种 agentMessage delta / snapshot / turn completion 事件解析，避免空响应误判。
+- session catalog helper 与 thread resume 逻辑拆分，补齐相关测试。
+
+验证：
+- openspec validate add-project-xray-panel --strict --no-interactive
+- pnpm vitest run Project Map 相关测试：43 tests passed
+- pnpm vitest run thread/useThreadMessaging/useThreadRows 相关测试：78 tests passed
+- pnpm tsc --noEmit
+- pnpm check:large-files
+- cargo test --manifest-path src-tauri/Cargo.toml -q project_map
+- cargo test --manifest-path src-tauri/Cargo.toml -q codex_prompt_service
+- cargo test --manifest-path src-tauri/Cargo.toml -q session_management
+- git diff --check
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `581675f6` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
