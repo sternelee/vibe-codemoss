@@ -1295,3 +1295,52 @@ CI 中 SettingsView 删除会话测试仍断言旧刷新签名；更新为包含
 ### Next Steps
 
 - None - task complete
+
+
+## Session 592: 补齐项目知识地图入口显隐控制
+
+**Date**: 2026-05-27
+**Task**: 补齐项目知识地图入口显隐控制
+**Branch**: `feature/v0.5.3`
+
+### Summary
+
+补齐 Project Map 右侧工具栏入口的显示/隐藏设置，并完成 focused tests、typecheck、lint 验证。
+
+### Main Changes
+
+## 本次工作
+
+- 补齐 Project Map 右侧 toolbar 入口的 client UI visibility control：新增 `rightToolbar.projectMap`，默认可见。
+- 设置页“界面显示”增加“项目知识地图入口”，关闭后隐藏右侧小地球入口，但不停止地图生成或持久化。
+- `useLayoutNodes` 不再硬编码 Project Map tab 可见，改为读取 `clientUiVisibility.isControlVisible("rightToolbar.projectMap")`。
+
+## 验证
+
+- `npm exec vitest run src/features/client-ui-visibility/utils/clientUiVisibility.test.ts src/features/client-ui-visibility/hooks/useClientUiVisibility.test.tsx src/features/layout/hooks/useLayoutNodes.client-ui-visibility.test.tsx` 通过，24 tests passed。
+- `npm run typecheck` 通过。
+- `npm run lint` 通过；保留既有 warning：`src/features/threads/hooks/useThreadActionsResumeThread.ts` hook deps。
+
+## 边界
+
+- 只提交本轮 8 个 visibility / toolbar / i18n / test 文件。
+- 工作区仍有其他 Project Map / OpenSpec 未提交改动，未纳入本次提交。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `10a24b1c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

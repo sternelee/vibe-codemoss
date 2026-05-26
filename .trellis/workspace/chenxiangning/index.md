@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-16.md`
-- **Total Sessions**: 591
+- **Total Sessions**: 592
 - **Last Active**: 2026-05-27
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-16.md` | ~1297 | Active |
+| `journal-16.md` | ~1346 | Active |
 | `journal-15.md` | ~1996 | Archived |
 | `journal-14.md` | ~1969 | Archived |
 | `journal-13.md` | ~1947 | Archived |
@@ -44,6 +44,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 592 | 2026-05-27 | 补齐项目知识地图入口显隐控制 | `10a24b1c` | `feature/v0.5.3` |
 | 591 | 2026-05-27 | 修复 Codex 流式空白恢复诊断 | `b0ff1cbe` | `feature/v0.5.3` |
 | 590 | 2026-05-27 | 接通 Project Map 自动补充队列 | `cca81f59` | `feature/v0.5.3` |
 | 589 | 2026-05-27 | 打磨知识地图头部折叠工具栏 | `ee43559b` | `feature/v0.5.3` |
