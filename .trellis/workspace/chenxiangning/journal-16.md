@@ -1469,3 +1469,43 @@ CI 中 SettingsView 删除会话测试仍断言旧刷新签名；更新为包含
 ### Next Steps
 
 - None - task complete
+
+
+## Session 596: 修复 bootstrap 测试 rendererDiagnostics mock
+
+**Date**: 2026-05-27
+**Task**: 修复 bootstrap 测试 rendererDiagnostics mock
+**Branch**: `feature/v0.5.3`
+
+### Summary
+
+补齐 bootstrapApp.test.tsx 中 rendererDiagnostics mock 的 startRendererBlankScreenWatchdog export，并验证目标 Vitest 单测通过。
+
+### Main Changes
+
+## 本次变更
+- 修复 `src/bootstrapApp.test.tsx` 中 `./services/rendererDiagnostics` full mock 漏导出 `startRendererBlankScreenWatchdog` 的问题。
+- 为成功启动路径新增 watchdog 调用断言，防止后续 mock drift 再伪装成 bootstrap failure。
+
+## 验证
+- `npx vitest run --maxWorkers 1 --minWorkers 1 src/bootstrapApp.test.tsx` 通过。
+- 说明：`npm run test -- src/bootstrapApp.test.tsx` 不适用，仓库 `scripts/test-batched.mjs` 不接受文件路径参数。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `93c95ae5` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

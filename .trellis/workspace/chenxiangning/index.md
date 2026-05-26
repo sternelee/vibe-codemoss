@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-16.md`
-- **Total Sessions**: 595
+- **Total Sessions**: 596
 - **Last Active**: 2026-05-27
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-16.md` | ~1471 | Active |
+| `journal-16.md` | ~1511 | Active |
 | `journal-15.md` | ~1996 | Archived |
 | `journal-14.md` | ~1969 | Archived |
 | `journal-13.md` | ~1947 | Archived |
@@ -44,6 +44,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 596 | 2026-05-27 | 修复 bootstrap 测试 rendererDiagnostics mock | `93c95ae5` | `feature/v0.5.3` |
 | 595 | 2026-05-27 | 校准项目知识地图 OpenSpec 规范证据 | `c03ae308` | `feature/v0.5.3` |
 | 594 | 2026-05-27 | Project Map 画布工具折叠态 | `0e4dc68f` | `feature/v0.5.3` |
 | 593 | 2026-05-27 | Project Map 生成链路收口 | `709d62bd` | `feature/v0.5.3` |
