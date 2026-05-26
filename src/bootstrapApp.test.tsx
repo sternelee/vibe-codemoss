@@ -8,6 +8,7 @@ const migrateLocalStorageToFileStoreMock = vi.hoisted(() => vi.fn());
 const initInputHistoryStoreMock = vi.hoisted(() => vi.fn());
 const appendRendererDiagnosticMock = vi.hoisted(() => vi.fn());
 const flushRendererDiagnosticsBufferMock = vi.hoisted(() => vi.fn());
+const startRendererBlankScreenWatchdogMock = vi.hoisted(() => vi.fn());
 const pushGlobalRuntimeNoticeMock = vi.hoisted(() => vi.fn());
 const recordStartupMilestoneMock = vi.hoisted(() => vi.fn());
 const invokeMock = vi.hoisted(() => vi.fn());
@@ -34,6 +35,7 @@ vi.mock("./features/composer/hooks/useInputHistoryStore", () => ({
 vi.mock("./services/rendererDiagnostics", () => ({
   appendRendererDiagnostic: appendRendererDiagnosticMock,
   flushRendererDiagnosticsBuffer: flushRendererDiagnosticsBufferMock,
+  startRendererBlankScreenWatchdog: startRendererBlankScreenWatchdogMock,
 }));
 
 vi.mock("./services/globalRuntimeNotices", () => ({
@@ -70,6 +72,7 @@ describe("startApp", () => {
     initInputHistoryStoreMock.mockReset();
     appendRendererDiagnosticMock.mockReset();
     flushRendererDiagnosticsBufferMock.mockReset();
+    startRendererBlankScreenWatchdogMock.mockReset();
     pushGlobalRuntimeNoticeMock.mockReset();
     recordStartupMilestoneMock.mockReset();
     invokeMock.mockReset();
@@ -120,6 +123,7 @@ describe("startApp", () => {
     expect(initInputHistoryStoreMock).toHaveBeenCalledTimes(1);
     expect(createRootMock).toHaveBeenCalledWith(document.getElementById("root"));
     expect(renderMock).toHaveBeenCalledTimes(1);
+    expect(startRendererBlankScreenWatchdogMock).toHaveBeenCalledWith({ rootId: "root" });
     expect(recordStartupMilestoneMock).toHaveBeenCalledWith("shell-ready");
   });
 
