@@ -1709,3 +1709,41 @@ CI 中 SettingsView 删除会话测试仍断言旧刷新签名；更新为包含
 ### Next Steps
 
 - None - task complete
+
+
+## Session 601: 修复项目知识地图自动补充后台调度
+
+**Date**: 2026-05-27
+**Task**: 修复项目知识地图自动补充后台调度
+**Branch**: `feature/v0.5.3`
+
+### Summary
+
+将 Project Map dataset controller 提升到 workspace 常驻层，避免 Auto Ingestion 依赖项目知识地图视图挂载；新增 OpenSpec change 和面板 controller 注入回归测试。
+
+### Main Changes
+
+- 新增 OpenSpec change `fix-project-map-auto-ingestion-background-scheduler`，定义 Auto Ingestion background scheduler ownership contract。
+- 在 app shell layout section 中常驻创建 `useProjectMapDataset(activeWorkspace)` controller，并传入 layout/project map panel。
+- `ProjectMapPanel` 支持外部 `datasetController`，存在外部 controller 时不再创建内部有副作用 controller，避免双 scheduler。
+- 导出 Project Map controller hook/type，补充组件测试覆盖外部 controller action wiring。
+- 验证：Project Map/layout 聚焦 Vitest 73 tests passed；`npm run typecheck` passed；OpenSpec strict validation passed；`git diff --check` passed。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `32aa34e8` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
