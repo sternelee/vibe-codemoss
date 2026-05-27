@@ -1574,3 +1574,45 @@ CI 中 SettingsView 删除会话测试仍断言旧刷新签名；更新为包含
 ### Next Steps
 
 - None - task complete
+
+
+## Session 598: 修复切换引擎后思考强度漂移
+
+**Date**: 2026-05-27
+**Task**: 修复切换引擎后思考强度漂移
+**Branch**: `feature/v0.5.3`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| 项目 | 内容 |
+|------|------|
+| 背景 | GitHub issue #619 反馈 CC GUI 修改 reasoning effort 不生效。根因边界是 engine switch 后 UI selection、thread/draft persistence、capability matrix 与 send-time dispatch engine 可能漂移。 |
+| OpenSpec | 新增并完成 `fix-reasoning-effort-engine-switch-staleness`，包含 proposal/design/spec/tasks/verification。 |
+| Frontend | 在 `modelSelection.ts` 增加 effective-engine effort support 判断；`app-shell.tsx` 在 model/effort 切换时按当前 effective engine 重算 effort；`selectedComposerSession.ts` / `useSelectedComposerSession.ts` 在读写、draft 应用、pending-to-finalized migration 时过滤 unsupported/stale effort。 |
+| Send Path | `useThreadMessaging.ts` 在最终 dispatch engine 上再次 normalize effort，Claude 只允许 `low/medium/high/xhigh/max`，Gemini/OpenCode 清空，Codex 保留 trimmed string。 |
+| Capability | 将 Claude `reasoning.effort` 对齐为 supported：OpenSpec fixture、TS tests、Rust `EngineFeatures::claude()`、daemon bridge 与 capability matrix tests 同步。 |
+| 验证 | `npx vitest run ...` 6 files / 60 tests passed；`npm run check:engine-capability-matrix` passed；`cargo test --manifest-path src-tauri/Cargo.toml capability_matrix` 4 passed；`npm run typecheck` passed；`openspec validate --all --strict --no-interactive` 320 passed。 |
+| 注意 | 提交时刻工作区仍存在其它未提交 composer/OpenSpec 改动，未纳入本次 commit。 |
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e76c2963` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
