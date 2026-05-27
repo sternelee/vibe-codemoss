@@ -1,10 +1,11 @@
 // @ts-nocheck
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { useLayoutNodes } from "../features/layout/hooks/useLayoutNodes";
 import { MainHeaderActions } from "../features/app/components/MainHeaderActions";
 import { WorkspaceAliasPrompt } from "../features/workspaces/components/WorkspaceAliasPrompt";
 import { useClientUiVisibility } from "../features/client-ui-visibility/hooks/useClientUiVisibility";
+import { useProjectMapDataset } from "../features/project-map";
 import { normalizeSharedSessionEngine } from "../features/shared-session/utils/sharedSessionEngines";
 import {
   recoverThreadBindingAndResendForManualRecovery,
@@ -43,6 +44,17 @@ function reportMainFileExternalChangeMonitorCleanupError(error: unknown) {
   console.warn("[files] Failed to clear main file external change monitor", error);
 }
 
+function resolveProjectMapSelectedGenerationModel(selectedModelId: string | null, models: any[]): string | null {
+  const trimmedSelection = selectedModelId?.trim() ?? "";
+  if (!trimmedSelection) {
+    return null;
+  }
+  const matchedModel = models?.find(
+    (model) => model.id === trimmedSelection || model.model === trimmedSelection,
+  );
+  return matchedModel?.model ?? trimmedSelection;
+}
+
 export function useAppShellLayoutNodesSection(ctx: any) {
   const clientUiVisibility = useClientUiVisibility();
   const [workspaceAliasPrompt, setWorkspaceAliasPrompt] =
@@ -71,7 +83,7 @@ export function useAppShellLayoutNodesSection(ctx: any) {
     debugOpen, debugPanelHeight, defaultModel, deletePrompt, deleteThreadPrompt, deleteWorkspaceGroup, deletingWorktreeIds, delta,
     dictationError, dictationHint, dictationLevel, dictationModel, dictationReady, dictationState, dictationTranscript, diffScrollRequestId,
     diffSource, directories, directoryMetadata, dismissErrorToast, dismissUpdate, doctor, dragHandle, dropOverlayActive, dropOverlayText,
-    editorHighlightTarget, editorNavigationTarget, editorSplitLayout, effectiveModels, effectiveReasoningSupported, effectiveRuntimeMode, effectiveSelectedModel, effectiveSelectedModelId,
+    editorHighlightTarget, editorNavigationTarget, editorSplitCompanion, editorSplitLayout, effectiveModels, effectiveReasoningSupported, effectiveRuntimeMode, effectiveSelectedModel, effectiveSelectedModelId,
     effectiveUiMode, engineModelsAsOptions, engineSelectedModelIdByType, engineSelection, engineStatuses, ensureLaunchTerminal, ensureTerminalWithTitle, ensureWorkspaceThreadListLoaded,
     entry, errorToasts, existing, exitDiffView, expandRightPanel, expandSidebar, filePanelMode, filePassword,
     fileReferenceMode, fileStatus, fileTreeLoadError, files, finishedByAgentUpdate, finishedByDuration, firstAnswer, flushDraggedHeight, force,
@@ -127,14 +139,14 @@ export function useAppShellLayoutNodesSection(ctx: any) {
     selectedComposerKanbanPanelId, selectedDiffPath, selectedEffort, selectedKanbanTaskId, selectedModelId, selectedOpenCodeAgent, selectedOpenCodeVariant, selectedPath,
     selectedPullRequest, selection, sendUserMessage, sendUserMessageToThread, sessions, setAccessMode, setActiveEditorLineRange, setActiveEngine,
     setActiveTab, setActiveThreadId, setActiveWorkspaceId, setAppMode, setAppSettings, setCenterMode, setCodexCollaborationMode, setCollaborationRuntimeModeByThread,
-    setCollaborationUiModeByThread, setComposerInsert, setComposerKanbanContextMode, setDebugOpen, setDiffSource, setEditorSplitLayout, setEngineSelectedModelIdByType, setFilePanelMode,
+    setCollaborationUiModeByThread, setComposerInsert, setComposerKanbanContextMode, setDebugOpen, setDiffSource, setEditorSplitCompanion, setEditorSplitLayout, setEngineSelectedModelIdByType, setFilePanelMode,
     setFileReferenceMode, setGitDiffListView, setGitDiffViewStyle, setGitHistoryPanelHeight, setGitPanelMode, setGitRootScanDepth, setGlobalSearchFilesByWorkspace, setHighlightedBranchIndex,
     setHighlightedCommitIndex, setHighlightedPresetIndex, setIsEditorFileMaximized, setIsPanelLocked, setIsPlanPanelDismissed, setIsSearchPaletteOpen, setKanbanViewState, setLiveEditPreviewEnabled,
     setPrefillDraft, setReduceTransparency, setRightPanelWidth,
     setSearchContentFilters, setSearchPaletteQuery, setSearchPaletteSelectedIndex, setSearchScope, setSelectedAgent, setSelectedCollaborationModeId, setSelectedCommitSha, setSelectedComposerKanbanPanelId,
     setSelectedDiffPath, setSelectedEffort, setSelectedKanbanTaskId, setSelectedModelId, setSelectedPullRequest, setHomeOpen, setWorkspaceHomeWorkspaceId, settingsHighlightTarget, settingsOpen,
     settingsSection, shouldForceResumeInCode, shouldImplementPlan, shouldLoadDiffs, shouldLoadGitHubPanelData, shouldMountSpecHub, shouldShowSidebarTopbarContent, showComposer,
-    showDebugButton, showGitDetail, showGitHistory, showHome, showKanban, showNextReleaseNotes, showPresetStep, showPreviousReleaseNotes,
+    showLoadingProgressDialog, hideLoadingProgressDialog, showDebugButton, showGitDetail, showGitHistory, showHome, showKanban, showNextReleaseNotes, showPresetStep, showPreviousReleaseNotes,
     showSpecHub, showWorkspaceHome, sidebarCollapsed, sidebarToggleProps, sidebarWidth, skills, slashToken, snapshot,
     soloModeEnabled, startCompact, startExport, startFast, startFork, startHeight, startImport, startLsp, startMcp,
     startMode, startResume, startReview, startShare, startSpecRoot, startStatus, startThreadForWorkspace, startUpdate,
@@ -181,6 +193,16 @@ export function useAppShellLayoutNodesSection(ctx: any) {
     appSettings.detachedExternalChangeAwarenessEnabled !== false;
   const mainFileExternalChangeWatcherEnabled =
     appSettings.detachedExternalChangeWatcherEnabled !== false;
+  const projectMapGenerationModel = useMemo(
+    () => resolveProjectMapSelectedGenerationModel(effectiveSelectedModelId, effectiveModels),
+    [effectiveModels, effectiveSelectedModelId],
+  );
+  const projectMapDatasetController = useProjectMapDataset(activeWorkspace ?? null, {
+    generationDefaults: {
+      engine: activeEngine ?? null,
+      model: projectMapGenerationModel,
+    },
+  });
   const activeWorkspaceExternalChangeId = activeWorkspace?.id ?? activeWorkspaceId ?? null;
   const activeWorkspaceExternalChangePath = activeWorkspace?.path ?? null;
   const enableMainFileExternalChangeMonitoring =
@@ -343,6 +365,7 @@ export function useAppShellLayoutNodesSection(ctx: any) {
     gitDiffPanelNode,
     gitDiffViewerNode,
     fileViewPanelNode,
+    projectMapPanelNode,
     planPanelNode,
     debugPanelNode,
     debugPanelFullNode,
@@ -420,6 +443,7 @@ export function useAppShellLayoutNodesSection(ctx: any) {
           ?? workspaces.find((entry: any) => entry.id === targetWorkspaceId)
           ?? null,
         refreshThread,
+        forkThreadForWorkspace,
         startThreadForWorkspace,
         connectWorkspace,
         sendUserMessageToThread,
@@ -662,6 +686,8 @@ export function useAppShellLayoutNodesSection(ctx: any) {
     isLoadingLatestAgents,
     onSelectHomeThread: handleSelectWorkspaceInstance,
     onOpenSpecHub: handleOpenSpecHub,
+    showLoadingProgressDialog,
+    hideLoadingProgressDialog,
     activeWorkspace,
     activeParentWorkspace,
     worktreeLabel,
@@ -725,6 +751,9 @@ export function useAppShellLayoutNodesSection(ctx: any) {
     onToggleRuntimeConsole: handleToggleRuntimeConsole,
     runtimeConsoleVisible: runtimeRunState.runtimeConsoleVisible,
     centerMode,
+    setCenterMode,
+    editorSplitCompanion,
+    setEditorSplitCompanion,
     editorSplitLayout,
     onToggleEditorSplitLayout: () =>
       setEditorSplitLayout((prev) => (prev === "vertical" ? "horizontal" : "vertical")),
@@ -756,6 +785,13 @@ export function useAppShellLayoutNodesSection(ctx: any) {
     onGitPanelModeChange: handleGitPanelModeChange,
     onOpenGitHistoryPanel: () => {
       setAppMode((current) => (current === "gitHistory" ? "chat" : "gitHistory"));
+    },
+    onOpenProjectMap: () => {
+      closeSettings();
+      collapseSidebar();
+      setAppMode("chat");
+      setCenterMode("projectMap");
+      expandRightPanel();
     },
     gitDiffViewStyle,
     gitDiffListView,
@@ -943,6 +979,7 @@ export function useAppShellLayoutNodesSection(ctx: any) {
     onSelectEngine: handleSelectConversationEngine,
     models: effectiveModels,
     selectedModelId: effectiveSelectedModelId,
+    projectMapDatasetController,
     onSelectModel: handleSelectModel,
     reasoningOptions,
     selectedEffort,
@@ -1104,7 +1141,7 @@ export function useAppShellLayoutNodesSection(ctx: any) {
 
   return {
     sidebarNode, messagesNode, composerNode, approvalToastsNode, updateToastNode, errorToastsNode, globalRuntimeNoticeDockNode, homeNode, mainHeaderNode,
-    desktopTopbarLeftNode, tabletNavNode, tabBarNode, rightPanelToolbarNode, gitDiffPanelNode, gitDiffViewerNode, fileViewPanelNode, planPanelNode,
+    desktopTopbarLeftNode, tabletNavNode, tabBarNode, rightPanelToolbarNode, gitDiffPanelNode, gitDiffViewerNode, fileViewPanelNode, projectMapPanelNode, planPanelNode,
     debugPanelNode, debugPanelFullNode, terminalDockNode, compactEmptyCodexNode, compactEmptySpecNode, compactEmptyGitNode, compactGitBackNode,
     codeAnnotationBridgeProps,
     workspaceAliasPromptNode,

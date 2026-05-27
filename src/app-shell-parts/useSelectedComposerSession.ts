@@ -6,6 +6,7 @@ import {
   extractClaudeForkParentThreadId,
   getThreadComposerSelectionStorageKey,
   normalizeComposerSessionSelection,
+  normalizeComposerSessionSelectionForThread,
   shouldApplyDraftComposerSelectionToThread,
   shouldInheritComposerSelectionFromClaudeForkParent,
   shouldMigrateComposerSelectionBetweenThreadIds,
@@ -118,7 +119,7 @@ export function useSelectedComposerSession({
       if (!sessionKey) {
         return;
       }
-      const normalized = normalizeComposerSessionSelection(selection);
+      const normalized = normalizeComposerSessionSelectionForThread(threadId, selection);
       writeSelectionForSessionKey(sessionKey, normalized);
     },
     [resolveSelectedComposerSessionKey, writeSelectionForSessionKey],
@@ -148,9 +149,15 @@ export function useSelectedComposerSession({
         return null;
       }
       if (Object.prototype.hasOwnProperty.call(selectedComposerSelectionBySessionKey, sessionKey)) {
-        return selectedComposerSelectionBySessionKey[sessionKey] ?? null;
+        return normalizeComposerSessionSelectionForThread(
+          threadId,
+          selectedComposerSelectionBySessionKey[sessionKey] ?? null,
+        );
       }
-      return readStoredThreadComposerSelectionEntryBySessionKey(sessionKey).value;
+      return normalizeComposerSessionSelectionForThread(
+        threadId,
+        readStoredThreadComposerSelectionEntryBySessionKey(sessionKey).value,
+      );
     },
     [resolveSelectedComposerSessionKey, selectedComposerSelectionBySessionKey],
   );
@@ -176,11 +183,14 @@ export function useSelectedComposerSession({
     let candidate: ComposerSessionSelection | null = null;
     let hasCandidate = false;
     if (Object.prototype.hasOwnProperty.call(selectedComposerSelectionBySessionKey, sessionKey)) {
-      candidate = selectedComposerSelectionBySessionKey[sessionKey] ?? null;
+      candidate = normalizeComposerSessionSelectionForThread(
+        activeThreadId,
+        selectedComposerSelectionBySessionKey[sessionKey] ?? null,
+      );
       hasCandidate = true;
     } else {
       const stored = readStoredThreadComposerSelectionEntryBySessionKey(sessionKey);
-      candidate = stored.value;
+      candidate = normalizeComposerSessionSelectionForThread(activeThreadId, stored.value);
       hasCandidate = stored.exists;
       const parentThreadId = extractClaudeForkParentThreadId(activeThreadId);
       const parentSessionKey = parentThreadId
@@ -189,27 +199,35 @@ export function useSelectedComposerSession({
       const parentStored = parentSessionKey
         ? readStoredThreadComposerSelectionEntryBySessionKey(parentSessionKey)
         : { exists: false, value: null };
+      const parentSelection = normalizeComposerSessionSelectionForThread(
+        parentThreadId,
+        parentStored.value,
+      );
       const shouldInheritClaudeForkSelection =
         shouldInheritComposerSelectionFromClaudeForkParent({
           activeThreadId,
           hasCandidate,
-          hasParentSelection: Boolean(parentStored.value),
+          hasParentSelection: Boolean(parentSelection),
         });
       if (shouldInheritClaudeForkSelection) {
-        candidate = parentStored.value;
+        candidate = normalizeComposerSessionSelectionForThread(activeThreadId, parentSelection);
         hasCandidate = true;
         writeClientStoreValue("composer", sessionKey, candidate);
       }
+      const draftSelectionForActiveThread = normalizeComposerSessionSelectionForThread(
+        activeThreadId,
+        draftComposerSelection,
+      );
       const shouldApplyDraftSelection =
         draftComposerSelectionWorkspaceIdRef.current === (activeWorkspaceId ?? null) &&
         shouldApplyDraftComposerSelectionToThread({
           candidate,
           shouldApplyDraftToNextThread: shouldApplyDraftToNextThreadRef.current,
-          draftComposerSelection,
+          draftComposerSelection: draftSelectionForActiveThread,
           activeThreadId,
         });
       if (shouldApplyDraftSelection) {
-        candidate = draftComposerSelection;
+        candidate = draftSelectionForActiveThread;
         hasCandidate = true;
         shouldApplyDraftToNextThreadRef.current = false;
         writeClientStoreValue("composer", sessionKey, candidate);
@@ -280,10 +298,14 @@ export function useSelectedComposerSession({
     const activeSelectedComposerFromStore = activeSelectedComposerSessionKey
       ? readStoredThreadComposerSelectionEntryBySessionKey(activeSelectedComposerSessionKey).value
       : null;
-    const previousSelectedComposerValue =
-      previousSelectedComposerFromMemory ?? previousSelectedComposerFromStore;
-    const activeSelectedComposerValue =
-      activeSelectedComposerFromMemory ?? activeSelectedComposerFromStore;
+    const previousSelectedComposerValue = normalizeComposerSessionSelectionForThread(
+      previousThreadId,
+      previousSelectedComposerFromMemory ?? previousSelectedComposerFromStore,
+    );
+    const activeSelectedComposerValue = normalizeComposerSessionSelectionForThread(
+      activeThreadId,
+      activeSelectedComposerFromMemory ?? activeSelectedComposerFromStore,
+    );
     const shouldMigrateComposerSelection =
       shouldMigrateComposerSelectionBetweenThreadIds({
         previousThreadId,
@@ -299,7 +321,10 @@ export function useSelectedComposerSession({
       previousSelectedComposerSessionKey &&
       activeSelectedComposerSessionKey
     ) {
-      const migratedSelection = previousSelectedComposerValue;
+      const migratedSelection = normalizeComposerSessionSelectionForThread(
+        activeThreadId,
+        previousSelectedComposerValue,
+      );
       writeSelectionForSessionKey(activeSelectedComposerSessionKey, migratedSelection);
     }
     previousThreadIdRef.current = activeThreadId ?? null;

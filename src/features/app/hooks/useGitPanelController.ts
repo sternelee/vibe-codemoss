@@ -108,8 +108,11 @@ export type EditorHighlightTarget = {
   markers: GitLineMarkers;
 };
 
+export type EditorSplitCompanion = "chat" | "projectMap";
+
 export type OpenFileOptions = {
   highlightMarkers?: GitLineMarkers | null;
+  editorSplitCompanion?: EditorSplitCompanion;
 };
 
 export function useGitPanelController({
@@ -139,9 +142,13 @@ export function useGitPanelController({
   prDiffsError: string | null;
   onOpenEditorLayoutRequest?: () => void;
 }) {
-  const [centerMode, setCenterMode] = useState<"chat" | "diff" | "editor" | "memory">("chat");
+  const [centerMode, setCenterMode] = useState<
+    "chat" | "diff" | "editor" | "memory" | "projectMap"
+  >("chat");
   const [openFileTabs, setOpenFileTabs] = useState<string[]>([]);
   const [activeEditorFilePath, setActiveEditorFilePath] = useState<string | null>(null);
+  const [editorSplitCompanion, setEditorSplitCompanion] =
+    useState<EditorSplitCompanion>("chat");
   const [editorNavigationTarget, setEditorNavigationTarget] =
     useState<EditorNavigationTarget | null>(null);
   const [editorHighlightTarget, setEditorHighlightTarget] =
@@ -417,6 +424,7 @@ export function useGitPanelController({
       if (!isCompact) {
         onOpenEditorLayoutRequest?.();
       }
+      setEditorSplitCompanion(options?.editorSplitCompanion ?? "chat");
       setCenterMode("editor");
       if (isCompact) {
         setActiveTab("codex");
@@ -453,7 +461,8 @@ export function useGitPanelController({
           }
           const fallback = nextTabs[closingIndex] ?? nextTabs[closingIndex - 1] ?? null;
           if (!fallback && centerMode === "editor") {
-            setCenterMode("chat");
+            setCenterMode(editorSplitCompanion === "projectMap" ? "projectMap" : "chat");
+            setEditorSplitCompanion("chat");
           }
           return fallback;
         });
@@ -466,7 +475,7 @@ export function useGitPanelController({
         return nextTabs;
       });
     },
-    [centerMode],
+    [centerMode, editorSplitCompanion],
   );
 
   const handleCloseAllFileTabs = useCallback(() => {
@@ -474,16 +483,18 @@ export function useGitPanelController({
     setActiveEditorFilePath(null);
     setEditorNavigationTarget(null);
     setEditorHighlightTarget(null);
-    setCenterMode("chat");
-  }, []);
+    setEditorSplitCompanion("chat");
+    setCenterMode(editorSplitCompanion === "projectMap" ? "projectMap" : "chat");
+  }, [editorSplitCompanion]);
 
   const handleExitEditor = useCallback(() => {
-    setCenterMode("chat");
+    setCenterMode(editorSplitCompanion === "projectMap" ? "projectMap" : "chat");
     setOpenFileTabs([]);
     setActiveEditorFilePath(null);
     setEditorNavigationTarget(null);
     setEditorHighlightTarget(null);
-  }, []);
+    setEditorSplitCompanion("chat");
+  }, [editorSplitCompanion]);
 
   useEffect(() => {
     if (!selectedDiffPath) {
@@ -513,6 +524,8 @@ export function useGitPanelController({
     setCenterMode,
     openFileTabs,
     activeEditorFilePath,
+    editorSplitCompanion,
+    setEditorSplitCompanion,
     editorNavigationTarget,
     editorHighlightTarget,
     selectedDiffPath,

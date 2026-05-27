@@ -34,6 +34,7 @@ pub(crate) mod remote_bridge;
 pub mod rewind_commands;
 pub mod session_history_commands;
 pub mod status;
+pub mod task_output;
 
 // Re-exports for convenience
 pub use commands::*;
@@ -41,6 +42,7 @@ pub use manager::EngineManager;
 pub use rewind_commands::*;
 pub use session_history_commands::*;
 pub use status::resolve_engine_type;
+pub use task_output::*;
 
 /// Supported engine types
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -257,7 +259,7 @@ impl EngineFeatures {
     /// Features for Claude Code
     pub fn claude() -> Self {
         Self {
-            reasoning_effort: false, // Claude doesn't have reasoning effort levels
+            reasoning_effort: true,
             collaboration_mode: false,
             image_input: true,
             session_resume: true,
@@ -412,7 +414,7 @@ mod tests {
     #[test]
     fn engine_features_defaults() {
         let claude = EngineFeatures::claude();
-        assert!(!claude.reasoning_effort);
+        assert!(claude.reasoning_effort);
         assert!(claude.image_input);
         assert!(claude.session_resume);
 

@@ -186,10 +186,31 @@ const shouldEmitThreadMessagingDevLogs = (() => {
   }
 })();
 const MEMORY_SCOUT_TIMEOUT_MS = 1500;
+const CLAUDE_REASONING_EFFORTS = new Set(["low", "medium", "high", "xhigh", "max"]);
 
 function extractClaudeCandidateSessionId(response: Record<string, unknown>): string | null {
   const candidate = extractSessionIdFromEngineSendResponse(response);
   return candidate && candidate !== "pending" ? candidate : null;
+}
+
+function normalizeEngineScopedEffort(
+  engine: "claude" | "codex" | "gemini" | "opencode",
+  effort: string | null | undefined,
+): string | null {
+  if (typeof effort !== "string") {
+    return null;
+  }
+  const trimmed = effort.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (engine === "claude") {
+    return CLAUDE_REASONING_EFFORTS.has(trimmed) ? trimmed : null;
+  }
+  if (engine === "codex") {
+    return trimmed;
+  }
+  return null;
 }
 
 function withMemoryScoutTimeout(action: Promise<MemoryBrief>, timeoutMs = MEMORY_SCOUT_TIMEOUT_MS) {
@@ -699,10 +720,11 @@ export function useThreadMessaging({
       const selectedModelSource = resolvedComposerSelection?.source ?? "unknown";
       const resolvedModel =
         modelFromOptions !== undefined ? modelFromOptions : modelFromHook;
-      const resolvedEffort =
+      const rawResolvedEffort =
         options?.effort !== undefined
           ? options.effort
           : (resolvedComposerSelection?.effort ?? effort);
+      const resolvedEffort = normalizeEngineScopedEffort(resolvedEngine, rawResolvedEffort);
       const disableThinkingForClaude =
         resolvedEngine === "claude" && claudeThinkingVisible === false;
       const resolvedCollaborationMode =
@@ -1025,6 +1047,52 @@ export function useThreadMessaging({
           });
         };
         if (!reboundThreadId) {
+          let forkedThreadId: string | null = null;
+          let forkErrorMessage: string | null = null;
+          try {
+            forkedThreadId = await forkThreadForWorkspace(workspace.id, threadId, {
+              activate: true,
+            });
+          } catch (forkError) {
+            forkErrorMessage =
+              forkError instanceof Error ? forkError.message : String(forkError);
+            forkedThreadId = null;
+          }
+          const normalizedForkedThreadId =
+            typeof forkedThreadId === "string" ? forkedThreadId.trim() : "";
+          if (normalizedForkedThreadId) {
+            onDebug?.({
+              id: `${Date.now()}-client-turn-start-stale-fork-continuation`,
+              timestamp: Date.now(),
+              source: "client",
+              label: "turn/start stale fork continuation",
+              payload: {
+                ...buildCodexLivenessDiagnostic({
+                  workspaceId: workspace.id,
+                  threadId,
+                  stage: "fresh-continuation",
+                  outcome: "fresh",
+                  acceptedTurnFact: acceptedTurnResolution.fact,
+                  source: acceptedTurnResolution.source,
+                  reason: refreshErrorMessage
+                    ? `${errorMessage}; refresh failed: ${refreshErrorMessage}`
+                    : errorMessage,
+                }),
+                forkedThreadId: normalizedForkedThreadId,
+                reasonCode: staleRecoveryClassification?.reasonCode ?? null,
+                staleReason: staleRecoveryClassification?.staleReason ?? null,
+                userAction: "start-fresh-thread",
+              },
+            });
+            dispatch({
+              type: "setActiveThreadId",
+              workspaceId: workspace.id,
+              threadId: normalizedForkedThreadId,
+            });
+            moveOptimisticUserIntentToThread(normalizedForkedThreadId);
+            await retrySendOnThread(normalizedForkedThreadId);
+            return true;
+          }
           const canUseFirstSendDraftReplacement =
             canUseLocalFirstSendCodexDraftReplacement({
               resolution: acceptedTurnResolution,
@@ -1060,6 +1128,8 @@ export function useThreadMessaging({
                 source: acceptedTurnResolution.source,
                 reason: refreshErrorMessage
                   ? `${errorMessage}; refresh failed: ${refreshErrorMessage}`
+                  : forkErrorMessage
+                    ? `${errorMessage}; fork failed: ${forkErrorMessage}`
                   : errorMessage,
               }),
               reasonCode: staleRecoveryClassification?.reasonCode ?? null,
@@ -1759,6 +1829,7 @@ export function useThreadMessaging({
       resolveThreadEngine,
       resolveOpenCodeAgent,
       resolveOpenCodeVariant,
+      forkThreadForWorkspace,
       refreshThread,
       safeMessageActivity,
       setActiveTurnId,

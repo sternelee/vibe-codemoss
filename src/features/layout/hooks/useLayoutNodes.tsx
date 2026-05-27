@@ -20,6 +20,7 @@ import {
 import { WorkspaceSearchPanel } from "../../search/components/WorkspaceSearchPanel";
 import { PromptPanel } from "../../prompts/components/PromptPanel";
 import { ProjectMemoryPanel } from "../../project-memory/components/ProjectMemoryPanel";
+import { ProjectMapPanel, type ProjectMapDatasetController } from "../../project-map";
 import { WorkspaceNoteCardPanel } from "../../note-cards/components/WorkspaceNoteCardPanel";
 import { WorkspaceSessionActivityPanel } from "../../session-activity/components/WorkspaceSessionActivityPanel";
 import { WorkspaceSessionRadarPanel } from "../../session-activity/components/WorkspaceSessionRadarPanel";
@@ -90,6 +91,7 @@ import type { UpdateState } from "../../update/hooks/useUpdater";
 import type { TerminalSessionState } from "../../terminal/hooks/useTerminalSession";
 import type { TerminalTab } from "../../terminal/hooks/useTerminalTabs";
 import type { ErrorToast } from "../../../services/toasts";
+import type { LoadingProgressDialogConfig } from "../../app/hooks/useLoadingProgressDialogState";
 import type { WorkspaceDirectoryEntry } from "../../../services/tauri";
 import type {
   CodeAnnotationBridgeProps,
@@ -386,6 +388,8 @@ type LayoutNodesOptions = {
   globalSearchShortcut: string | null;
   openChatShortcut: string | null;
   openKanbanShortcut: string | null;
+  showLoadingProgressDialog?: (config: LoadingProgressDialogConfig) => string;
+  hideLoadingProgressDialog?: (requestId: string) => void;
   cycleOpenSessionPrevShortcut: string | null;
   cycleOpenSessionNextShortcut: string | null;
   saveFileShortcut: string | null;
@@ -435,7 +439,10 @@ type LayoutNodesOptions = {
   onSaveLaunchScript: () => void;
   launchScriptsState?: WorkspaceLaunchScriptsState;
   mainHeaderActionsNode?: ReactNode;
-  centerMode: "chat" | "diff" | "editor" | "memory";
+  centerMode: "chat" | "diff" | "editor" | "memory" | "projectMap";
+  setCenterMode: (mode: "chat" | "diff" | "editor" | "memory" | "projectMap") => void;
+  editorSplitCompanion: "chat" | "projectMap";
+  setEditorSplitCompanion: (companion: "chat" | "projectMap") => void;
   editorSplitLayout: "vertical" | "horizontal";
   onToggleEditorSplitLayout: () => void;
   isEditorFileMaximized: boolean;
@@ -467,6 +474,7 @@ type LayoutNodesOptions = {
   gitPanelMode: "diff" | "log" | "issues" | "prs";
   onGitPanelModeChange: (mode: "diff" | "log" | "issues" | "prs") => void;
   onOpenGitHistoryPanel: () => void;
+  onOpenProjectMap: () => void;
   gitDiffViewStyle: "split" | "unified";
   gitDiffListView: GitDiffListView;
   onGitDiffListViewChange: (view: "flat" | "tree") => void;
@@ -676,6 +684,7 @@ type LayoutNodesOptions = {
   // Model props
   models: ModelOption[];
   selectedModelId: string | null;
+  projectMapDatasetController?: ProjectMapDatasetController;
   onSelectModel: (id: string | null) => void;
   reasoningOptions: string[];
   selectedEffort: string | null;
@@ -782,6 +791,7 @@ type LayoutNodesResult = {
   gitDiffPanelNode: ReactNode;
   gitDiffViewerNode: ReactNode;
   fileViewPanelNode: ReactNode;
+  projectMapPanelNode: ReactNode;
   planPanelNode: ReactNode;
   debugPanelNode: ReactNode;
   debugPanelFullNode: ReactNode;
@@ -791,6 +801,8 @@ type LayoutNodesResult = {
   compactEmptyGitNode: ReactNode;
   compactGitBackNode: ReactNode;
 };
+
+type RightPanelTabSelection = LayoutNodesOptions["filePanelMode"] | "projectMap";
 
 const EMPTY_COMMANDS: CustomCommandOption[] = [];
 
@@ -901,6 +913,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     clientUiVisibility.isPanelVisible("rightActivityToolbar");
   const rightToolbarVisibleTabs = {
     activity: clientUiVisibility.isControlVisible("rightToolbar.activity"),
+    projectMap: clientUiVisibility.isControlVisible("rightToolbar.projectMap"),
     radar: clientUiVisibility.isControlVisible("rightToolbar.radar"),
     git: clientUiVisibility.isControlVisible("rightToolbar.git"),
     files: clientUiVisibility.isControlVisible("rightToolbar.files"),
@@ -1056,6 +1069,15 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     ) => {
       onOpenFile(path, location, highlightOptions);
       if (!isEditorFileMaximized) {
+        onToggleEditorFileMaximized();
+      }
+    },
+    [isEditorFileMaximized, onOpenFile, onToggleEditorFileMaximized],
+  );
+  const handleOpenProjectMapEvidenceFile = useCallback(
+    (path: string, location?: EditorNavigationLocation) => {
+      onOpenFile(path, location, { editorSplitCompanion: "projectMap" });
+      if (isEditorFileMaximized) {
         onToggleEditorFileMaximized();
       }
     },
@@ -1478,6 +1500,8 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       globalSearchShortcut={options.globalSearchShortcut}
       openChatShortcut={options.openChatShortcut}
       openKanbanShortcut={options.openKanbanShortcut}
+      showLoadingProgressDialog={options.showLoadingProgressDialog}
+      hideLoadingProgressDialog={options.hideLoadingProgressDialog}
       onOpenSpecHub={options.onOpenSpecHub}
       onOpenWorkspaceHome={options.onOpenWorkspaceHome}
       showTerminalButton={options.showTerminalButton}
@@ -2019,13 +2043,57 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
 
   const sidebarSelectedDiffPath =
     options.centerMode === "diff" ? options.selectedDiffPath : null;
+  const onFilePanelModeChange = options.onFilePanelModeChange;
+  const onOpenProjectMap = options.onOpenProjectMap;
+  const centerMode = options.centerMode;
+  const setCenterMode = options.setCenterMode;
+  const editorSplitCompanion = options.editorSplitCompanion;
+  const setEditorSplitCompanion = options.setEditorSplitCompanion;
+  const isProjectMapSurfaceActive =
+    centerMode === "projectMap" ||
+    (centerMode === "editor" && editorSplitCompanion === "projectMap");
+
+  const handleRightPanelTabSelect = useCallback(
+    (tabId: RightPanelTabSelection) => {
+      if (tabId === "projectMap") {
+        if (isProjectMapSurfaceActive) {
+          if (centerMode === "editor") {
+            setEditorSplitCompanion("chat");
+            return;
+          }
+          setCenterMode("chat");
+          return;
+        }
+        if (centerMode === "editor") {
+          setEditorSplitCompanion("projectMap");
+          if (isEditorFileMaximized) {
+            onToggleEditorFileMaximized();
+          }
+          return;
+        }
+        onOpenProjectMap();
+        return;
+      }
+      onFilePanelModeChange(tabId);
+    },
+    [
+      isProjectMapSurfaceActive,
+      centerMode,
+      onFilePanelModeChange,
+      onOpenProjectMap,
+      isEditorFileMaximized,
+      onToggleEditorFileMaximized,
+      setCenterMode,
+      setEditorSplitCompanion,
+    ],
+  );
 
   const rightPanelToolbarNode =
     showRightActivityToolbar && hasVisibleRightToolbarControl ? (
     <div className="right-panel-toolbar">
       <PanelTabs
-        active={options.filePanelMode}
-        onSelect={options.onFilePanelModeChange}
+        active={isProjectMapSurfaceActive ? "projectMap" : options.filePanelMode}
+        onSelect={handleRightPanelTabSelect}
         liveStates={{
           activity: workspaceActivity.isProcessing,
           radar: options.sessionRadarRunningSessions.length > 0,
@@ -2313,6 +2381,19 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       </Suspense>
     ) : null;
 
+  const projectMapPanelNode = (
+    <ProjectMapPanel
+      key={options.activeWorkspace?.id ?? "no-workspace"}
+      activeWorkspace={options.activeWorkspace ?? null}
+      workspaceName={options.activeWorkspace?.name ?? null}
+      selectedEngine={options.selectedEngine ?? null}
+      selectedModelId={options.selectedModelId}
+      models={options.models}
+      datasetController={options.projectMapDatasetController}
+      onOpenEvidenceFile={handleOpenProjectMapEvidenceFile}
+    />
+  );
+
   const planPanelNode = shouldMountBottomStatusPanel ? (
     <StatusPanel
       workspaceId={options.activeWorkspace?.id ?? null}
@@ -2461,6 +2542,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     gitDiffPanelNode,
     gitDiffViewerNode,
     fileViewPanelNode,
+    projectMapPanelNode,
     planPanelNode,
     debugPanelNode,
     debugPanelFullNode,

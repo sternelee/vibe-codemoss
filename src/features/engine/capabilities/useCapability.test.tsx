@@ -79,9 +79,9 @@ describe("useCapability", () => {
     expect(getEngineStatusMock).toHaveBeenCalledWith("claude");
     expect(result.current).toMatchObject({
       engine: "claude",
-      specState: "unsupported",
-      supported: false,
-      available: false,
+      specState: "supported",
+      supported: true,
+      available: true,
     });
   });
 

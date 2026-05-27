@@ -237,7 +237,7 @@ describe("Messages runtime reconnect", () => {
       screen.queryByRole("button", { name: "messages.threadRecoveryAction" }),
     ).toBeNull();
     expect(
-      screen.getByRole("button", { name: "messages.threadRecoveryResendAction" }),
+      screen.getByRole("button", { name: "messages.threadRecoveryForkResendAction" }),
     ).toBeTruthy();
   });
 
@@ -265,7 +265,7 @@ describe("Messages runtime reconnect", () => {
 
     expect(screen.getByRole("button", { name: "messages.threadRecoveryAction" })).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "messages.threadRecoveryResendAction" }),
+      screen.getByRole("button", { name: "messages.threadRecoveryForkResendAction" }),
     ).toHaveProperty("disabled", true);
 
     fireEvent.click(screen.getByRole("button", { name: "messages.threadRecoveryAction" }));
@@ -377,7 +377,7 @@ describe("Messages runtime reconnect", () => {
       onRecoverThreadRuntimeAndResend,
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "messages.threadRecoveryResendAction" }));
+    fireEvent.click(screen.getByRole("button", { name: "messages.threadRecoveryForkResendAction" }));
 
     await waitFor(() => {
       expect(vi.mocked(ensureRuntimeReady)).toHaveBeenCalledWith("ws-runtime");
@@ -416,7 +416,7 @@ describe("Messages runtime reconnect", () => {
       onRecoverThreadRuntimeAndResend,
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "messages.threadRecoveryResendAction" }));
+    fireEvent.click(screen.getByRole("button", { name: "messages.threadRecoveryForkResendAction" }));
 
     await waitFor(() => {
       expect(onRecoverThreadRuntimeAndResend).toHaveBeenCalledWith(
@@ -426,6 +426,44 @@ describe("Messages runtime reconnect", () => {
       );
     });
     expect(screen.getByText("messages.threadRecoveryFreshResent")).toBeTruthy();
+    expect(screen.queryByText("messages.threadRecoveryFailed")).toBeNull();
+  });
+
+  it("accepts forked continuation result when stale thread recovery resends the previous prompt", async () => {
+    vi.mocked(ensureRuntimeReady).mockResolvedValue(undefined);
+    const onRecoverThreadRuntimeAndResend = vi.fn().mockResolvedValue({
+      kind: "forked",
+      threadId: "thread-forked-resend",
+    });
+
+    renderMessages([
+      {
+        id: "user-before-thread-forked-resend",
+        kind: "message",
+        role: "user",
+        text: "继续这句",
+      },
+      {
+        id: "assistant-thread-forked-resend",
+        kind: "message",
+        role: "assistant",
+        text: "会话启动失败： thread not found: legacy-thread-id",
+      },
+    ], {
+      threadId: "thread-runtime-stale-forked-resend",
+      onRecoverThreadRuntimeAndResend,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "messages.threadRecoveryForkResendAction" }));
+
+    await waitFor(() => {
+      expect(onRecoverThreadRuntimeAndResend).toHaveBeenCalledWith(
+        "ws-runtime",
+        "thread-runtime-stale-forked-resend",
+        { text: "继续这句", images: undefined },
+      );
+    });
+    expect(screen.getByText("messages.threadRecoveryForkedResent")).toBeTruthy();
     expect(screen.queryByText("messages.threadRecoveryFailed")).toBeNull();
   });
 
@@ -451,7 +489,7 @@ describe("Messages runtime reconnect", () => {
       onRecoverThreadRuntimeAndResend,
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "messages.threadRecoveryResendAction" }));
+    fireEvent.click(screen.getByRole("button", { name: "messages.threadRecoveryForkResendAction" }));
 
     await waitFor(() => {
       expect(vi.mocked(ensureRuntimeReady)).toHaveBeenCalledWith("ws-runtime");

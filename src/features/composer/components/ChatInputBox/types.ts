@@ -692,8 +692,8 @@ export interface ChatInputBoxProps {
   sendReadiness?: ComposerSendReadiness | null;
   /** Jump to the active request_user_input card when send is blocked by a request. */
   onJumpToRequest?: () => void;
-  /** Expand the current context source summary from the input header. */
-  onExpandContextSources?: () => void;
+  /** Toggle the current context source detail panel from the readiness bar. */
+  onToggleContextSources?: () => void;
   /** Whether the current context source detail panel is expanded. */
   contextSourcesExpanded?: boolean;
   /** Remove message from queue callback */

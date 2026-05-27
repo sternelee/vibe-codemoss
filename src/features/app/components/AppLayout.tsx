@@ -16,8 +16,9 @@ type AppLayoutProps = {
   showGitDetail: boolean;
   activeTab: "projects" | "codex" | "spec" | "git" | "log";
   tabletTab: "codex" | "spec" | "git" | "log";
-  centerMode: "chat" | "diff" | "editor" | "memory";
+  centerMode: "chat" | "diff" | "editor" | "memory" | "projectMap";
   editorSplitLayout: "vertical" | "horizontal";
+  editorSplitCompanion: "chat" | "projectMap";
   isEditorFileMaximized: boolean;
   hasActivePlan: boolean;
   activeWorkspace: boolean;
@@ -37,6 +38,7 @@ type AppLayoutProps = {
   gitDiffPanelNode: ReactNode;
   gitDiffViewerNode: ReactNode;
   fileViewPanelNode: ReactNode;
+  projectMapPanelNode: ReactNode;
   planPanelNode: ReactNode;
   runtimeConsoleDockNode: ReactNode;
   debugPanelNode: ReactNode;
@@ -69,6 +71,7 @@ export const AppLayout = memo(function AppLayout({
   tabletTab,
   centerMode,
   editorSplitLayout,
+  editorSplitCompanion,
   isEditorFileMaximized,
   hasActivePlan,
   activeWorkspace,
@@ -88,6 +91,7 @@ export const AppLayout = memo(function AppLayout({
   gitDiffPanelNode,
   gitDiffViewerNode,
   fileViewPanelNode,
+  projectMapPanelNode,
   planPanelNode,
   runtimeConsoleDockNode,
   debugPanelNode,
@@ -183,10 +187,12 @@ export const AppLayout = memo(function AppLayout({
       topbarLeftNode={desktopTopbarLeftNode}
       centerMode={centerMode}
       editorSplitLayout={editorSplitLayout}
+      editorSplitCompanion={editorSplitCompanion}
       isEditorFileMaximized={isEditorFileMaximized}
       messagesNode={messagesNode}
       gitDiffViewerNode={gitDiffViewerNode}
       fileViewPanelNode={fileViewPanelNode}
+      projectMapPanelNode={projectMapPanelNode}
       rightPanelToolbarNode={rightPanelToolbarNode}
       gitDiffPanelNode={gitDiffPanelNode}
       planPanelNode={planPanelNode}

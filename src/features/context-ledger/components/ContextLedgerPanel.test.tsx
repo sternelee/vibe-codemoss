@@ -190,6 +190,8 @@ describe("ContextLedgerPanel", () => {
     expect(screen.getByText("composer.contextLedgerCarryOverExplanationInherited")).toBeTruthy();
     expect(screen.getByText("composer.contextLedgerBatchTitle")).toBeTruthy();
     expect(screen.getByRole("region", { name: "composer.contextLedgerTitle" })).toBeTruthy();
+    fireEvent.click(screen.getByText("composer.contextLedgerCollapse"));
+    expect(onToggle).toHaveBeenCalledTimes(2);
     fireEvent.click(screen.getByLabelText("composer.contextLedgerBatchSelectBlock:Release notes"));
     fireEvent.click(screen.getByText("composer.contextLedgerBatchClearSelected:1"));
     expect(onBatchClearCarryOverBlocks).toHaveBeenCalledTimes(1);
@@ -239,5 +241,25 @@ describe("ContextLedgerPanel", () => {
     expect(screen.queryByRole("region", { name: "composer.contextLedgerTitle" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "composer.contextLedgerShow" }));
     expect(onShow).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders expanded detail without duplicate header when requested", () => {
+    render(
+      <ContextLedgerPanel
+        projection={projection}
+        comparison={comparison}
+        expanded
+        hidden={false}
+        hideHeader
+        onToggle={vi.fn()}
+        onHide={vi.fn()}
+        onShow={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText("composer.contextLedgerTitle")).toBeNull();
+    expect(screen.queryByText("composer.contextLedgerCollapse")).toBeNull();
+    expect(screen.getByRole("region", { name: "composer.contextLedgerTitle" })).toBeTruthy();
+    expect(screen.getByText("composer.contextLedgerTruthNote")).toBeTruthy();
   });
 });

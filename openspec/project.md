@@ -1,7 +1,7 @@
 # Project Context
 
 - Type: OpenSpec Workspace
-- Updated At: 2026-05-24T00:00:00+08:00
+- Updated At: 2026-05-27T00:00:00+08:00
 - Scope: governance snapshot for the current `mossx` repository workspace
 
 ## Domain
@@ -13,7 +13,7 @@ OpenSpec workflow and governance for `mossx`, covering change lifecycle, main sp
 - Spec artifacts: `openspec/specs/*`
 - Change workflow artifacts: `openspec/changes/<change-id>/{proposal,design,tasks,verification}.md`
 - Archive: `openspec/changes/archive/*`
-- Current workspace state: active changes = `32`, archive changes = `318`, main specs = `271`
+- Current workspace state: active changes = `44`, archive changes = `318`, main specs = `273`
 
 ## Entry Surfaces
 
@@ -41,6 +41,29 @@ OpenSpec workflow and governance for `mossx`, covering change lifecycle, main sp
 
 ## Active Changes
 
+### Branch Calibration Snapshot (2026-05-27)
+
+Current implementation branch for this workspace snapshot is `feature/v0.5.3`. This refresh reconciles the Project Knowledge Map code facts, proposal artifacts, change-local specs, and main specs after the 2026-05-26 to 2026-05-27 implementation burst.
+
+Project Map implementation commits covered by this calibration:
+
+- `092508cd` `feat(project-map): 接入项目知识地图基础能力`
+- `869520f8` `feat(project-map): 优化知识地图生成与交互`
+- `05e9cb9d` `feat(project-map): 稳定知识地图增量生成与证据链交互`
+- `7c855a90` `feat(project-map): 收口增量生成与交互图谱`
+- `cf34960b` `fix(project-map): 稳定知识地图节点选择视口`
+- `ee43559b` `fix(project-map): 打磨知识地图头部折叠工具栏`
+- `cca81f59` `feat(project-map): 接通自动补充队列`
+- `709d62bd` `fix(project-map): 稳定知识地图生成链路`
+- `0e4dc68f` `feat(project-map): 记忆画布工具折叠态`
+
+Main spec sync status:
+
+- `openspec/specs/project-xray-panel/spec.md` now includes the completed Project Knowledge Map base contract, prompt hardening, candidate review, inspector/evidence UX, interactive layout, diagram artifacts, Auto Ingestion queue lifecycle, structured-output repair, adaptive dialogs, and canvas controls collapsed preference.
+- `openspec/specs/project-map-incremental-generation/spec.md` now records incremental global merge, scoped node merge, evidence-aware merge semantics, manual pruning, evidence file navigation, button-specific prompts, and robust model-output/evidence-path normalization.
+
+Strict OpenSpec validation should be rerun after this calibration. This snapshot is doc/spec-only; no `src/**` code was changed.
+
 ### Branch Calibration Snapshot (2026-05-24)
 
 Current implementation branch for this workspace snapshot is `feature/v0.5.2`. This refresh reconciles OpenSpec proposal/project documents against current code facts, records a small hygiene cleanup for stale comments / whitespace, adds runtime evidence-gate reporting, and includes one narrow Messages timeline teardown-stability runtime fix.
@@ -53,10 +76,10 @@ Runtime evidence and archive-readiness classification lives in `openspec/docs/ru
 
 ### Inventory
 
-- Active changes: `32`
+- Active changes: `44`
 - Archive changes: `318`
-- Main specs: `271`
-- Completed task sets still active: `31`
+- Main specs: `273`
+- Completed task sets still active: `43`
 - In-progress task sets: `1`
 
 ### In-Progress Changes
@@ -75,6 +98,9 @@ Runtime evidence and archive-readiness classification lives in `openspec/docs/ru
 
 ### Completed Active Changes Pending Verification / Archive Decision
 
+- `add-project-map-candidate-review-actions`
+- `add-project-map-node-diagram-artifacts`
+- `add-project-xray-panel`
 - `add-email-driven-session-continuation`
 - `add-file-markdown-math-preview`
 - `add-memory-reference-persistent-mode`
@@ -90,6 +116,8 @@ Runtime evidence and archive-readiness classification lives in `openspec/docs/ru
 - `fix-markdown-preview-auto-refresh`
 - `harden-claude-sidebar-list-timeout-fallback`
 - `improve-email-mail-session-list-controls`
+- `improve-project-map-inspector-evidence-ux`
+- `improve-project-map-interactive-layout`
 - `integrate-openspec-trellis-bridge-into-status-panel`
 - `optimize-bundle-chunking`
 - `optimize-long-list-virtualization`
@@ -97,13 +125,16 @@ Runtime evidence and archive-readiness classification lives in `openspec/docs/ru
 - `preserve-editor-on-topbar-session-switch`
 - `refactor-mega-hub-split`
 - `refactor-workspace-session-management`
+- `sharpen-project-map-generation-prompts`
 - `stabilize-composer-control-surface`
 - `stabilize-core-runtime-and-realtime-contracts`
 - `stabilize-file-markdown-preview-render-architecture`
 - `stabilize-markdown-preview-awareness-and-large-rendering`
+- `stabilize-project-map-incremental-generation`
 - `stabilize-runtime-performance-evidence-gates`
 - `stabilize-session-management-truth-boundaries`
 - `unify-claude-workspace-session-catalog`
+- `wire-project-map-auto-ingestion`
 
 These changes have fully checked task lists but remain in `openspec/changes/` rather than archive. Treat the next step as closure hygiene: update verification artifacts, preserve platform/manual-test qualifiers, sync main specs only where needed, then archive.
 
@@ -168,6 +199,7 @@ Compatibility boundary: `listClaudeSessions`, `listProjectRelatedCodexSessions`,
 
 ## Update History
 
+- 2026-05-27: Recalibrated Project Knowledge Map after the 2026-05-26 to 2026-05-27 implementation burst. Workspace counts are now active=44, archive=318, specs=273; completed active task sets=43 and only `add-codex-structured-launch-profile` remains in-progress. Synced completed Project Map deltas into main specs, including the new `project-map-incremental-generation` main spec, without touching `src/**` code.
 - 2026-05-24: Added active change `stabilize-runtime-performance-evidence-gates` and detected active change `fix-claude-issue529-second-turn-blank-session` in the current workspace. Workspace counts are now active=32, archive=318, specs=271; completed active task sets=31 and only `add-codex-structured-launch-profile` remains in-progress. Runtime performance evidence is now classified as measured/proxy/unsupported/manual-only in `docs/perf/runtime-evidence-gates.{json,md}` and archive-readiness/compatibility cleanup guidance is recorded in `openspec/docs/runtime-evidence-gates-2026-05-24.md`; Messages timeline virtualizer teardown cleanup is the only runtime behavior change in this refresh.
 - 2026-05-24: Recalibrated session-management and stale-thread recovery proposals after code/proposal audit. Workspace counts are now active=30, archive=318, specs=271; only `add-codex-structured-launch-profile` remains in-progress. Recorded local manual QA qualifiers and the missing Windows coverage boundary in `openspec/docs/session-management-refactor-closeout-2026-05-24.md`; retained compatibility APIs as intentional compatibility / diagnostic paths rather than dead code.
 - 2026-05-23: Refreshed active proposal inventory against `feature/v0.5.2` without code changes. Historical snapshot before the 2026-05-24 calibration: active changes 28, archive 318, specs 271. Added `openspec/docs/proposal-refresh-2026-05-23.md` and injected 2026-05-23 proposal refresh notes into active proposal docs. At that time `add-codex-structured-launch-profile` and `harden-claude-sidebar-list-timeout-fallback` were the only in-progress active changes; this row is superseded by the 2026-05-24 update above.

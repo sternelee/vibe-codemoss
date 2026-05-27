@@ -140,15 +140,40 @@ Defines the context-ledger-surface behavior contract, covering Context Ledger SH
 - **THEN** 系统 SHALL NOT 移除其他未被选中的 retained block
 - **AND** 当前未关联的 selected / pinned block SHALL 保持不变
 
-### Requirement: Context Ledger Surface SHALL Offer A Compact One-Line Header
+### Requirement: Context Ledger Surface SHALL Offer A Compact One-Line Header For Panel-Owned Entrypoints
 
-系统 MUST 让 collapsed ledger header 以单行 compact summary 呈现，降低 composer 上方的垂直占用。
+系统 MUST 在调用方选择由 `ContextLedgerPanel` 自己拥有 disclosure header 时，让 collapsed ledger header 以单行 compact summary 呈现，降低 composer 上方的垂直占用。
 
-#### Scenario: collapsed header keeps title, summary, and controls on one row
+#### Scenario: panel-owned collapsed header keeps title, summary, and controls on one row
 
-- **WHEN** `Context Ledger` surface 可见但处于 collapsed header 态
+- **WHEN** `Context Ledger` surface 可见
+- **AND** 调用方未把 disclosure control 交给 readiness bar 或其他外层入口
+- **AND** panel 自身处于 collapsed header 态
 - **THEN** 标题、摘要和主要操作 SHALL 在单行内呈现
 - **AND** 系统 SHALL NOT 再把摘要拆成第二行默认占位
+
+### Requirement: Context Ledger Surface SHALL Avoid Duplicate Disclosure Headers
+
+系统 MUST 在 readiness bar 右上角拥有 Context Ledger disclosure toggle 时，避免展开后的 Context Ledger detail 再渲染重复 header 或第二个收起入口。
+
+#### Scenario: expanded detail hides duplicate panel header
+
+- **WHEN** 当前 Context Ledger projection 可见
+- **AND** ledger detail 已通过 readiness bar 右上角 toggle 展开
+- **THEN** Context Ledger detail SHALL render without its own duplicate disclosure header
+- **AND** detail body SHALL continue to render truth note, groups, blocks, and management actions
+
+#### Scenario: collapsed state does not render a separate ledger header
+
+- **WHEN** 当前 Context Ledger projection 可见
+- **AND** ledger detail 处于 collapsed 状态
+- **THEN** Composer SHALL NOT render a separate Context Ledger collapsed header below the readiness bar
+- **AND** the only visible disclosure action SHALL remain in the readiness bar top-right context area
+
+#### Scenario: disclosure state does not alter send semantics
+
+- **WHEN** 用户展开或收起 Context Ledger detail
+- **THEN** existing send payload, prompt assembly, memory injection, and runtime lifecycle SHALL remain unchanged
 
 ### Requirement: Context Ledger Surface SHALL Support A Recoverable Hidden Drawer
 
@@ -165,4 +190,3 @@ Defines the context-ledger-surface behavior contract, covering Context Ledger SH
 - **WHEN** ledger 处于 hidden drawer 状态
 - **THEN** 用户 SHALL 仍能看到一个最小可操作入口
 - **AND** 用户激活该入口后 SHALL 恢复 ledger surface
-

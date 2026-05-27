@@ -25,6 +25,7 @@ type ContextLedgerPanelProps = {
   comparison?: ContextLedgerComparison | null;
   expanded: boolean;
   hidden?: boolean;
+  hideHeader?: boolean;
   onToggle: () => void;
   onHide?: () => void;
   onShow?: () => void;
@@ -395,6 +396,7 @@ export const ContextLedgerPanel = memo(function ContextLedgerPanel({
   comparison = null,
   expanded,
   hidden = false,
+  hideHeader = false,
   onToggle,
   onHide,
   onShow,
@@ -510,44 +512,46 @@ export const ContextLedgerPanel = memo(function ContextLedgerPanel({
 
   return (
     <section className={`composer-context-ledger${hidden ? " is-hidden" : ""}`}>
-      <div className="composer-context-ledger-toggle">
-        <button
-          type="button"
-          className="composer-context-ledger-toggle-main"
-          aria-expanded={!hidden && expanded}
-          onClick={handlePrimaryToggle}
-        >
-          <span className="composer-context-ledger-title">
-            {t("composer.contextLedgerTitle")}
-          </span>
-          <span className="composer-context-ledger-summary">
-            {summaryText}
-          </span>
-        </button>
-        <div className="composer-context-ledger-toggle-actions">
-          {!hidden && onHide ? (
-            <button
-              type="button"
-              className="composer-context-ledger-icon-action"
-              onClick={onHide}
-              aria-label={t("composer.contextLedgerHide")}
-              title={t("composer.contextLedgerHide")}
-            >
-              <span className="codicon codicon-eye-closed" aria-hidden />
-            </button>
-          ) : null}
-          {!hidden ? (
-            <button
-              type="button"
-              className="composer-context-ledger-toggle-text"
-              onClick={handlePrimaryToggle}
-            >
-              {toggleLabel}
-            </button>
-          ) : null}
+      {!hideHeader ? (
+        <div className="composer-context-ledger-toggle">
+          <button
+            type="button"
+            className="composer-context-ledger-toggle-main"
+            aria-expanded={!hidden && expanded}
+            onClick={handlePrimaryToggle}
+          >
+            <span className="composer-context-ledger-title">
+              {t("composer.contextLedgerTitle")}
+            </span>
+            <span className="composer-context-ledger-summary">
+              {summaryText}
+            </span>
+          </button>
+          <div className="composer-context-ledger-toggle-actions">
+            {!hidden && onHide ? (
+              <button
+                type="button"
+                className="composer-context-ledger-icon-action"
+                onClick={onHide}
+                aria-label={t("composer.contextLedgerHide")}
+                title={t("composer.contextLedgerHide")}
+              >
+                <span className="codicon codicon-eye-closed" aria-hidden />
+              </button>
+            ) : null}
+            {!hidden ? (
+              <button
+                type="button"
+                className="composer-context-ledger-toggle-text"
+                onClick={handlePrimaryToggle}
+              >
+                {toggleLabel}
+              </button>
+            ) : null}
+          </div>
         </div>
-      </div>
-      {hidden && onShow ? (
+      ) : null}
+      {hidden && onShow && !hideHeader ? (
         <button
           type="button"
           className="composer-context-ledger-peek"

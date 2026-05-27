@@ -15,8 +15,8 @@ describe('ComposerReadinessBar', () => {
     cleanup();
   });
 
-  it('renders target and expandable context source action', () => {
-    const onExpandContextSources = vi.fn();
+  it('renders target and top-right context source toggle', () => {
+    const onToggleContextSources = vi.fn();
     const readiness = buildComposerSendReadiness({
       engine: 'codex',
       providerLabel: 'Codex',
@@ -31,10 +31,10 @@ describe('ComposerReadinessBar', () => {
       },
     });
 
-    const { container } = render(
+    const { container, rerender } = render(
       <ComposerReadinessBar
         readiness={readiness}
-        onExpandContextSources={onExpandContextSources}
+        onToggleContextSources={onToggleContextSources}
       />,
     );
 
@@ -48,7 +48,16 @@ describe('ComposerReadinessBar', () => {
       ),
     ).toBeTruthy();
     screen.getByRole('button', { name: 'composer.contextLedgerExpand' }).click();
-    expect(onExpandContextSources).toHaveBeenCalledTimes(1);
+    expect(onToggleContextSources).toHaveBeenCalledTimes(1);
+    rerender(
+      <ComposerReadinessBar
+        readiness={readiness}
+        onToggleContextSources={onToggleContextSources}
+        contextSourcesExpanded
+      />,
+    );
+    screen.getByRole('button', { name: 'composer.contextLedgerCollapse' }).click();
+    expect(onToggleContextSources).toHaveBeenCalledTimes(2);
     expect(container.querySelector('.composer-readiness-icon svg')).toBeTruthy();
     expect(getComputedStyle(container.querySelector('.composer-readiness-icon')!).backgroundColor).toBe(
       'rgba(0, 0, 0, 0)',

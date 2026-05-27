@@ -15,6 +15,12 @@ type ManualRecoveryResendOptions = {
 export type ManualThreadRecoveryResult =
   | { kind: "rebound"; threadId: string; retryable: false; userAction: "retry" }
   | {
+      kind: "forked";
+      threadId: string;
+      retryable: true;
+      userAction: "start-fresh-thread";
+    }
+  | {
       kind: "fresh";
       threadId: string;
       retryable: true;
@@ -170,6 +176,13 @@ export async function recoverThreadBindingAndResendForManualRecovery<
       engine?: ManualRecoveryEngine;
     },
   ) => Promise<string | null>;
+  forkThreadForWorkspace?: (
+    workspaceId: string,
+    threadId: string,
+    options?: {
+      activate?: boolean;
+    },
+  ) => Promise<string | null>;
   connectWorkspace: (workspace: Workspace) => Promise<void>;
   sendUserMessageToThread: (
     workspace: Workspace,
@@ -201,13 +214,60 @@ export async function recoverThreadBindingAndResendForManualRecovery<
     threadsByWorkspace: params.threadsByWorkspace,
     refreshThread: params.refreshThread,
     startThreadForWorkspace: params.startThreadForWorkspace,
-    allowFreshThread: true,
+    allowFreshThread: false,
   });
-  if (recoveryResult.kind === "failed") {
-    return recoveryResult;
+
+  let continuationResult = recoveryResult;
+  const recoveryEngine = inferManualRecoveryEngine(
+    normalizedWorkspaceId,
+    normalizedThreadId,
+    params.threadsByWorkspace,
+  );
+  if (
+    continuationResult.kind === "failed" &&
+    recoveryEngine === "codex" &&
+    params.forkThreadForWorkspace
+  ) {
+    try {
+      const forkedThreadId = await params.forkThreadForWorkspace(
+        normalizedWorkspaceId,
+        normalizedThreadId,
+        { activate: true },
+      );
+      const normalizedForkedThreadId =
+        typeof forkedThreadId === "string" ? forkedThreadId.trim() : "";
+      if (normalizedForkedThreadId) {
+        continuationResult = {
+          kind: "forked",
+          threadId: normalizedForkedThreadId,
+          retryable: true,
+          userAction: "start-fresh-thread",
+        };
+      }
+    } catch (error) {
+      console.warn(
+        "[thread-recovery] Failed to fork stale Codex thread before fresh fallback",
+        normalizeManualRecoveryError(error),
+      );
+      continuationResult = recoveryResult;
+    }
+  }
+  if (continuationResult.kind === "failed") {
+    const freshResult = await recoverThreadBindingForManualRecovery({
+      workspaceId: normalizedWorkspaceId,
+      threadId: normalizedThreadId,
+      threadsByWorkspace: params.threadsByWorkspace,
+      refreshThread: async () => null,
+      startThreadForWorkspace: params.startThreadForWorkspace,
+      allowFreshThread: true,
+    });
+    continuationResult = freshResult;
+  }
+  if (continuationResult.kind === "failed") {
+    return continuationResult;
   }
 
-  const targetThreadId = recoveryResult.threadId.trim();
+  const targetThreadId = continuationResult.threadId.trim();
   if (!targetThreadId) {
     return buildManualRecoveryFailure("recovery target unavailable", true);
   }
@@ -217,7 +277,7 @@ export async function recoverThreadBindingAndResendForManualRecovery<
       await params.connectWorkspace(workspace);
     }
     const suppressRecoveredUserMessage =
-      shouldSuppressManualRecoveryResendUserMessage(recoveryResult);
+      shouldSuppressManualRecoveryResendUserMessage(continuationResult);
     await params.sendUserMessageToThread(
       workspace,
       targetThreadId,
@@ -232,5 +292,5 @@ export async function recoverThreadBindingAndResendForManualRecovery<
     return buildManualRecoveryFailure(normalizeManualRecoveryError(error), true);
   }
 
-  return recoveryResult;
+  return continuationResult;
 }

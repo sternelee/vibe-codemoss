@@ -28,12 +28,14 @@ type DesktopLayoutProps = {
   settingsOpen: boolean;
   settingsNode: ReactNode;
   topbarLeftNode: ReactNode;
-  centerMode: "chat" | "diff" | "editor" | "memory";
+  centerMode: "chat" | "diff" | "editor" | "memory" | "projectMap";
   editorSplitLayout: "vertical" | "horizontal";
+  editorSplitCompanion: "chat" | "projectMap";
   isEditorFileMaximized: boolean;
   messagesNode: ReactNode;
   gitDiffViewerNode: ReactNode;
   fileViewPanelNode: ReactNode;
+  projectMapPanelNode?: ReactNode;
   rightPanelToolbarNode: ReactNode;
   gitDiffPanelNode: ReactNode;
   planPanelNode: ReactNode;
@@ -68,10 +70,12 @@ export function DesktopLayout({
   topbarLeftNode,
   centerMode,
   editorSplitLayout,
+  editorSplitCompanion,
   isEditorFileMaximized,
   messagesNode,
   gitDiffViewerNode,
   fileViewPanelNode,
+  projectMapPanelNode = null,
   rightPanelToolbarNode,
   gitDiffPanelNode,
   planPanelNode,
@@ -88,30 +92,44 @@ export function DesktopLayout({
   const diffLayerRef = useRef<HTMLDivElement | null>(null);
   const chatLayerRef = useRef<HTMLDivElement | null>(null);
   const editorLayerRef = useRef<HTMLDivElement | null>(null);
+  const projectMapLayerRef = useRef<HTMLDivElement | null>(null);
   const memoryLayerRef = useRef<HTMLDivElement | null>(null);
   const splitResizeCleanupRef = useRef<(() => void) | null>(null);
   const isEditorSplitMode = centerMode === "editor";
   const isEditorHorizontalSplitMode =
     isEditorSplitMode && editorSplitLayout === "horizontal";
-  const isEditorSplitChatVisible = isEditorSplitMode && !isEditorFileMaximized;
+  const isEditorSplitChatVisible =
+    isEditorSplitMode && editorSplitCompanion === "chat" && !isEditorFileMaximized;
+  const isEditorSplitProjectMapVisible =
+    isEditorSplitMode &&
+    editorSplitCompanion === "projectMap" &&
+    !isEditorFileMaximized;
   const shouldPlaceComposerInChatColumn = isEditorSplitChatVisible;
   const hasBottomPanel = Boolean(planPanelNode);
+  const shouldShowComposerBelowContent =
+    centerMode !== "projectMap" &&
+    !shouldPlaceComposerInChatColumn &&
+    !isEditorSplitProjectMapVisible;
 
   useEffect(() => {
     const diffLayer = diffLayerRef.current;
     const chatLayer = chatLayerRef.current;
     const editorLayer = editorLayerRef.current;
+    const projectMapLayer = projectMapLayerRef.current;
 
     const layers = [
       { ref: diffLayer, mode: "diff" as const },
       { ref: chatLayer, mode: "chat" as const },
       { ref: editorLayer, mode: "editor" as const },
+      { ref: projectMapLayer, mode: "projectMap" as const },
     ];
 
     for (const { ref, mode } of layers) {
       if (!ref) continue;
       const isInteractive =
-        centerMode === mode || (isEditorSplitChatVisible && mode === "chat");
+        centerMode === mode ||
+        (isEditorSplitChatVisible && mode === "chat") ||
+        (isEditorSplitProjectMapVisible && mode === "projectMap");
       if (isInteractive) {
         ref.removeAttribute("inert");
       } else {
@@ -123,14 +141,16 @@ export function DesktopLayout({
     if (activeElement instanceof HTMLElement) {
       for (const { ref, mode } of layers) {
         const isInteractive =
-          centerMode === mode || (isEditorSplitChatVisible && mode === "chat");
+          centerMode === mode ||
+          (isEditorSplitChatVisible && mode === "chat") ||
+          (isEditorSplitProjectMapVisible && mode === "projectMap");
         if (ref && !isInteractive && ref.contains(activeElement)) {
           activeElement.blur();
           break;
         }
       }
     }
-  }, [centerMode, isEditorSplitChatVisible]);
+  }, [centerMode, isEditorSplitChatVisible, isEditorSplitProjectMapVisible]);
 
   useEffect(() => {
     return () => {
@@ -153,7 +173,7 @@ export function DesktopLayout({
         ".content-layer--editor",
       ) as HTMLElement | null;
       const chatLayer = splitRoot.querySelector(
-        ".content-layer--chat",
+        ".content-layer--editor-companion",
       ) as HTMLElement | null;
       if (!editorLayer || !chatLayer) {
         return;
@@ -283,7 +303,9 @@ export function DesktopLayout({
                         : " is-editor-split-vertical"
                       : ""
                   }${
-                    isEditorSplitChatVisible ? "" : isEditorSplitMode ? " is-editor-file-maximized" : ""
+                    isEditorSplitMode && isEditorFileMaximized
+                      ? " is-editor-file-maximized"
+                      : ""
                   }`}
                 >
                   <div
@@ -314,10 +336,27 @@ export function DesktopLayout({
                     />
                   ) : null}
                   <div
+                    className={`content-layer content-layer--project-map ${
+                      centerMode === "projectMap" || isEditorSplitProjectMapVisible
+                        ? "is-active"
+                        : "is-hidden"
+                    }${
+                      isEditorSplitProjectMapVisible
+                        ? " content-layer--editor-companion"
+                        : ""
+                    }`}
+                    aria-hidden={centerMode !== "projectMap" && !isEditorSplitProjectMapVisible}
+                    ref={projectMapLayerRef}
+                  >
+                    {projectMapPanelNode}
+                  </div>
+                  <div
                     className={`content-layer content-layer--chat ${
                       centerMode === "chat" || isEditorSplitChatVisible
                         ? "is-active"
                         : "is-hidden"
+                    }${
+                      isEditorSplitChatVisible ? " content-layer--editor-companion" : ""
                     }`}
                     aria-hidden={centerMode !== "chat" && !isEditorSplitChatVisible}
                     ref={chatLayerRef}
@@ -358,7 +397,7 @@ export function DesktopLayout({
                     </div>
                   </>
                 )}
-                {shouldPlaceComposerInChatColumn ? null : composerNode}
+                {shouldShowComposerBelowContent ? composerNode : null}
                 {runtimeConsoleDockNode}
                 {terminalDockNode}
                 {debugPanelNode}

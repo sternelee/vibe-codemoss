@@ -2,28 +2,18 @@
 import { act } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConversationItem } from "../../../types";
+import { resetUseThreadActionsTestMocks } from "./useThreadActions.test-mocks";
 import {
   archiveThread,
-  deleteCodexSession,
-  deleteClaudeSession,
-  deleteGeminiSession,
-  deleteOpenCodeSession,
   connectWorkspace,
   getOpenCodeSessionList,
   listWorkspaceSessions,
   listWorkspaceSessionArchiveEvidence,
   listClaudeSessions,
-  listGeminiSessions,
-  loadGeminiSession,
   loadCodexSession,
-  listThreadTitles,
   renameThreadTitleKey,
-  setThreadTitle,
   listThreads,
   resumeThread,
-  readWorkspaceFile,
-  trashWorkspaceItem,
-  writeWorkspaceFile,
 } from "../../../services/tauri";
 import {
   buildItemsFromThread,
@@ -32,7 +22,6 @@ import {
   mergeThreadItems,
   previewThreadName,
 } from "../../../utils/threadItems";
-import { loadSidebarSnapshot } from "../utils/sidebarSnapshot";
 import { saveThreadActivity } from "../utils/threadStorage";
 import {
   expectSetThreadsDispatched,
@@ -40,160 +29,9 @@ import {
   workspace,
 } from "./useThreadActions.test-utils";
 
-vi.mock("../../../services/tauri", () => ({
-  startThread: vi.fn(),
-  connectWorkspace: vi.fn(),
-  createWorkspaceDirectory: vi.fn(),
-  forkClaudeSession: vi.fn(),
-  forkClaudeSessionFromMessage: vi.fn(),
-  forkThread: vi.fn(),
-  rewindCodexThread: vi.fn(),
-  listClaudeSessions: vi.fn(),
-  listGeminiSessions: vi.fn(),
-  getOpenCodeSessionList: vi.fn(),
-  listWorkspaceSessions: vi.fn(),
-  listWorkspaceSessionArchiveEvidence: vi.fn(),
-  loadClaudeSession: vi.fn(),
-  loadGeminiSession: vi.fn(),
-  loadCodexSession: vi.fn(),
-  listThreadTitles: vi.fn(),
-  readWorkspaceFile: vi.fn(),
-  renameThreadTitleKey: vi.fn(),
-  setThreadTitle: vi.fn(),
-  resumeThread: vi.fn(),
-  listThreads: vi.fn(),
-  archiveThread: vi.fn(),
-  deleteCodexSession: vi.fn(),
-  deleteClaudeSession: vi.fn(),
-  deleteGeminiSession: vi.fn(),
-  deleteOpenCodeSession: vi.fn(),
-  trashWorkspaceItem: vi.fn(),
-  writeWorkspaceFile: vi.fn(),
-}));
-
-vi.mock("../../../utils/threadItems", () => ({
-  buildItemsFromThread: vi.fn(),
-  extractClaudeApprovalResumeEntries: vi.fn(() => []),
-  getThreadTimestamp: vi.fn(),
-  isReviewingFromThread: vi.fn(),
-  mergeThreadItems: vi.fn(),
-  normalizeItem: vi.fn((item: ConversationItem) => item),
-  previewThreadName: vi.fn(),
-  stripClaudeApprovalResumeArtifacts: vi.fn((text: string) => text),
-}));
-
-vi.mock("../utils/threadStorage", () => ({
-  makeCustomNameKey: (workspaceId: string, threadId: string) =>
-    `${workspaceId}:${threadId}`,
-  saveThreadActivity: vi.fn(),
-}));
-
-vi.mock("../utils/sidebarSnapshot", () => ({
-  loadSidebarSnapshot: vi.fn(() => null),
-}));
-
-vi.mock("../../../services/globalRuntimeNotices", async () => {
-  const actual = await vi.importActual<typeof import("../../../services/globalRuntimeNotices")>(
-    "../../../services/globalRuntimeNotices",
-  );
-  return actual;
-});
-
 describe("useThreadActions", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    vi.useRealTimers();
-    vi.mocked(listThreadTitles).mockResolvedValue({});
-    vi.mocked(listClaudeSessions).mockResolvedValue([]);
-    vi.mocked(listGeminiSessions).mockResolvedValue([]);
-    vi.mocked(getOpenCodeSessionList).mockResolvedValue([]);
-    vi.mocked(listWorkspaceSessions).mockResolvedValue({
-      data: [],
-      nextCursor: null,
-      partialSource: null,
-    });
-    vi.mocked(listWorkspaceSessionArchiveEvidence).mockResolvedValue({
-      archivedAtBySessionId: {},
-      partialSource: null,
-      sourceStatuses: [],
-    });
-    vi.mocked(renameThreadTitleKey).mockResolvedValue(undefined);
-    vi.mocked(setThreadTitle).mockResolvedValue("title");
-    vi.mocked(connectWorkspace).mockResolvedValue(undefined);
-    vi.mocked(previewThreadName).mockImplementation((text: string, fallback: string) => {
-      const trimmed = text.trim();
-      return trimmed || fallback;
-    });
-    vi.mocked(deleteClaudeSession).mockResolvedValue(undefined);
-    vi.mocked(deleteGeminiSession).mockResolvedValue(undefined);
-    vi.mocked(deleteOpenCodeSession).mockResolvedValue({
-      deleted: true,
-      method: "filesystem",
-    });
-    vi.mocked(deleteCodexSession).mockResolvedValue({
-      deleted: true,
-      deletedCount: 1,
-      method: "filesystem",
-      archivedBeforeDelete: true,
-    });
-    vi.mocked(loadGeminiSession).mockResolvedValue({ messages: [] });
-    vi.mocked(readWorkspaceFile).mockResolvedValue({
-      content: "",
-      truncated: false,
-    });
-    vi.mocked(trashWorkspaceItem).mockResolvedValue(undefined);
-    vi.mocked(writeWorkspaceFile).mockResolvedValue(undefined);
-    vi.mocked(loadSidebarSnapshot).mockReturnValue(null);
-    vi.mocked(mergeThreadItems).mockImplementation(
-      (primaryItems: ConversationItem[]) => primaryItems,
-    );
-  });
-
-  it("skips resume when already loaded", async () => {
-    const loadedThreadsRef = { current: { "thread-1": true } };
-    const { result } = renderActions({ loadedThreadsRef });
-
-    let threadId: string | null = null;
-    await act(async () => {
-      threadId = await result.current.resumeThreadForWorkspace("ws-1", "thread-1");
-    });
-
-    expect(threadId).toBe("thread-1");
-    expect(resumeThread).not.toHaveBeenCalled();
-  });
-
-  it("skips resume while processing unless forced", async () => {
-    const options = {
-      loadedThreadsRef: { current: { "thread-1": true } },
-      threadStatusById: {
-        "thread-1": {
-          isProcessing: true,
-          hasUnread: false,
-          isReviewing: false,
-          processingStartedAt: 123,
-          lastDurationMs: null,
-        },
-      },
-    };
-    const { result: skipResult } = renderActions(options);
-
-    await act(async () => {
-      await skipResult.current.resumeThreadForWorkspace("ws-1", "thread-1");
-    });
-
-    expect(resumeThread).not.toHaveBeenCalled();
-
-    vi.mocked(resumeThread).mockResolvedValue({
-      result: { thread: { id: "thread-1", updated_at: 1 } },
-    });
-
-    const { result: forceResult } = renderActions(options);
-
-    await act(async () => {
-      await forceResult.current.resumeThreadForWorkspace("ws-1", "thread-1", true);
-    });
-
-    expect(resumeThread).toHaveBeenCalledWith("ws-1", "thread-1");
+    resetUseThreadActionsTestMocks();
   });
 
   it("resumes thread, sets items, status, name, and last message", async () => {
@@ -215,7 +53,8 @@ describe("useThreadActions", () => {
     vi.mocked(getThreadTimestamp).mockReturnValue(999);
     vi.mocked(mergeThreadItems).mockReturnValue([assistantItem]);
 
-    const { result, dispatch, applyCollabThreadLinksFromThread } = renderActions();
+    const { result, dispatch, applyCollabThreadLinksFromThread } =
+      renderActions();
 
     await act(async () => {
       await result.current.resumeThreadForWorkspace("ws-1", "thread-2");
@@ -424,7 +263,10 @@ describe("useThreadActions", () => {
     });
 
     await act(async () => {
-      await result.current.resumeThreadForWorkspace("ws-1", "thread-empty-history");
+      await result.current.resumeThreadForWorkspace(
+        "ws-1",
+        "thread-empty-history",
+      );
     });
 
     expect(onDebug).toHaveBeenCalledWith(
@@ -519,17 +361,25 @@ describe("useThreadActions", () => {
     });
 
     await act(async () => {
-      await result.current.listThreadsForWorkspace(workspace, { preserveState: true });
+      await result.current.listThreadsForWorkspace(workspace, {
+        preserveState: true,
+      });
     });
     dispatch.mockClear();
 
     let resumed: string | null = null;
     await act(async () => {
-      resumed = await result.current.resumeThreadForWorkspace("ws-1", "thread-stale");
+      resumed = await result.current.resumeThreadForWorkspace(
+        "ws-1",
+        "thread-stale",
+      );
     });
 
     expect(resumed).toBe("thread-recovered");
-    expect(rememberThreadAlias).toHaveBeenCalledWith("thread-stale", "thread-recovered");
+    expect(rememberThreadAlias).toHaveBeenCalledWith(
+      "thread-stale",
+      "thread-recovered",
+    );
     expect(dispatch).toHaveBeenCalledWith({
       type: "setActiveThreadId",
       workspaceId: "ws-1",
@@ -634,12 +484,17 @@ describe("useThreadActions", () => {
     });
 
     await act(async () => {
-      await result.current.listThreadsForWorkspace(workspace, { preserveState: true });
+      await result.current.listThreadsForWorkspace(workspace, {
+        preserveState: true,
+      });
     });
 
     let resumed: string | null = null;
     await act(async () => {
-      resumed = await result.current.resumeThreadForWorkspace("ws-1", "thread-stale");
+      resumed = await result.current.resumeThreadForWorkspace(
+        "ws-1",
+        "thread-stale",
+      );
     });
 
     expect(resumed).toBe("thread-page-2");
@@ -728,23 +583,33 @@ describe("useThreadActions", () => {
     });
 
     await act(async () => {
-      await result.current.listThreadsForWorkspace(workspace, { preserveState: true });
+      await result.current.listThreadsForWorkspace(workspace, {
+        preserveState: true,
+      });
     });
 
     let resumed: string | null = null;
     await act(async () => {
-      resumed = await result.current.resumeThreadForWorkspace("ws-1", "thread-stale");
+      resumed = await result.current.resumeThreadForWorkspace(
+        "ws-1",
+        "thread-stale",
+      );
     });
 
     expect(resumed).toBe("thread-page-2");
     expect(listThreads).toHaveBeenCalledTimes(3);
     expect(listThreads).toHaveBeenNthCalledWith(2, "ws-1", null, 50);
     expect(listThreads).toHaveBeenNthCalledWith(3, "ws-1", "cursor-2", 50);
-    expect(rememberThreadAlias).toHaveBeenCalledWith("thread-stale", "thread-page-2");
+    expect(rememberThreadAlias).toHaveBeenCalledWith(
+      "thread-stale",
+      "thread-page-2",
+    );
   });
 
   it("keeps legacy failure behavior when stale unified thread recovery has no safe replacement", async () => {
-    vi.mocked(resumeThread).mockRejectedValue(new Error("thread not found: thread-stale"));
+    vi.mocked(resumeThread).mockRejectedValue(
+      new Error("thread not found: thread-stale"),
+    );
     vi.mocked(listThreads).mockResolvedValue({
       result: {
         data: [
@@ -786,7 +651,9 @@ describe("useThreadActions", () => {
     });
 
     await act(async () => {
-      await result.current.listThreadsForWorkspace(workspace, { preserveState: true });
+      await result.current.listThreadsForWorkspace(workspace, {
+        preserveState: true,
+      });
     });
     dispatch.mockClear();
 
@@ -875,13 +742,18 @@ describe("useThreadActions", () => {
     });
 
     await act(async () => {
-      await result.current.listThreadsForWorkspace(workspace, { preserveState: true });
+      await result.current.listThreadsForWorkspace(workspace, {
+        preserveState: true,
+      });
     });
     dispatch.mockClear();
 
     let resumed: string | null = null;
     await act(async () => {
-      resumed = await result.current.resumeThreadForWorkspace("ws-1", "thread-stale");
+      resumed = await result.current.resumeThreadForWorkspace(
+        "ws-1",
+        "thread-stale",
+      );
     });
 
     expect(resumed).toBe("thread-only");
@@ -1024,17 +896,25 @@ describe("useThreadActions", () => {
     });
 
     await act(async () => {
-      await result.current.listThreadsForWorkspace(workspace, { preserveState: true });
+      await result.current.listThreadsForWorkspace(workspace, {
+        preserveState: true,
+      });
     });
     dispatch.mockClear();
 
     let resumed: string | null = null;
     await act(async () => {
-      resumed = await result.current.resumeThreadForWorkspace("ws-1", "thread-stale");
+      resumed = await result.current.resumeThreadForWorkspace(
+        "ws-1",
+        "thread-stale",
+      );
     });
 
     expect(resumed).toBe("thread-a");
-    expect(rememberThreadAlias).toHaveBeenCalledWith("thread-stale", "thread-a");
+    expect(rememberThreadAlias).toHaveBeenCalledWith(
+      "thread-stale",
+      "thread-a",
+    );
     expect(dispatch).toHaveBeenCalledWith({
       type: "setActiveThreadId",
       workspaceId: "ws-1",
@@ -1140,17 +1020,25 @@ describe("useThreadActions", () => {
     });
 
     await act(async () => {
-      await result.current.listThreadsForWorkspace(workspace, { preserveState: true });
+      await result.current.listThreadsForWorkspace(workspace, {
+        preserveState: true,
+      });
     });
     dispatch.mockClear();
 
     let resumed: string | null = null;
     await act(async () => {
-      resumed = await result.current.resumeThreadForWorkspace("ws-1", "thread-stale");
+      resumed = await result.current.resumeThreadForWorkspace(
+        "ws-1",
+        "thread-stale",
+      );
     });
 
     expect(resumed).toBe("thread-recovered");
-    expect(rememberThreadAlias).toHaveBeenCalledWith("thread-stale", "thread-recovered");
+    expect(rememberThreadAlias).toHaveBeenCalledWith(
+      "thread-stale",
+      "thread-recovered",
+    );
     expect(dispatch).toHaveBeenCalledWith({
       type: "setActiveThreadId",
       workspaceId: "ws-1",
@@ -1244,9 +1132,10 @@ describe("useThreadActions", () => {
     vi.mocked(listClaudeSessions).mockResolvedValue([]);
     vi.mocked(getOpenCodeSessionList).mockResolvedValue([]);
     vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
-      const updatedAt = (thread as { updated_at?: number; updatedAt?: number }).updated_at
-        ?? (thread as { updated_at?: number; updatedAt?: number }).updatedAt
-        ?? 0;
+      const updatedAt =
+        (thread as { updated_at?: number; updatedAt?: number }).updated_at ??
+        (thread as { updated_at?: number; updatedAt?: number }).updatedAt ??
+        0;
       return updatedAt;
     });
 
@@ -1258,7 +1147,14 @@ describe("useThreadActions", () => {
     await act(async () => {
       secondResponse.resolve({
         result: {
-          data: [{ id: "thread-new", cwd: "/tmp/codex", preview: "new", updated_at: 200 }],
+          data: [
+            {
+              id: "thread-new",
+              cwd: "/tmp/codex",
+              preview: "new",
+              updated_at: 200,
+            },
+          ],
           nextCursor: null,
         },
       });
@@ -1268,7 +1164,14 @@ describe("useThreadActions", () => {
     await act(async () => {
       firstResponse.resolve({
         result: {
-          data: [{ id: "thread-old", cwd: "/tmp/codex", preview: "old", updated_at: 100 }],
+          data: [
+            {
+              id: "thread-old",
+              cwd: "/tmp/codex",
+              preview: "old",
+              updated_at: 100,
+            },
+          ],
           nextCursor: null,
         },
       });
@@ -1352,7 +1255,10 @@ describe("useThreadActions", () => {
 
     let resumed: string | null = null;
     await act(async () => {
-      resumed = await result.current.resumeThreadForWorkspace("ws-1", "opencode:stale");
+      resumed = await result.current.resumeThreadForWorkspace(
+        "ws-1",
+        "opencode:stale",
+      );
     });
 
     expect(resumed).toBe("opencode:session-2");
@@ -1411,7 +1317,10 @@ describe("useThreadActions", () => {
     });
 
     await act(async () => {
-      await result.current.resumeThreadForWorkspace("ws-1", "thread-user-input");
+      await result.current.resumeThreadForWorkspace(
+        "ws-1",
+        "thread-user-input",
+      );
     });
 
     expect(dispatch).toHaveBeenCalledWith({
@@ -1512,7 +1421,10 @@ describe("useThreadActions", () => {
     });
 
     await act(async () => {
-      await result.current.resumeThreadForWorkspace("ws-1", "thread-ask-pending");
+      await result.current.resumeThreadForWorkspace(
+        "ws-1",
+        "thread-ask-pending",
+      );
     });
 
     const dispatchedTypes = dispatch.mock.calls.map((entry) => entry[0]?.type);
@@ -1554,10 +1466,15 @@ describe("useThreadActions", () => {
     });
 
     await act(async () => {
-      await result.current.resumeThreadForWorkspace("ws-1", "thread-unified-links");
+      await result.current.resumeThreadForWorkspace(
+        "ws-1",
+        "thread-unified-links",
+      );
     });
 
-    expect(updateThreadParent).toHaveBeenCalledWith("thread-unified-links", ["agent-7"]);
+    expect(updateThreadParent).toHaveBeenCalledWith("thread-unified-links", [
+      "agent-7",
+    ]);
   });
 
   it("hydrates related child threads from unified collab history snapshot", async () => {
@@ -1567,7 +1484,9 @@ describe("useThreadActions", () => {
           return {
             result: {
               thread: {
-                turns: [{ id: "turn-root", items: [{ type: "collabToolCall" }] }],
+                turns: [
+                  { id: "turn-root", items: [{ type: "collabToolCall" }] },
+                ],
               },
             },
           };
@@ -1576,7 +1495,9 @@ describe("useThreadActions", () => {
           return {
             result: {
               thread: {
-                turns: [{ id: "turn-child", items: [{ type: "commandExecution" }] }],
+                turns: [
+                  { id: "turn-child", items: [{ type: "commandExecution" }] },
+                ],
               },
             },
           };
@@ -1586,8 +1507,9 @@ describe("useThreadActions", () => {
     );
     vi.mocked(loadCodexSession).mockResolvedValue(null);
     vi.mocked(buildItemsFromThread).mockImplementation((thread) => {
-      const firstItemType = (thread as { turns?: Array<{ items?: Array<{ type?: string }> }> })
-        .turns?.[0]?.items?.[0]?.type;
+      const firstItemType = (
+        thread as { turns?: Array<{ items?: Array<{ type?: string }> }> }
+      ).turns?.[0]?.items?.[0]?.type;
       if (firstItemType === "collabToolCall") {
         return [
           {
@@ -1667,7 +1589,9 @@ describe("useThreadActions", () => {
 
     const { result, dispatch, threadActivityRef } = renderActions({
       getCustomName: (workspaceId, threadId) =>
-        workspaceId === "ws-1" && threadId === "thread-1" ? "Custom" : undefined,
+        workspaceId === "ws-1" && threadId === "thread-1"
+          ? "Custom"
+          : undefined,
       threadActivityRef: { current: {} },
     });
 
@@ -1756,7 +1680,8 @@ describe("useThreadActions", () => {
           {
             id: "thread-commit-message",
             cwd: "/tmp/codex",
-            preview: "Generate a concise git commit message for the following changes.",
+            preview:
+              "Generate a concise git commit message for the following changes.",
             updated_at: 5700,
             source: "cli",
           },
@@ -1864,7 +1789,65 @@ describe("useThreadActions", () => {
     ]);
   });
 
-  it("hydrates all active project catalog pages across engines", async () => {
+  it("does not revive an explicitly deleted session from degraded last-good fallback", async () => {
+    vi.mocked(listThreads).mockResolvedValue({
+      result: { data: [], nextCursor: null },
+    });
+    vi.mocked(listWorkspaceSessions).mockResolvedValue({
+      data: [],
+      nextCursor: null,
+      partialSource: "claude-uncertain-empty",
+      sourceStatuses: [
+        {
+          engine: "claude",
+          completeness: "uncertain_empty",
+          scannedCandidates: 0,
+          scanCapReached: false,
+          reason: "claude-uncertain-empty",
+        },
+      ],
+    });
+
+    const { result, dispatch } = renderActions({
+      threadsByWorkspace: {
+        "ws-1": [
+          {
+            id: "claude:deleted-session",
+            name: "Deleted Claude session",
+            updatedAt: 6200,
+            engineSource: "claude",
+            threadKind: "native",
+          },
+        ],
+      },
+      activeThreadIdByWorkspace: {
+        "ws-1": "claude:deleted-session",
+      },
+    });
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(workspace, {
+        deletedThreadIds: ["claude:deleted-session"],
+      });
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "removeThread",
+      workspaceId: "ws-1",
+      threadId: "claude:deleted-session",
+    });
+    expectSetThreadsDispatched(dispatch, "ws-1", []);
+    const setThreadsCalls = dispatch.mock.calls
+      .map(([action]) => action)
+      .filter((action) => action?.type === "setThreads");
+    expect(setThreadsCalls.at(-1)).toEqual({
+      type: "setThreads",
+      workspaceId: "ws-1",
+      threads: [],
+    });
+  });
+
+  it("hydrates the active project catalog in one full sidebar window", async () => {
     vi.mocked(listThreads).mockResolvedValue({
       result: {
         data: [
@@ -1880,17 +1863,27 @@ describe("useThreadActions", () => {
       },
     });
     vi.mocked(listClaudeSessions).mockResolvedValue([]);
-    vi.mocked(listWorkspaceSessions).mockImplementation(async (_workspaceId, options) => {
-      if (options?.query?.status === "all") {
-        return {
-          data: [],
-          nextCursor: null,
-          partialSource: null,
-        };
-      }
-      if (options?.cursor === "offset:200") {
+    vi.mocked(listWorkspaceSessions).mockImplementation(
+      async (_workspaceId, options) => {
+        if (options?.query?.status === "all") {
+          return {
+            data: [],
+            nextCursor: null,
+            partialSource: null,
+          };
+        }
         return {
           data: [
+            {
+              sessionId: "claude:project-old",
+              workspaceId: "ws-1",
+              engine: "claude",
+              title: "Claude older active",
+              updatedAt: 7000,
+              archivedAt: null,
+              threadKind: "native",
+              folderId: "folder-a",
+            },
             {
               sessionId: "codex:project-old",
               workspaceId: "ws-1",
@@ -1901,27 +1894,11 @@ describe("useThreadActions", () => {
               threadKind: "native",
             },
           ],
-          nextCursor: null,
+          nextCursor: "offset:9999",
           partialSource: null,
         };
-      }
-      return {
-        data: [
-          {
-            sessionId: "claude:project-old",
-            workspaceId: "ws-1",
-            engine: "claude",
-            title: "Claude older active",
-            updatedAt: 7000,
-            archivedAt: null,
-            threadKind: "native",
-            folderId: "folder-a",
-          },
-        ],
-        nextCursor: "offset:200",
-        partialSource: null,
-      };
-    });
+      },
+    );
     vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
       const value = (thread as Record<string, unknown>).updated_at as number;
       return value ?? 0;
@@ -1936,12 +1913,7 @@ describe("useThreadActions", () => {
     expect(listWorkspaceSessions).toHaveBeenCalledWith("ws-1", {
       query: { status: "active" },
       cursor: null,
-      limit: 200,
-    });
-    expect(listWorkspaceSessions).toHaveBeenCalledWith("ws-1", {
-      query: { status: "active" },
-      cursor: "offset:200",
-      limit: 200,
+      limit: 9_999,
     });
     expectSetThreadsDispatched(dispatch, "ws-1", [
       {
@@ -1980,30 +1952,32 @@ describe("useThreadActions", () => {
       },
     });
     vi.mocked(listClaudeSessions).mockResolvedValue([]);
-    vi.mocked(listWorkspaceSessions).mockImplementation(async (_workspaceId, options) => {
-      if (options?.query?.status === "all") {
+    vi.mocked(listWorkspaceSessions).mockImplementation(
+      async (_workspaceId, options) => {
+        if (options?.query?.status === "all") {
+          return {
+            data: [],
+            nextCursor: null,
+            partialSource: null,
+          };
+        }
         return {
-          data: [],
+          data: [
+            {
+              sessionId: "claude:visible-session",
+              workspaceId: "ws-1",
+              engine: "claude",
+              title: "Visible Claude session",
+              updatedAt: 7000,
+              archivedAt: null,
+              threadKind: "native",
+            },
+          ],
           nextCursor: null,
-          partialSource: null,
+          partialSource: "claude-scan-cap-reached",
         };
-      }
-      return {
-        data: [
-          {
-            sessionId: "claude:visible-session",
-            workspaceId: "ws-1",
-            engine: "claude",
-            title: "Visible Claude session",
-            updatedAt: 7000,
-            archivedAt: null,
-            threadKind: "native",
-          },
-        ],
-        nextCursor: null,
-        partialSource: "claude-scan-cap-reached",
-      };
-    });
+      },
+    );
 
     const { result, dispatch } = renderActions();
 
@@ -2131,7 +2105,7 @@ describe("useThreadActions", () => {
     expect(listWorkspaceSessions).toHaveBeenCalledWith("ws-1", {
       query: { status: "active" },
       cursor: null,
-      limit: 200,
+      limit: 9_999,
     });
     expectSetThreadsDispatched(dispatch, "ws-1", [
       {
@@ -2370,7 +2344,9 @@ describe("useThreadActions", () => {
         nextCursor: null,
       },
     });
-    vi.mocked(listClaudeSessions).mockRejectedValue(new Error("native scan failed"));
+    vi.mocked(listClaudeSessions).mockRejectedValue(
+      new Error("native scan failed"),
+    );
     vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
       const value = (thread as Record<string, unknown>).updated_at as number;
       return value ?? 0;
@@ -2479,7 +2455,10 @@ describe("useThreadActions", () => {
       },
     ]);
     const fallbackEntry = onDebug.mock.calls
-      .map(([entry]) => entry as { label: string; payload?: Record<string, unknown> })
+      .map(
+        ([entry]) =>
+          entry as { label: string; payload?: Record<string, unknown> },
+      )
       .find((entry) => entry.label === "thread/list fallback");
     expect(fallbackEntry?.payload).toMatchObject({
       workspaceId: "ws-1",
@@ -2524,7 +2503,10 @@ describe("useThreadActions", () => {
       },
     ]);
     const fallbackEntry = onDebug.mock.calls
-      .map(([entry]) => entry as { label: string; payload?: Record<string, unknown> })
+      .map(
+        ([entry]) =>
+          entry as { label: string; payload?: Record<string, unknown> },
+      )
       .find((entry) => entry.label === "thread/list error fallback");
     expect(fallbackEntry?.payload).toMatchObject({
       workspaceId: "ws-1",
@@ -2720,7 +2702,9 @@ describe("useThreadActions", () => {
     const { result } = renderActions({
       onRenameThreadTitleMapping,
       getCustomName: (workspaceId, threadId) =>
-        workspaceId === "ws-1" && threadId === "old-thread" ? "Title" : undefined,
+        workspaceId === "ws-1" && threadId === "old-thread"
+          ? "Title"
+          : undefined,
     });
 
     await act(async () => {
@@ -2742,5 +2726,4 @@ describe("useThreadActions", () => {
       "new-thread",
     );
   });
-
 });

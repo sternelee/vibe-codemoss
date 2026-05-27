@@ -5,6 +5,7 @@ export type ComposerSessionSelection = {
 
 const THREAD_COMPOSER_SELECTION_STORAGE_KEY_PREFIX = "selectedModelByThread.";
 const CLAUDE_FORK_THREAD_PREFIX = "claude-fork:";
+const CLAUDE_REASONING_EFFORTS = new Set(["low", "medium", "high", "xhigh", "max"]);
 
 function resolveThreadEngine(
   threadId: string,
@@ -60,6 +61,32 @@ export function normalizeComposerSessionSelection(
     return null;
   }
   return { modelId, effort };
+}
+
+export function normalizeComposerSessionSelectionForThread(
+  threadId: string | null,
+  value: unknown,
+): ComposerSessionSelection | null {
+  const normalized = normalizeComposerSessionSelection(value);
+  if (!normalized) {
+    return null;
+  }
+
+  const engine = threadId ? resolveThreadEngine(threadId) : null;
+  let effort = normalized.effort;
+  if (engine === "claude") {
+    effort = effort && CLAUDE_REASONING_EFFORTS.has(effort) ? effort : null;
+  } else if (engine === "gemini" || engine === "opencode") {
+    effort = null;
+  }
+
+  if (normalized.modelId === null && effort === null) {
+    return null;
+  }
+  return {
+    modelId: normalized.modelId,
+    effort,
+  };
 }
 
 export function getThreadComposerSelectionStorageKey(

@@ -384,7 +384,7 @@ export interface ChatInputBoxAdapterProps {
   queuedMessages?: ComposerQueuedMessage[];
   sendReadiness?: ComposerSendReadiness | null;
   onJumpToRequest?: () => void;
-  onExpandContextSources?: () => void;
+  onToggleContextSources?: () => void;
   contextSourcesExpanded?: boolean;
   onDeleteQueued?: (id: string) => void;
   onFuseQueued?: (id: string) => void | Promise<void>;
@@ -662,17 +662,28 @@ function effortToOptionalReasoning(effort?: string | null): ReasoningEffort | nu
 }
 
 function normalizeReasoningOptions(options?: string[]): ReasoningEffort[] | undefined {
-  if (!options || options.length === 0) {
+  if (!options) {
     return undefined;
+  }
+  if (options.length === 0) {
+    return [];
   }
   const normalized = options
     .map((option) => effortToOptionalReasoning(option))
     .filter((option): option is ReasoningEffort => option !== null);
-  return normalized.length > 0 ? normalized : undefined;
+  return normalized;
 }
 
 function normalizePath(path: string): string {
   return path.replace(/\\/g, '/').replace(/\/{2,}/g, '/').replace(/\/$/, '');
+}
+
+function normalizeCompletionSourcePath(path: unknown): string | null {
+  if (typeof path !== 'string') {
+    return null;
+  }
+  const normalizedPath = normalizePath(path.trim());
+  return normalizedPath.length > 0 ? normalizedPath : null;
 }
 
 function fileNameFromPath(path: string): string {
@@ -687,6 +698,18 @@ function extensionFromFileName(fileName: string): string {
     return '';
   }
   return fileName.slice(idx + 1).toLowerCase();
+}
+
+function normalizeSlashCommandName(name: unknown): string | null {
+  if (typeof name !== 'string') {
+    return null;
+  }
+  const cleanName = name.trim().replace(/^\//, '');
+  return cleanName.length > 0 ? cleanName : null;
+}
+
+function normalizeOptionalString(value: unknown): string {
+  return typeof value === 'string' ? value : '';
 }
 
 type SkillPayloadRecord = Record<string, unknown>;
@@ -836,7 +859,7 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
       queuedMessages,
       sendReadiness,
       onJumpToRequest,
-      onExpandContextSources,
+      onToggleContextSources,
       contextSourcesExpanded,
       onDeleteQueued,
       onFuseQueued,
@@ -1135,11 +1158,28 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
         }
         const maxSuggestions = 200;
         const results: FileItem[] = [];
+        const seenResultKeys = new Set<string>();
 
-        const pushDirectoryFromPath = (path: string) => {
-          const normalizedPath = `${normalizePath(path)}/`;
-          const name = fileNameFromPath(path);
-          results.push({
+        const pushResult = (item: FileItem) => {
+          const resultKey = `${item.type}:${item.path}`;
+          if (seenResultKeys.has(resultKey)) {
+            return;
+          }
+          seenResultKeys.add(resultKey);
+          results.push(item);
+        };
+
+        const pushDirectoryFromPath = (path: unknown) => {
+          const sourcePath = normalizeCompletionSourcePath(path);
+          if (!sourcePath) {
+            return;
+          }
+          const normalizedPath = `${sourcePath}/`;
+          const name = fileNameFromPath(sourcePath);
+          if (!name) {
+            return;
+          }
+          pushResult({
             name,
             path: normalizedPath,
             absolutePath: normalizedPath,
@@ -1147,10 +1187,16 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
             extension: '',
           });
         };
-        const pushFileFromPath = (path: string) => {
-          const normalizedPath = normalizePath(path);
-          const name = fileNameFromPath(path);
-          results.push({
+        const pushFileFromPath = (path: unknown) => {
+          const normalizedPath = normalizeCompletionSourcePath(path);
+          if (!normalizedPath) {
+            return;
+          }
+          const name = fileNameFromPath(normalizedPath);
+          if (!name) {
+            return;
+          }
+          pushResult({
             name,
             path: normalizedPath,
             absolutePath: normalizedPath,
@@ -1158,12 +1204,26 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
             extension: extensionFromFileName(name),
           });
         };
-        const pushFromResponse = (response: { files: string[]; directories: string[] }) => {
-          for (const dir of response.directories) {
+        const getResponseDirectories = (response: unknown): unknown[] => {
+          if (!response || typeof response !== 'object') {
+            return [];
+          }
+          const directoriesValue = (response as { directories?: unknown }).directories;
+          return Array.isArray(directoriesValue) ? directoriesValue : [];
+        };
+        const getResponseFiles = (response: unknown): unknown[] => {
+          if (!response || typeof response !== 'object') {
+            return [];
+          }
+          const filesValue = (response as { files?: unknown }).files;
+          return Array.isArray(filesValue) ? filesValue : [];
+        };
+        const pushFromResponse = (response: unknown) => {
+          for (const dir of getResponseDirectories(response)) {
             pushDirectoryFromPath(dir);
             if (results.length >= maxSuggestions) return;
           }
-          for (const file of response.files) {
+          for (const file of getResponseFiles(response)) {
             pushFileFromPath(file);
             if (results.length >= maxSuggestions) return;
           }
@@ -1192,17 +1252,25 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
               pushFromResponse(response);
             } else {
               // Filter by fragment
-              for (const dir of response.directories) {
-                const name = fileNameFromPath(dir);
+              for (const dir of getResponseDirectories(response)) {
+                const normalizedDir = normalizeCompletionSourcePath(dir);
+                if (!normalizedDir) {
+                  continue;
+                }
+                const name = fileNameFromPath(normalizedDir);
                 if (name.toLowerCase().includes(lowerFragment)) {
-                  pushDirectoryFromPath(dir);
+                  pushDirectoryFromPath(normalizedDir);
                   if (results.length >= maxSuggestions) break;
                 }
               }
-              for (const file of response.files) {
-                const name = fileNameFromPath(file);
+              for (const file of getResponseFiles(response)) {
+                const normalizedFile = normalizeCompletionSourcePath(file);
+                if (!normalizedFile) {
+                  continue;
+                }
+                const name = fileNameFromPath(normalizedFile);
                 if (name.toLowerCase().includes(lowerFragment)) {
-                  pushFileFromPath(file);
+                  pushFileFromPath(normalizedFile);
                   if (results.length >= maxSuggestions) break;
                 }
               }
@@ -1221,14 +1289,16 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
         if (!normalizedQuery) {
           // No query: show only root-level entries (direct children of workspace root)
           for (const path of sourceDirectories) {
-            if (!path.includes('/')) {
-              pushDirectoryFromPath(path);
+            const normalizedPath = normalizeCompletionSourcePath(path);
+            if (normalizedPath && !normalizedPath.includes('/')) {
+              pushDirectoryFromPath(normalizedPath);
               if (results.length >= maxSuggestions) return results;
             }
           }
           for (const path of sourceFiles) {
-            if (!path.includes('/')) {
-              pushFileFromPath(path);
+            const normalizedPath = normalizeCompletionSourcePath(path);
+            if (normalizedPath && !normalizedPath.includes('/')) {
+              pushFileFromPath(normalizedPath);
               if (results.length >= maxSuggestions) return results;
             }
           }
@@ -1237,16 +1307,24 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
 
         // Search query without directory path: search by name across all entries
         for (const path of sourceDirectories) {
-          const name = fileNameFromPath(path);
-          if (name.toLowerCase().includes(lowerFragment) || normalizePath(path).toLowerCase().includes(lowerFragment)) {
-            pushDirectoryFromPath(path);
+          const normalizedPath = normalizeCompletionSourcePath(path);
+          if (!normalizedPath) {
+            continue;
+          }
+          const name = fileNameFromPath(normalizedPath);
+          if (name.toLowerCase().includes(lowerFragment) || normalizedPath.toLowerCase().includes(lowerFragment)) {
+            pushDirectoryFromPath(normalizedPath);
             if (results.length >= maxSuggestions) return results;
           }
         }
         for (const path of sourceFiles) {
-          const name = fileNameFromPath(path);
-          if (name.toLowerCase().includes(lowerFragment) || normalizePath(path).toLowerCase().includes(lowerFragment)) {
-            pushFileFromPath(path);
+          const normalizedPath = normalizeCompletionSourcePath(path);
+          if (!normalizedPath) {
+            continue;
+          }
+          const name = fileNameFromPath(normalizedPath);
+          if (name.toLowerCase().includes(lowerFragment) || normalizedPath.toLowerCase().includes(lowerFragment)) {
+            pushFileFromPath(normalizedPath);
             if (results.length >= maxSuggestions) return results;
           }
         }
@@ -1376,17 +1454,20 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
     }, [selectedEngine, t]);
 
     const completionCommands = useMemo<CommandItem[]>(() => {
-      const customCommands: CommandItem[] = (commands ?? [])
-        .filter((entry) => entry.name.trim().length > 0)
-        .map((entry) => {
-          const cleanName = entry.name.trim().replace(/^\//, '');
-          return {
-            id: cleanName,
-            label: `/${cleanName}`,
-            description: entry.description || '',
-            category: 'custom',
-          };
+      const commandSource = Array.isArray(commands) ? commands : [];
+      const customCommands = commandSource.reduce<CommandItem[]>((acc, entry) => {
+        const cleanName = normalizeSlashCommandName(entry?.name);
+        if (!cleanName) {
+          return acc;
+        }
+        acc.push({
+          id: cleanName,
+          label: `/${cleanName}`,
+          description: normalizeOptionalString(entry.description),
+          category: 'custom',
         });
+        return acc;
+      }, []);
 
       const seen = new Set<string>();
       const merged = [...builtinSlashCommands, ...customCommands].filter((entry) => {
@@ -1744,7 +1825,7 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
         messageQueue={messageQueue}
         sendReadiness={sendReadiness}
         onJumpToRequest={onJumpToRequest}
-        onExpandContextSources={onExpandContextSources}
+        onToggleContextSources={onToggleContextSources}
         contextSourcesExpanded={contextSourcesExpanded}
         onRemoveFromQueue={onDeleteQueued}
         onFuseFromQueue={onFuseQueued}

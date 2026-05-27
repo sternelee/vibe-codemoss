@@ -38,7 +38,7 @@ export function RuntimeReconnectCard({
   const { t } = useTranslation();
   const [isReconnectRunning, setIsReconnectRunning] = useState(false);
   const [reconnectStatus, setReconnectStatus] = useState<
-    "idle" | "error" | "restored" | "fresh"
+    "idle" | "error" | "restored" | "forked" | "fresh"
   >("idle");
   const [lastAction, setLastAction] = useState<"reconnect" | "resend">("reconnect");
   const [reconnectErrorDetail, setReconnectErrorDetail] = useState<string | null>(null);
@@ -102,6 +102,11 @@ export function RuntimeReconnectCard({
             setReconnectErrorDetail(t("messages.threadRecoveryRecoverFailed"));
             return;
           }
+          if (resentResult.kind === "forked") {
+            setReconnectStatus("forked");
+            setReconnectErrorDetail(t("messages.threadRecoveryForkedResent"));
+            return;
+          }
           if (resentResult.kind === "fresh") {
             setReconnectStatus("fresh");
             setReconnectErrorDetail(t("messages.threadRecoveryFreshResent"));
@@ -123,6 +128,11 @@ export function RuntimeReconnectCard({
         if (recoveredResult.kind === "failed") {
           setReconnectStatus("error");
           setReconnectErrorDetail(t("messages.threadRecoveryRecoverFailed"));
+          return;
+        }
+        if (recoveredResult.kind === "forked") {
+          setReconnectStatus("forked");
+          setReconnectErrorDetail(t("messages.threadRecoveryForkedFallbackRequired"));
           return;
         }
         if (recoveredResult.kind === "fresh") {
@@ -152,6 +162,11 @@ export function RuntimeReconnectCard({
           setReconnectErrorDetail(t("messages.runtimeReconnectRecoverFailed"));
           return;
         }
+        if (resentResult.kind === "forked") {
+          setReconnectStatus("forked");
+          setReconnectErrorDetail(t("messages.threadRecoveryForkedResent"));
+          return;
+        }
         if (resentResult.kind === "fresh") {
           setReconnectStatus("fresh");
           setReconnectErrorDetail(t("messages.runtimeReconnectFreshResent"));
@@ -167,6 +182,11 @@ export function RuntimeReconnectCard({
         if (recoveredResult.kind === "failed") {
           setReconnectStatus("error");
           setReconnectErrorDetail(t("messages.runtimeReconnectRecoverFailed"));
+          return;
+        }
+        if (recoveredResult.kind === "forked") {
+          setReconnectStatus("forked");
+          setReconnectErrorDetail(t("messages.threadRecoveryForkedFallbackRequired"));
           return;
         }
         if (recoveredResult.kind === "fresh") {
@@ -219,7 +239,7 @@ export function RuntimeReconnectCard({
       ? t("messages.threadRecoveryResendRunning")
       : t("messages.runtimeReconnectResendRunning")
     : requiresThreadRecovery
-      ? t("messages.threadRecoveryResendAction")
+      ? t("messages.threadRecoveryForkResendAction")
       : t("messages.runtimeReconnectResendAction");
   const showReconnectAction =
     !requiresThreadRecovery || (Boolean(onRecoverThreadRuntime) && resendUnavailable);
@@ -299,6 +319,11 @@ export function RuntimeReconnectCard({
         </>
       ) : null}
       {reconnectStatus === "fresh" && reconnectErrorDetail ? (
+        <div className="message-runtime-recovery-detail" aria-live="polite">
+          {reconnectErrorDetail}
+        </div>
+      ) : null}
+      {reconnectStatus === "forked" && reconnectErrorDetail ? (
         <div className="message-runtime-recovery-detail" aria-live="polite">
           {reconnectErrorDetail}
         </div>

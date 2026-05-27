@@ -41,6 +41,7 @@ vi.mock("../../client-ui-visibility/hooks/useClientUiVisibility", () => ({
         "topTool.rightPanel": clientUiVisibilityMock.visibleControls.has("topTool.rightPanel"),
         "topTool.clientDocumentation": clientUiVisibilityMock.visibleControls.has("topTool.clientDocumentation"),
         "rightToolbar.activity": clientUiVisibilityMock.visibleControls.has("rightToolbar.activity"),
+        "rightToolbar.projectMap": clientUiVisibilityMock.visibleControls.has("rightToolbar.projectMap"),
         "rightToolbar.radar": clientUiVisibilityMock.visibleControls.has("rightToolbar.radar"),
         "rightToolbar.git": clientUiVisibilityMock.visibleControls.has("rightToolbar.git"),
         "rightToolbar.files": clientUiVisibilityMock.visibleControls.has("rightToolbar.files"),
@@ -213,7 +214,28 @@ vi.mock("../../debug/components/DebugPanel", () => ({
 }));
 
 vi.mock("../components/PanelTabs", () => ({
-  PanelTabs: () => <div data-testid="panel-tabs" />,
+  PanelTabs: ({
+    active,
+    onSelect,
+    visibleTabs,
+  }: {
+    active: string;
+    onSelect: (id: string) => void;
+    visibleTabs?: Partial<Record<string, boolean>>;
+  }) => (
+    <div data-testid="panel-tabs" data-active={active}>
+      {visibleTabs?.projectMap !== false ? (
+        <button type="button" onClick={() => onSelect("projectMap")}>
+          projectMap
+        </button>
+      ) : null}
+      {visibleTabs?.files !== false ? (
+        <button type="button" onClick={() => onSelect("files")}>
+          files
+        </button>
+      ) : null}
+    </div>
+  ),
 }));
 
 vi.mock("../../app/components/TabBar", () => ({
@@ -425,6 +447,9 @@ function createLayoutOptions(
     onLaunchScriptDraftChange: noop,
     onSaveLaunchScript: noop,
     centerMode: "chat",
+    setCenterMode: noop,
+    editorSplitCompanion: "chat",
+    setEditorSplitCompanion: noop,
     editorSplitLayout: "vertical",
     onToggleEditorSplitLayout: noop,
     isEditorFileMaximized: false,
@@ -446,6 +471,7 @@ function createLayoutOptions(
     gitPanelMode: "diff",
     onGitPanelModeChange: noop,
     onOpenGitHistoryPanel: noop,
+    onOpenProjectMap: noop,
     gitDiffViewStyle: "split",
     gitDiffListView: "flat",
     onGitDiffListViewChange: noop,
@@ -774,6 +800,142 @@ describe("useLayoutNodes client UI visibility", () => {
     fireEvent.click(screen.getByRole("button", { name: "open file reference" }));
 
     expect(onOpenFile).toHaveBeenCalledWith("src/App.tsx");
+  });
+
+  it("toggles the Project Map toolbar icon off from full Project Map mode", () => {
+    clientUiVisibilityMock.visiblePanels.add("rightActivityToolbar");
+    clientUiVisibilityMock.visibleControls.add("rightToolbar.projectMap");
+    const setCenterMode = vi.fn();
+    const { result } = renderHook(() =>
+      useLayoutNodes(
+        createLayoutOptions({
+          centerMode: "projectMap",
+          setCenterMode,
+        }),
+      ),
+    );
+
+    render(<>{result.current.rightPanelToolbarNode}</>);
+    expect(screen.getByTestId("panel-tabs").dataset.active).toBe("projectMap");
+
+    fireEvent.click(screen.getByRole("button", { name: "projectMap" }));
+
+    expect(setCenterMode).toHaveBeenCalledWith("chat");
+  });
+
+  it("opens the Project Map toolbar icon from chat mode", () => {
+    clientUiVisibilityMock.visiblePanels.add("rightActivityToolbar");
+    clientUiVisibilityMock.visibleControls.add("rightToolbar.projectMap");
+    const onOpenProjectMap = vi.fn();
+    const { result } = renderHook(() =>
+      useLayoutNodes(
+        createLayoutOptions({
+          centerMode: "chat",
+          onOpenProjectMap,
+        }),
+      ),
+    );
+
+    render(<>{result.current.rightPanelToolbarNode}</>);
+    expect(screen.getByTestId("panel-tabs").dataset.active).toBe("files");
+
+    fireEvent.click(screen.getByRole("button", { name: "projectMap" }));
+
+    expect(onOpenProjectMap).toHaveBeenCalledTimes(1);
+  });
+
+  it("toggles the Project Map toolbar icon off from editor companion mode", () => {
+    clientUiVisibilityMock.visiblePanels.add("rightActivityToolbar");
+    clientUiVisibilityMock.visibleControls.add("rightToolbar.projectMap");
+    const setEditorSplitCompanion = vi.fn();
+    const { result } = renderHook(() =>
+      useLayoutNodes(
+        createLayoutOptions({
+          centerMode: "editor",
+          editorSplitCompanion: "projectMap",
+          setEditorSplitCompanion,
+        }),
+      ),
+    );
+
+    render(<>{result.current.rightPanelToolbarNode}</>);
+    expect(screen.getByTestId("panel-tabs").dataset.active).toBe("projectMap");
+
+    fireEvent.click(screen.getByRole("button", { name: "projectMap" }));
+
+    expect(setEditorSplitCompanion).toHaveBeenCalledWith("chat");
+  });
+
+  it("opens the Project Map toolbar icon as an editor companion without closing the editor", () => {
+    clientUiVisibilityMock.visiblePanels.add("rightActivityToolbar");
+    clientUiVisibilityMock.visibleControls.add("rightToolbar.projectMap");
+    const onOpenProjectMap = vi.fn();
+    const setCenterMode = vi.fn();
+    const setEditorSplitCompanion = vi.fn();
+    const { result } = renderHook(() =>
+      useLayoutNodes(
+        createLayoutOptions({
+          centerMode: "editor",
+          editorSplitCompanion: "chat",
+          onOpenProjectMap,
+          setCenterMode,
+          setEditorSplitCompanion,
+        }),
+      ),
+    );
+
+    render(<>{result.current.rightPanelToolbarNode}</>);
+    expect(screen.getByTestId("panel-tabs").dataset.active).toBe("files");
+
+    fireEvent.click(screen.getByRole("button", { name: "projectMap" }));
+
+    expect(setEditorSplitCompanion).toHaveBeenCalledWith("projectMap");
+    expect(onOpenProjectMap).not.toHaveBeenCalled();
+    expect(setCenterMode).not.toHaveBeenCalled();
+  });
+
+  it("restores a maximized editor when the Project Map toolbar icon opens as companion", () => {
+    clientUiVisibilityMock.visiblePanels.add("rightActivityToolbar");
+    clientUiVisibilityMock.visibleControls.add("rightToolbar.projectMap");
+    const setEditorSplitCompanion = vi.fn();
+    const onToggleEditorFileMaximized = vi.fn();
+    const { result } = renderHook(() =>
+      useLayoutNodes(
+        createLayoutOptions({
+          centerMode: "editor",
+          editorSplitCompanion: "chat",
+          setEditorSplitCompanion,
+          isEditorFileMaximized: true,
+          onToggleEditorFileMaximized,
+        }),
+      ),
+    );
+
+    render(<>{result.current.rightPanelToolbarNode}</>);
+
+    fireEvent.click(screen.getByRole("button", { name: "projectMap" }));
+
+    expect(setEditorSplitCompanion).toHaveBeenCalledWith("projectMap");
+    expect(onToggleEditorFileMaximized).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides the Project Map toolbar icon when its visibility control is disabled", () => {
+    clientUiVisibilityMock.visiblePanels.add("rightActivityToolbar");
+    clientUiVisibilityMock.visibleControls.add("rightToolbar.files");
+    const onOpenProjectMap = vi.fn();
+    const { result } = renderHook(() =>
+      useLayoutNodes(
+        createLayoutOptions({
+          centerMode: "chat",
+          onOpenProjectMap,
+        }),
+      ),
+    );
+
+    render(<>{result.current.rightPanelToolbarNode}</>);
+
+    expect(screen.queryByRole("button", { name: "projectMap" })).toBeNull();
+    expect(screen.getByRole("button", { name: "files" })).toBeTruthy();
   });
 
   it("keeps the bottom status dock mounted when baseline tabs are visible and collapsed", () => {

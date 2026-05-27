@@ -255,6 +255,14 @@ describe("recoverThreadBindingForManualRecovery", () => {
         userAction: "start-fresh-thread",
       }),
     ).toBe(false);
+    expect(
+      shouldSuppressManualRecoveryResendUserMessage({
+        kind: "forked",
+        threadId: "thread-forked",
+        retryable: true,
+        userAction: "start-fresh-thread",
+      }),
+    ).toBe(false);
   });
 });
 
@@ -268,12 +276,13 @@ describe("recoverThreadBindingAndResendForManualRecovery", () => {
     connected: false,
   };
 
-  it("resends to a fresh codex thread when historical stale recovery cannot rebind", async () => {
+  it("resends to a forked codex thread when historical stale recovery cannot rebind", async () => {
     const resolveWorkspace = vi.fn(() => disconnectedWorkspace);
     const refreshThread = vi.fn(async () => {
       throw new Error("thread not found: thread-stale");
     });
     const startThreadForWorkspace = vi.fn(async () => " thread-fresh ");
+    const forkThreadForWorkspace = vi.fn(async () => " thread-forked ");
     const connectWorkspace = vi.fn(async () => undefined);
     const sendUserMessageToThread = vi.fn(async () => undefined);
 
@@ -289,7 +298,56 @@ describe("recoverThreadBindingAndResendForManualRecovery", () => {
       resolveWorkspace,
       refreshThread,
       startThreadForWorkspace,
+      forkThreadForWorkspace,
       connectWorkspace,
+      sendUserMessageToThread,
+    });
+
+    expect(result).toEqual({
+      kind: "forked",
+      threadId: "thread-forked",
+      retryable: true,
+      userAction: "start-fresh-thread",
+    });
+    expect(resolveWorkspace).toHaveBeenCalledWith("ws-1");
+    expect(refreshThread).toHaveBeenCalledWith("ws-1", "thread-stale");
+    expect(forkThreadForWorkspace).toHaveBeenCalledWith("ws-1", "thread-stale", {
+      activate: true,
+    });
+    expect(startThreadForWorkspace).not.toHaveBeenCalled();
+    expect(connectWorkspace).toHaveBeenCalledWith(disconnectedWorkspace);
+    expect(sendUserMessageToThread).toHaveBeenCalledWith(
+      disconnectedWorkspace,
+      "thread-forked",
+      "继续",
+      [],
+      {
+        suppressUserMessageRender: false,
+        skipOptimisticUserBubble: false,
+      },
+    );
+  });
+
+  it("falls back to a fresh codex thread when stale fork is unavailable", async () => {
+    const refreshThread = vi.fn(async () => null);
+    const startThreadForWorkspace = vi.fn(async () => "thread-fresh");
+    const forkThreadForWorkspace = vi.fn(async () => null);
+    const sendUserMessageToThread = vi.fn(async () => undefined);
+
+    const result = await recoverThreadBindingAndResendForManualRecovery({
+      workspaceId: "ws-1",
+      threadId: "thread-stale",
+      message: {
+        text: "继续",
+      },
+      threadsByWorkspace: {
+        "ws-1": [{ id: "thread-stale", engineSource: "codex" }],
+      },
+      resolveWorkspace: vi.fn(() => connectedWorkspace),
+      refreshThread,
+      startThreadForWorkspace,
+      forkThreadForWorkspace,
+      connectWorkspace: vi.fn(async () => undefined),
       sendUserMessageToThread,
     });
 
@@ -299,15 +357,15 @@ describe("recoverThreadBindingAndResendForManualRecovery", () => {
       retryable: true,
       userAction: "start-fresh-thread",
     });
-    expect(resolveWorkspace).toHaveBeenCalledWith("ws-1");
-    expect(refreshThread).toHaveBeenCalledWith("ws-1", "thread-stale");
+    expect(forkThreadForWorkspace).toHaveBeenCalledWith("ws-1", "thread-stale", {
+      activate: true,
+    });
     expect(startThreadForWorkspace).toHaveBeenCalledWith("ws-1", {
       activate: true,
       engine: "codex",
     });
-    expect(connectWorkspace).toHaveBeenCalledWith(disconnectedWorkspace);
     expect(sendUserMessageToThread).toHaveBeenCalledWith(
-      disconnectedWorkspace,
+      connectedWorkspace,
       "thread-fresh",
       "继续",
       [],

@@ -55,6 +55,8 @@ const enPart1 = {
     sessionFolderRenameFailed: "Could not rename folder",
     sessionFolderDeleteFailed: "Could not delete folder",
     sessionFolderMoveFailed: "Could not move session",
+    loadingProgressMoveSessionTitle: "Moving session...",
+    loadingProgressMoveSessionMessage: "Moving this session to {{folder}}.",
     sessionFolderCrossProjectBlocked:
       "Sessions cannot be moved across projects.",
     sessionFolderCount: "{{count}} sessions",
@@ -1098,6 +1100,7 @@ const enPart1 = {
         topToolRightPanel: "Right panel toggle",
         topToolClientDocumentation: "Client documentation entry",
         rightToolbarActivity: "Activity entry",
+        rightToolbarProjectMap: "Project Map entry",
         rightToolbarRadar: "Radar entry",
         rightToolbarGit: "Git entry",
         rightToolbarFiles: "Files entry",
@@ -1126,6 +1129,8 @@ const enPart1 = {
           "Hides the client documentation entry without removing the documentation window.",
         rightToolbarActivity:
           "Hides the activity panel entry without clearing collected activity.",
+        rightToolbarProjectMap:
+          "Hides the Project Map entry without stopping map generation or persistence.",
         rightToolbarRadar:
           "Hides the radar panel entry without stopping session tracking.",
         rightToolbarGit:
@@ -2435,6 +2440,8 @@ const enPart1 = {
       "Model switch detected in the same session. A new backend session has been created to avoid timeouts.",
     doneIn: "Done in {{duration}}",
     copyMessage: "Copy message",
+    streamingPlainTextCollapsed:
+      "{{omittedChars}} chars omitted to keep live rendering smooth.",
     runtimeReconnectTitle: "Runtime connection lost",
     runtimeReconnectBrokenPipe:
       "The runtime pipe for this session message has been closed. Reconnect the runtime, then retry your send.",
@@ -2470,6 +2477,7 @@ const enPart1 = {
       "This conversation points at a stale thread handle. Historical Codex sessions often cannot revive the old thread directly; if a previous prompt is available, recover and resend it into an available conversation.",
     threadRecoveryAction: "Try recovery",
     threadRecoveryRunning: "Recovering...",
+    threadRecoveryForkResendAction: "Fork and resend previous prompt",
     threadRecoveryResendAction: "Recover and resend previous prompt",
     threadRecoveryResendRunning: "Recovering and resending...",
     threadRecoveryResendUnavailable:
@@ -2483,6 +2491,10 @@ const enPart1 = {
       "The original conversation binding was verified and restored.",
     threadRecoveryRestoredAndResent:
       "The original conversation was restored and the previous prompt was resent there.",
+    threadRecoveryForkedFallbackRequired:
+      "The original thread cannot be safely revived. Use fork and resend to continue this request in a forked conversation.",
+    threadRecoveryForkedResent:
+      "The original thread cannot be safely revived. The previous prompt continued in a forked conversation.",
     threadRecoveryFreshFallbackRequired:
       "The original conversation could not be rebound. Use recovery with resend to continue the previous prompt in a new conversation.",
     threadRecoveryFreshResent:

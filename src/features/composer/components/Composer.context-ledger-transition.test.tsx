@@ -138,6 +138,8 @@ describe("Composer context ledger transitions", () => {
       "items:1 · groups:1",
     );
     expect(view.container.querySelector(".composer-context-stack")).toBeTruthy();
+    expect(view.container.querySelector(".composer-context-ledger")).toBeNull();
+    expect(screen.queryByRole("region", { name: "composer.contextLedgerTitle" })).toBeNull();
 
     view.rerender(
       <Composer

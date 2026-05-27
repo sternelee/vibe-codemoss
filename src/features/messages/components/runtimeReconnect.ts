@@ -11,6 +11,7 @@ export type RuntimeReconnectHint = {
 
 export type RuntimeReconnectRecoveryResult =
   | { kind: "rebound"; threadId?: string | null }
+  | { kind: "forked"; threadId: string }
   | { kind: "fresh"; threadId: string }
   | { kind: "failed"; reason?: string | null };
 
@@ -84,7 +85,11 @@ export function normalizeRuntimeReconnectRecoveryResult(
       reason: normalizeRuntimeReconnectFailureReason(recoveryResult.reason),
     };
   }
-  if (recoveryResult.kind === "fresh" || recoveryResult.kind === "rebound") {
+  if (
+    recoveryResult.kind === "fresh" ||
+    recoveryResult.kind === "forked" ||
+    recoveryResult.kind === "rebound"
+  ) {
     const threadId = normalizeRuntimeReconnectThreadId(recoveryResult.threadId);
     if (!threadId) {
       return { kind: "failed", reason: "invalid recovery thread id" };

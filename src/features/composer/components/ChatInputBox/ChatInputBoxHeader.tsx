@@ -21,7 +21,7 @@ export function ChatInputBoxHeader({
   fusingQueueMessageId = null,
   sendReadiness,
   onJumpToRequest,
-  onExpandContextSources,
+  onToggleContextSources,
   contextSourcesExpanded,
   selectedModel,
   models,
@@ -48,7 +48,7 @@ export function ChatInputBoxHeader({
   fusingQueueMessageId?: string | null;
   sendReadiness?: ComposerSendReadiness | null;
   onJumpToRequest?: () => void;
-  onExpandContextSources?: () => void;
+  onToggleContextSources?: () => void;
   contextSourcesExpanded?: boolean;
   selectedModel?: string;
   models?: ModelInfo[];
@@ -124,7 +124,7 @@ export function ChatInputBoxHeader({
         <ComposerReadinessBar
           readiness={sendReadiness}
           onJumpToRequest={onJumpToRequest}
-          onExpandContextSources={onExpandContextSources}
+          onToggleContextSources={onToggleContextSources}
           contextSourcesExpanded={contextSourcesExpanded}
           selectedModel={selectedModel}
           models={models}

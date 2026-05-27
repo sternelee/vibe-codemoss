@@ -32,7 +32,7 @@ describe("engineCapabilityMatrix", () => {
 
   it("resolves spec-owned capability states by engine", () => {
     expect(getEngineCapabilityState("codex", "reasoning.effort")).toBe("supported");
-    expect(getEngineCapabilityState("claude", "reasoning.effort")).toBe("unsupported");
+    expect(getEngineCapabilityState("claude", "reasoning.effort")).toBe("supported");
     expect(getEngineCapabilityState("opencode", "tool.mcp")).toBe("unsupported");
   });
 
@@ -50,7 +50,7 @@ describe("engineCapabilityMatrix", () => {
     });
   });
 
-  it("keeps runtime projection conservative when legacy EngineFeatures lack a dimension", () => {
+  it("keeps runtime projection conservative while spec support keeps capability available", () => {
     const status = resolveEngineCapabilityRuntimeStatus(
       {
         engineType: "codex" satisfies EngineType,

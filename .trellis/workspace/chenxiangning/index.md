@@ -7,9 +7,9 @@
 ## Current Status
 
 <!-- @@@auto:current-status -->
-- **Active File**: `journal-16.md`
-- **Total Sessions**: 570
-- **Last Active**: 2026-05-24
+- **Active File**: `journal-17.md`
+- **Total Sessions**: 609
+- **Last Active**: 2026-05-27
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,8 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-16.md` | ~407 | Active |
+| `journal-17.md` | ~159 | Active |
+| `journal-16.md` | ~1985 | Archived |
 | `journal-15.md` | ~1996 | Archived |
 | `journal-14.md` | ~1969 | Archived |
 | `journal-13.md` | ~1947 | Archived |
@@ -44,6 +45,45 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 609 | 2026-05-27 | 收口 Claude 自定义模型事实源归一化 | `0c981fc9` | `feature/v0.5.3` |
+| 608 | 2026-05-27 | 修复 Project Map 跨工程生成串线 | `05f07b8c` | `feature/v0.5.3` |
+| 607 | 2026-05-27 | Project Map 节点拖拽与重复节点修复 | `ced4bf9e` | `feature/v0.5.3` |
+| 606 | 2026-05-27 | 增强引擎任务输出查看 | `f94ec7d5` | `feature/v0.5.3` |
+| 605 | 2026-05-27 | Project Map 中文主体生成提示 | `da9cd8dd` | `feature/v0.5.3` |
+| 604 | 2026-05-27 | 收紧思考强度选择器兼容性 | `6bdc546d` | `feature/v0.5.3` |
+| 603 | 2026-05-27 | 修复 slash 补全白屏 | `f09f63dd` | `feature/v0.5.3` |
+| 602 | 2026-05-27 | Codex 历史会话 Fork 恢复入口 | `8124a894` | `feature/v0.5.3` |
+| 601 | 2026-05-27 | 修复项目知识地图自动补充后台调度 | `32aa34e8` | `feature/v0.5.3` |
+| 600 | 2026-05-27 | 修复 Composer 工具弹层遮挡与点击不稳 | `7e588b2a` | `feature/v0.5.3` |
+| 599 | 2026-05-27 | 修复 @ 文件引用白屏 | `f103e8c0` | `feature/v0.5.3` |
+| 598 | 2026-05-27 | 修复切换引擎后思考强度漂移 | `e76c2963` | `feature/v0.5.3` |
+| 597 | 2026-05-27 | Project Map 边界兼容性收口 | `4b215d62` | `feature/v0.5.3` |
+| 596 | 2026-05-27 | 修复 bootstrap 测试 rendererDiagnostics mock | `93c95ae5` | `feature/v0.5.3` |
+| 595 | 2026-05-27 | 校准项目知识地图 OpenSpec 规范证据 | `c03ae308` | `feature/v0.5.3` |
+| 594 | 2026-05-27 | Project Map 画布工具折叠态 | `0e4dc68f` | `feature/v0.5.3` |
+| 593 | 2026-05-27 | Project Map 生成链路收口 | `709d62bd` | `feature/v0.5.3` |
+| 592 | 2026-05-27 | 补齐项目知识地图入口显隐控制 | `10a24b1c` | `feature/v0.5.3` |
+| 591 | 2026-05-27 | 修复 Codex 流式空白恢复诊断 | `b0ff1cbe` | `feature/v0.5.3` |
+| 590 | 2026-05-27 | 接通 Project Map 自动补充队列 | `cca81f59` | `feature/v0.5.3` |
+| 589 | 2026-05-27 | 打磨知识地图头部折叠工具栏 | `ee43559b` | `feature/v0.5.3` |
+| 588 | 2026-05-27 | 稳定知识地图节点选择视口 | `cf34960b` | `feature/v0.5.3` |
+| 587 | 2026-05-27 | Project Map 增量生成与交互图谱收口 | `7c855a90` | `feature/v0.5.3` |
+| 586 | 2026-05-26 | 稳定知识地图增量生成与证据链交互 | `05e9cb9d` | `feature/v0.5.3` |
+| 585 | 2026-05-26 | Project Map 知识地图生成与交互批量收口 | `869520f8` | `feature/v0.5.3` |
+| 584 | 2026-05-26 | 固化项目知识地图基础能力 | `581675f6` | `feature/v0.5.3` |
+| 583 | 2026-05-26 | 回写会话管理收口提案 | `5a8e231a` | `feature/v0.5.3` |
+| 582 | 2026-05-26 | 修复设置会话删除测试超时 | `15a4a882` | `feature/v0.5.3` |
+| 581 | 2026-05-26 | 删除会话文件夹时保留并提升会话 | `934447de` | `feature/v0.5.3` |
+| 580 | 2026-05-26 | 修正空会话文件夹树删除语义 | `3303f64e` | `feature/v0.5.3` |
+| 579 | 2026-05-26 | 修复空会话文件夹删除误判 | `957a8c35` | `feature/v0.5.3` |
+| 578 | 2026-05-25 | 收敛会话删除同步状态 | `561042d1` | `feature/v0.5.3` |
+| 577 | 2026-05-25 | 稳定 Sidebar 会话文件夹测试 | `9d5e0a34` | `feature/v0.5.3` |
+| 576 | 2026-05-25 | 稳定 Sidebar 会话文件夹测试 | `032998db` | `feature/v0.5.3` |
+| 575 | 2026-05-25 | 稳定 VendorSettingsPanel 测试 | `63a6de5f` | `feature/v0.5.3` |
+| 574 | 2026-05-25 | 收口 Claude 长流式渲染恢复 | `e1cd9db3` | `feature/v0.5.3` |
+| 573 | 2026-05-25 | 校准 Context Ledger 提案证据 | `28357440` | `feature/v0.5.3` |
+| 572 | 2026-05-25 | 合并 Context Ledger 展开收起入口 | `e79604ab` | `feature/v0.5.3` |
+| 571 | 2026-05-25 | 优化会话移动反馈与子菜单定位 | `0f7a7350` | `feature/v0.5.3` |
 | 570 | 2026-05-24 | 收敛文件底部标注交互 | `33a84e1a` | `feature/v0.5.2` |
 | 569 | 2026-05-24 | 优化编辑态标注入口 | `4cce9d46` | `feature/v0.5.2` |
 | 568 | 2026-05-24 | 修复邮件设置密钥加载 CI 断言 | `24fd0862` | `feature/v0.5.2` |

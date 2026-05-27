@@ -166,6 +166,8 @@ const zhPart1 = {
     sessionFolderRenameFailed: "重命名文件夹失败",
     sessionFolderDeleteFailed: "删除文件夹失败",
     sessionFolderMoveFailed: "移动会话失败",
+    loadingProgressMoveSessionTitle: "正在移动会话...",
+    loadingProgressMoveSessionMessage: "正在把会话移动到 {{folder}}。",
     sessionFolderCrossProjectBlocked: "不允许跨项目移动会话。",
     sessionFolderCount: "{{count}} 个会话",
     sessionFolderLoadFailed: "会话文件夹暂不可用。",
@@ -1150,6 +1152,7 @@ const zhPart1 = {
         topToolRightPanel: "右侧面板开关",
         topToolClientDocumentation: "客户端说明文档入口",
         rightToolbarActivity: "活动入口",
+        rightToolbarProjectMap: "项目知识地图入口",
         rightToolbarRadar: "雷达入口",
         rightToolbarGit: "Git 入口",
         rightToolbarFiles: "文件入口",
@@ -1174,6 +1177,8 @@ const zhPart1 = {
         topToolClientDocumentation:
           "隐藏客户端说明文档入口；说明窗口能力不被移除。",
         rightToolbarActivity: "隐藏活动面板入口，不清空已收集的活动数据。",
+        rightToolbarProjectMap:
+          "隐藏项目知识地图入口，不停止地图生成或持久化。",
         rightToolbarRadar: "隐藏雷达面板入口，不停止会话跟踪。",
         rightToolbarGit: "隐藏 Git 面板入口，不改变 Git 状态。",
         rightToolbarFiles: "隐藏文件树入口，不关闭已打开文件。",
@@ -2380,6 +2385,8 @@ const zhPart1 = {
       "检测到同会话切换模型，已自动新建后端会话以避免超时。",
     doneIn: "完成，用时 {{duration}}",
     copyMessage: "复制消息",
+    streamingPlainTextCollapsed:
+      "为保持实时渲染流畅，已折叠 {{omittedChars}} 字符。",
     runtimeReconnectTitle: "Runtime 连接已中断",
     runtimeReconnectBrokenPipe:
       "当前这条会话消息对应的 runtime pipe 已断开。你可以先重新连接 runtime，再重试发送。",
@@ -2414,6 +2421,7 @@ const zhPart1 = {
       "当前会话引用的 thread 已失效。历史 Codex 会话通常无法直接复活旧 thread；如有上一条提示词，优先恢复并发送到可用会话继续。",
     threadRecoveryAction: "尝试恢复会话",
     threadRecoveryRunning: "正在恢复...",
+    threadRecoveryForkResendAction: "Fork 并发送上一条提示词",
     threadRecoveryResendAction: "恢复并发送上一条提示词",
     threadRecoveryResendRunning: "正在恢复并发送...",
     threadRecoveryResendUnavailable: "当前没有可重发的上一条提示词。",
@@ -2424,6 +2432,10 @@ const zhPart1 = {
     threadRecoveryRestoredDetail: "原会话绑定已通过验证并恢复。",
     threadRecoveryRestoredAndResent:
       "原会话已恢复，并已在原会话中重发上一条提示词。",
+    threadRecoveryForkedFallbackRequired:
+      "原 thread 无法安全复活。请使用“Fork 并发送上一条提示词”，在 Fork 会话中继续这条请求。",
+    threadRecoveryForkedResent:
+      "原 thread 无法安全复活，上一条提示词已在 Fork 会话中继续。",
     threadRecoveryFreshFallbackRequired:
       "原会话无法安全重新绑定。请使用“恢复并发送上一条提示词”，在新会话中继续这条请求。",
     threadRecoveryFreshResent:

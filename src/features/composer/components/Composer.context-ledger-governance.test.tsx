@@ -73,12 +73,14 @@ vi.mock("./ChatInputBox/ChatInputBoxAdapter", () => ({
     onSend,
     onManualMemorySelect,
     sendReadiness,
-    onExpandContextSources,
+    onToggleContextSources,
+    contextSourcesExpanded,
   }: {
     onTextChange: (next: string, cursor: number | null) => void;
     onSend: () => void;
     sendReadiness?: ComposerSendReadiness | null;
-    onExpandContextSources?: () => void;
+    onToggleContextSources?: () => void;
+    contextSourcesExpanded?: boolean;
     onManualMemorySelect?: (memory: {
       id: string;
       title: string;
@@ -122,13 +124,13 @@ vi.mock("./ChatInputBox/ChatInputBoxAdapter", () => ({
       <div data-testid="readiness-context-summary">
         {sendReadiness?.contextSummary.compactLabel ?? ""}
       </div>
-      <button
-        type="button"
-        data-testid="expand-context-sources"
-        onClick={() => onExpandContextSources?.()}
-      >
-        expand context sources
-      </button>
+      {onToggleContextSources ? (
+        <button type="button" onClick={onToggleContextSources}>
+          {contextSourcesExpanded
+            ? "composer.contextLedgerCollapse"
+            : "composer.contextLedgerExpand"}
+        </button>
+      ) : null}
     </div>
   ),
 }));
@@ -190,13 +192,16 @@ describe("Composer context ledger governance", () => {
     expect(view.container.querySelector(".composer-context-stack")).toBeTruthy();
     expect(screen.queryByTestId("context-ledger-mock")).toBeNull();
     expect(view.container.querySelector(".composer-context-ledger")).toBeNull();
+    expect(screen.queryByRole("region", { name: "composer.contextLedgerTitle" })).toBeNull();
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId("expand-context-sources"));
+      fireEvent.click(screen.getByRole("button", { name: "composer.contextLedgerExpand" }));
     });
 
     expect(view.container.querySelector(".composer-context-ledger")).toBeTruthy();
-    expect(screen.getByText("composer.contextLedgerTitle")).toBeTruthy();
+    expect(screen.queryByText("composer.contextLedgerTitle")).toBeNull();
+    expect(screen.queryByText("composer.contextLedgerCollapse")).toBeTruthy();
+    expect(screen.getByRole("region", { name: "composer.contextLedgerTitle" })).toBeTruthy();
 
     await act(async () => {
       fireEvent.click(screen.getByTestId("send-message"));

@@ -56,6 +56,25 @@ function normalizeReasoningEffort(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function getNormalizedReasoningOptions(reasoningOptions: string[]) {
+  return Array.from(
+    new Set(reasoningOptions.map((option) => option.trim()).filter(Boolean)),
+  );
+}
+
+export function isReasoningEffortSupportedForEngine(
+  activeEngine: EngineType,
+  reasoningOptions: string[],
+) {
+  if (activeEngine === "claude") {
+    return true;
+  }
+  if (activeEngine === "codex") {
+    return getNormalizedReasoningOptions(reasoningOptions).length > 0;
+  }
+  return false;
+}
+
 export function getEffectiveModels(
   activeEngine: EngineType,
   codexModels: ModelOption[],
@@ -138,9 +157,7 @@ export function getEffectiveSelectedEffort({
   activeThreadSelection,
   reasoningOptions,
 }: GetEffectiveSelectedEffortOptions) {
-  const normalizedReasoningOptions = Array.from(
-    new Set(reasoningOptions.map((option) => option.trim()).filter(Boolean)),
-  );
+  const normalizedReasoningOptions = getNormalizedReasoningOptions(reasoningOptions);
   const normalizeEffort = (value: string | null, options?: { fallbackToFirst: boolean }) => {
     if (typeof value !== "string") {
       return null;
@@ -157,6 +174,9 @@ export function getEffectiveSelectedEffort({
     }
     return trimmed;
   };
+  if (!isReasoningEffortSupportedForEngine(activeEngine, normalizedReasoningOptions)) {
+    return null;
+  }
   if (activeEngine === "claude") {
     return normalizeEffort(activeThreadSelection?.effort ?? null, {
       fallbackToFirst: false,

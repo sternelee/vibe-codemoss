@@ -12,8 +12,18 @@ import { hydrateClaudeDeferredImage } from "../../../services/tauri";
 import type { ConversationItem, QueuedMessage } from "../../../types";
 import { DiffBlock } from "../../git/components/DiffBlock";
 import type { StreamActivityPhase } from "../../threads/hooks/useStreamActivityPhase";
-import type { StreamMitigationProfile } from "../../threads/utils/streamLatencyDiagnostics";
+import {
+  noteThreadLiveRowRenderMeasured,
+  type StreamMitigationProfile,
+} from "../../threads/utils/streamLatencyDiagnostics";
 import { ProxyStatusBadge } from "../../../components/ProxyStatusBadge";
+import { EngineTaskOutputInspector } from "../../engine-task-output/components/EngineTaskOutputInspector";
+import { useEngineTaskOutputSnapshot } from "../../engine-task-output/hooks/useEngineTaskOutputSnapshot";
+import type { EngineTaskOutputSnapshot } from "../../engine-task-output/types";
+import {
+  buildEngineTaskOutputSnapshot,
+  buildTaskOutputSourceFromNotification,
+} from "../../engine-task-output/utils/engineTaskOutputProjection";
 import { languageFromPath } from "../../../utils/syntax";
 import type { PresentationProfile } from "../presentation/presentationProfile";
 import { parseAgentTaskNotification } from "../utils/agentTaskNotification";
@@ -222,6 +232,10 @@ function areMessageItemsEqual(
   );
 }
 
+function readHighResolutionNowMs() {
+  return typeof performance !== "undefined" ? performance.now() : Date.now();
+}
+
 function areMessageRowPropsEqual(
   previous: MessageRowProps,
   next: MessageRowProps,
@@ -287,6 +301,46 @@ function shouldUseLightweightStreamingMarkdown(
     complexity.isStructuredHeavy ||
     complexity.isMedium
   );
+}
+
+function shouldUseLongFoldedMarkdownStreamingSurface(
+  item: Extract<ConversationItem, { kind: "message" }>,
+  isStreaming: boolean,
+  activeEngine: MessagesEngine,
+  text: string,
+) {
+  return (
+    item.role === "assistant" &&
+    isStreaming &&
+    activeEngine === "claude" &&
+    text.length > STREAMING_PLAIN_TEXT_COLLAPSE_THRESHOLD
+  );
+}
+
+const STREAMING_PLAIN_TEXT_COLLAPSE_THRESHOLD = 20_000;
+const STREAMING_PLAIN_TEXT_HEAD_CHARS = 4_000;
+const STREAMING_PLAIN_TEXT_TAIL_CHARS = 2_000;
+
+function resolveStreamingPlainTextCollapsedView({
+  text,
+  omittedChars,
+  marker,
+}: {
+  text: string;
+  omittedChars: number;
+  marker: string;
+}) {
+  if (text.length <= STREAMING_PLAIN_TEXT_COLLAPSE_THRESHOLD) {
+    return text;
+  }
+  if (omittedChars <= 0) {
+    return text;
+  }
+  return [
+    text.slice(0, STREAMING_PLAIN_TEXT_HEAD_CHARS),
+    `\n\n${marker}\n\n`,
+    text.slice(-STREAMING_PLAIN_TEXT_TAIL_CHARS),
+  ].join("");
 }
 
 function areGeneratedImageItemsEqual(
@@ -740,12 +794,23 @@ export const MessageRow = memo(function MessageRow({
   suppressMemorySummaryCard = false,
   suppressNoteCardSummaryCard = false,
 }: MessageRowProps) {
+  const renderStartedAtMs = readHighResolutionNowMs();
   const { t } = useTranslation();
+  const lastLongLiveRenderDiagnosticRef = useRef<{
+    itemId: string;
+    textLength: number;
+  }>({ itemId: "", textLength: 0 });
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [deferredImageStates, setDeferredImageStates] = useState<Record<string, DeferredImageState>>({});
   const [memorySummaryExpanded, setMemorySummaryExpanded] = useState(false);
   const [memoryPayloadDialogOpen, setMemoryPayloadDialogOpen] = useState(false);
   const [isAgentBadgeExpanded, setIsAgentBadgeExpanded] = useState(false);
+  const [inspectedTaskOutput, setInspectedTaskOutput] =
+    useState<EngineTaskOutputSnapshot | null>(null);
+  const inspectedTaskOutputState = useEngineTaskOutputSnapshot({
+    workspaceId,
+    snapshot: inspectedTaskOutput,
+  });
   useEffect(() => {
     if (!memoryPayloadDialogOpen) {
       return undefined;
@@ -847,9 +912,26 @@ export const MessageRow = memo(function MessageRow({
       outputFileName: basenameFromPath(agentTaskNotification.outputFile),
     };
   }, [agentTaskNotification]);
+  const agentTaskOutputSnapshot = useMemo(() => {
+    if (!agentTaskNotification || !agentTaskDisplay) {
+      return null;
+    }
+    return buildEngineTaskOutputSnapshot(
+      buildTaskOutputSourceFromNotification({
+        itemId: item.id,
+        engine: activeEngine,
+        title: agentTaskDisplay.title,
+        notification: agentTaskNotification,
+      }),
+      null,
+    );
+  }, [activeEngine, agentTaskDisplay, agentTaskNotification, item.id]);
   useEffect(() => {
     setIsAgentBadgeExpanded(false);
   }, [item.id, selectedAgentIcon, selectedAgentName]);
+  useEffect(() => {
+    setInspectedTaskOutput(null);
+  }, [item.id]);
   const handleToggleAgentBadge = useCallback(() => {
     setIsAgentBadgeExpanded((current) => !current);
   }, []);
@@ -990,14 +1072,44 @@ export const MessageRow = memo(function MessageRow({
     activeEngine,
     streamMitigationProfile,
   );
-  const useLightweightStreamingMarkdown = !usePlainTextStreamingSurface && shouldUseLightweightStreamingMarkdown(
+  const useLongFoldedMarkdownStreamingSurface = shouldUseLongFoldedMarkdownStreamingSurface(
     item,
     isStreaming,
     activeEngine,
-    presentationProfile,
-    streamingMarkdownComplexity,
+    displayText,
+  );
+  const useLightweightStreamingMarkdown = !usePlainTextStreamingSurface && (
+    useLongFoldedMarkdownStreamingSurface ||
+    shouldUseLightweightStreamingMarkdown(
+      item,
+      isStreaming,
+      activeEngine,
+      presentationProfile,
+      streamingMarkdownComplexity,
+    )
   );
   const livePlainTextClassName = `${resolvedMarkdownClassName} markdown-live-plain-text`;
+  const streamingPlainTextCollapsedOmittedChars = useMemo(() => {
+    if (!useLongFoldedMarkdownStreamingSurface) {
+      return 0;
+    }
+    const omitted = displayText.length - (
+      STREAMING_PLAIN_TEXT_HEAD_CHARS + STREAMING_PLAIN_TEXT_TAIL_CHARS
+    );
+    return Math.max(omitted, 0);
+  }, [displayText.length, useLongFoldedMarkdownStreamingSurface]);
+  const liveFoldedStreamingSurfaceText = useMemo(() => {
+    if (!useLongFoldedMarkdownStreamingSurface || streamingPlainTextCollapsedOmittedChars <= 0) {
+      return displayText;
+    }
+    return resolveStreamingPlainTextCollapsedView({
+      text: displayText,
+      omittedChars: streamingPlainTextCollapsedOmittedChars,
+      marker: t("messages.streamingPlainTextCollapsed", {
+        omittedChars: streamingPlainTextCollapsedOmittedChars,
+      }),
+    });
+  }, [displayText, streamingPlainTextCollapsedOmittedChars, t, useLongFoldedMarkdownStreamingSurface]);
   const handleRenderedAssistantValue = useCallback(
     (visibleText: string) => {
       if (item.role !== "assistant" || !isStreaming) {
@@ -1010,12 +1122,50 @@ export const MessageRow = memo(function MessageRow({
     },
     [isStreaming, item.id, item.role, onAssistantVisibleTextRender],
   );
+  const handleMarkdownRenderedAssistantValue = useCallback(
+    (visibleText: string) => {
+      handleRenderedAssistantValue(
+        useLongFoldedMarkdownStreamingSurface ? displayText : visibleText,
+      );
+    },
+    [displayText, handleRenderedAssistantValue, useLongFoldedMarkdownStreamingSurface],
+  );
   useEffect(() => {
     if (!usePlainTextStreamingSurface) {
       return;
     }
     handleRenderedAssistantValue(displayText);
-  }, [displayText, handleRenderedAssistantValue, usePlainTextStreamingSurface]);
+  }, [
+    displayText,
+    handleRenderedAssistantValue,
+    usePlainTextStreamingSurface,
+  ]);
+  useEffect(() => {
+    if (
+      !threadId ||
+      item.role !== "assistant" ||
+      !isStreaming ||
+      displayText.length <= STREAMING_PLAIN_TEXT_COLLAPSE_THRESHOLD
+    ) {
+      return;
+    }
+    const previousDiagnostic = lastLongLiveRenderDiagnosticRef.current;
+    if (
+      previousDiagnostic.itemId === item.id &&
+      displayText.length - previousDiagnostic.textLength < 2_048
+    ) {
+      return;
+    }
+    lastLongLiveRenderDiagnosticRef.current = {
+      itemId: item.id,
+      textLength: displayText.length,
+    };
+    noteThreadLiveRowRenderMeasured(threadId, {
+      itemId: item.id,
+      textLength: displayText.length,
+      renderCostMs: readHighResolutionNowMs() - renderStartedAtMs,
+    });
+  }, [displayText.length, isStreaming, item.id, item.role, renderStartedAtMs, threadId]);
   const provenanceLabel = resolveProvenanceEngineLabel(item.engineSource);
   const runtimeReconnectHint = useMemo(
     () => (
@@ -1066,6 +1216,25 @@ export const MessageRow = memo(function MessageRow({
               <span className="message-agent-task-chip">{agentTaskDisplay.outputFileName}</span>
             ) : null}
           </div>
+          {agentTaskOutputSnapshot ? (
+            <button
+              type="button"
+              className="engine-task-output-card-action"
+              onClick={() => setInspectedTaskOutput(agentTaskOutputSnapshot)}
+            >
+              {t("engineTaskOutput.inspect")}
+            </button>
+          ) : null}
+          {inspectedTaskOutput ? (
+            <div className="engine-task-output-inline">
+              <EngineTaskOutputInspector
+                snapshot={inspectedTaskOutputState.snapshot ?? inspectedTaskOutput}
+                refreshState={inspectedTaskOutputState.refreshState}
+                onRefresh={inspectedTaskOutputState.refresh}
+                onClose={() => setInspectedTaskOutput(null)}
+              />
+            </div>
+          ) : null}
         </div>
       ) : null}
       {imageItems.length > 0 && (
@@ -1138,11 +1307,11 @@ export const MessageRow = memo(function MessageRow({
           />
         ) : runtimeReconnectHint && showRuntimeReconnectCard ? null : usePlainTextStreamingSurface ? (
           <div className={livePlainTextClassName}>
-            {displayText}
+            {useLongFoldedMarkdownStreamingSurface ? liveFoldedStreamingSurfaceText : displayText}
           </div>
         ) : (
           <Markdown
-            value={displayText}
+            value={useLongFoldedMarkdownStreamingSurface ? liveFoldedStreamingSurfaceText : displayText}
             className={resolvedMarkdownClassName}
             workspaceId={workspaceId}
             codeBlockStyle="message"
@@ -1159,7 +1328,7 @@ export const MessageRow = memo(function MessageRow({
             onOpenFileLinkMenu={onOpenFileLinkMenu}
             liveRenderMode={useLightweightStreamingMarkdown ? "lightweight" : "full"}
             progressiveReveal={useLightweightStreamingMarkdown}
-            onRenderedValueChange={handleRenderedAssistantValue}
+            onRenderedValueChange={handleMarkdownRenderedAssistantValue}
           />
         )
       )}

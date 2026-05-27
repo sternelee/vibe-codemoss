@@ -16,7 +16,7 @@ function parseContextChipCount(chip: string, prefix: string) {
 type ComposerReadinessBarProps = {
   readiness: ComposerSendReadiness;
   onJumpToRequest?: () => void;
-  onExpandContextSources?: () => void;
+  onToggleContextSources?: () => void;
   contextSourcesExpanded?: boolean;
   selectedModel?: string;
   models?: ModelInfo[];
@@ -32,7 +32,7 @@ type ComposerReadinessBarProps = {
 export function ComposerReadinessBar({
   readiness,
   onJumpToRequest,
-  onExpandContextSources,
+  onToggleContextSources,
   contextSourcesExpanded = false,
   selectedModel,
   models,
@@ -79,7 +79,7 @@ export function ComposerReadinessBar({
   });
   const canJumpToRequest =
     Boolean(onJumpToRequest) && readiness.requestPointer?.canJumpToRequest === true;
-  const canExpandContextSources = hasContext && Boolean(onExpandContextSources);
+  const canToggleContextSources = hasContext && Boolean(onToggleContextSources);
 
   return (
     <div
@@ -153,14 +153,16 @@ export function ComposerReadinessBar({
             {t('composer.readinessJumpToRequest')}
           </button>
         ) : null}
-        {canExpandContextSources ? (
+        {canToggleContextSources ? (
           <button
             type="button"
             className="composer-readiness-expand"
-            onClick={onExpandContextSources}
+            onClick={onToggleContextSources}
             aria-expanded={contextSourcesExpanded}
           >
-            {t('composer.contextLedgerExpand')}
+            {contextSourcesExpanded
+              ? t('composer.contextLedgerCollapse')
+              : t('composer.contextLedgerExpand')}
           </button>
         ) : null}
       </div>

@@ -486,6 +486,8 @@ export function AppShell() {
     handleActiveDiffPath,
     handleGitPanelModeChange,
     activeEditorFilePath,
+    editorSplitCompanion,
+    setEditorSplitCompanion,
     editorNavigationTarget,
     editorHighlightTarget,
     openFileTabs,
@@ -1107,23 +1109,22 @@ export function AppShell() {
         return;
       }
       const nextSelectedEffort =
-        activeEngine === "codex"
-          ? getEffectiveSelectedEffort({
-              activeEngine: "codex",
-              hasActiveThread: hasActiveComposerThread,
-              selectedEffort: effectiveSelectedEffort,
-              activeThreadSelection: hasActiveComposerThread
-                ? {
-                    modelId: nextSelectedModel.id,
-                    effort: effectiveSelectedEffort,
-                  }
-                : null,
-              reasoningOptions: getEffectiveReasoningOptions(
-                activeEngine,
-                getReasoningOptionsForModel(nextSelectedModel),
-              ),
-            })
-          : effectiveSelectedEffort;
+        getEffectiveSelectedEffort({
+          activeEngine,
+          hasActiveThread: hasActiveComposerThread,
+          selectedEffort: effectiveSelectedEffort,
+          activeThreadSelection:
+            hasActiveComposerThread || activeEngine === "claude"
+              ? {
+                  modelId: nextSelectedModel.id,
+                  effort: effectiveSelectedEffort,
+                }
+              : null,
+          reasoningOptions: getEffectiveReasoningOptions(
+            activeEngine,
+            getReasoningOptionsForModel(nextSelectedModel),
+          ),
+        });
       if (import.meta.env.DEV) {
         console.info("[model/select]", {
           activeEngine,
@@ -1154,21 +1155,19 @@ export function AppShell() {
   );
   const handleSelectComposerEffort = useCallback(
     (effort: string | null) => {
-      const nextEffort =
-        activeEngine === "codex"
-          ? getEffectiveSelectedEffort({
-              activeEngine: "codex",
-              hasActiveThread: hasActiveComposerThread,
-              selectedEffort: effort,
-              activeThreadSelection: hasActiveComposerThread
-                ? {
-                    modelId: effectiveSelectedModelId,
-                    effort,
-                  }
-                : null,
-              reasoningOptions: effectiveReasoningOptions,
-            })
-          : effort;
+      const nextEffort = getEffectiveSelectedEffort({
+        activeEngine,
+        hasActiveThread: hasActiveComposerThread,
+        selectedEffort: effort,
+        activeThreadSelection:
+          hasActiveComposerThread || activeEngine === "claude"
+            ? {
+                modelId: effectiveSelectedModelId,
+                effort,
+              }
+            : null,
+        reasoningOptions: effectiveReasoningOptions,
+      });
       if (activeEngine === "codex" && !hasActiveComposerThread) {
         setSelectedEffort(nextEffort);
       }
@@ -2133,7 +2132,7 @@ export function AppShell() {
     createPrompt, createWorkspaceGroup, debugEntries, debugOpen, debugPanelHeight, deletePrompt, deleteThreadPrompt,
     deleteWorkspaceGroup, deletingWorktreeIds, dictationError, dictationHint, dictationLevel, dictationModel, dictationReady,
     dictationState, dictationTranscript, diffScrollRequestId, diffSource, directories, directoryMetadata, dismissErrorToast, dismissUpdate, doctor, claudeDoctor,
-    editorHighlightTarget, editorNavigationTarget, editorSplitLayout, effectiveModels, effectiveReasoningSupported, effectiveSelectedModel,
+    editorHighlightTarget, editorNavigationTarget, editorSplitCompanion, editorSplitLayout, effectiveModels, effectiveReasoningSupported, effectiveSelectedModel,
     effectiveSelectedModelId, engineModelsAsOptions, engineSelectedModelIdByType, engineStatuses, ensureLaunchTerminal, ensureTerminalWithTitle,
     ensureWorkspaceThreadListLoaded, errorToasts, exitDiffView, expandRightPanel, expandSidebar, filePanelMode,
     fileReferenceMode, fileStatus, fileTreeLoadError, files,
@@ -2184,7 +2183,7 @@ export function AppShell() {
     selectedKanbanTaskId, selectedModelId: effectiveSelectedModelId, selectedOpenCodeAgent, selectedOpenCodeVariant, selectedPullRequest, sendUserMessage,
     sendUserMessageToThread, setAccessMode, setActiveEditorLineRange, setActiveEngine, setActiveTab, setActiveThreadId, setActiveWorkspaceId,
     setAppMode, setAppSettings, setCenterMode, setCodexCollaborationMode, setCollaborationRuntimeModeByThread, setCollaborationUiModeByThread, setComposerInsert, setDebugOpen,
-    setDiffSource, setEditorSplitLayout, setEngineSelectedModelIdByType, setFilePanelMode, setFileReferenceMode, setGitDiffListView, setGitDiffViewStyle, setGitHistoryPanelHeight,
+    setDiffSource, setEditorSplitCompanion, setEditorSplitLayout, setEngineSelectedModelIdByType, setFilePanelMode, setFileReferenceMode, setGitDiffListView, setGitDiffViewStyle, setGitHistoryPanelHeight,
     setGitPanelMode, setGitRootScanDepth, setGlobalSearchFilesByWorkspace, setHighlightedBranchIndex, setHighlightedCommitIndex, setHighlightedPresetIndex, setIsEditorFileMaximized, setIsPanelLocked,
     setIsPlanPanelDismissed, setIsSearchPaletteOpen, setKanbanViewState, setLiveEditPreviewEnabled, setPrefillDraft, setReduceTransparency, setRightPanelWidth, setSearchContentFilters, setSearchPaletteQuery, setSearchPaletteSelectedIndex, setSearchScope,
     setSelectedCollaborationModeId, setSelectedCommitSha, setSelectedDiffPath, setSelectedEffort: handleSelectComposerEffort, setSelectedKanbanTaskId, setSelectedModelId, setSelectedPullRequest,

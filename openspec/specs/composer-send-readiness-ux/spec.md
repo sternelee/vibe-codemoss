@@ -49,6 +49,29 @@ Composer MUST expose a concise pre-send summary of the effective target and key 
 - **THEN** Composer MUST provide a short explanation of the mode impact
 - **AND** it MUST avoid implying write access in read-only or planning modes
 
+### Requirement: Readiness Context Summary SHALL Own The Top-Right Context Ledger Toggle
+
+Composer readiness UI MUST render the single top-right Context Ledger disclosure toggle when Context Ledger projection is visible. The toggle MUST switch between expand and collapse in the same position.
+
+#### Scenario: readiness summary shows expand in collapsed state
+
+- **WHEN** Context Ledger projection is visible
+- **AND** Context Ledger detail is collapsed
+- **THEN** the readiness bar top-right context area SHALL render an expand action
+- **AND** activating it SHALL expand Context Ledger detail
+
+#### Scenario: readiness summary shows collapse in expanded state
+
+- **WHEN** Context Ledger detail is expanded
+- **THEN** the same readiness bar top-right context area SHALL render a collapse action
+- **AND** activating it SHALL collapse Context Ledger detail
+
+#### Scenario: toggle does not duplicate management controls
+
+- **WHEN** Context Ledger detail is expanded
+- **THEN** readiness UI SHALL only toggle detail visibility
+- **AND** source management actions such as keep, exclude, clear, and source detail SHALL remain inside Context Ledger detail
+
 ### Requirement: Disabled Composer State MUST Include An Actionable Reason
 
 Composer MUST display a user-understandable reason when the primary send action is disabled or replaced.
@@ -108,4 +131,3 @@ Composer readiness UX MUST avoid adding new large business-logic branches to exi
 - **WHEN** new readiness, context summary, disabled reason, or request pointer logic is introduced
 - **THEN** focused tests MUST cover the derived helper or selector
 - **AND** UI tests SHOULD verify that presentation components render the derived result without duplicating business rules
-

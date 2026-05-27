@@ -94,6 +94,7 @@ pub(crate) fn invoke_handler(
         crate::engine::fork_claude_session,
         crate::engine::fork_claude_session_from_message,
         crate::engine::delete_claude_session,
+        crate::engine::engine_task_output_read_artifact,
         crate::engine::list_gemini_sessions,
         crate::engine::load_gemini_session,
         crate::engine::delete_gemini_session,
@@ -261,6 +262,8 @@ pub(crate) fn invoke_handler(
         crate::project_memory::commands::project_memory_diagnostics,
         crate::project_memory::commands::project_memory_reconcile,
         crate::project_memory::commands::project_memory_capture_auto,
+        crate::project_map::project_map_read,
+        crate::project_map::project_map_write_snapshot,
         // Terminal
         crate::terminal::terminal_open,
         crate::terminal::terminal_write,

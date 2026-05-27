@@ -116,6 +116,35 @@ fn allowed_external_skill_roots(
     Ok(roots)
 }
 
+fn allowed_external_project_map_roots(entry: &WorkspaceEntry) -> Result<Vec<PathBuf>, String> {
+    let mut roots = vec![
+        app_paths::app_home_dir()?.join("project-map"),
+        PathBuf::from(&entry.path)
+            .join(".ccgui")
+            .join("project-map"),
+    ];
+    roots.sort();
+    roots.dedup();
+    Ok(roots)
+}
+
+fn allowed_external_absolute_read_roots(
+    state: &AppState,
+    workspaces: &std::collections::HashMap<String, WorkspaceEntry>,
+    workspace_id: &str,
+    custom_skill_roots: &[PathBuf],
+) -> Result<Vec<PathBuf>, String> {
+    let entry = workspaces
+        .get(workspace_id)
+        .ok_or_else(|| format!("Workspace not found: {workspace_id}"))?;
+    let mut roots =
+        allowed_external_skill_roots(state, workspaces, workspace_id, custom_skill_roots)?;
+    roots.extend(allowed_external_project_map_roots(entry)?);
+    roots.sort();
+    roots.dedup();
+    Ok(roots)
+}
+
 fn normalize_custom_spec_root(path: &str) -> Result<PathBuf, String> {
     let trimmed = path.trim();
     if trimmed.is_empty() {
@@ -435,8 +464,13 @@ pub(crate) async fn read_local_image_data_url(
 
 #[cfg(test)]
 mod image_preview_policy_tests {
-    use super::{is_path_under_allowed_roots, is_supported_image_extension};
+    use super::{
+        allowed_external_project_map_roots, is_path_under_allowed_roots,
+        is_supported_image_extension,
+    };
+    use crate::types::{WorkspaceEntry, WorkspaceKind, WorkspaceSettings};
     use std::path::PathBuf;
+    use uuid::Uuid;
 
     #[test]
     fn supported_image_extension_is_restricted() {
@@ -455,6 +489,30 @@ mod image_preview_policy_tests {
             &PathBuf::from("/tmp/other/a.png"),
             &roots,
         ));
+    }
+
+    #[test]
+    fn project_map_external_roots_are_derived_from_runtime_paths() {
+        let workspace_path =
+            std::env::temp_dir().join(format!("project-map-root-{}", Uuid::new_v4()));
+        let workspace_project_map_root = workspace_path.join(".ccgui").join("project-map");
+        let entry = WorkspaceEntry {
+            id: "ws-project-map-roots".to_string(),
+            name: "Project Map Roots".to_string(),
+            path: workspace_path.to_string_lossy().to_string(),
+            codex_bin: None,
+            kind: WorkspaceKind::Main,
+            parent_id: None,
+            worktree: None,
+            settings: WorkspaceSettings::default(),
+        };
+
+        let roots = allowed_external_project_map_roots(&entry).expect("resolve roots");
+
+        assert!(roots.contains(&workspace_project_map_root));
+        assert!(roots
+            .iter()
+            .any(|root| root != &workspace_project_map_root && root.ends_with("project-map")));
     }
 }
 
@@ -717,7 +775,12 @@ pub(crate) async fn read_external_absolute_file(
     };
     let allowed_roots = {
         let workspaces = state.workspaces.lock().await;
-        allowed_external_skill_roots(&state, &workspaces, &workspace_id, &custom_skill_roots)?
+        allowed_external_absolute_read_roots(
+            &state,
+            &workspaces,
+            &workspace_id,
+            &custom_skill_roots,
+        )?
     };
 
     read_external_absolute_file_inner(&path, &allowed_roots)
@@ -778,7 +841,7 @@ pub(crate) async fn resolve_file_preview_handle(
             };
             let allowed_roots = {
                 let workspaces = state.workspaces.lock().await;
-                allowed_external_skill_roots(
+                allowed_external_absolute_read_roots(
                     &state,
                     &workspaces,
                     &workspace_id,
