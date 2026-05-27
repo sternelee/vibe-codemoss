@@ -1616,3 +1616,47 @@ CI 中 SettingsView 删除会话测试仍断言旧刷新签名；更新为包含
 ### Next Steps
 
 - None - task complete
+
+
+## Session 599: 修复 @ 文件引用白屏
+
+**Date**: 2026-05-27
+**Task**: 修复 @ 文件引用白屏
+**Branch**: `feature/v0.5.3`
+
+### Summary
+
+为 #618 创建 OpenSpec 提案并修复 composer @ 文件引用 completion/rendering 的白屏风险。
+
+### Main Changes
+
+- Created OpenSpec change `fix-composer-file-reference-at-white-screen` with proposal, design, spec delta, and completed tasks.
+- Hardened `ChatInputBoxAdapter` file-reference completion:
+  - skips malformed, blank, and non-string paths
+  - deduplicates file/directory completion items by stable type/path key
+  - defensively consumes lazy `getWorkspaceDirectoryChildren` payloads
+- Hardened `useFileTags` rich tag rendering so DOM rewrite/cursor restore errors are logged and kept local to the composer.
+- Added focused regression coverage for invalid/duplicate completion sources, malformed lazy directory children, and recoverable tag-render failures.
+- Validation:
+  - `npx vitest run src/features/composer/components/ChatInputBox/hooks/useTriggerDetection.test.tsx src/features/composer/components/ChatInputBox/hooks/useFileTags.test.tsx src/features/composer/components/ChatInputBox/ChatInputBoxAdapter.test.tsx`
+  - `npm run typecheck`
+  - `openspec validate fix-composer-file-reference-at-white-screen --strict --no-interactive`
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f103e8c0` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
