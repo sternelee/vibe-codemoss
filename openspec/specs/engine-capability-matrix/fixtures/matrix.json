@@ -19,7 +19,7 @@
       "streaming.tool-output": "supported",
       "tool.use": "supported",
       "tool.mcp": "supported",
-      "reasoning.effort": "unsupported",
+      "reasoning.effort": "supported",
       "collaboration.mode": "unsupported",
       "session.continuation": "supported",
       "image.input": "supported"

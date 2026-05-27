@@ -6,6 +6,7 @@ import {
   getEffectiveModels,
   getEffectiveSelectedEffort,
   getEffectiveReasoningSupported,
+  isReasoningEffortSupportedForEngine,
   getEffectiveSelectedModelId,
   getReasoningOptionsForModel,
   getNextEngineSelectedModelId,
@@ -316,6 +317,9 @@ describe("modelSelection", () => {
     expect(getEffectiveReasoningSupported("codex", true)).toBe(true);
     expect(getEffectiveReasoningSupported("codex", false)).toBe(false);
     expect(getEffectiveReasoningSupported("gemini", true)).toBe(false);
+    expect(isReasoningEffortSupportedForEngine("codex", ["medium"])).toBe(true);
+    expect(isReasoningEffortSupportedForEngine("codex", [])).toBe(false);
+    expect(isReasoningEffortSupportedForEngine("gemini", ["medium"])).toBe(false);
   });
 
   it("exposes Claude reasoning support independently from model catalog", () => {
@@ -345,6 +349,18 @@ describe("modelSelection", () => {
         reasoningOptions: CLAUDE_REASONING_OPTIONS,
       }),
     ).toBe("high");
+    expect(
+      getEffectiveSelectedEffort({
+        activeEngine: "claude",
+        hasActiveThread: false,
+        selectedEffort: "medium",
+        activeThreadSelection: {
+          modelId: "claude-custom",
+          effort: "high",
+        },
+        reasoningOptions: CLAUDE_REASONING_OPTIONS,
+      }),
+    ).toBe("high");
   });
 
   it("ignores unsupported Claude effort instead of injecting a fallback value", () => {
@@ -358,6 +374,30 @@ describe("modelSelection", () => {
           effort: "ultra",
         },
         reasoningOptions: CLAUDE_REASONING_OPTIONS,
+      }),
+    ).toBeNull();
+  });
+
+  it("drops stale reasoning effort for unsupported engines", () => {
+    expect(
+      getEffectiveSelectedEffort({
+        activeEngine: "gemini",
+        hasActiveThread: true,
+        selectedEffort: "high",
+        activeThreadSelection: {
+          modelId: "gemini-pro",
+          effort: "high",
+        },
+        reasoningOptions: CLAUDE_REASONING_OPTIONS,
+      }),
+    ).toBeNull();
+    expect(
+      getEffectiveSelectedEffort({
+        activeEngine: "opencode",
+        hasActiveThread: false,
+        selectedEffort: "medium",
+        activeThreadSelection: null,
+        reasoningOptions: ["medium"],
       }),
     ).toBeNull();
   });

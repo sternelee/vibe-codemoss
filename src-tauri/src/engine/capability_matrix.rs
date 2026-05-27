@@ -74,6 +74,14 @@ mod tests {
     }
 
     #[test]
+    fn claude_supports_reasoning_effort() {
+        assert_eq!(
+            capability_state(EngineType::Claude, "reasoning.effort"),
+            "supported"
+        );
+    }
+
+    #[test]
     fn opencode_does_not_support_mcp_or_image_input() {
         assert_eq!(
             capability_state(EngineType::OpenCode, "tool.mcp"),

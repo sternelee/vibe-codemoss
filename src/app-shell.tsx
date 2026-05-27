@@ -1109,23 +1109,22 @@ export function AppShell() {
         return;
       }
       const nextSelectedEffort =
-        activeEngine === "codex"
-          ? getEffectiveSelectedEffort({
-              activeEngine: "codex",
-              hasActiveThread: hasActiveComposerThread,
-              selectedEffort: effectiveSelectedEffort,
-              activeThreadSelection: hasActiveComposerThread
-                ? {
-                    modelId: nextSelectedModel.id,
-                    effort: effectiveSelectedEffort,
-                  }
-                : null,
-              reasoningOptions: getEffectiveReasoningOptions(
-                activeEngine,
-                getReasoningOptionsForModel(nextSelectedModel),
-              ),
-            })
-          : effectiveSelectedEffort;
+        getEffectiveSelectedEffort({
+          activeEngine,
+          hasActiveThread: hasActiveComposerThread,
+          selectedEffort: effectiveSelectedEffort,
+          activeThreadSelection:
+            hasActiveComposerThread || activeEngine === "claude"
+              ? {
+                  modelId: nextSelectedModel.id,
+                  effort: effectiveSelectedEffort,
+                }
+              : null,
+          reasoningOptions: getEffectiveReasoningOptions(
+            activeEngine,
+            getReasoningOptionsForModel(nextSelectedModel),
+          ),
+        });
       if (import.meta.env.DEV) {
         console.info("[model/select]", {
           activeEngine,
@@ -1156,21 +1155,19 @@ export function AppShell() {
   );
   const handleSelectComposerEffort = useCallback(
     (effort: string | null) => {
-      const nextEffort =
-        activeEngine === "codex"
-          ? getEffectiveSelectedEffort({
-              activeEngine: "codex",
-              hasActiveThread: hasActiveComposerThread,
-              selectedEffort: effort,
-              activeThreadSelection: hasActiveComposerThread
-                ? {
-                    modelId: effectiveSelectedModelId,
-                    effort,
-                  }
-                : null,
-              reasoningOptions: effectiveReasoningOptions,
-            })
-          : effort;
+      const nextEffort = getEffectiveSelectedEffort({
+        activeEngine,
+        hasActiveThread: hasActiveComposerThread,
+        selectedEffort: effort,
+        activeThreadSelection:
+          hasActiveComposerThread || activeEngine === "claude"
+            ? {
+                modelId: effectiveSelectedModelId,
+                effort,
+              }
+            : null,
+        reasoningOptions: effectiveReasoningOptions,
+      });
       if (activeEngine === "codex" && !hasActiveComposerThread) {
         setSelectedEffort(nextEffort);
       }

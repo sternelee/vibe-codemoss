@@ -176,4 +176,66 @@ describe("useSelectedComposerSession", () => {
       { modelId: "claude-opus-4-1", effort: "high" },
     );
   });
+
+  it("drops stale stored effort for unsupported thread engines", async () => {
+    composerStore["selectedModelByThread.ws-a:gemini:session-1"] = {
+      modelId: "gemini-2.5-pro",
+      effort: "high",
+    };
+
+    const { result } = renderHook(() =>
+      useSelectedComposerSession({
+        activeWorkspaceId: "ws-a",
+        activeThreadId: "gemini:session-1",
+        resolveCanonicalThreadId: (threadId: string) => threadId,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.selectedComposerSelection).toEqual({
+        modelId: "gemini-2.5-pro",
+        effort: null,
+      });
+    });
+  });
+
+  it("persists draft selections without unsupported engine effort", async () => {
+    type HookProps = {
+      activeThreadId: string | null;
+    };
+    const initialProps: HookProps = { activeThreadId: null };
+
+    const { result, rerender } = renderHook(
+      ({ activeThreadId }: HookProps) =>
+        useSelectedComposerSession({
+          activeWorkspaceId: "ws-a",
+          activeThreadId,
+          resolveCanonicalThreadId: (threadId: string) => threadId,
+        }),
+      {
+        initialProps,
+      },
+    );
+
+    act(() => {
+      result.current.handleSelectComposerSelection({
+        modelId: "gemini-2.5-pro",
+        effort: "high",
+      });
+    });
+
+    rerender({ activeThreadId: "gemini-pending-1" });
+
+    await waitFor(() => {
+      expect(result.current.selectedComposerSelection).toEqual({
+        modelId: "gemini-2.5-pro",
+        effort: null,
+      });
+    });
+    expect(writeClientStoreValue).toHaveBeenCalledWith(
+      "composer",
+      "selectedModelByThread.ws-a:gemini-pending-1",
+      { modelId: "gemini-2.5-pro", effort: null },
+    );
+  });
 });

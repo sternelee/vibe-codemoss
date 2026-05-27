@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   extractClaudeForkParentThreadId,
   getThreadComposerSelectionStorageKey,
+  normalizeComposerSessionSelectionForThread,
   shouldApplyDraftComposerSelectionToThread,
   shouldInheritComposerSelectionFromClaudeForkParent,
   shouldMigrateComposerSelectionBetweenThreadIds,
@@ -85,5 +86,44 @@ describe("selectedComposerSession", () => {
         hasParentSelection: true,
       }),
     ).toBe(true);
+  });
+
+  it("normalizes stored effort by thread engine capability", () => {
+    expect(
+      normalizeComposerSessionSelectionForThread("claude:session-1", {
+        modelId: "claude-opus-4-1",
+        effort: " high ",
+      }),
+    ).toEqual({
+      modelId: "claude-opus-4-1",
+      effort: "high",
+    });
+    expect(
+      normalizeComposerSessionSelectionForThread("claude:session-1", {
+        modelId: "claude-opus-4-1",
+        effort: "ultra",
+      }),
+    ).toEqual({
+      modelId: "claude-opus-4-1",
+      effort: null,
+    });
+    expect(
+      normalizeComposerSessionSelectionForThread("gemini:session-1", {
+        modelId: "gemini-2.5-pro",
+        effort: "high",
+      }),
+    ).toEqual({
+      modelId: "gemini-2.5-pro",
+      effort: null,
+    });
+    expect(
+      normalizeComposerSessionSelectionForThread("codex:session-1", {
+        modelId: "gpt-5.4",
+        effort: "high",
+      }),
+    ).toEqual({
+      modelId: "gpt-5.4",
+      effort: "high",
+    });
   });
 });

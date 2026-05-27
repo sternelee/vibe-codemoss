@@ -165,6 +165,45 @@ describe("useThreadMessaging context injection", () => {
     expect(payload.text).toBe("数据库查询优化");
   });
 
+  it("keeps Claude reasoning effort but drops it for unsupported engines", async () => {
+    vi.mocked(engineSendMessage).mockResolvedValue({
+      result: { turn: { id: "turn-effort" } },
+    } as never);
+
+    const claudeHook = buildHook("claude");
+    await act(async () => {
+      await claudeHook.result.current.sendUserMessageToThread(
+        workspace,
+        "claude:session-1",
+        "think harder",
+        [],
+        { skipPromptExpansion: true, effort: "high" },
+      );
+    });
+
+    expect(vi.mocked(engineSendMessage).mock.calls[0]?.[1]).toMatchObject({
+      engine: "claude",
+      effort: "high",
+    });
+
+    vi.mocked(engineSendMessage).mockClear();
+    const geminiHook = buildHook("gemini");
+    await act(async () => {
+      await geminiHook.result.current.sendUserMessageToThread(
+        workspace,
+        "gemini:session-1",
+        "do not reuse effort",
+        [],
+        { skipPromptExpansion: true, effort: "high" },
+      );
+    });
+
+    expect(vi.mocked(engineSendMessage).mock.calls[0]?.[1]).toMatchObject({
+      engine: "gemini",
+      effort: null,
+    });
+  });
+
   it("injects selected memories with detail mode by default on codex path", async () => {
     vi.mocked(sendUserMessage).mockResolvedValue({
       result: { turn: { id: "turn-2" } },
