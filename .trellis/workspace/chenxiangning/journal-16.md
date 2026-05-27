@@ -1894,3 +1894,53 @@ CI 中 SettingsView 删除会话测试仍断言旧刷新签名；更新为包含
 ### Next Steps
 
 - None - task complete
+
+
+## Session 605: Project Map 中文主体生成提示
+
+**Date**: 2026-05-27
+**Task**: Project Map 中文主体生成提示
+**Branch**: `feature/v0.5.3`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| 项目 | 内容 |
+|---|---|
+| OpenSpec | 更新 `sharpen-project-map-generation-prompts` proposal/design/spec/tasks/verification，补充中文 locale 输出契约。 |
+| Frontend | Project Map panel 根据 i18n 解析 `preferredLanguage` 并传入 generation controller。 |
+| Generation | request/run metadata 增加 `preferredLanguage`；worker prompt 增加 locale-aware language rules。 |
+| Tests | 补充 hook request assertion 与 worker prompt assertion，覆盖中文主体和 English technical terms 保留。 |
+
+**验证**:
+- `npm exec vitest -- run src/features/project-map/services/projectMapGenerationWorker.test.ts src/features/project-map/hooks/useProjectMapDataset.test.tsx --maxWorkers 1 --minWorkers 1`
+- `openspec validate sharpen-project-map-generation-prompts --strict`
+- `npm run typecheck`
+- `npm run lint`
+- `git diff --check`
+
+**备注**:
+- 本次 commit 只包含 Project Map / OpenSpec prompt 相关文件。
+- 工作区仍有其他未提交改动，未纳入本次提交。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `da9cd8dd` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
