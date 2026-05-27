@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-16.md`
-- **Total Sessions**: 603
+- **Total Sessions**: 604
 - **Last Active**: 2026-05-27
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-16.md` | ~1845 | Active |
+| `journal-16.md` | ~1896 | Active |
 | `journal-15.md` | ~1996 | Archived |
 | `journal-14.md` | ~1969 | Archived |
 | `journal-13.md` | ~1947 | Archived |
@@ -44,6 +44,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 604 | 2026-05-27 | 收紧思考强度选择器兼容性 | `6bdc546d` | `feature/v0.5.3` |
 | 603 | 2026-05-27 | 修复 slash 补全白屏 | `f09f63dd` | `feature/v0.5.3` |
 | 602 | 2026-05-27 | Codex 历史会话 Fork 恢复入口 | `8124a894` | `feature/v0.5.3` |
 | 601 | 2026-05-27 | 修复项目知识地图自动补充后台调度 | `32aa34e8` | `feature/v0.5.3` |

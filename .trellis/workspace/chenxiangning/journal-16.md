@@ -1843,3 +1843,54 @@ CI 中 SettingsView 删除会话测试仍断言旧刷新签名；更新为包含
 ### Next Steps
 
 - None - task complete
+
+
+## Session 604: 收紧思考强度选择器兼容性
+
+**Date**: 2026-05-27
+**Task**: 收紧思考强度选择器兼容性
+**Branch**: `feature/v0.5.3`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| Area | Description |
+|---|---|
+| Codex reasoning metadata | Hydrated built-in Codex reasoning efforts so empty runtime metadata no longer falls back to Claude-only options.
+| Reasoning trigger UI | Removed the extra default-state chevron from the reasoning selector trigger to match compact composer chrome.
+| Spec sync | Synced change-local proposal/spec/verification and mainline claude-reasoning-effort-support spec to reflect the fallback and trigger-contract fix.
+
+**Updated Files**:
+- `src/features/models/codexModelCatalog.ts`
+- `src/features/models/hooks/useModels.ts`
+- `src/features/models/hooks/useModels.test.tsx`
+- `src/features/composer/components/ChatInputBox/selectors/ReasoningSelect.tsx`
+- `src/features/composer/components/ChatInputBox/selectors/ReasoningSelect.test.tsx`
+- `src/features/composer/components/ChatInputBox/ChatInputBoxAdapter.tsx`
+- `src/features/composer/components/ChatInputBox/ChatInputBoxAdapter.test.tsx`
+- `openspec/changes/fix-reasoning-effort-engine-switch-staleness/proposal.md`
+- `openspec/changes/fix-reasoning-effort-engine-switch-staleness/specs/claude-reasoning-effort-support/spec.md`
+- `openspec/changes/fix-reasoning-effort-engine-switch-staleness/verification.md`
+- `openspec/specs/claude-reasoning-effort-support/spec.md`
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6bdc546d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
