@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-16.md`
-- **Total Sessions**: 601
+- **Total Sessions**: 602
 - **Last Active**: 2026-05-27
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-16.md` | ~1749 | Active |
+| `journal-16.md` | ~1802 | Active |
 | `journal-15.md` | ~1996 | Archived |
 | `journal-14.md` | ~1969 | Archived |
 | `journal-13.md` | ~1947 | Archived |
@@ -44,6 +44,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 602 | 2026-05-27 | Codex 历史会话 Fork 恢复入口 | `8124a894` | `feature/v0.5.3` |
 | 601 | 2026-05-27 | 修复项目知识地图自动补充后台调度 | `32aa34e8` | `feature/v0.5.3` |
 | 600 | 2026-05-27 | 修复 Composer 工具弹层遮挡与点击不稳 | `7e588b2a` | `feature/v0.5.3` |
 | 599 | 2026-05-27 | 修复 @ 文件引用白屏 | `f103e8c0` | `feature/v0.5.3` |

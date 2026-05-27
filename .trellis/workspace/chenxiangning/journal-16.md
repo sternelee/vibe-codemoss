@@ -1747,3 +1747,56 @@ CI 中 SettingsView 删除会话测试仍断言旧刷新签名；更新为包含
 ### Next Steps
 
 - None - task complete
+
+
+## Session 602: Codex 历史会话 Fork 恢复入口
+
+**Date**: 2026-05-27
+**Task**: Codex 历史会话 Fork 恢复入口
+**Branch**: `feature/v0.5.3`
+
+### Summary
+
+将 issue #623 暴露的 Codex stale history thread 恢复路径产品化：幕布卡片直接提供 Fork 并发送入口，自动 stale send recovery 优先 fork continuation，再退回 fresh fallback。
+
+### Main Changes
+
+| Area | Details |
+|------|---------|
+| OpenSpec | Added `fix-codex-stale-history-fork-shortcut` with proposal, design, tasks, and `codex-stale-thread-binding-recovery` delta. |
+| Manual recovery | Extended manual recovery result with `forked`; recover-and-resend now tries verified rebind, then Codex fork continuation, then fresh fallback. |
+| Automatic send recovery | Codex stale send retry now tries `forkThreadForWorkspace` after failed rebind and before existing fresh draft replacement. |
+| UI copy | Stale thread recovery card now exposes `Fork 并发送上一条提示词` and distinguishes fork continuation from restored original thread. |
+| Tests | Added coverage for forked manual recovery, fallback behavior, recovery card forked result, and automatic stale send fork continuation. |
+
+**Validation**:
+- `openspec validate fix-codex-stale-history-fork-shortcut --strict --no-interactive`
+- `npx vitest run src/app-shell-parts/useAppShellLayoutNodesSection.recovery.test.ts`
+- `npx vitest run src/features/messages/components/Messages.runtime-reconnect.test.tsx`
+- `npx vitest run src/features/threads/hooks/useThreadMessaging.test.tsx`
+- `npm run typecheck`
+- targeted `npx eslint` for touched Fork recovery files
+- `git diff --check`
+
+**Review Notes**:
+- No blocking findings in the staged Fork recovery scope.
+- Existing composer/OpenSpec dirty files were intentionally left unstaged and outside commit `8124a894`.
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8124a894` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
