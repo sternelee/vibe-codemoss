@@ -1800,3 +1800,46 @@ CI 中 SettingsView 删除会话测试仍断言旧刷新签名；更新为包含
 ### Next Steps
 
 - None - task complete
+
+
+## Session 603: 修复 slash 补全白屏
+
+**Date**: 2026-05-27
+**Task**: 修复 slash 补全白屏
+**Branch**: `feature/v0.5.3`
+
+### Summary
+
+回写 #618 提案并补强 / slash command completion 的 runtime payload 边界。
+
+### Main Changes
+
+- Reviewed slash completion follow-up for issue #618: no blocker found; changes are limited to runtime payload normalization and dropdown item mapping isolation.
+- Extended OpenSpec change `fix-composer-file-reference-at-white-screen` to cover `/` slash command completion and shared completion dropdown stability.
+- Hardened `ChatInputBoxAdapter` custom command ingestion so malformed command entries do not call string methods or crash the composer.
+- Hardened `slashCommandProvider` SDK/bridge payload parsing so mixed invalid entries are skipped, duplicate labels collapse, and local commands remain available.
+- Hardened `useCompletionDropdown` so non-array provider results degrade to empty and per-item mapper failures skip only the bad item while keeping raw item selection aligned.
+- Validation:
+  - `npx vitest run src/features/composer/components/ChatInputBox/hooks/useCompletionDropdown.test.tsx src/features/composer/components/ChatInputBox/providers/slashCommandProvider.test.ts src/features/composer/components/ChatInputBox/ChatInputBoxAdapter.test.tsx`
+  - `npm run typecheck`
+  - `openspec validate fix-composer-file-reference-at-white-screen --strict --no-interactive`
+  - `git diff --check -- <touched composer/OpenSpec paths>`
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f09f63dd` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
