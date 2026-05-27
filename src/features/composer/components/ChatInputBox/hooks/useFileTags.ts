@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { escapeHtmlAttr } from '../utils/htmlEscape.js';
 import { getFileIcon } from '../../../utils/fileIcons.js';
 import { icon_folder, icon_terminal, icon_server } from '../../../utils/icons.js';
-import { debugWarn, perfTimer } from '../../../utils/debug.js';
+import { debugError, debugWarn, perfTimer } from '../../../utils/debug.js';
 import { sanitizeSvg } from '../utils/sanitize.js';
 import {
   TEXT_LENGTH_THRESHOLDS,
@@ -410,65 +410,71 @@ export function useFileTags({
     const savedVirtualOffset = getVirtualCursorPosition(editableRef.current);
     timer.mark('save-cursor');
 
-    // Set flag before updating innerHTML to prevent triggering completion detection
-    justRenderedTagRef.current = true;
-    onCloseCompletions();
+    try {
+      // Set flag before updating innerHTML to prevent triggering completion detection
+      justRenderedTagRef.current = true;
+      onCloseCompletions();
 
-    // Update content
-    editableRef.current.innerHTML = newHTML;
-    timer.mark('set-innerHTML');
+      // Update content
+      editableRef.current.innerHTML = newHTML;
+      timer.mark('set-innerHTML');
 
-    // Restore cursor position
-    // If we have a specific path to place cursor after, find that file tag
-    const targetPath = cursorAfterPathRef.current;
-    let cursorRestored = false;
+      // Restore cursor position
+      // If we have a specific path to place cursor after, find that file tag
+      const targetPath = cursorAfterPathRef.current;
+      let cursorRestored = false;
 
-    if (targetPath) {
-      // Find the file tag with the matching path
-      const fileTags = editableRef.current.querySelectorAll('.file-tag');
-      for (const tag of fileTags) {
-        const tagPath = tag.getAttribute('data-file-path');
-        // Match by exact path or by filename
-        if (tagPath === targetPath || tagPath?.endsWith(targetPath.split(/[/\\]/).pop() || '')) {
-          // Place cursor after this tag (and its trailing space)
-          const selection = window.getSelection();
-          if (selection) {
-            const range = document.createRange();
-            // Find the next sibling (usually a text node with space) or the tag itself
-            const nextSibling = tag.nextSibling;
-            if (nextSibling) {
-              if (nextSibling.nodeType === Node.TEXT_NODE) {
-                // Place cursor after the space
-                range.setStart(nextSibling, Math.min(1, nextSibling.textContent?.length || 0));
+      if (targetPath) {
+        // Find the file tag with the matching path
+        const fileTags = editableRef.current.querySelectorAll('.file-tag');
+        for (const tag of fileTags) {
+          const tagPath = tag.getAttribute('data-file-path');
+          // Match by exact path or by filename
+          if (tagPath === targetPath || tagPath?.endsWith(targetPath.split(/[/\\]/).pop() || '')) {
+            // Place cursor after this tag (and its trailing space)
+            const selection = window.getSelection();
+            if (selection) {
+              const range = document.createRange();
+              // Find the next sibling (usually a text node with space) or the tag itself
+              const nextSibling = tag.nextSibling;
+              if (nextSibling) {
+                if (nextSibling.nodeType === Node.TEXT_NODE) {
+                  // Place cursor after the space
+                  range.setStart(nextSibling, Math.min(1, nextSibling.textContent?.length || 0));
+                } else {
+                  range.setStartAfter(nextSibling);
+                }
               } else {
-                range.setStartAfter(nextSibling);
+                range.setStartAfter(tag);
               }
-            } else {
-              range.setStartAfter(tag);
+              range.collapse(true);
+              selection.removeAllRanges();
+              selection.addRange(range);
+              cursorRestored = true;
             }
-            range.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(range);
-            cursorRestored = true;
+            break;
           }
-          break;
         }
+        // Clear the ref after use
+        cursorAfterPathRef.current = null;
       }
-      // Clear the ref after use
+
+      // Fallback: restore cursor to saved virtual position
+      if (!cursorRestored) {
+        setVirtualCursorPosition(editableRef.current, savedVirtualOffset);
+      }
+      timer.mark('restore-cursor');
+
+      // After rendering, reset flag to allow subsequent completion detection
+      // Use setTimeout 0 to ensure reset after current event loop
+      setTimeout(() => {
+        justRenderedTagRef.current = false;
+      }, 0);
+    } catch (error) {
+      debugError('[useFileTags] Failed to render file tags:', error);
+      justRenderedTagRef.current = false;
       cursorAfterPathRef.current = null;
     }
-
-    // Fallback: restore cursor to saved virtual position
-    if (!cursorRestored) {
-      setVirtualCursorPosition(editableRef.current, savedVirtualOffset);
-    }
-    timer.mark('restore-cursor');
-
-    // After rendering, reset flag to allow subsequent completion detection
-    // Use setTimeout 0 to ensure reset after current event loop
-    setTimeout(() => {
-      justRenderedTagRef.current = false;
-    }, 0);
 
     timer.end();
   }, [editableRef, getTextContent, onCloseCompletions, onOpenFileTag, escapeHtmlText]);

@@ -113,4 +113,49 @@ describe("useFileTags", () => {
 
     expect(onOpenFileTag).toHaveBeenCalledWith("/repo/docs/foo#bar.ts");
   });
+
+  it("keeps the composer recoverable when file tag DOM rendering fails", () => {
+    const editable = document.createElement("div");
+    document.body.appendChild(editable);
+    const editableRef = { current: editable };
+    const onCloseCompletions = vi.fn();
+
+    seedEditableText(editable, "@AGENTS.md ");
+
+    const originalInnerHTMLDescriptor = Object.getOwnPropertyDescriptor(
+      Element.prototype,
+      "innerHTML",
+    );
+    Object.defineProperty(editable, "innerHTML", {
+      configurable: true,
+      get: () => editable.textContent ?? "",
+      set: () => {
+        throw new Error("innerHTML unavailable");
+      },
+    });
+
+    const { result } = renderHook(() =>
+      useFileTags({
+        editableRef,
+        getTextContent: () => editable.textContent ?? "",
+        onCloseCompletions,
+      }),
+    );
+
+    act(() => {
+      result.current.pathMappingRef.current.set("AGENTS.md", "/repo/AGENTS.md");
+      result.current.setCursorAfterPath("AGENTS.md");
+      expect(() => result.current.renderFileTags()).not.toThrow();
+    });
+
+    expect(onCloseCompletions).toHaveBeenCalledTimes(1);
+    expect(result.current.justRenderedTagRef.current).toBe(false);
+    expect(editable.textContent).toBe("@AGENTS.md ");
+
+    if (originalInnerHTMLDescriptor) {
+      Object.defineProperty(editable, "innerHTML", originalInnerHTMLDescriptor);
+    } else {
+      delete (editable as { innerHTML?: string }).innerHTML;
+    }
+  });
 });

@@ -675,6 +675,14 @@ function normalizePath(path: string): string {
   return path.replace(/\\/g, '/').replace(/\/{2,}/g, '/').replace(/\/$/, '');
 }
 
+function normalizeCompletionSourcePath(path: unknown): string | null {
+  if (typeof path !== 'string') {
+    return null;
+  }
+  const normalizedPath = normalizePath(path.trim());
+  return normalizedPath.length > 0 ? normalizedPath : null;
+}
+
 function fileNameFromPath(path: string): string {
   const normalized = normalizePath(path);
   const segments = normalized.split('/').filter(Boolean);
@@ -1135,11 +1143,28 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
         }
         const maxSuggestions = 200;
         const results: FileItem[] = [];
+        const seenResultKeys = new Set<string>();
 
-        const pushDirectoryFromPath = (path: string) => {
-          const normalizedPath = `${normalizePath(path)}/`;
-          const name = fileNameFromPath(path);
-          results.push({
+        const pushResult = (item: FileItem) => {
+          const resultKey = `${item.type}:${item.path}`;
+          if (seenResultKeys.has(resultKey)) {
+            return;
+          }
+          seenResultKeys.add(resultKey);
+          results.push(item);
+        };
+
+        const pushDirectoryFromPath = (path: unknown) => {
+          const sourcePath = normalizeCompletionSourcePath(path);
+          if (!sourcePath) {
+            return;
+          }
+          const normalizedPath = `${sourcePath}/`;
+          const name = fileNameFromPath(sourcePath);
+          if (!name) {
+            return;
+          }
+          pushResult({
             name,
             path: normalizedPath,
             absolutePath: normalizedPath,
@@ -1147,10 +1172,16 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
             extension: '',
           });
         };
-        const pushFileFromPath = (path: string) => {
-          const normalizedPath = normalizePath(path);
-          const name = fileNameFromPath(path);
-          results.push({
+        const pushFileFromPath = (path: unknown) => {
+          const normalizedPath = normalizeCompletionSourcePath(path);
+          if (!normalizedPath) {
+            return;
+          }
+          const name = fileNameFromPath(normalizedPath);
+          if (!name) {
+            return;
+          }
+          pushResult({
             name,
             path: normalizedPath,
             absolutePath: normalizedPath,
@@ -1158,12 +1189,26 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
             extension: extensionFromFileName(name),
           });
         };
-        const pushFromResponse = (response: { files: string[]; directories: string[] }) => {
-          for (const dir of response.directories) {
+        const getResponseDirectories = (response: unknown): unknown[] => {
+          if (!response || typeof response !== 'object') {
+            return [];
+          }
+          const directoriesValue = (response as { directories?: unknown }).directories;
+          return Array.isArray(directoriesValue) ? directoriesValue : [];
+        };
+        const getResponseFiles = (response: unknown): unknown[] => {
+          if (!response || typeof response !== 'object') {
+            return [];
+          }
+          const filesValue = (response as { files?: unknown }).files;
+          return Array.isArray(filesValue) ? filesValue : [];
+        };
+        const pushFromResponse = (response: unknown) => {
+          for (const dir of getResponseDirectories(response)) {
             pushDirectoryFromPath(dir);
             if (results.length >= maxSuggestions) return;
           }
-          for (const file of response.files) {
+          for (const file of getResponseFiles(response)) {
             pushFileFromPath(file);
             if (results.length >= maxSuggestions) return;
           }
@@ -1192,17 +1237,25 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
               pushFromResponse(response);
             } else {
               // Filter by fragment
-              for (const dir of response.directories) {
-                const name = fileNameFromPath(dir);
+              for (const dir of getResponseDirectories(response)) {
+                const normalizedDir = normalizeCompletionSourcePath(dir);
+                if (!normalizedDir) {
+                  continue;
+                }
+                const name = fileNameFromPath(normalizedDir);
                 if (name.toLowerCase().includes(lowerFragment)) {
-                  pushDirectoryFromPath(dir);
+                  pushDirectoryFromPath(normalizedDir);
                   if (results.length >= maxSuggestions) break;
                 }
               }
-              for (const file of response.files) {
-                const name = fileNameFromPath(file);
+              for (const file of getResponseFiles(response)) {
+                const normalizedFile = normalizeCompletionSourcePath(file);
+                if (!normalizedFile) {
+                  continue;
+                }
+                const name = fileNameFromPath(normalizedFile);
                 if (name.toLowerCase().includes(lowerFragment)) {
-                  pushFileFromPath(file);
+                  pushFileFromPath(normalizedFile);
                   if (results.length >= maxSuggestions) break;
                 }
               }
@@ -1221,14 +1274,16 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
         if (!normalizedQuery) {
           // No query: show only root-level entries (direct children of workspace root)
           for (const path of sourceDirectories) {
-            if (!path.includes('/')) {
-              pushDirectoryFromPath(path);
+            const normalizedPath = normalizeCompletionSourcePath(path);
+            if (normalizedPath && !normalizedPath.includes('/')) {
+              pushDirectoryFromPath(normalizedPath);
               if (results.length >= maxSuggestions) return results;
             }
           }
           for (const path of sourceFiles) {
-            if (!path.includes('/')) {
-              pushFileFromPath(path);
+            const normalizedPath = normalizeCompletionSourcePath(path);
+            if (normalizedPath && !normalizedPath.includes('/')) {
+              pushFileFromPath(normalizedPath);
               if (results.length >= maxSuggestions) return results;
             }
           }
@@ -1237,16 +1292,24 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
 
         // Search query without directory path: search by name across all entries
         for (const path of sourceDirectories) {
-          const name = fileNameFromPath(path);
-          if (name.toLowerCase().includes(lowerFragment) || normalizePath(path).toLowerCase().includes(lowerFragment)) {
-            pushDirectoryFromPath(path);
+          const normalizedPath = normalizeCompletionSourcePath(path);
+          if (!normalizedPath) {
+            continue;
+          }
+          const name = fileNameFromPath(normalizedPath);
+          if (name.toLowerCase().includes(lowerFragment) || normalizedPath.toLowerCase().includes(lowerFragment)) {
+            pushDirectoryFromPath(normalizedPath);
             if (results.length >= maxSuggestions) return results;
           }
         }
         for (const path of sourceFiles) {
-          const name = fileNameFromPath(path);
-          if (name.toLowerCase().includes(lowerFragment) || normalizePath(path).toLowerCase().includes(lowerFragment)) {
-            pushFileFromPath(path);
+          const normalizedPath = normalizeCompletionSourcePath(path);
+          if (!normalizedPath) {
+            continue;
+          }
+          const name = fileNameFromPath(normalizedPath);
+          if (name.toLowerCase().includes(lowerFragment) || normalizedPath.toLowerCase().includes(lowerFragment)) {
+            pushFileFromPath(normalizedPath);
             if (results.length >= maxSuggestions) return results;
           }
         }

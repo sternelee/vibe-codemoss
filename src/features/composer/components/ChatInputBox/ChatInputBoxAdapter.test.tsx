@@ -16,6 +16,8 @@ const mockState = vi.hoisted(() => ({
   setClaudeAlwaysThinkingEnabled: vi.fn(),
   updateClaudeProvider: vi.fn(),
   switchClaudeProvider: vi.fn(),
+  getWorkspaceDirectoryChildren: vi.fn(),
+  getSkillsList: vi.fn(),
   projectMemoryList: vi.fn(),
   noteCardList: vi.fn(),
 }));
@@ -45,6 +47,8 @@ vi.mock('../../../../services/tauri', () => ({
   setClaudeAlwaysThinkingEnabled: mockState.setClaudeAlwaysThinkingEnabled,
   updateClaudeProvider: mockState.updateClaudeProvider,
   switchClaudeProvider: mockState.switchClaudeProvider,
+  getWorkspaceDirectoryChildren: mockState.getWorkspaceDirectoryChildren,
+  getSkillsList: mockState.getSkillsList,
 }));
 
 vi.mock('../../../project-memory/services/projectMemoryFacade', () => ({
@@ -99,6 +103,11 @@ describe('ChatInputBoxAdapter toggle bridge', () => {
     mockState.setClaudeAlwaysThinkingEnabled.mockReset().mockResolvedValue(undefined);
     mockState.updateClaudeProvider.mockReset().mockResolvedValue(undefined);
     mockState.switchClaudeProvider.mockReset().mockResolvedValue(undefined);
+    mockState.getWorkspaceDirectoryChildren.mockReset().mockResolvedValue({
+      files: [],
+      directories: [],
+    });
+    mockState.getSkillsList.mockReset().mockResolvedValue([]);
     mockState.projectMemoryList.mockReset().mockResolvedValue({ items: [], total: 0 });
     mockState.noteCardList.mockReset().mockResolvedValue({ items: [], total: 0 });
     window.localStorage.clear();
@@ -236,6 +245,76 @@ describe('ChatInputBoxAdapter toggle bridge', () => {
     };
 
     expect(latest.onOpenFileReference).toBe(onOpenFileReference);
+  });
+
+  it('normalizes and deduplicates root file-reference completion sources', async () => {
+    renderAdapter({
+      directories: ['src', 'src/', '', '   ', 42],
+      files: ['README.md', 'README.md', 'src\\App.tsx', null],
+    } as Partial<ComponentProps<typeof ChatInputBoxAdapter>>);
+
+    await waitFor(() => expect(mockState.latestProps).toBeTruthy());
+
+    const latest = mockState.latestProps as {
+      fileCompletionProvider?: (
+        query: string,
+        signal: AbortSignal,
+      ) => Promise<Array<{ name: string; path: string; type: string }>>;
+    };
+
+    const results = await latest.fileCompletionProvider?.('', new AbortController().signal);
+
+    expect(results).toEqual([
+      expect.objectContaining({
+        name: 'src',
+        path: 'src/',
+        type: 'directory',
+      }),
+      expect.objectContaining({
+        name: 'README.md',
+        path: 'README.md',
+        type: 'file',
+      }),
+    ]);
+  });
+
+  it('skips malformed lazy workspace children without dropping valid matches', async () => {
+    mockState.getWorkspaceDirectoryChildren.mockResolvedValue({
+      directories: ['src/components', 'src/components/', '', 99],
+      files: ['src/index.ts', 'src/index.ts', {}, '  '],
+    });
+
+    renderAdapter({
+      workspaceId: 'workspace-1',
+    });
+
+    await waitFor(() => expect(mockState.latestProps).toBeTruthy());
+
+    const latest = mockState.latestProps as {
+      fileCompletionProvider?: (
+        query: string,
+        signal: AbortSignal,
+      ) => Promise<Array<{ name: string; path: string; type: string }>>;
+    };
+
+    const results = await latest.fileCompletionProvider?.('src/', new AbortController().signal);
+
+    expect(mockState.getWorkspaceDirectoryChildren).toHaveBeenCalledWith(
+      'workspace-1',
+      'src',
+    );
+    expect(results).toEqual([
+      expect.objectContaining({
+        name: 'components',
+        path: 'src/components/',
+        type: 'directory',
+      }),
+      expect.objectContaining({
+        name: 'index.ts',
+        path: 'src/index.ts',
+        type: 'file',
+      }),
+    ]);
   });
 
   it('forwards send readiness projection to ChatInputBox', async () => {
