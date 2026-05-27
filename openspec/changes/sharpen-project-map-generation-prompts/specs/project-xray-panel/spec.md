@@ -18,6 +18,14 @@ The system SHALL provide a global collection action that generates the project m
 - **AND** the repair SHALL NOT execute arbitrary JavaScript
 - **AND** the repaired payload SHALL still flow through the existing profile/node normalization path
 
+#### Scenario: Chinese client locale generates Chinese-first map copy
+
+- **WHEN** the client locale is Chinese and the user confirms a Project Map AI generation request
+- **THEN** the generation request SHALL carry a preferred language for Chinese output
+- **AND** the worker prompt SHALL require user-visible map copy to use Chinese as the primary language
+- **AND** English technical terms, source paths, symbols, API names, commands, package names, and framework names SHALL remain untranslated
+- **AND** this language contract SHALL apply to node titles, summaries, core descriptions, key facts, key logic, risk signals, and diagram title/summary fields
+
 ### Requirement: Node-level AI generation
 
 The system SHALL allow AI generation from any map node to complete, correct, or calibrate that node and its subtree.

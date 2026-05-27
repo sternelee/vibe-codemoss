@@ -6,6 +6,7 @@ import type {
   ProjectMapDataset,
   ProjectMapGenerationRequest,
   ProjectMapNode,
+  ProjectMapPreferredLanguage,
   ProjectMapSource,
   ProjectMapStorageLocation,
   ProjectMapRunMetadata,
@@ -354,6 +355,7 @@ export function useProjectMapDataset(
   workspace: WorkspaceInfo | null | undefined,
   options: {
     generationDefaults?: ProjectMapGenerationDefaults | null;
+    preferredLanguage?: ProjectMapPreferredLanguage | null;
   } = {},
 ): ProjectMapDatasetController {
   const workspaceId = workspace?.id ?? null;
@@ -411,6 +413,7 @@ export function useProjectMapDataset(
     storageDirByLocation.global,
   );
   const generationDefaults = options.generationDefaults ?? null;
+  const preferredLanguage = options.preferredLanguage ?? "zh";
 
   const persistDataset = useCallback(
     async (
@@ -738,6 +741,7 @@ export function useProjectMapDataset(
           kind: "auto",
           engine: currentDataset.autoIngestionSettings.engine,
           model: currentDataset.autoIngestionSettings.model,
+          preferredLanguage,
           scope: {
             kind: "auto",
             messageHashes: unprocessedMessages.map((message) => message.messageHash),
@@ -773,7 +777,7 @@ export function useProjectMapDataset(
     return () => {
       cancelled = true;
     };
-  }, [dataset, defaultWritePath, persistDataset, status, workspaceId]);
+  }, [dataset, defaultWritePath, persistDataset, preferredLanguage, status, workspaceId]);
 
   const openGlobalCollection = useCallback(() => {
     const defaults = resolveGenerationDefaults(dataset, generationDefaults);
@@ -783,12 +787,13 @@ export function useProjectMapDataset(
         kind: "global",
         engine: defaults.engine,
         model: defaults.model,
+        preferredLanguage,
         scope: { kind: "global", lensIds: dataset.lenses.map((lens) => lens.id) },
         storageLocation: DEFAULT_STORAGE_LOCATION,
         writePath: defaultWritePath,
       }),
     );
-  }, [dataset, defaultWritePath, generationDefaults]);
+  }, [dataset, defaultWritePath, generationDefaults, preferredLanguage]);
 
   const openNodeGeneration = useCallback(
     (kind: "node" | "calibrate", node: ProjectMapNode) => {
@@ -799,6 +804,7 @@ export function useProjectMapDataset(
           kind: "node",
           engine: defaults.engine,
           model: defaults.model,
+          preferredLanguage,
           scope: { kind: "node", nodeId: node.id, includeDescendants: kind === "node" },
           generationIntent: kind === "calibrate" ? "calibrateNode" : "completeNode",
           storageLocation: DEFAULT_STORAGE_LOCATION,
@@ -807,7 +813,7 @@ export function useProjectMapDataset(
         }),
       );
     },
-    [dataset, defaultWritePath, generationDefaults],
+    [dataset, defaultWritePath, generationDefaults, preferredLanguage],
   );
 
   const openRefreshEvidence = useCallback(
@@ -819,6 +825,7 @@ export function useProjectMapDataset(
           kind: node ? "node" : "global",
           engine: defaults.engine,
           model: defaults.model,
+          preferredLanguage,
           scope: node
             ? { kind: "node", nodeId: node.id, includeDescendants: false }
             : { kind: "global", lensIds: dataset.lenses.map((lens) => lens.id) },
@@ -828,7 +835,7 @@ export function useProjectMapDataset(
         }),
       );
     },
-    [dataset, defaultWritePath, generationDefaults],
+    [dataset, defaultWritePath, generationDefaults, preferredLanguage],
   );
 
   const confirmGenerationRequest = useCallback(async (requestOverride?: ProjectMapGenerationRequest) => {

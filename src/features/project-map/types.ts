@@ -47,6 +47,8 @@ export type ProjectMapNodeKind = ProjectMapKnownNodeKind | string;
 
 export type ProjectMapConfidence = "high" | "medium" | "low" | "unknown";
 
+export type ProjectMapPreferredLanguage = "zh" | "en";
+
 export type ProjectMapSourceType =
   | "file"
   | "symbol"
@@ -219,6 +221,7 @@ export type ProjectMapRunMetadata = {
   scope: string;
   requestScope?: ProjectMapGenerationScope;
   generationIntent?: ProjectMapGenerationIntent;
+  preferredLanguage?: ProjectMapPreferredLanguage;
   readSources?: ProjectMapSource[];
   storageLocation?: ProjectMapStorageLocation;
   writePath?: string;
@@ -253,6 +256,7 @@ export type ProjectMapGenerationRequest = {
   model: string;
   scope: ProjectMapGenerationScope;
   generationIntent: ProjectMapGenerationIntent;
+  preferredLanguage: ProjectMapPreferredLanguage;
   readSources: ProjectMapSource[];
   storageLocation: ProjectMapStorageLocation;
   writePath: string;

@@ -368,6 +368,7 @@ describe("useProjectMapDataset", () => {
           engine: "claude",
           model: "mimo-v2.5-pro[1M]",
         },
+        preferredLanguage: "zh",
       }),
     );
 
@@ -381,6 +382,7 @@ describe("useProjectMapDataset", () => {
       engine: "claude",
       model: "mimo-v2.5-pro[1M]",
       generationIntent: "global",
+      preferredLanguage: "zh",
       storageLocation: "global",
       writePath: `/home/user/.ccgui/project-map/${springKey}`,
     });

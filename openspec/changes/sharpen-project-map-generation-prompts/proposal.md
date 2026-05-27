@@ -8,6 +8,7 @@ Project Knowledge Map 的 AI 生成链路现在提示词偏长、偏泛，Global
 - 让节点补全 prompt 只聚焦当前节点及可选子树，要求补缺而不是重写全局地图。
 - 让节点校准 prompt 只聚焦当前节点事实核验，要求纠错、降置信度、补证据，而不是扩写。
 - 缩减 prompt 中现有 dataset 上下文，避免把大量 node id / profile JSON 直接塞给模型。
+- 当客户端语言为中文时，生成的 Project Map 内容主体必须使用中文，English technical terms、symbol、API、路径保持原文。
 - 保持现有 `ProjectMapDataset` 存储 schema，不新增 runtime dependency。
 
 ## 非目标
@@ -24,6 +25,7 @@ Project Knowledge Map 的 AI 生成链路现在提示词偏长、偏泛，Global
 - `buildPrompt` 拆为短格式：任务、输出规则、scope context、evidence 四段。
 - 节点级 prompt 注入当前节点 snapshot 与子节点摘要，并明确“只返回目标节点/子树内节点”。
 - 校准 prompt 明确要求根据证据纠错、降低 confidence、标记 stale/candidate，而不是补写无证据内容。
+- request/run metadata 记录客户端偏好输出语言，worker 根据该字段在 prompt 中加入 locale-aware 输出约束。
 - 增加 focused tests，断言三类 prompt 不再同质化。
 
 ## Capabilities
@@ -34,7 +36,7 @@ Project Knowledge Map 的 AI 生成链路现在提示词偏长、偏泛，Global
 
 ### Modified Capabilities
 
-- `project-xray-panel`: Project Map AI generation SHALL use concise, action-specific prompts for global collection, node completion, and node calibration.
+- `project-xray-panel`: Project Map AI generation SHALL use concise, action-specific prompts for global collection, node completion, node calibration, and client-locale-aligned output language.
 
 ## Impact
 
@@ -47,6 +49,7 @@ Project Knowledge Map 的 AI 生成链路现在提示词偏长、偏泛，Global
 - API / storage：
   - `ProjectMapGenerationRequest` 与 run metadata 增加前端本地字段；不改变 Tauri command payload。
   - 旧 run 没有 intent 时 fallback 到现有 scope 行为。
+  - 旧 run 没有 preferred language 时 fallback 到中文主体输出，避免继续产生全英文节点描述。
 - 依赖：
   - 不新增依赖。
 
@@ -64,4 +67,5 @@ Project Knowledge Map 的 AI 生成链路现在提示词偏长、偏泛，Global
 - Complete Node prompt 明确包含目标节点 title/id/lens，并要求“补缺 + 可更新子树”。
 - Calibrate Node prompt 明确包含目标节点 title/id/lens，并要求“核验/纠错/降置信度”，不得要求扩展全局地图。
 - 节点级 request 的 `readSources` 优先使用目标节点 sources，不回退到全量 sources。
+- 中文客户端触发生成时，prompt 明确要求 `title`、`summary`、`detail.coreDescription`、`detail.keyFacts`、`detail.keyLogic`、`detail.riskSignals`、diagram summary 使用中文主体，并保留 English technical terms / API / symbol / path。
 - Focused Vitest、typecheck、OpenSpec strict validate 通过。

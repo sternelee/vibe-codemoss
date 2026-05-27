@@ -6,6 +6,7 @@ import type {
   ProjectMapGenerationScope,
   ProjectMapNode,
   ProjectMapNodePatch,
+  ProjectMapPreferredLanguage,
   ProjectMapRunMetadata,
   ProjectMapSource,
   ProjectMapStorageLocation,
@@ -174,6 +175,7 @@ export function createProjectMapGenerationRequest(input: {
   model: string;
   scope: ProjectMapGenerationScope;
   generationIntent?: ProjectMapGenerationIntent;
+  preferredLanguage?: ProjectMapPreferredLanguage | null;
   storageLocation: ProjectMapStorageLocation;
   writePath: string;
   node?: ProjectMapNode | null;
@@ -200,6 +202,7 @@ export function createProjectMapGenerationRequest(input: {
     model: input.model,
     scope: input.scope,
     generationIntent,
+    preferredLanguage: input.preferredLanguage ?? "zh",
     readSources: derivedReadSources,
     storageLocation: input.storageLocation,
     writePath: input.writePath,
@@ -223,6 +226,7 @@ export function createRunMetadataFromRequest(
     scope: request.scope.kind,
     requestScope: request.scope,
     generationIntent: request.generationIntent,
+    preferredLanguage: request.preferredLanguage ?? "zh",
     readSources: request.readSources,
     storageLocation: request.storageLocation,
     writePath: request.writePath,

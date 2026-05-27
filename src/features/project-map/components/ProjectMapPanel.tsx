@@ -81,6 +81,7 @@ import type {
   ProjectMapLens,
   ProjectMapLayoutPreset,
   ProjectMapNode,
+  ProjectMapPreferredLanguage,
   ProjectMapProfile,
   ProjectMapRelatedArtifact,
   ProjectMapStorageLocation,
@@ -266,6 +267,12 @@ function getProfileSummary(profile: Partial<ProjectMapProfile> | null | undefine
   return { language, shapes };
 }
 
+function resolveProjectMapPreferredLanguage(
+  language: string | null | undefined,
+): ProjectMapPreferredLanguage {
+  return language?.toLowerCase().startsWith("zh") ? "zh" : "en";
+}
+
 function isCandidateAfterCompletedCalibration(
   dataset: ProjectMapDataset,
   node: ProjectMapNode,
@@ -290,7 +297,10 @@ export function ProjectMapPanel({
   datasetController: providedDatasetController,
   onOpenEvidenceFile,
 }: ProjectMapPanelProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const preferredLanguage = resolveProjectMapPreferredLanguage(
+    i18n.resolvedLanguage ?? i18n.language,
+  );
   const selectedGenerationModel = useMemo(
     () => resolveSelectedGenerationModel(selectedModelId, models),
     [models, selectedModelId],
@@ -304,7 +314,7 @@ export function ProjectMapPanel({
   );
   const internalDatasetController = useProjectMapDataset(
     controlledDataset || providedDatasetController ? null : activeWorkspace,
-    { generationDefaults },
+    { generationDefaults, preferredLanguage },
   );
   const datasetController = providedDatasetController ?? internalDatasetController;
   const dataset = controlledDataset ?? datasetController.dataset;

@@ -17,6 +17,7 @@ import type {
   ProjectMapGenerationScope,
   ProjectMapLens,
   ProjectMapNode,
+  ProjectMapPreferredLanguage,
   ProjectMapProfile,
   ProjectMapRelatedArtifact,
   ProjectMapRunMetadata,
@@ -721,6 +722,29 @@ function buildPromptOutputRules(intent: ProjectMapGenerationIntent): string[] {
   ];
 }
 
+function resolvePromptPreferredLanguage(run: ProjectMapRunMetadata): ProjectMapPreferredLanguage {
+  return run.preferredLanguage === "en" ? "en" : "zh";
+}
+
+function buildPromptLanguageRules(
+  preferredLanguage: ProjectMapPreferredLanguage,
+): string[] {
+  if (preferredLanguage === "en") {
+    return [
+      "Preferred output language: English.",
+      "Write user-visible map copy in English while preserving source paths, symbols, API names, commands, package names, and framework/library names exactly as evidence shows them.",
+    ];
+  }
+
+  return [
+    "Preferred output language: Simplified Chinese.",
+    "For user-visible map copy, use Chinese as the primary language and keep English technical terms where they are the precise domain vocabulary.",
+    "Apply this to node title, summary, detail.coreDescription, detail.keyFacts, detail.keyLogic, detail.riskSignals, and diagram title/summary fields.",
+    "Do not translate source paths, symbol names, API names, CLI commands, package names, framework/library names, or code identifiers.",
+    "Bad: an all-English paragraph explaining a component. Good: 中文主体描述 + React/TypeScript/forwardRef/Adapter 等 technical terms 原样保留。",
+  ];
+}
+
 function formatMemoryEvidence(run: ProjectMapRunMetadata): string {
   const memoryEvidence = run.autoIngestion?.memoryEvidence ?? [];
   if (memoryEvidence.length === 0) {
@@ -758,6 +782,7 @@ function buildPrompt(input: {
 }): string {
   const requestScope = input.run.requestScope ?? ({ kind: input.run.scope } as ProjectMapGenerationScope);
   const intent = resolveGenerationIntent(input.run);
+  const preferredLanguage = resolvePromptPreferredLanguage(input.run);
   const evidenceText = input.evidence
     .map(
       (entry) =>
@@ -776,6 +801,9 @@ function buildPrompt(input: {
     "",
     "Output rules:",
     ...buildPromptOutputRules(intent),
+    "",
+    "Language rules:",
+    ...buildPromptLanguageRules(preferredLanguage),
     "",
     "Scope context:",
     buildNodeScopeContext({ dataset: input.dataset, scope: requestScope }),

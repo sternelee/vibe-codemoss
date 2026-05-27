@@ -19,6 +19,10 @@
   - `src/features/threads/hooks/useThreadActionsResumeThread.ts`
 - `git diff --check`：通过。
 - `npm run check:large-files`：通过，`found=0`。
+- `npm exec vitest -- run src/features/project-map/services/projectMapGenerationWorker.test.ts src/features/project-map/hooks/useProjectMapDataset.test.tsx --maxWorkers 1 --minWorkers 1`：通过，48 tests，覆盖中文 locale prompt 语言约束与 request preferredLanguage 传递。
+- `openspec validate sharpen-project-map-generation-prompts --strict`：通过。
+- `npm run typecheck`：通过。
+- `npm run lint`：通过。
 
 ## Result
 
@@ -26,6 +30,7 @@
 - Complete Node prompt now uses `completeNode` intent, selected node snapshot, selected node evidence, and optional subtree scope.
 - Calibrate Node prompt now uses `calibrateNode` intent and focuses on verification/correction/confidence instead of broad expansion.
 - Node scoped AI output may omit lenses; existing lenses are preserved during scoped merge.
+- Chinese client locale now flows into Project Map generation metadata, and the worker prompt requires Chinese-first user-visible map copy while preserving English technical terms, paths, symbols, APIs, commands, package names, and framework/library names.
 
 ## Archive Note
 

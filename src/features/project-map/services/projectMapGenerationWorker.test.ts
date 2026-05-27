@@ -1005,6 +1005,9 @@ describe("runProjectMapGenerationWorker", () => {
     const prompt = vi.mocked(engineSendMessageSync).mock.calls[0]?.[1]?.text ?? "";
     expect(prompt).toContain("Return merge input, not a replacement snapshot.");
     expect(prompt).toContain("Omitted existing nodes mean unchanged, never deleted.");
+    expect(prompt).toContain("Preferred output language: Simplified Chinese.");
+    expect(prompt).toContain("use Chinese as the primary language");
+    expect(prompt).toContain("Do not translate source paths, symbol names, API names");
     expect(result.nodes.find((node) => node.id === "project-core")?.summary).toBe("Updated root");
     expect(result.nodes.find((node) => node.id === "runtime-node")).toMatchObject({
       summary: "Needs calibration",
@@ -1077,6 +1080,8 @@ describe("runProjectMapGenerationWorker", () => {
     expect(prompt).toContain("Representation rules: think internally before output.");
     expect(prompt).toContain("Use a Mermaid diagram only when it makes flow");
     expect(prompt).toContain("put Mermaid source in top-level diagrams[]");
+    expect(prompt).toContain("detail.coreDescription, detail.keyFacts, detail.keyLogic");
+    expect(prompt).toContain("Good: 中文主体描述 + React/TypeScript/forwardRef/Adapter");
     expect(prompt).toContain("BEGIN_PROJECT_MAP_EVIDENCE");
     expect(prompt).toContain("END_PROJECT_MAP_EVIDENCE");
     expect(prompt).toContain('"profile": {"primaryLanguage": "unknown"');

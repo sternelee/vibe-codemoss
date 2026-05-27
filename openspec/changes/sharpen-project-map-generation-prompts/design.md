@@ -60,10 +60,26 @@
 
 Complete Node 允许增加缺失的 child nodes；Calibrate Node 默认更保守，优先更新现有目标节点，只有证据明确显示子节点错误时才返回子树修正。
 
+## Decision 4: Client Locale Controls Generated Copy
+
+在 `ProjectMapGenerationRequest` / `ProjectMapRunMetadata` 增加可选 `preferredLanguage`，由 Project Map UI 根据当前 i18n language 写入：
+
+- `zh`: 用户可见的知识地图内容主体使用中文。
+- `en`: 用户可见的知识地图内容主体使用 English。
+
+语言约束只作用于 AI 生成的 copy 字段，不翻译 evidence identity：
+
+- 应本地化：`title`、`summary`、`detail.coreDescription`、`detail.keyFacts`、`detail.keyLogic`、`detail.riskSignals`、diagram `title/summary`。
+- 必须保留原文：file path、symbol name、API name、CLI command、package name、framework/library name。
+
+旧 run 或没有 locale 的自动补全 run 默认走 `zh`，原因是当前产品主工作流中文用户占主导，且已有项目规则要求“中文主体 + English technical terms”。这比让模型在英文 task/schema 牵引下输出全英文更安全。
+
 ## Edge Cases
 
 - 目标 node id 不存在：prompt 降级为 node scope summary，worker 后续 normalize/merge 仍按现有逻辑处理。
 - evidence 为空：prompt 要求 unknown/low confidence，不生成 high confidence。
+- `preferredLanguage` 缺失：fallback 到 `zh`，保持中文主体输出。
+- `preferredLanguage` 为 `en`：只要求 English copy，不改变 JSON schema、source path 或 symbol 原文。
 - AI 返回全量 nodes：`mergeNodeScopedResults` 继续只合并 allowed ids / target subtree，防止写入无关节点。
 - AI 返回 JS object literal 风格的 `{ profile: ... }`：worker 在严格 `JSON.parse` 失败后仅做有限修复（quote bare keys / bare string values / strip trailing commas / single-quoted strings），不执行任意代码。
 
@@ -73,5 +89,6 @@ Complete Node 允许增加缺失的 child nodes；Calibrate Node 默认更保守
   - complete/calibrate 包含不同 action instruction。
   - node prompt 包含 target node snapshot。
   - global prompt 不包含旧的大段 `Existing profile:` / `Existing node ids:`。
+  - 中文 locale prompt 包含“中文主体 + English technical terms 原样保留”的硬约束。
 - hook/request 单测断言 `openNodeGeneration("calibrate")` 写入 `generationIntent: "calibrateNode"`。
 - 运行 focused worker + hook tests、typecheck、OpenSpec strict validate。

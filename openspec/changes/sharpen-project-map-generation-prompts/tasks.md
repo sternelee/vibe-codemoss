@@ -7,6 +7,7 @@
 - [x] 1.5 [P0][输入: complete/calibrate intent][输出: 差异化 action instructions][验证: worker tests] 区分补全与校准语义。
 - [x] 1.6 [P0][输入: AI JSON-shaped object output][输出: bounded parser repair + stricter prompt rule][验证: worker regression test] 修复 unquoted property name 导致生成失败。
 - [x] 1.7 [P0][输入: AI object-literal bare string values][输出: bounded parser repair][验证: worker regression test] 修复 `Unrecognized token '登'` 这类裸中文值解析失败。
+- [x] 1.8 [P0][输入: client locale + Project Map generation request][输出: preferredLanguage metadata + locale-aware prompt rule][验证: worker prompt assertions + hook request assertions] 中文客户端生成中文主体，English technical terms / symbol / path 保持原文。
 
 ## 2. Verification
 
@@ -15,3 +16,5 @@
 - [x] 2.3 [P0][依赖: 1.*][输出: typecheck][验证: `npm run typecheck`] 验证类型闭环。
 - [x] 2.4 [P0][依赖: 1.6][输出: focused Vitest][验证: `npm exec vitest -- run src/features/project-map/services/projectMapGenerationWorker.test.ts --maxWorkers 1 --minWorkers 1`] 验证 JSON repair 回归。
 - [x] 2.5 [P0][依赖: 1.7][输出: focused Vitest][验证: `npm exec vitest -- run src/features/project-map/services/projectMapGenerationWorker.test.ts --maxWorkers 1 --minWorkers 1`] 验证裸中文字符串值回归。
+- [x] 2.6 [P0][依赖: 1.8][输出: focused Vitest][验证: `npm exec vitest -- run src/features/project-map/services/projectMapGenerationWorker.test.ts src/features/project-map/hooks/useProjectMapDataset.test.tsx --maxWorkers 1 --minWorkers 1`] 验证 locale-aware prompt/request 行为。
+- [x] 2.7 [P0][依赖: 1.8][输出: OpenSpec strict validate][验证: `openspec validate sharpen-project-map-generation-prompts --strict`] 验证 artifact。
