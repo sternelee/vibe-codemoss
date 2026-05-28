@@ -3,9 +3,7 @@
 ## Purpose
 
 Project X-Ray / Project Knowledge Map provides a visual, evidence-backed project knowledge surface for navigating generated project-map nodes, inspecting node details, running AI-backed map generation, reviewing candidates, and adjusting graph view state without mutating semantic project-map data.
-
 ## Requirements
-
 ### Requirement: Project Knowledge Map tab entry
 
 The system SHALL display a Project Knowledge Map entry in the right panel toolbar using a globe-style icon.
@@ -144,124 +142,6 @@ The system SHALL provide concise structured details for each selected map node.
 
 The system SHALL provide a global collection action that generates the project map framework using AI.
 
-#### Scenario: Generation requires model confirmation
-- **WHEN** the user starts global collection
-- **THEN** the system SHALL ask the user to choose engine, model, and scope
-- **AND** the system SHALL show the planned read sources and write path
-- **AND** generation SHALL NOT start until the user confirms
-
-#### Scenario: Generation model options come from runtime catalog
-- **WHEN** the generation confirmation dialog opens for a workspace
-- **THEN** the engine selector SHALL be populated from runtime engine detection
-- **AND** the model selector SHALL be populated from the selected engine's model catalog
-- **AND** changing the selected engine SHALL refresh the model choices for that engine
-- **AND** the UI SHALL show loading, error, or no-model states instead of silently accepting an unverified `default` model
-
-#### Scenario: Confirmed generation enters background task queue
-- **WHEN** the user confirms a global collection request
-- **THEN** the system SHALL create a run record for the selected engine, model, scope, read sources, and write path
-- **AND** the confirmation dialog SHALL close without waiting for long-running generation work
-- **AND** the Task button beside Refresh SHALL show the queued task count
-- **AND** the task drawer SHALL expose active, queued, and recent runs
-
-#### Scenario: Active slot does not wait for queued write completion
-- **WHEN** the user confirms a global collection request for an empty project map
-- **THEN** the app-session worker SHALL be eligible to claim the optimistic queued run immediately
-- **AND** the active run SHALL move to `running` / `preparingSources` before the first queued persistence write is required to settle
-- **AND** a blocked or failed persistence write SHALL surface as a failed run instead of leaving the run permanently `queued`
-
-#### Scenario: Generation queue has one active slot
-- **WHEN** multiple generation requests are confirmed
-- **THEN** the requests SHALL be displayed in deterministic queue order
-- **AND** only one run SHALL occupy the active slot at a time
-- **AND** additional runs SHALL remain pending until the active slot is available
-- **AND** closing the Project Knowledge Map panel SHALL NOT discard persisted request records
-
-#### Scenario: Active, queue, and recent sections are not duplicated
-- **WHEN** the task drawer is open
-- **THEN** the active section SHALL show only the active slot run
-- **AND** the queue section SHALL show only pending runs waiting behind the active slot
-- **AND** the recent section SHALL show only completed, failed, or cancelled runs
-- **AND** the same run SHALL NOT appear in multiple task drawer sections at the same time
-
-#### Scenario: Pending queue runs can be cancelled
-- **WHEN** a pending run is waiting in the queue behind the active slot
-- **THEN** the task drawer SHALL provide a cancel action for that queued run
-- **AND** cancelling the run SHALL mark it `cancelled`
-- **AND** cancelled runs SHALL no longer count as active or queued work
-
-#### Scenario: Finished task records can be cleared
-- **WHEN** recent runs contain completed, failed, or cancelled records
-- **THEN** the task drawer SHALL provide a clear-finished action
-- **AND** clearing finished records SHALL remove only completed, failed, and cancelled runs
-- **AND** active or pending runs SHALL remain intact
-
-#### Scenario: Active slot exposes honest progress feedback
-- **WHEN** a pending run occupies the active slot before the AI generator worker has taken over
-- **THEN** the task drawer SHALL show a loading or progress indicator
-- **AND** the status copy SHALL explain that the run is queued and waiting for the generator
-- **AND** the UI SHALL NOT claim that graph generation is actively running until a worker reports running status
-
-#### Scenario: Active run is executed by an app-session worker
-- **WHEN** the Project Map worker claims the active run
-- **THEN** the run status SHALL become `running`
-- **AND** the task drawer SHALL expose phase, progress, latest log, and thread id when available
-- **AND** the worker SHALL collect bounded workspace evidence through existing workspace file APIs
-- **AND** the worker SHALL dispatch generation to the user-selected engine and model
-- **AND** the worker SHALL use a temporary read-only app-server thread event stream for Codex runs
-- **AND** the worker SHALL use the existing read-only synchronous engine message boundary for non-Codex supported engines
-- **AND** the worker SHALL keep only one active run executing at a time
-
-#### Scenario: Evidence input is normalized for all engines
-- **WHEN** the worker prepares evidence for any supported generation engine
-- **THEN** the worker SHALL enforce a bounded total evidence prompt budget
-- **AND** the worker SHALL normalize line endings before prompt assembly
-- **AND** oversized file content SHALL be truncated on readable paragraph, line, or sentence boundaries
-- **AND** oversized Markdown evidence SHALL include a heading digest when headings are available
-- **AND** truncation SHALL be explicit through a marker instead of silently cutting content
-- **AND** the same normalized evidence packet SHALL be used for Codex, Claude, Gemini, and OpenCode generation paths
-
-#### Scenario: Project-map Tauri commands use async workspace locking
-- **WHEN** project-map read or write commands resolve the current workspace entry
-- **THEN** the commands SHALL use the async workspace lock contract
-- **AND** the commands SHALL NOT call blocking workspace locks from inside async Tauri command execution
-
-#### Scenario: Active run is not cancelled by React StrictMode cleanup
-- **WHEN** the Project Knowledge Map panel is mounted in React StrictMode
-- **AND** a confirmed generation request is persisted as pending
-- **THEN** the active slot worker SHALL still claim the run
-- **AND** the run SHALL move from `pending` / `queued` to `running`
-- **AND** cleanup from StrictMode effect replay SHALL NOT permanently suppress run progress updates
-
-#### Scenario: Queued run restores before lenses exist
-- **WHEN** project-map persistence contains manifest, profile, and run records but no generated lenses yet
-- **THEN** the panel SHALL restore the run records
-- **AND** pending or running runs SHALL remain visible to the Task drawer
-- **AND** the absence of lenses SHALL NOT cause the queue state to be discarded
-
-#### Scenario: AI output is validated before persistence
-- **WHEN** the selected AI engine returns generation output
-- **THEN** the worker SHALL parse structured ProjectMapDataset JSON before writing files
-- **AND** invalid JSON or output without valid nodes SHALL mark the run `failed`
-- **AND** failed output SHALL NOT replace the current persisted map
-
-#### Scenario: Worker lifetime is clear
-- **WHEN** the user closes the task drawer or switches center panels while the Project Map panel remains mounted
-- **THEN** the active app-session worker SHALL continue updating the run record
-- **AND** the UI SHALL NOT promise daemon execution after app quit or workspace switch
-
-#### Scenario: Queue persistence failure is visible
-- **WHEN** a confirmed generation request cannot be written to project-map persistence
-- **THEN** the UI SHALL NOT keep the user stuck in the confirmation dialog
-- **AND** the corresponding run SHALL be marked failed with an error message
-- **AND** the user SHALL be able to inspect the failed run in the task drawer or recent run list
-
-#### Scenario: Global collection writes persisted lenses
-- **WHEN** global collection completes successfully
-- **THEN** the system SHALL write generated profile and lens data to `.ccgui/project-map/<project-name>-<short-hash>/`
-- **AND** the system SHALL update `manifest.json`
-- **AND** the graph SHALL refresh from persisted data
-
 #### Scenario: Global collection uses concise framework prompt
 
 - **WHEN** the user confirms a global Project Map collection request
@@ -275,6 +155,14 @@ The system SHALL provide a global collection action that generates the project m
 - **THEN** the worker SHALL attempt a bounded repair before failing the run
 - **AND** the repair SHALL NOT execute arbitrary JavaScript
 - **AND** the repaired payload SHALL still flow through the existing profile/node normalization path
+
+#### Scenario: Chinese client locale generates Chinese-first map copy
+
+- **WHEN** the client locale is Chinese and the user confirms a Project Map AI generation request
+- **THEN** the generation request SHALL carry a preferred language for Chinese output
+- **AND** the worker prompt SHALL require user-visible map copy to use Chinese as the primary language
+- **AND** English technical terms, source paths, symbols, API names, commands, package names, and framework names SHALL remain untranslated
+- **AND** this language contract SHALL apply to node titles, summaries, core descriptions, key facts, key logic, risk signals, and diagram title/summary fields
 
 ### Requirement: Node-level completion and calibration
 
@@ -789,7 +677,7 @@ The Project Knowledge Map SHALL constrain diagram artifact writes to safe Projec
 
 ### Requirement: Project memory auto ingestion run lifecycle
 
-The Project Knowledge Map SHALL wire Auto Ingestion settings into the Project Map generation queue rather than using a hidden synchronous write path.
+The Project Knowledge Map SHALL wire Auto Ingestion settings into the Project Map generation queue rather than using a hidden synchronous write path, and scheduling SHALL be owned by the active workspace lifecycle rather than by the Project Knowledge Map panel mount lifecycle.
 
 #### Scenario: Threshold creates queued auto run
 - **GIVEN** Auto Ingestion is enabled
@@ -800,10 +688,21 @@ The Project Knowledge Map SHALL wire Auto Ingestion settings into the Project Ma
 - **AND** the run SHALL use `scope.kind="auto"` and include the consumed message hashes
 - **AND** the background task drawer SHALL be able to render the run using the existing run lifecycle
 
+#### Scenario: Hidden Project Map still queues auto run
+- **GIVEN** Auto Ingestion is enabled for the active workspace
+- **AND** no Project Map auto run is pending or running
+- **AND** the configured interval has elapsed since `memoryCursor.lastCheckedAt`
+- **AND** the count of unprocessed Project Memory messages reaches `newSessionThreshold`
+- **AND** the Project Knowledge Map panel is not currently rendered or mounted
+- **WHEN** the workspace-level scheduler evaluates Auto Ingestion
+- **THEN** the system SHALL create a queued Project Map run with `kind="auto"`
+- **AND** the run SHALL use the existing Auto Ingestion request shape, consumed message hashes, and Project Memory evidence metadata
+- **AND** opening the Project Knowledge Map panel later SHALL show the queued, running, completed, or failed run through the existing task drawer
+
 #### Scenario: Interval prevents repeated scans
 - **GIVEN** Auto Ingestion is enabled
 - **AND** `memoryCursor.lastCheckedAt` is newer than the configured interval window
-- **WHEN** the Project Map panel rerenders or remounts
+- **WHEN** Auto Ingestion evaluates scheduling
 - **THEN** the system SHALL NOT scan Project Memory again
 - **AND** the system SHALL NOT enqueue a duplicate auto run
 
@@ -811,6 +710,13 @@ The Project Knowledge Map SHALL wire Auto Ingestion settings into the Project Ma
 - **GIVEN** an Auto Ingestion run is already pending or running
 - **WHEN** Auto Ingestion evaluates scheduling
 - **THEN** the system SHALL NOT enqueue another Auto Ingestion run
+
+#### Scenario: View lifecycle does not create duplicate scheduler
+- **GIVEN** the workspace-level Auto Ingestion scheduler is mounted
+- **AND** the Project Knowledge Map panel is also rendered
+- **WHEN** Auto Ingestion evaluates scheduling
+- **THEN** the system SHALL use a single scheduling owner for the active workspace
+- **AND** it SHALL NOT enqueue a duplicate auto run because both the app layer and view layer evaluated the same interval window
 
 #### Scenario: Successful auto run marks memory processed
 - **GIVEN** an Auto Ingestion run was created from unprocessed Project Memory messages
@@ -826,7 +732,7 @@ The Project Knowledge Map SHALL wire Auto Ingestion settings into the Project Ma
 
 ### Requirement: Auto Ingestion candidate safety
 
-The Project Knowledge Map SHALL keep automatic Project Memory ingestion conservative by default.
+The Project Knowledge Map SHALL keep automatic Project Memory ingestion conservative by default while preserving the advanced evidence-backed apply mode.
 
 #### Scenario: Default candidate mode requires review
 - **GIVEN** Auto Ingestion apply mode is `createCandidate`
@@ -834,11 +740,19 @@ The Project Knowledge Map SHALL keep automatic Project Memory ingestion conserva
 - **THEN** generated updates SHALL remain candidate review items or candidate nodes
 - **AND** they SHALL require the existing manual confirm/reject flow before becoming trusted active-map facts
 
-#### Scenario: Advanced apply mode still performs work
+#### Scenario: Advanced apply mode can apply evidence-backed updates
 - **GIVEN** Auto Ingestion apply mode is `autoApplyEvidenceBacked`
 - **WHEN** unprocessed Project Memory reaches the threshold
 - **THEN** the system SHALL still enqueue a real auto run
-- **AND** weak or memory-only claims SHALL remain candidates rather than being silently trusted
+- **AND** updates with sufficient evidence MAY be written into active map lenses through the existing evidence gate
+- **AND** weak, unsupported, or memory-only claims SHALL remain candidates rather than being silently trusted
+
+#### Scenario: Auto apply still preserves candidate visibility
+- **GIVEN** Auto Ingestion apply mode is `autoApplyEvidenceBacked`
+- **AND** a generated update cannot satisfy the evidence gate
+- **WHEN** the auto run completes
+- **THEN** the unsupported update SHALL remain visible as a candidate or rejected candidate result
+- **AND** the run SHALL NOT promote the unsupported update into trusted active-map facts
 
 ### Requirement: Auto Ingestion enablement configuration
 
@@ -935,3 +849,21 @@ The Project Knowledge Map SHALL keep canvas layout controls compact by default w
 - **WHEN** the user zooms, resets the view, runs auto layout, resets layout, changes layout preset, drills into a node, returns to previous view, or returns to overview
 - **THEN** the canvas controls SHALL remain expanded
 - **AND** those graph actions SHALL NOT overwrite the stored collapsed/expanded preference
+
+### Requirement: Project Map stabilization preserves renderer dependency boundary
+The Project Knowledge Map stabilization work SHALL preserve the existing in-house SVG/HTML rendering boundary.
+
+#### Scenario: No new graph dependency is introduced
+- **WHEN** Project Map stabilization is implemented
+- **THEN** the graph SHALL continue using the existing in-house SVG/HTML rendering boundary
+- **AND** the implementation SHALL NOT add a third-party graph rendering or graph editing dependency
+
+### Requirement: Project Map generation model fallback
+The Project Knowledge Map SHALL keep Codex generation entry available when runtime model catalogs are temporarily unavailable.
+
+#### Scenario: Codex catalog outage still exposes fallback models
+- **GIVEN** the selected Project Map generation engine is `codex`
+- **AND** runtime engine models, Codex model list, and workspace config do not provide any model option
+- **WHEN** Project Map generation options are loaded
+- **THEN** the UI SHALL expose fallback Codex model options from the canonical Codex model catalog
+- **AND** Project Map SHALL NOT maintain a separate hard-coded Codex fallback model list

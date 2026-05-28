@@ -1,7 +1,7 @@
 # Project Context
 
 - Type: OpenSpec Workspace
-- Updated At: 2026-05-27T00:00:00+08:00
+- Updated At: 2026-05-28T00:00:00+08:00
 - Scope: governance snapshot for the current `mossx` repository workspace
 
 ## Domain
@@ -13,7 +13,7 @@ OpenSpec workflow and governance for `mossx`, covering change lifecycle, main sp
 - Spec artifacts: `openspec/specs/*`
 - Change workflow artifacts: `openspec/changes/<change-id>/{proposal,design,tasks,verification}.md`
 - Archive: `openspec/changes/archive/*`
-- Current workspace state: active changes = `44`, archive changes = `318`, main specs = `273`
+- Current workspace state: active changes = `33`, archive changes = `339`, main specs = `282`
 
 ## Entry Surfaces
 
@@ -40,6 +40,39 @@ OpenSpec workflow and governance for `mossx`, covering change lifecycle, main sp
   - runtime artifacts, not repository truth
 
 ## Active Changes
+
+### Archive Closure Snapshot (2026-05-28)
+
+Current implementation branch for this workspace snapshot is `feature/v0.5.4`. This archive pass moved 20 explicitly verified active changes into `openspec/changes/archive/2026-05-28-*` and synced main specs where the delta had not already been incorporated.
+
+Archived changes:
+
+- `advance-harness-governance-to-90`
+- `optimize-bundle-chunking`
+- `optimize-long-list-virtualization`
+- `optimize-realtime-event-batching`
+- `refactor-file-open-rendering-scheduler`
+- `refactor-mega-hub-split`
+- `stabilize-composer-control-surface`
+- `fix-reasoning-effort-engine-switch-staleness`
+- `unify-context-ledger-toggle-position`
+- `add-project-xray-panel`
+- `sharpen-project-map-generation-prompts`
+- `add-project-map-candidate-review-actions`
+- `improve-project-map-inspector-evidence-ux`
+- `improve-project-map-interactive-layout`
+- `add-project-map-node-diagram-artifacts`
+- `wire-project-map-auto-ingestion`
+- `stabilize-project-map-incremental-generation`
+- `stabilize-project-map-for-v0-5-4`
+- `unify-claude-workspace-session-catalog`
+- `stabilize-runtime-performance-evidence-gates`
+
+Main spec sync status:
+
+- `openspec archive` synced new or still-pending delta specs for harness governance, performance gates, file rendering scheduler, composer control surface, reasoning effort, workspace session catalog, and runtime evidence gates.
+- Project Map and context-ledger changes whose requirement headings were already present in main specs were archived with `--skip-specs` to avoid duplicate requirement writes.
+- Remaining active changes are either in-progress, deferred, or completed but still need explicit closure evidence before archive.
 
 ### Branch Calibration Snapshot (2026-05-27)
 
@@ -76,18 +109,18 @@ Runtime evidence and archive-readiness classification lives in `openspec/docs/ru
 
 ### Inventory
 
-- Active changes: `44`
-- Archive changes: `318`
-- Main specs: `273`
-- Completed task sets still active: `43`
+- Active changes: `33`
+- Archive changes: `339`
+- Main specs: `282`
+- Completed task sets still active: `32`
 - In-progress task sets: `1`
 
 ### In-Progress Changes
 
 - `add-codex-structured-launch-profile`
-  - Task state: `0/7`.
-  - Current code fact: existing `codex_doctor`, `codexBin`, `codexArgs`, and workspace override fields exist; `codex_preview_launch_profile` / Launch Configuration preview/editor contract is not implemented.
-  - Action: keep active for implementation.
+  - Task state: `6/7`.
+  - Current code fact: backend preview contract, doctor resolution alignment, settings global/workspace Launch Configuration UX, daemon/remote passthrough, i18n, and targeted tests are implemented.
+  - Action: keep active until the desktop manual validation matrix is completed.
 
 ### Deferred Completed Proposals
 
@@ -98,45 +131,38 @@ Runtime evidence and archive-readiness classification lives in `openspec/docs/ru
 
 ### Completed Active Changes Pending Verification / Archive Decision
 
-- `add-project-map-candidate-review-actions`
-- `add-project-map-node-diagram-artifacts`
-- `add-project-xray-panel`
 - `add-email-driven-session-continuation`
+- `add-engine-task-output-inspector`
 - `add-file-markdown-math-preview`
 - `add-memory-reference-persistent-mode`
 - `adjust-git-worktree-checkbox-placement`
-- `advance-harness-governance-to-90`
 - `desktop-editor-split-left-composer`
 - `dynamic-project-governance-evidence`
 - `fix-bottom-status-dock-collapse-stability`
+- `fix-claude-custom-model-fact-source-normalization`
 - `fix-codex-deferred-completion-after-assistant-ingress`
 - `fix-codex-empty-draft-stale-thread-auto-replay`
+- `fix-codex-stale-history-fork-shortcut`
 - `fix-claude-issue529-second-turn-blank-session`
-- `fix-stale-thread-recovery-confidence-gates`
+- `fix-composer-file-reference-at-white-screen`
+- `fix-composer-tool-popover-stability`
+- `fix-long-live-assistant-stream-recovery`
 - `fix-markdown-preview-auto-refresh`
+- `fix-project-map-auto-ingestion-background-scheduler`
+- `fix-session-folder-intent-and-worktree-move-menu`
+- `fix-stale-thread-recovery-confidence-gates`
 - `harden-claude-sidebar-list-timeout-fallback`
 - `improve-email-mail-session-list-controls`
-- `improve-project-map-inspector-evidence-ux`
-- `improve-project-map-interactive-layout`
+- `improve-project-map-drag-and-root-visual`
 - `integrate-openspec-trellis-bridge-into-status-panel`
-- `optimize-bundle-chunking`
-- `optimize-long-list-virtualization`
-- `optimize-realtime-event-batching`
 - `preserve-editor-on-topbar-session-switch`
-- `refactor-mega-hub-split`
 - `refactor-workspace-session-management`
-- `sharpen-project-map-generation-prompts`
-- `stabilize-composer-control-surface`
 - `stabilize-core-runtime-and-realtime-contracts`
 - `stabilize-file-markdown-preview-render-architecture`
 - `stabilize-markdown-preview-awareness-and-large-rendering`
-- `stabilize-project-map-incremental-generation`
-- `stabilize-runtime-performance-evidence-gates`
 - `stabilize-session-management-truth-boundaries`
-- `unify-claude-workspace-session-catalog`
-- `wire-project-map-auto-ingestion`
 
-These changes have fully checked task lists but remain in `openspec/changes/` rather than archive. Treat the next step as closure hygiene: update verification artifacts, preserve platform/manual-test qualifiers, sync main specs only where needed, then archive.
+These changes have fully checked task lists but remain in `openspec/changes/` rather than archive. Treat the next step as closure hygiene: add or refresh verification artifacts, preserve platform/manual-test qualifiers, sync main specs only where needed, then archive.
 
 ### Code Fact Snapshot (2026-05-24)
 
@@ -199,6 +225,7 @@ Compatibility boundary: `listClaudeSessions`, `listProjectRelatedCodexSessions`,
 
 ## Update History
 
+- 2026-05-28: Archived 20 verified changes from `feature/v0.5.4`, including the Project Map verified closure set, runtime performance evidence gates, workspace session catalog, reasoning-effort support, composer control surface, file rendering scheduler, and harness/performance governance changes. Workspace counts are now active=33, archive=339, specs=282; completed active task sets=32 and only `add-codex-structured-launch-profile` remains in-progress with desktop manual validation still open.
 - 2026-05-27: Recalibrated Project Knowledge Map after the 2026-05-26 to 2026-05-27 implementation burst. Workspace counts are now active=44, archive=318, specs=273; completed active task sets=43 and only `add-codex-structured-launch-profile` remains in-progress. Synced completed Project Map deltas into main specs, including the new `project-map-incremental-generation` main spec, without touching `src/**` code.
 - 2026-05-24: Added active change `stabilize-runtime-performance-evidence-gates` and detected active change `fix-claude-issue529-second-turn-blank-session` in the current workspace. Workspace counts are now active=32, archive=318, specs=271; completed active task sets=31 and only `add-codex-structured-launch-profile` remains in-progress. Runtime performance evidence is now classified as measured/proxy/unsupported/manual-only in `docs/perf/runtime-evidence-gates.{json,md}` and archive-readiness/compatibility cleanup guidance is recorded in `openspec/docs/runtime-evidence-gates-2026-05-24.md`; Messages timeline virtualizer teardown cleanup is the only runtime behavior change in this refresh.
 - 2026-05-24: Recalibrated session-management and stale-thread recovery proposals after code/proposal audit. Workspace counts are now active=30, archive=318, specs=271; only `add-codex-structured-launch-profile` remains in-progress. Recorded local manual QA qualifiers and the missing Windows coverage boundary in `openspec/docs/session-management-refactor-closeout-2026-05-24.md`; retained compatibility APIs as intentional compatibility / diagnostic paths rather than dead code.

@@ -3,9 +3,7 @@
 ## Purpose
 
 Project Map incremental generation preserves existing map knowledge while merging AI output, node-scoped corrections, evidence links, task metadata, and robust model-output normalization into the persisted Project Knowledge Map.
-
 ## Requirements
-
 ### Requirement: Incremental global Project Map generation
 The system SHALL merge global Project Map generation output into the existing dataset and SHALL NOT delete existing nodes, lenses, sources, or relationships merely because they are absent from the latest AI output.
 
@@ -196,3 +194,17 @@ The Project Map storage boundary MUST treat persisted snapshot ownership as a co
 - **AND** the persisted `manifest.json` has a `storageKey` that does not match workspace A's expected storage key
 - **THEN** the frontend MUST NOT render that persisted snapshot as a valid Project Map dataset
 - **AND** the user-visible dataset SHALL fall back to an empty or error/quarantined state for workspace A
+
+### Requirement: Project Map structured-output failure visibility
+The Project Map worker SHALL treat model output as untrusted and SHALL expose parse or repair failures as visible run failures instead of writing incomplete datasets.
+
+#### Scenario: Malformed output fails closed
+- **WHEN** a generation, completion, calibration, or auto-ingestion run receives malformed model output
+- **AND** structured-output repair cannot produce a valid Project Map payload
+- **THEN** the run SHALL enter a failed state with a diagnostic reason
+- **AND** the worker SHALL NOT write partial lenses, partial candidates, or partial manifest data as trusted Project Map knowledge
+
+#### Scenario: Failure diagnostics are visible without blocking review
+- **WHEN** a Project Map run fails because output parsing, ownership validation, evidence reading, or persistence fails
+- **THEN** the task drawer SHALL expose the failure category and latest diagnostic message
+- **AND** existing persisted Project Map data SHALL remain reviewable

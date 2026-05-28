@@ -3,7 +3,6 @@
 ## Purpose
 
 Defines the large-file-modularization-governance behavior contract, covering Oversized File Detection Baseline.
-
 ## Requirements
 ### Requirement: Oversized File Detection Baseline
 The system SHALL maintain version-traceable baseline artifacts for large-file governance, including a human-readable report and a machine-readable debt ledger keyed by the matched governance policy.
@@ -128,4 +127,18 @@ The system SHALL define measurable completion criteria for the Deferred + JIT go
 - **WHEN** large-file 模块被拆成多个子模块
 - **THEN** 新模块 MUST 以职责分片而不是复制原 hub 结构
 - **AND** 若某个新模块接近阈值，批次 MUST 记录继续拆分的 follow-up rationale
+
+### Requirement: Near-Threshold Cleanup Recommendations MUST Be Risk-Ordered
+
+Large-file cleanup recommendations MUST rank near-threshold files by hot-path risk, fail-threshold headroom, and compatibility boundary before proposing extraction.
+
+#### Scenario: runtime hot paths outrank passive debt
+- **WHEN** near-threshold files are summarized for optimization planning
+- **THEN** runtime hot paths MUST be ranked before passive docs, i18n, or test-only debt
+- **AND** the report MUST include remaining fail-threshold headroom
+
+#### Scenario: split candidates preserve facades
+- **WHEN** a near-threshold file is recommended for splitting
+- **THEN** the recommendation MUST state the public facade or compatibility boundary to preserve
+- **AND** unrelated hot paths MUST NOT be grouped into one split solely because they are near threshold
 
