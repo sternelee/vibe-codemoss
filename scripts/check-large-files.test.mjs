@@ -241,6 +241,52 @@ test("scanLargeFiles includes mjs scripts and yaml workflows in governance", asy
   });
 });
 
+test("scanLargeFiles skips local runtime artifact directories", async () => {
+  await withTempDir(async (root) => {
+    const policyPath = path.join(root, "policy.json");
+    await fs.writeFile(
+      policyPath,
+      JSON.stringify(
+        {
+          version: "test-policy",
+          policies: [],
+          defaultPolicy: {
+            id: "default-source",
+            priority: "P1",
+            warnThreshold: 8,
+            failThreshold: 12,
+          },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    await writeLines(path.join(root, "src", "visible-large.ts"), 13);
+    await writeLines(
+      path.join(root, ".artifacts", "manual-codex-launch-home", ".cargo", "registry", "huge.rs"),
+      200,
+    );
+
+    const scan = await scanLargeFiles({
+      root,
+      policyFile: "policy.json",
+      baselineFile: null,
+      threshold: 3000,
+      mode: "report",
+      markdownOutput: null,
+      baselineOutput: null,
+      scope: "fail",
+    });
+
+    assert.deepEqual(
+      scan.results.map((item) => item.path),
+      ["src/visible-large.ts"],
+    );
+  });
+});
+
 test("scanLargeFiles rejects malformed baseline entries instead of silently dropping baseline protection", async () => {
   await withTempDir(async (root) => {
     const policyPath = path.join(root, "policy.json");

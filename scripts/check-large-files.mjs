@@ -28,6 +28,7 @@ const TEXT_EXTENSIONS = new Set([
 
 const EXCLUDED_DIRS = new Set([
   ".git",
+  ".artifacts",
   "node_modules",
   "dist",
   "build",
