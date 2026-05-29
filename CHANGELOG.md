@@ -2,7 +2,7 @@
 
 ---
 
-##### **2026年5月28日（v0.5.4）**
+##### **2026年5月29日（v0.5.4）**
 
 中文：
 
@@ -10,18 +10,24 @@
 - 新增 Codex 结构化启动配置预览能力，在 Settings 中集中展示启动命令、sandbox、approval、model、reasoning effort 和环境覆盖信息
 - 新增 Codex doctor / launch profile 后端查询链路，让前端配置面板可以读取实际启动配置而不是依赖静态展示
 - 新增用户输入请求的收起与跳过交互，支持 pending 问题在消息区更清晰地折叠、结算和恢复
+- 新增核心错误日志持久化与三证结算 diagnostics，支持干跑判断、状态查询和前后端对账
+- 新增原生窗口透明度设置，让自定义外观可以控制 desktop window 的透明呈现
 
 🔧 Improvements
 - 优化 Project Map 稳定性，收紧数据集补全、生成 worker、交互布局、节点证据和任务抽屉的状态边界
 - 优化 Markdown 预览渲染与交互状态，增强文件刷新、GitHub 风格 Markdown、公式和图表预览的测试覆盖
 - 优化 Runtime Pool 与 Codex Settings 文案、i18n 和测试覆盖，让启动配置、运行池状态和环境诊断更容易核对
 - 优化 Composer 文件引用入口，即使文件树尚未打开也能使用 workspace 文件索引完成 `@` 引用
+- 优化 Composer 输入区高度与折叠入口，让首页与会话区的输入体验更紧凑、可恢复
 - 优化工作区文件树首屏加载，改用 root-first directory children 路径，减少启动和切换工作区时的递归扫描压力
 - 优化远程工作区 Git / GitHub 操作转发矩阵，降低 remote backend 模式误走本地 Git 的风险
 - 优化工作区会话文件夹相关操作，补齐远程后端转发并收敛阻塞式文件扫描边界
+- 补齐三证结算状态查询的 OpenSpec 设计记录与二阶段启动条件，增强 diagnostics 能力的交付可追踪性
 - 升级应用版本号到 `0.5.4`，同步前端包配置与 Tauri 配置
 
 🐛 Fixes
+- 修复核心错误日志缺少本地持久化的问题，让 renderer/runtime 异常可以被后续 diagnostics 查询复盘
+- 修复三证结算状态缺少干跑与查询对账入口的问题，降低状态漂移时难以定位的风险
 - 修复用户输入请求跳过后未正确结算的问题，避免已跳过问题继续停留在 pending 状态
 - 修复用户输入卡片收起、跳过和恢复链路中的展示漂移，让历史消息与实时请求保持一致
 - 修复 Composer 未开文件树时文件引用失效的问题，降低空索引或未初始化文件树导致的引用失败
@@ -37,18 +43,24 @@ English:
 - Add a structured Codex launch-profile preview in Settings for command, sandbox, approval, model, reasoning effort, and environment overrides
 - Add Codex doctor / launch-profile backend query support so the configuration panel can read effective launch facts instead of showing static metadata
 - Add collapse and skip interactions for user-input requests so pending questions can be settled, folded, and restored more clearly in the message timeline
+- Add persisted core error logs and three-evidence settlement diagnostics with dry-run checks, status queries, and frontend/backend reconciliation
+- Add native window transparency settings so custom appearance presets can control desktop window translucency
 
 🔧 Improvements
 - Improve Project Map stability by tightening dataset completion, generation worker, interactive layout, node evidence, and task drawer state boundaries
 - Improve Markdown preview rendering and interaction state with stronger coverage for refresh behavior, GitHub-style Markdown, math, and diagram previews
 - Improve Runtime Pool and Codex Settings copy, i18n, and test coverage so launch configuration, runtime status, and environment diagnostics are easier to verify
 - Improve Composer file references so `@` suggestions can use the workspace file index even before the file tree has been opened
+- Improve Composer input height and collapsed entrypoints so home and conversation inputs stay compact and recoverable
 - Improve workspace file-tree first paint with a root-first directory-children path to reduce recursive scan pressure during startup and workspace switches
 - Improve remote-workspace Git / GitHub forwarding coverage so remote backend mode does not fall back to local Git execution
 - Improve workspace session-folder operations by forwarding remote backend commands and narrowing blocking filesystem scan boundaries
+- Add OpenSpec design notes and phase-two entry conditions for three-evidence settlement status queries to improve diagnostics traceability
 - Bump app version to `0.5.4` across frontend package metadata and Tauri configuration
 
 🐛 Fixes
+- Fix missing local persistence for core error logs so renderer/runtime failures can be reviewed through diagnostics later
+- Fix missing dry-run and query reconciliation entrypoints for three-evidence settlement status, reducing drift that is hard to diagnose
 - Fix skipped user-input requests not settling correctly, preventing skipped questions from remaining pending
 - Fix display drift in user-input card collapse, skip, and restoration flows so history and realtime requests stay aligned
 - Fix Composer file references failing when the file tree has not been opened, reducing failures from empty or uninitialized file indexes
