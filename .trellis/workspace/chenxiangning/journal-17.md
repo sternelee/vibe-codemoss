@@ -1485,3 +1485,42 @@ Validation:
 ### Next Steps
 
 - None - task complete
+
+
+## Session 640: 收口文件树 fallback 根层快照
+
+**Date**: 2026-05-30
+**Task**: 收口文件树 fallback 根层快照
+**Branch**: `feature/v0.5.4`
+
+### Summary
+
+修复 v0.5.4 review 发现的 workspace 文件树 legacy fallback 根层污染问题，并完成 targeted 验证。
+
+### Main Changes
+
+- 目标：对 v0.5.4 相关代码做边界/跨平台 review 后，修复确认的小问题并提交。
+- 主要改动：`useWorkspaceFiles` legacy fallback 改为只应用 root-only snapshot；root child 判断同时排除 `/` 和 `\\`；fallback debug payload 保留 fullSnapshot 计数用于排查。
+- 测试更新：`useWorkspaceFiles.test.tsx` 将 legacy fallback 断言改为 root-only，并加入 Windows-style `\\` 路径样本，防止跨平台路径误判。
+- Backend 收口：`cc_gui_daemon/file_access.rs` 对 blocking workspace scan join 成功值显式 `Ok(...)` 包装，保持 command 返回契约清晰。
+- 验证：`npm exec vitest run src/features/workspaces/hooks/useWorkspaceFiles.test.tsx` 通过；`npm run typecheck` 通过；`cargo check --manifest-path src-tauri/Cargo.toml` 通过；相关 Rust root directory tests 通过；large-file hard gate found=0；large-file near-threshold 仅保留既有 19 个 watch；large-file/heavy-test-noise parser tests 通过；`git diff --check` 通过。
+- 注意：record 前工作区另有非本次变更 `src/features/threads/hooks/useThreadEventHandlers.ts`、`src/features/debug/utils/clientErrorLog.ts`，本次未触碰、未提交。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `24780685` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
