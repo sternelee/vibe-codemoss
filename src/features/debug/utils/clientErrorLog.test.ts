@@ -65,6 +65,22 @@ describe("clientErrorLog", () => {
       shouldPersistClientErrorLogEntry(
         debugEntry({
           label:
+            "thread/session:turn-diagnostic:codex-no-progress-watchdog-fired",
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      shouldPersistClientErrorLogEntry(
+        debugEntry({
+          label:
+            "thread/session:turn-diagnostic:codex-no-progress-watchdog-scheduled",
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      shouldPersistClientErrorLogEntry(
+        debugEntry({
+          label:
             "thread/session:turn-diagnostic:three-evidence-reconciliation-query-requested",
         }),
       ),

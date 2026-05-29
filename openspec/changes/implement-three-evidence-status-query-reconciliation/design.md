@@ -64,9 +64,8 @@ Labels:
 
 Payloads contain ids, status enum, scope booleans, timestamps, stale progress age, bounded reason, and decision action. They exclude prompt/output/stderr/file diff content.
 
-The global client error log must persist the early breadcrumb labels as well as abnormal outcomes:
+The in-memory debug stream may include watchdog `scheduled`, `fired`, and `skipped` lifecycle labels. The global client error log must persist only the lower-volume actionable watchdog outcomes plus early reconciliation breadcrumbs and abnormal outcomes:
 
-- `thread/session:turn-diagnostic:codex-no-progress-watchdog-scheduled`
 - `thread/session:turn-diagnostic:codex-no-progress-watchdog-fired`
 - `thread/session:turn-diagnostic:codex-no-progress-watchdog-skipped`
 - `thread/session:turn-diagnostic:codex-no-progress-suspected`
@@ -77,7 +76,7 @@ The global client error log must persist the early breadcrumb labels as well as 
 
 If a stuck UI reproduces but the log contains neither `codex-no-progress-suspected` nor `three-evidence-reconciliation-query-requested`, the watchdog/reconciliation trigger path did not run. If it contains `query-requested` but no resolved/rejected/failed outcome, the status query was issued but did not complete or did not report back through the diagnostics channel.
 
-If a stuck UI reproduces but the log contains no `codex-no-progress-watchdog-*` labels for the affected scoped turn, the visible loading state is not being driven through the Codex no-progress watchdog lifecycle and should be traced from the UI loading source. If `watchdog-fired` is followed by `watchdog-skipped`, the `reason` field is the primary next-hop diagnostic; expected reasons include `missing-diagnostic`, `completed`, `error`, `interrupted`, `not-processing`, `active-turn-mismatch`, and `progress-still-fresh`.
+If a stuck UI reproduces but the log contains no `codex-no-progress-watchdog-fired` or `codex-no-progress-watchdog-skipped` labels for the affected scoped turn after the configured timeout window, the visible loading state is not being driven through the Codex no-progress watchdog lifecycle and should be traced from the UI loading source. If `watchdog-fired` is followed by `watchdog-skipped`, the `reason` field is the primary next-hop diagnostic; expected reasons include `missing-diagnostic`, `completed`, `error`, `interrupted`, `not-processing`, `active-turn-mismatch`, and `progress-still-fresh`.
 
 ## PHASE2B_HANDOFF_MARKER
 
