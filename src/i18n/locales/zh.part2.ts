@@ -75,6 +75,7 @@ const zhPart2 = {
     addWorkspaceOpenModePrompt: "选择工作区打开方式。",
     addWorkspaceOpenCurrent: "加入当前窗口",
     addWorkspaceOpenNewWindow: "新开窗口",
+    addWorkspaceRemotePathPrompt: "请输入 daemon 所在机器上的项目绝对路径。",
     loadingProgressRunInBackground: "后台运行",
     loadingProgressCreateSessionTitle: "正在创建会话...",
     loadingProgressCreateSessionMessage:

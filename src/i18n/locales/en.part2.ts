@@ -82,6 +82,8 @@ const enPart2 = {
     addWorkspaceOpenModePrompt: "Choose how to open this workspace.",
     addWorkspaceOpenCurrent: "Add to Current Window",
     addWorkspaceOpenNewWindow: "Open in New Window",
+    addWorkspaceRemotePathPrompt:
+      "Enter the absolute project path on the daemon machine.",
     loadingProgressRunInBackground: "Run in background",
     loadingProgressCreateSessionTitle: "Creating session...",
     loadingProgressCreateSessionMessage:
