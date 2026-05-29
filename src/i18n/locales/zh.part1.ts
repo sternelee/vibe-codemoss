@@ -1501,6 +1501,7 @@ const zhPart1 = {
     newWorktreeAgent: "新建工作树代理",
     newCloneAgent: "新建克隆代理",
     archiveActiveThread: "归档活动对话",
+    closeCurrentSession: "关闭当前会话",
     typeShortcut: "输入快捷键",
     pressNewShortcut: "聚焦时按下新快捷键。默认：",
     composerSubtitle: "编辑器",

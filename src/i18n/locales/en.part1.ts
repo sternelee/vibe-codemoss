@@ -1484,6 +1484,7 @@ const enPart1 = {
     newWorktreeAgent: "New Worktree Agent",
     newCloneAgent: "New Clone Agent",
     archiveActiveThread: "Archive active thread",
+    closeCurrentSession: "Close current session",
     typeShortcut: "Type shortcut",
     pressNewShortcut: "Press a new shortcut while focused. Default:",
     composerSubtitle: "Composer",

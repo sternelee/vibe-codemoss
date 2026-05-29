@@ -1134,6 +1134,7 @@ export function useAppShellLayoutNodesSection(ctx: any) {
     openKanbanShortcut: appSettings.openKanbanShortcut,
     cycleOpenSessionPrevShortcut: appSettings.cycleOpenSessionPrevShortcut,
     cycleOpenSessionNextShortcut: appSettings.cycleOpenSessionNextShortcut,
+    closeCurrentSessionShortcut: appSettings.closeCurrentSessionShortcut,
     saveFileShortcut: appSettings.saveFileShortcut,
     findInFileShortcut: appSettings.findInFileShortcut,
     toggleGitDiffListViewShortcut: appSettings.toggleGitDiffListViewShortcut,

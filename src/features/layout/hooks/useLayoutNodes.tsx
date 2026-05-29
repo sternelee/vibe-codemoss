@@ -396,6 +396,7 @@ type LayoutNodesOptions = {
   hideLoadingProgressDialog?: (requestId: string) => void;
   cycleOpenSessionPrevShortcut: string | null;
   cycleOpenSessionNextShortcut: string | null;
+  closeCurrentSessionShortcut: string | null;
   saveFileShortcut: string | null;
   findInFileShortcut: string | null;
   toggleGitDiffListViewShortcut: string | null;
@@ -1308,6 +1309,37 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     },
     [selectedThreadId, selectedWorkspaceId, selectThread, selectWorkspace],
   );
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.repeat) {
+        return;
+      }
+      if (!matchesShortcutForPlatform(event, options.closeCurrentSessionShortcut)) {
+        return;
+      }
+      event.preventDefault();
+      if (!options.activeWorkspaceId || !options.activeThreadId) {
+        return;
+      }
+      applyTopbarWindowMutation(
+        (windows) =>
+          dismissTopbarSessionTab(
+            windows,
+            options.activeWorkspaceId ?? "",
+            options.activeThreadId ?? "",
+          ),
+        options.activeWorkspaceId,
+      );
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    applyTopbarWindowMutation,
+    options.activeThreadId,
+    options.activeWorkspaceId,
+    options.closeCurrentSessionShortcut,
+  ]);
   const threadStatusById = options.threadStatusById;
   const showTopbarTabMenu = useCallback(
     (

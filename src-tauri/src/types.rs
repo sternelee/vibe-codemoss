@@ -904,6 +904,11 @@ pub(crate) struct AppSettings {
     )]
     pub(crate) archive_thread_shortcut: Option<String>,
     #[serde(
+        default = "default_close_current_session_shortcut",
+        rename = "closeCurrentSessionShortcut"
+    )]
+    pub(crate) close_current_session_shortcut: Option<String>,
+    #[serde(
         default = "default_toggle_projects_sidebar_shortcut",
         rename = "toggleProjectsSidebarShortcut"
     )]
@@ -1311,6 +1316,10 @@ fn default_archive_thread_shortcut() -> Option<String> {
     Some("cmd+ctrl+a".to_string())
 }
 
+fn default_close_current_session_shortcut() -> Option<String> {
+    Some("cmd+w".to_string())
+}
+
 fn default_toggle_projects_sidebar_shortcut() -> Option<String> {
     Some("cmd+shift+p".to_string())
 }
@@ -1614,6 +1623,7 @@ impl Default for AppSettings {
             new_worktree_agent_shortcut: default_new_worktree_agent_shortcut(),
             new_clone_agent_shortcut: default_new_clone_agent_shortcut(),
             archive_thread_shortcut: default_archive_thread_shortcut(),
+            close_current_session_shortcut: default_close_current_session_shortcut(),
             toggle_projects_sidebar_shortcut: default_toggle_projects_sidebar_shortcut(),
             toggle_git_sidebar_shortcut: default_toggle_git_sidebar_shortcut(),
             toggle_global_search_shortcut: default_toggle_global_search_shortcut(),
@@ -1796,6 +1806,10 @@ mod tests {
         assert_eq!(
             settings.archive_thread_shortcut.as_deref(),
             Some("cmd+ctrl+a")
+        );
+        assert_eq!(
+            settings.close_current_session_shortcut.as_deref(),
+            Some("cmd+w")
         );
         assert_eq!(
             settings.toggle_debug_panel_shortcut.as_deref(),

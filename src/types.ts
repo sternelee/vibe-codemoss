@@ -747,6 +747,7 @@ export type AppSettings = {
   newWorktreeAgentShortcut: string | null;
   newCloneAgentShortcut: string | null;
   archiveThreadShortcut: string | null;
+  closeCurrentSessionShortcut: string | null;
   openChatShortcut: string | null;
   openKanbanShortcut: string | null;
   cycleOpenSessionPrevShortcut: string | null;

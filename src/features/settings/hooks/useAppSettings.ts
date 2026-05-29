@@ -158,6 +158,7 @@ const defaultSettings: AppSettings = {
   newWorktreeAgentShortcut: "cmd+alt+shift+n",
   newCloneAgentShortcut: "cmd+alt+n",
   archiveThreadShortcut: "cmd+ctrl+a",
+  closeCurrentSessionShortcut: "cmd+w",
   openChatShortcut: "cmd+j",
   openKanbanShortcut: "cmd+k",
   cycleOpenSessionPrevShortcut: "cmd+shift+[",
