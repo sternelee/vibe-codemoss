@@ -1481,6 +1481,7 @@ export const Composer = memo(function Composer({
       recordHistory,
       resetHistoryNavigation,
       setComposerText,
+      selectedEngine,
       selectedCommonsNames,
       selectedSkillNames,
       setSelectedManualMemories,
