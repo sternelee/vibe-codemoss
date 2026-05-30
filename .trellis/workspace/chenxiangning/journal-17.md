@@ -1677,3 +1677,40 @@ Review 后修正 Codex no-progress watchdog 生命周期观测的全局日志范
 ### Next Steps
 
 - None - task complete
+
+
+## Session 645: 强化待整理发现的 AI 整理候选
+
+**Date**: 2026-05-31
+**Task**: 强化待整理发现的 AI 整理候选
+**Branch**: `feature/v0.5.4`
+
+### Summary
+
+为 Project Map 待整理发现增加 AI organizer、parent-move 候选、安全确认与批量采纳能力。
+
+### Main Changes
+
+- 提交：54ea3040 feat(project-map): 强化待整理发现的 AI 整理候选
+- 改动：新增 projectMapNodeOrganizer 服务与测试；增加 organizer run metadata、parentMove candidate 类型、单个/批量候选确认安全校验、Unassigned Discoveries 入口、任务抽屉结果解释、candidate badge 导航、Accept all 操作、双语文案与样式。
+- 影响：AI organizer 只生成 review candidates，不直接修改拓扑；parent move confirmation 会校验 source parent、target parent、cycle、root flattening 与 hierarchy fit。
+- 验证：npm exec vitest run src/features/project-map/services/projectMapNodeOrganizer.test.ts src/features/project-map/utils/candidates.test.ts src/features/project-map/hooks/useProjectMapDataset.test.tsx src/features/project-map/services/projectMapGenerationWorker.test.ts src/features/project-map/components/ProjectMapPanel.test.tsx；5 files / 123 tests passed。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `54ea3040` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
