@@ -75,6 +75,50 @@ The system SHALL render a read-only Project Knowledge Map panel in the center ar
 
 The system SHALL derive a Project Profile for the active workspace and organize project knowledge through dynamic lenses instead of a fixed framework-specific layer enum.
 
+#### Scenario: AI organizer proposes parent moves for unassigned discoveries
+
+- **WHEN** the Project Map contains direct children under the generic unassigned discoveries node
+- **THEN** the Project Map UI SHALL provide an AI organize action from the toolbar and the Unassigned Discoveries detail panel
+- **AND** the action SHALL ask AI for parent-move suggestions using project-generic node summaries, source paths, child counts, and candidate parents from the existing graph
+- **AND** the action SHALL create review candidates instead of directly changing Project Map topology
+
+#### Scenario: Organizer candidate review is explicit
+
+- **WHEN** AI organizer suggestions are available
+- **THEN** each suggestion SHALL be reviewable as a pending candidate
+- **AND** the review SHALL show the target node, suggested parent, confidence, and reason
+- **AND** the top-bar candidate badge SHALL navigate to a pending review candidate even when the target node is not marked as a standalone node candidate
+- **AND** confirming the candidate SHALL apply only the parent move
+- **AND** rejecting the candidate SHALL leave Project Map topology unchanged
+
+#### Scenario: Organizer remains project-agnostic
+
+- **WHEN** the organizer builds prompts or validates suggestions
+- **THEN** it SHALL NOT require repository-specific workflow directories, user-local paths, OpenSpec, Trellis, Codex, Claude, technology names, controller names, or other personal workspace conventions
+- **AND** source paths MAY be used only as generic evidence for parent matching
+- **AND** validation SHALL rely on graph safety and hierarchy fit rather than project-specific allowlists
+
+#### Scenario: Organizer explains skipped and unsafe suggestions
+
+- **WHEN** an organizer run completes with zero or partial candidates
+- **THEN** the task drawer SHALL show candidate, skipped, and unsafe suggestion counts
+- **AND** it SHALL list representative skipped and unsafe reasons so the user can understand why nodes were not organized
+- **AND** the Unassigned Discoveries detail panel SHALL explain that AI organize creates review candidates and does not directly mutate the map
+
+#### Scenario: Overview preserves structural hierarchy
+
+- **WHEN** the Project Knowledge Map overview graph is rendered without a focused node
+- **THEN** root-level visible children SHALL primarily represent structural project domains, modules, subsystems, or durable capabilities
+- **AND** task, bugfix, risk, workflow, test, artifact, and evidence discoveries SHALL NOT be presented as ordinary root-level structural hubs
+- **AND** those non-structural discoveries SHALL remain reachable by drilling into their parent structural node or the generic unassigned discoveries container
+
+#### Scenario: Root node is not used as a task bucket
+
+- **WHEN** persisted or generated Project Map data contains non-structural nodes with missing, invalid, or root parent relationships
+- **THEN** the Project Map projection SHALL avoid treating those nodes as direct project root children
+- **AND** the projection SHALL preserve the nodes for review instead of deleting them
+- **AND** the fallback grouping SHALL use a generic project-agnostic triage concept rather than repository-specific workflow names
+
 #### Scenario: Project profile drives top-level lenses
 - **WHEN** the Project Knowledge Map has project evidence or generated mock data
 - **THEN** the dataset SHALL include a Project Profile describing language, project shape, framework candidates, interface kinds, and build systems
@@ -272,6 +316,8 @@ The system SHALL provide settings for automatic project-memory ingestion into th
 - **WHEN** candidates exist
 - **THEN** the top bar SHALL show a candidate count badge
 - **AND** the selected node inspector SHALL show candidates related to that node
+- **AND** the top bar SHALL provide an Accept all action that attempts to accept every current candidate that passes validation
+- **AND** after batch confirmation the UI SHALL show how many candidates were accepted and how many were skipped
 
 #### Scenario: Auto ingestion is non-blocking
 - **WHEN** automatic ingestion creates candidates
@@ -902,4 +948,3 @@ Project Map Auto Ingestion SHALL evaluate scheduling from the active workspace l
 - **WHEN** the run fails or is cancelled
 - **THEN** the consumed message hashes SHALL NOT be added to `memoryCursor.processedMessages`
 - **AND** the messages SHALL remain eligible for retry after the interval gate allows another scan
-

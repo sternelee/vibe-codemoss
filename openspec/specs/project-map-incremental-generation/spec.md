@@ -5,7 +5,23 @@
 Project Map incremental generation preserves existing map knowledge while merging AI output, node-scoped corrections, evidence links, task metadata, and robust model-output normalization into the persisted Project Knowledge Map.
 ## Requirements
 ### Requirement: Incremental global Project Map generation
+
 The system SHALL merge global Project Map generation output into the existing dataset and SHALL NOT delete existing nodes, lenses, sources, or relationships merely because they are absent from the latest AI output.
+
+#### Scenario: Auto merge keeps root children structural
+
+- **WHEN** automatic Project Map ingestion merges generated nodes into an existing map
+- **AND** generated nodes are missing valid parents
+- **THEN** durable structural or capability nodes MAY be attached under the project root
+- **AND** task, bugfix, risk, workflow, test, artifact, and evidence discoveries SHALL NOT be blindly attached under the project root
+- **AND** those non-structural orphan discoveries SHALL be grouped under a stable generic unassigned discoveries node when no better parent is available
+
+#### Scenario: Model prompt avoids root-level task flattening
+
+- **WHEN** the worker builds an automatic ingestion prompt
+- **THEN** the prompt SHALL instruct the model to attach task, risk, test, artifact, and workflow discoveries to the nearest existing structural parent
+- **AND** the prompt SHALL allow a generic unassigned discoveries fallback when no reliable parent exists
+- **AND** the prompt SHALL NOT instruct every new top-level concept to use the root node id
 
 #### Scenario: Repeated global collection preserves existing nodes
 - **WHEN** a Project Map already contains nodes A and B
@@ -41,7 +57,40 @@ The system SHALL constrain Complete node and Calibrate node generation to the se
 - **AND** the user SHALL be able to resolve the node-level candidate state even when no separate candidate review record exists
 
 ### Requirement: Evidence-aware merge semantics
+
 The system SHALL merge generated content with existing content using deterministic evidence-aware rules instead of blind replacement.
+
+#### Scenario: Parent-move candidate confirmation is topology-safe
+
+- **WHEN** a pending Project Map candidate represents a parent move
+- **THEN** confirmation SHALL verify that the target node exists, the suggested parent exists, the source parent still matches, and the move does not create a cycle
+- **AND** confirmation SHALL reject moves that assign the node as its own parent or assign it below its own descendant
+- **AND** confirmation SHALL reject stale moves whose source parent no longer matches the current dataset
+- **AND** confirmation SHALL update the old parent `children`, new parent `children`, target `parentId`, manifest update time, and lens stats atomically
+- **AND** confirmation SHALL NOT modify node title, summary, detail, sources, confidence, stale, or candidate flags
+
+#### Scenario: Parent-move candidate confirmation preserves hierarchy fit
+
+- **WHEN** a pending Project Map candidate represents an organizer parent move
+- **THEN** confirmation SHALL reject detail or evidence nodes that would be flattened directly under the project root
+- **AND** confirmation SHALL allow broad overview or category nodes to be restored near the project root
+- **AND** confirmation SHALL reject broad overview or category nodes that would be placed below a narrower cross-lens parent
+- **AND** the validation SHALL use generic Project Map node shape such as children, node kind, lens id, and graph depth rather than repository-specific names or technologies
+
+#### Scenario: Unsafe organizer suggestions fail closed
+
+- **WHEN** AI organizer output proposes a missing parent, invalid parent, root-level detail flattening, self parent, cycle, stale source parent, hierarchy mismatch, or malformed move
+- **THEN** the system SHALL ignore or reject that suggestion
+- **AND** the Project Map topology SHALL remain unchanged
+- **AND** the run metadata SHALL preserve enough skip or unsafe-suggestion reason text for the task history to explain why no candidate was created
+
+#### Scenario: Batch candidate confirmation uses existing gates
+
+- **WHEN** the user chooses to accept all current Project Map candidates
+- **THEN** the system SHALL confirm pending review candidates through the same candidate confirmation rules used by single-candidate confirmation
+- **AND** standalone node candidates SHALL be confirmed through the same standalone node-candidate rules used by single-node confirmation
+- **AND** candidates that fail validation SHALL be skipped rather than forced through
+- **AND** the accepted changes SHALL be persisted as one dataset update after the batch is evaluated
 
 #### Scenario: Existing sources and generated sources are unioned
 - **WHEN** an existing node has source S1
