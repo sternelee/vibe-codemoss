@@ -109,9 +109,14 @@ describe("Messages", () => {
     ).toBeTruthy();
   });
 
-  it("renders assistant tail copy actions with fork and rewind only on the latest final reply", () => {
+  it("renders assistant tail copy actions with fork and rewind only on final replies", async () => {
     const handleForkFromMessage = vi.fn();
     const handleRewindFromMessage = vi.fn();
+    const writeTextMock = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: writeTextMock },
+      configurable: true,
+    });
     const items: ConversationItem[] = [
       {
         id: "user-tail-actions-1",
@@ -120,10 +125,16 @@ describe("Messages", () => {
         text: "first request",
       },
       {
+        id: "assistant-tail-actions-1-part-1",
+        kind: "message",
+        role: "assistant",
+        text: "first answer part 1",
+      },
+      {
         id: "assistant-tail-actions-1",
         kind: "message",
         role: "assistant",
-        text: "first answer",
+        text: "first answer part 2",
         isFinal: true,
       },
       {
@@ -163,6 +174,14 @@ describe("Messages", () => {
     expect(tailActionRows[0].querySelectorAll("button")).toHaveLength(1);
     expect(tailActionRows[1].querySelectorAll("button")).toHaveLength(3);
     expect(screen.getAllByRole("button", { name: "messages.copyMessage" })).toHaveLength(4);
+    const assistantCopyButtons = container.querySelectorAll(
+      ".message-tail-action-row .message-copy-button",
+    );
+    expect(assistantCopyButtons).toHaveLength(2);
+    await act(async () => {
+      fireEvent.click(assistantCopyButtons[0]);
+    });
+    expect(writeTextMock).toHaveBeenCalledWith("first answer part 1\n\nfirst answer part 2");
     const forkButtons = screen.getAllByRole("button", { name: "messages.forkMessage" });
     expect(forkButtons).toHaveLength(1);
     expect(forkButtons[0].querySelector(".codicon-git-branch-create")).toBeTruthy();

@@ -109,6 +109,12 @@ const MESSAGE_JUMP_EVENT_NAME = "ccgui:jump-to-message";
 const ASSISTANT_FINALIZING_LIVE_WINDOW_MS = 320;
 const CODEX_FINALIZING_LIVE_WINDOW_MS = 6_000;
 
+type MessageActionTargets = {
+  targetByAssistantId: Map<string, string>;
+  copyTextByAssistantId: Map<string, string>;
+  latestFinalAssistantMessageId: string | null;
+};
+
 type MessagesProps = {
   items: ConversationItem[];
   threadId: string | null;
@@ -471,16 +477,19 @@ export const Messages = memo(function Messages({
       : items;
     return dedupeExitPlanItemsKeepFirst(baseItems);
   }, [isSelectionFrozen, items]);
-  const messageActionTargets = useMemo(() => {
+  const messageActionTargets = useMemo<MessageActionTargets>(() => {
     const targetByAssistantId = new Map<string, string>();
+    const copyTextByAssistantId = new Map<string, string>();
     let latestUserMessageId: string | null = null;
     let latestFinalAssistantMessageId: string | null = null;
+    let assistantTurnTextParts: string[] = [];
     for (const item of effectiveItems) {
       if (item.kind !== "message") {
         continue;
       }
       if (item.role === "user") {
         latestUserMessageId = item.id;
+        assistantTurnTextParts = [];
         continue;
       }
       if (item.role !== "assistant") {
@@ -489,12 +498,16 @@ export const Messages = memo(function Messages({
       if (latestUserMessageId) {
         targetByAssistantId.set(item.id, latestUserMessageId);
       }
+      assistantTurnTextParts.push(item.text);
       if (item.isFinal === true) {
         latestFinalAssistantMessageId = item.id;
+        copyTextByAssistantId.set(item.id, assistantTurnTextParts.join("\n\n"));
+        assistantTurnTextParts = [];
       }
     }
     return {
       targetByAssistantId,
+      copyTextByAssistantId,
       latestFinalAssistantMessageId,
     };
   }, [effectiveItems]);
@@ -2269,6 +2282,7 @@ export const Messages = memo(function Messages({
           liveReasoningItem={liveReasoningItem}
           handleCopyMessage={handleCopyMessage}
           messageActionTargetByAssistantId={messageActionTargets.targetByAssistantId}
+          messageCopyTextByAssistantId={messageActionTargets.copyTextByAssistantId}
           latestFinalAssistantMessageId={messageActionTargets.latestFinalAssistantMessageId}
           onForkFromMessage={onForkFromMessage}
           onRewindFromMessage={onRewindFromMessage}

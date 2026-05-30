@@ -89,6 +89,7 @@ type MessagesTimelineProps = {
     copyText?: string,
   ) => void;
   messageActionTargetByAssistantId: Map<string, string>;
+  messageCopyTextByAssistantId: Map<string, string>;
   latestFinalAssistantMessageId: string | null;
   onForkFromMessage?: (messageId: string) => void;
   onRewindFromMessage?: (messageId: string) => void;
@@ -195,6 +196,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
   liveReasoningItem,
   handleCopyMessage,
   messageActionTargetByAssistantId,
+  messageCopyTextByAssistantId,
   latestFinalAssistantMessageId,
   onForkFromMessage,
   onRewindFromMessage,
@@ -326,7 +328,11 @@ export const MessagesTimeline = memo(function MessagesTimeline({
       const isLatestFinalAssistant =
         renderItem.id === latestFinalAssistantMessageId;
       const shouldRenderAssistantActions =
-        renderItem.role === "assistant";
+        renderItem.role === "assistant" && renderItem.isFinal === true;
+      const assistantCopyText =
+        renderItem.role === "assistant"
+          ? messageCopyTextByAssistantId.get(renderItem.id) ?? renderItem.text
+          : renderItem.text;
       const shouldRenderForkAction =
         isLatestFinalAssistant &&
         Boolean(actionTargetUserMessageId) &&
@@ -347,7 +353,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
             <button
               type="button"
               className={`ghost message-action-button message-copy-button${isCopied ? " is-copied" : ""}`}
-              onClick={() => handleCopyMessage(renderItem, renderItem.text)}
+              onClick={() => handleCopyMessage(renderItem, assistantCopyText)}
               aria-label={t("messages.copyMessage")}
               title={t("messages.copyMessage")}
             >
