@@ -19,4 +19,4 @@
 
 - [x] 4.1 P0 输入: OpenSpec artifacts；输出: `openspec validate --all --strict --no-interactive` 通过；验证: 记录命令结果。
 - [x] 4.2 P0 输入: frontend behavior change；输出: focused Vitest suite 覆盖 Web runtime path entry 与 desktop fallback；验证: 运行对应 test 文件。
-- [ ] 4.3 P1 输入: TypeScript frontend change；输出: 类型检查无新增错误；验证: 运行 `npm run typecheck` 或记录未运行原因。
+- [x] 4.3 P1 输入: TypeScript frontend change；输出: 类型检查无新增错误；验证: `npm run typecheck` passed on 2026-05-30.

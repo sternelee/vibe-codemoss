@@ -1,7 +1,7 @@
 # Project Context
 
 - Type: OpenSpec Workspace
-- Updated At: 2026-05-28T00:00:00+08:00
+- Updated At: 2026-05-30T00:00:00+08:00
 - Scope: governance snapshot for the current `mossx` repository workspace
 
 ## Domain
@@ -13,7 +13,7 @@ OpenSpec workflow and governance for `mossx`, covering change lifecycle, main sp
 - Spec artifacts: `openspec/specs/*`
 - Change workflow artifacts: `openspec/changes/<change-id>/{proposal,design,tasks,verification}.md`
 - Archive: `openspec/changes/archive/*`
-- Current workspace state: active changes = `4`, archive changes = `370`, main specs = `291`
+- Current workspace state: active changes = `2`, archive changes = `391`, main specs = `299`
 
 ## Entry Surfaces
 
@@ -40,6 +40,32 @@ OpenSpec workflow and governance for `mossx`, covering change lifecycle, main sp
   - runtime artifacts, not repository truth
 
 ## Active Changes
+
+### Archive Closure Snapshot (2026-05-29)
+
+Current implementation branch for this workspace snapshot is `feature/v0.5.4`. This closure pass archived 13 completed 0.5.4 changes and synced their delta specs into main specs. The pass covered foreground settlement diagnostics, persisted client error logs, three-evidence settlement design/implementation/status-query reconciliation, appearance transparency controls, composer input affordance tuning, assistant message tail actions, client runtime environment recovery hardening, close-current-session shortcuts, Web Service workspace path entry, and Codex goal command discovery UX.
+
+Archived changes:
+
+- `observe-foreground-turn-settlement-gaps`
+- `persist-client-error-log`
+- `design-three-evidence-turn-settlement`
+- `implement-three-evidence-dry-run-settlement`
+- `design-three-evidence-status-query-reconciliation`
+- `add-appearance-translucent-blur-controls`
+- `tune-composer-input-bottom-affordance`
+- `add-message-tail-action-icons`
+- `harden-client-runtime-environment-recovery`
+- `add-close-current-session-shortcut`
+- `fix-web-service-add-workspace-path-entry`
+- `add-codex-goal-slash-command-ux`
+- `implement-three-evidence-status-query-reconciliation`
+
+Main spec sync status:
+
+- `openspec archive` synced all 13 changes into main specs; new capabilities include client error log, optional visual effects, engine environment doctor, runtime lifecycle recovery guard, session history stale-index repair, and Codex goal slash command UX.
+- `fix-web-service-add-workspace-path-entry` was closed after `npm run typecheck` passed on 2026-05-30 and its final task was marked complete before archive.
+- Remaining active changes are intentionally not archived: `add-codex-structured-launch-profile` still requires real desktop manual validation, and `add-agent-task-orchestration-center` is a 0.5.5 planning change outside the 0.5.4 release gate.
 
 ### Archive Closure Snapshot (2026-05-28)
 
@@ -143,11 +169,11 @@ Runtime evidence and archive-readiness classification lives in `openspec/docs/ru
 
 ### Inventory
 
-- Active changes: `4`
-- Archive changes: `370`
-- Main specs: `291`
-- Completed task sets still active: `3`
-- In-progress task sets: `1`
+- Active changes: `2`
+- Archive changes: `391`
+- Main specs: `299`
+- Completed task sets still active: `0`
+- In-progress task sets: `2`
 
 ### In-Progress Changes
 
@@ -155,19 +181,18 @@ Runtime evidence and archive-readiness classification lives in `openspec/docs/ru
   - Task state: `6/7`.
   - Current code fact: backend preview contract, doctor resolution alignment, settings global/workspace Launch Configuration UX, daemon/remote passthrough, i18n, and targeted tests are implemented.
   - Action: keep active until the desktop manual validation matrix is completed.
+- `add-agent-task-orchestration-center`
+  - Task state: `0/31`.
+  - Current artifact fact: proposal/design/spec deltas define the 0.5.5 orchestration-center direction; implementation has not started.
+  - Action: keep active as a 0.5.5 planning/execution change and exclude it from the 0.5.4 release closure gate.
 
 ### Deferred Completed Proposals
 
-- `add-cross-workspace-cost-admin-view`
-  - Deferred Product P2; current cost-budget substrate exists, but cross-workspace admin view, retention, storage, and export are intentionally not implemented in this governance pass.
-- `add-engine-plugin-onboarding-kit`
-  - Deferred Tooling P2; capability-matrix substrate exists, but scaffolder/templates/dry-run onboarding are intentionally not implemented in this governance pass.
+No deferred completed proposals remain active in this workspace snapshot.
 
 ### Completed Active Changes Pending Verification / Archive Decision
 
-- `preserve-editor-on-topbar-session-switch`
-
-This change has a fully checked task list but still reports `design: ready` rather than `done`; keep it active until artifact status is explicitly closed.
+No completed active changes remain pending archive decision in this workspace snapshot.
 
 ### Code Fact Snapshot (2026-05-24)
 
@@ -230,6 +255,7 @@ Compatibility boundary: `listClaudeSessions`, `listProjectRelatedCodexSessions`,
 
 ## Update History
 
+- 2026-05-30: Archived 13 completed 0.5.4 changes after syncing delta specs into main specs. Workspace counts are now active=2, archive=391, specs=299. `add-codex-structured-launch-profile` remains active only for real desktop manual validation, and `add-agent-task-orchestration-center` remains active as a 0.5.5 planning change outside the 0.5.4 release gate.
 - 2026-05-28: Archived `fix-user-input-dismiss-settlement` after strict OpenSpec validation, focused Vitest coverage, typecheck, and lint. Workspace counts are now active=4, archive=370, specs=291; remaining active changes are one in-progress launch-profile change, one completed-but-artifact-open editor-preservation change, and two deferred completed proposals.
 - 2026-05-28: Archived 20 verified changes from `feature/v0.5.4`, including the Project Map verified closure set, runtime performance evidence gates, workspace session catalog, reasoning-effort support, composer control surface, file rendering scheduler, and harness/performance governance changes. Workspace counts are now active=33, archive=339, specs=282; completed active task sets=32 and only `add-codex-structured-launch-profile` remains in-progress with desktop manual validation still open.
 - 2026-05-27: Recalibrated Project Knowledge Map after the 2026-05-26 to 2026-05-27 implementation burst. Workspace counts are now active=44, archive=318, specs=273; completed active task sets=43 and only `add-codex-structured-launch-profile` remains in-progress. Synced completed Project Map deltas into main specs, including the new `project-map-incremental-generation` main spec, without touching `src/**` code.

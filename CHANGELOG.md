@@ -9,6 +9,8 @@
 ✨ Features
 - 新增 Codex 结构化启动配置预览能力，在 Settings 中集中展示启动命令、sandbox、approval、model、reasoning effort 和环境覆盖信息
 - 新增 Codex doctor / launch profile 后端查询链路，让前端配置面板可以读取实际启动配置而不是依赖静态展示
+- 新增关闭当前会话快捷键，支持通过全局 shortcut 快速关闭当前 workspace session tab
+- 新增 Codex goal 命令面板入口，支持从 Composer 命令流直接创建和管理 goal
 - 新增用户输入请求的收起与跳过交互，支持 pending 问题在消息区更清晰地折叠、结算和恢复
 - 新增核心错误日志持久化与三证结算 diagnostics，支持干跑判断、状态查询和前后端对账
 - 新增原生窗口透明度设置，让自定义外观可以控制 desktop window 的透明呈现
@@ -17,6 +19,8 @@
 - 优化 Project Map 稳定性，收紧数据集补全、生成 worker、交互布局、节点证据和任务抽屉的状态边界
 - 优化 Markdown 预览渲染与交互状态，增强文件刷新、GitHub 风格 Markdown、公式和图表预览的测试覆盖
 - 优化 Runtime Pool 与 Codex Settings 文案、i18n 和测试覆盖，让启动配置、运行池状态和环境诊断更容易核对
+- 优化启动诊断与环境恢复链路，清理 optional visual effects、engine doctor 和 session history stale repair 相关噪声
+- 优化 diagnostics watchdog 记录范围，保留 Codex 无进展生命周期和三证对账早期信号，同时减少无关日志持久化
 - 优化 Composer 文件引用入口，即使文件树尚未打开也能使用 workspace 文件索引完成 `@` 引用
 - 优化 Composer 输入区高度与折叠入口，让首页与会话区的输入体验更紧凑、可恢复
 - 优化工作区文件树首屏加载，改用 root-first directory children 路径，减少启动和切换工作区时的递归扫描压力
@@ -31,17 +35,22 @@
 - 修复用户输入请求跳过后未正确结算的问题，避免已跳过问题继续停留在 pending 状态
 - 修复用户输入卡片收起、跳过和恢复链路中的展示漂移，让历史消息与实时请求保持一致
 - 修复 Composer 未开文件树时文件引用失效的问题，降低空索引或未初始化文件树导致的引用失败
+- 修复命令补全打开时快捷发送失效的问题，避免 Composer command menu 抢占发送快捷键
+- 修复 Web Service 添加工作区时路径输入未正确接入的问题，让 Web 模式也能通过输入路径添加 workspace
 - 修复本地运行产物大文件进入治理扫描的问题，将 Tauri target / Whisper build artifact 纳入噪声排除边界
 - 修复知识地图生成与布局链路中的边界状态问题，降低节点重复、任务状态漂移和图谱定位不稳的概率
 - 修复首页 Composer 纯文本输入后发送按钮仍不可用的问题，并保持首页主按钮在浅色主题下的经典蓝样式
 - 修复 Web Service 误选空壳前端资源导致 `/app` 白屏的问题，启动时会继续探测后续有效 dist 候选
 - 修复工作区文件树首屏缓存、fallback 与 unmount 后异步回写边界，避免迟到响应污染当前 workspace 状态
+- 修复文件树 fallback 根层快照边界，避免 fallback 数据覆盖当前 root-first 文件树状态
 
 English:
 
 ✨ Features
 - Add a structured Codex launch-profile preview in Settings for command, sandbox, approval, model, reasoning effort, and environment overrides
 - Add Codex doctor / launch-profile backend query support so the configuration panel can read effective launch facts instead of showing static metadata
+- Add a close-current-session shortcut for quickly closing the active workspace session tab
+- Add a Codex goal command-palette entry so goals can be created and managed from the Composer command flow
 - Add collapse and skip interactions for user-input requests so pending questions can be settled, folded, and restored more clearly in the message timeline
 - Add persisted core error logs and three-evidence settlement diagnostics with dry-run checks, status queries, and frontend/backend reconciliation
 - Add native window transparency settings so custom appearance presets can control desktop window translucency
@@ -50,6 +59,8 @@ English:
 - Improve Project Map stability by tightening dataset completion, generation worker, interactive layout, node evidence, and task drawer state boundaries
 - Improve Markdown preview rendering and interaction state with stronger coverage for refresh behavior, GitHub-style Markdown, math, and diagram previews
 - Improve Runtime Pool and Codex Settings copy, i18n, and test coverage so launch configuration, runtime status, and environment diagnostics are easier to verify
+- Improve startup diagnostics and environment recovery by reducing noise around optional visual effects, engine doctor, and stale session-history repair
+- Improve diagnostics watchdog persistence so Codex no-progress lifecycle and early three-evidence reconciliation signals are retained without unrelated log noise
 - Improve Composer file references so `@` suggestions can use the workspace file index even before the file tree has been opened
 - Improve Composer input height and collapsed entrypoints so home and conversation inputs stay compact and recoverable
 - Improve workspace file-tree first paint with a root-first directory-children path to reduce recursive scan pressure during startup and workspace switches
@@ -64,11 +75,14 @@ English:
 - Fix skipped user-input requests not settling correctly, preventing skipped questions from remaining pending
 - Fix display drift in user-input card collapse, skip, and restoration flows so history and realtime requests stay aligned
 - Fix Composer file references failing when the file tree has not been opened, reducing failures from empty or uninitialized file indexes
+- Fix quick-send behavior while the command completion menu is open so the Composer command menu no longer swallows send shortcuts
+- Fix Web Service add-workspace path input wiring so web mode can add workspaces from an entered path
 - Fix local runtime artifact noise in large-file governance scans by excluding Tauri target / Whisper build artifacts
 - Fix Project Map generation and layout boundary states to reduce duplicate nodes, task-state drift, and unstable graph positioning
 - Fix homepage Composer plain-text input not enabling the send button, while preserving canonical blue primary styling in light themes
 - Fix Web Service choosing an empty shell frontend asset root and showing a blank `/app`; startup now continues to later valid dist candidates
 - Fix workspace file-tree first-paint cache, fallback, and post-unmount async boundaries so late responses cannot pollute the active workspace state
+- Fix file-tree fallback root snapshot boundaries so fallback data cannot overwrite the active root-first file-tree state
 
 ---
 
