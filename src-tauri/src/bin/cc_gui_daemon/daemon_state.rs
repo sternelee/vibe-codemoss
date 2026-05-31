@@ -91,6 +91,8 @@ impl DaemonState {
         if let Err(error) = proxy_core::apply_app_proxy_settings(&app_settings) {
             eprintln!("[proxy] failed to apply persisted proxy settings: {error}");
         }
+        let runtime_manager = Arc::new(crate::runtime::RuntimeManager::new(&config.data_dir));
+        runtime_manager.orphan_sweep_on_startup(app_settings.runtime_orphan_sweep_on_launch);
         Self {
             data_dir: config.data_dir.clone(),
             workspaces: Mutex::new(workspaces),
@@ -104,6 +106,7 @@ impl DaemonState {
             codex_login_cancels: Mutex::new(HashMap::new()),
             engine_manager: engine::EngineManager::new(),
             active_engine: Mutex::new(active_engine),
+            runtime_manager,
         }
     }
 
@@ -390,6 +393,27 @@ impl DaemonState {
         client_version: String,
         recovery_source: Option<String>,
     ) -> Result<(), String> {
+        self.connect_workspace_inner(id, client_version, recovery_source, false)
+            .await
+    }
+
+    async fn connect_codex_workspace_session(
+        &self,
+        id: String,
+        client_version: String,
+        recovery_source: Option<String>,
+    ) -> Result<(), String> {
+        self.connect_workspace_inner(id, client_version, recovery_source, true)
+            .await
+    }
+
+    async fn connect_workspace_inner(
+        &self,
+        id: String,
+        client_version: String,
+        recovery_source: Option<String>,
+        force_codex_session: bool,
+    ) -> Result<(), String> {
         {
             let sessions = self.sessions.lock().await;
             if sessions.contains_key(&id) {
@@ -403,12 +427,13 @@ impl DaemonState {
             let entry = workspaces
                 .get(&id)
                 .ok_or_else(|| "workspace not found".to_string())?;
-            let should_connect_for_active_codex = active_engine == engine::EngineType::Codex;
+            let should_connect_codex_session =
+                force_codex_session || active_engine == engine::EngineType::Codex;
             if !workspaces_core::workspace_requires_persistent_session(entry)
-                && !should_connect_for_active_codex
+                && !should_connect_codex_session
             {
                 // Claude/Gemini/OpenCode do not require a persistent workspace session
-                // unless the currently active engine is Codex.
+                // unless the current operation explicitly needs a Codex app-server.
                 return Ok(());
             }
         }
@@ -421,7 +446,7 @@ impl DaemonState {
             &self.workspaces,
             &self.sessions,
             &self.app_settings,
-            None,
+            Some(&self.runtime_manager),
             &recovery_source,
             automatic_recovery,
             move |entry, default_bin, codex_args, codex_home| {
@@ -1928,8 +1953,12 @@ impl DaemonState {
             .map(ToString::to_string)
             .ok_or_else(|| "codex rewind response missing child thread id".to_string())?;
 
-        workspaces_core::disconnect_workspace_session_core(&self.sessions, None, &workspace_id)
-            .await;
+        workspaces_core::disconnect_workspace_session_core(
+            &self.sessions,
+            Some(&self.runtime_manager),
+            &workspace_id,
+        )
+        .await;
         self.ensure_codex_session_for_workspace(&workspace_id)
             .await?;
         codex_core::resume_thread_core(&self.sessions, workspace_id, rewound_thread_id).await?;
@@ -2393,6 +2422,8 @@ impl DaemonState {
     }
 
     pub(super) async fn model_list(&self, workspace_id: String) -> Result<Value, String> {
+        self.ensure_codex_session_for_workspace(&workspace_id)
+            .await?;
         codex_core::model_list_core(&self.sessions, workspace_id).await
     }
 
@@ -2404,6 +2435,8 @@ impl DaemonState {
     }
 
     pub(super) async fn account_rate_limits(&self, workspace_id: String) -> Result<Value, String> {
+        self.ensure_codex_session_for_workspace(&workspace_id)
+            .await?;
         codex_core::account_rate_limits_core(&self.sessions, workspace_id).await
     }
 

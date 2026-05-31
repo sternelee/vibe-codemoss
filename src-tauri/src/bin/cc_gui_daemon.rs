@@ -364,6 +364,7 @@ struct DaemonState {
     codex_login_cancels: Mutex<HashMap<String, oneshot::Sender<()>>>,
     engine_manager: engine::EngineManager,
     active_engine: Mutex<engine::EngineType>,
+    runtime_manager: Arc<runtime::RuntimeManager>,
 }
 
 fn default_data_dir() -> PathBuf {
