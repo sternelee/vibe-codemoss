@@ -152,3 +152,53 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 655: 修复自动会话 system-auto 归类与失败路径元数据
+
+**Date**: 2026-06-01
+**Task**: 修复自动会话 system-auto 归类与失败路径元数据
+**Branch**: `feature/v0.5.4`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+本次收口 OpenSpec change `classify-auto-session-visibility` 的完成态：
+
+- 统一 reserved system folder 展示名为 `system-auto`，避免 `System auto` / `system-auto` 命名漂移。
+- 修复 Claude `engine_send_message_sync` 自动新会话没有稳定 identity 时 metadata 漏写的问题。
+- 补充失败路径：当 Claude sync 自动会话已观察到稳定 session id 后，即使后续 turn 失败，也会写入 `autoSession` metadata，避免失败 transcript 泄漏到 workspace root。
+- 回写 OpenSpec design/spec/tasks，新增并完成 `2.5 / 4.5`。
+
+验证：
+- `cargo fmt --manifest-path src-tauri/Cargo.toml --check`
+- `cargo test --manifest-path src-tauri/Cargo.toml failed_claude_sync_auto_session_persists_metadata_after_identity_is_observed -- --nocapture`
+- `cargo test --manifest-path src-tauri/Cargo.toml resolve_claude_auto_session_metadata_id -- --nocapture`
+- `cargo test --manifest-path src-tauri/Cargo.toml resolve_claude_session_id_for_sync -- --nocapture`
+- `cargo test --manifest-path src-tauri/Cargo.toml system_auto_metadata_exposes_reserved_folder_group -- --nocapture`
+- `npm exec vitest run src/features/app/utils/workspaceSessionFolders.test.ts`
+- `cargo check --manifest-path src-tauri/Cargo.toml`
+- `openspec validate classify-auto-session-visibility --strict --no-interactive`
+- `git diff --check`
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `59123d87` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

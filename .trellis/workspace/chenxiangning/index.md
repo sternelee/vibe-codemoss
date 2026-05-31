@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-18.md`
-- **Total Sessions**: 654
+- **Total Sessions**: 655
 - **Last Active**: 2026-06-01
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-18.md` | ~154 | Active |
+| `journal-18.md` | ~204 | Active |
 | `journal-17.md` | ~1971 | Archived |
 | `journal-16.md` | ~1985 | Archived |
 | `journal-15.md` | ~1996 | Archived |
@@ -46,6 +46,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 655 | 2026-06-01 | 修复自动会话 system-auto 归类与失败路径元数据 | `59123d87` | `feature/v0.5.4` |
 | 654 | 2026-06-01 | 修复 Git 差异文件规范化展示 | `8438d73d` | `feature/v0.5.4` |
 | 653 | 2026-06-01 | 收口 Codex 线程列表和引擎切换降级修复 | `4ac0b0d6` | `feature/v0.5.4` |
 | 652 | 2026-06-01 | 收口会话恢复 Fork 入口 | `e450586e` | `feature/v0.5.4` |
