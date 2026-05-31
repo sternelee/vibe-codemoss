@@ -106,18 +106,45 @@
 }
 
 .fvp-tab-detach {
-  color: color-mix(in srgb, var(--accent) 70%, currentColor);
+  border: none;
+  background: transparent;
+  color: #38bdf8;
+  opacity: 1;
+  box-shadow: none;
 }
 
-.fvp-tab-detach:hover,
+.fvp-tab-detach svg {
+  color: inherit;
+  opacity: 1;
+  stroke: currentColor;
+}
+
 .fvp-tab-close:hover {
   background: color-mix(in srgb, var(--surface-active) 42%, transparent);
+  opacity: 1;
+}
+
+.fvp-tab-detach:hover {
+  background: transparent;
+  color: #67e8f9;
   opacity: 1;
 }
 
 .fvp-tab.is-active .fvp-tab-detach,
 .fvp-tab.is-active .fvp-tab-close {
   opacity: 0.9;
+}
+
+.fvp-tab.is-active .fvp-tab-detach {
+  opacity: 1;
+}
+
+:root[data-theme="light"] .fvp-tab-detach {
+  color: #2563eb;
+}
+
+:root[data-theme="light"] .fvp-tab-detach:hover {
+  color: #1d4ed8;
 }
 
 .fvp-tab-context-menu {

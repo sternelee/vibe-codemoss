@@ -5,6 +5,7 @@
 ## 目标与边界
 
 - 在已打开文件 tab 的关闭按钮旁提供独立窗口打开入口。
+- 独立窗口打开入口必须使用醒目的主题适配色，避免与灰色关闭按钮混淆，并保持点击行为不变。
 - 点击文件 tab 入口后创建一个新的 detached file explorer 窗口，并定位到该 tab 对应文件。
 - tab 入口打开的 detached file explorer 默认收起左侧 file tree sidebar，优先保留阅读空间。
 - 保持现有 tab 激活、关闭、文件读取、编辑与 detached explorer 逻辑不变。
@@ -57,4 +58,5 @@
 
 - 已验收通过：tab icon 打开的独立窗口可正常拖拽移动。
 - 已验收通过：tab icon 每次创建新的 detached file explorer 实例，不复用既有 tab detached window。
+- 2026-06-01 补记：tab detached icon 已强化为 accent-based 高可见样式，适配 light/dark 主题且不改变 tab 激活、关闭或 detached open 行为。
 - 已验收通过：tab icon 打开的独立窗口默认收起左侧 file tree sidebar。
