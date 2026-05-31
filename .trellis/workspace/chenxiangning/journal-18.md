@@ -250,3 +250,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 657: 加固 Project Map 模型结构化输出
+
+**Date**: 2026-06-01
+**Task**: 加固 Project Map 模型结构化输出
+**Branch**: `feature/v0.5.4`
+
+### Summary
+
+抽取通用模型结构化输出 normalization，接入 Project Map generation 与 organizer，并补齐 OpenSpec/code-spec 记忆。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4cb04065` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
