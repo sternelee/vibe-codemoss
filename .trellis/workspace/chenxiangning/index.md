@@ -7,9 +7,9 @@
 ## Current Status
 
 <!-- @@@auto:current-status -->
-- **Active File**: `journal-17.md`
-- **Total Sessions**: 651
-- **Last Active**: 2026-05-31
+- **Active File**: `journal-18.md`
+- **Total Sessions**: 652
+- **Last Active**: 2026-06-01
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,8 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-17.md` | ~1971 | Active |
+| `journal-18.md` | ~55 | Active |
+| `journal-17.md` | ~1971 | Archived |
 | `journal-16.md` | ~1985 | Archived |
 | `journal-15.md` | ~1996 | Archived |
 | `journal-14.md` | ~1969 | Archived |
@@ -45,6 +46,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 652 | 2026-06-01 | 收口会话恢复 Fork 入口 | `e450586e` | `feature/v0.5.4` |
 | 651 | 2026-05-31 | 修复文件 tab 独立窗口拖拽与多实例 | `586f12eb` | `feature/v0.5.4` |
 | 650 | 2026-05-31 | 修复 daemon helper read runtime 守卫 | `0cf871b1` | `feature/v0.5.4` |
 | 649 | 2026-05-31 | 修复自动会话可见性元数据链路 | `33839580` | `feature/v0.5.4` |
