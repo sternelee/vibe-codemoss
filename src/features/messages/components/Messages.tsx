@@ -172,6 +172,7 @@ type MessagesProps = {
     threadId: string,
     message: Pick<QueuedMessage, "text" | "images">,
   ) => Promise<RuntimeReconnectRecoveryCallbackResult> | RuntimeReconnectRecoveryCallbackResult;
+  onThreadRecoveryFork?: () => Promise<void> | void;
   onForkFromMessage?: (messageId: string) => void;
   onRewindFromMessage?: (messageId: string) => void;
 };
@@ -301,6 +302,7 @@ export const Messages = memo(function Messages({
   agentTaskScrollRequest = null,
   onRecoverThreadRuntime,
   onRecoverThreadRuntimeAndResend,
+  onThreadRecoveryFork,
   onForkFromMessage,
   onRewindFromMessage,
 }: MessagesProps) {
@@ -2304,6 +2306,7 @@ export const Messages = memo(function Messages({
           onOpenDiffPath={onOpenDiffPath}
           onRecoverThreadRuntime={onRecoverThreadRuntime}
           onRecoverThreadRuntimeAndResend={onRecoverThreadRuntimeAndResend}
+          onThreadRecoveryFork={onThreadRecoveryFork}
           onAssistantVisibleTextRender={handleAssistantVisibleTextRender}
           onShowAllHistoryItems={handleShowAllHistoryItems}
           openFileLink={openFileLink}

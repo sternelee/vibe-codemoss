@@ -102,6 +102,7 @@ type MessageRowProps = {
     threadId: string,
     message: Pick<QueuedMessage, "text" | "images">,
   ) => Promise<RuntimeReconnectRecoveryCallbackResult> | RuntimeReconnectRecoveryCallbackResult;
+  onThreadRecoveryFork?: () => Promise<void> | void;
   retryMessage?: Pick<QueuedMessage, "text" | "images"> | null;
   isCopied: boolean;
   onCopy: (
@@ -251,6 +252,7 @@ function areMessageRowPropsEqual(
     previous.showRuntimeReconnectCard === next.showRuntimeReconnectCard &&
     previous.onRecoverThreadRuntime === next.onRecoverThreadRuntime &&
     previous.onRecoverThreadRuntimeAndResend === next.onRecoverThreadRuntimeAndResend &&
+    previous.onThreadRecoveryFork === next.onThreadRecoveryFork &&
     previous.retryMessage?.text === next.retryMessage?.text &&
     areMessageImagesEqual(previous.retryMessage?.images, next.retryMessage?.images) &&
     previous.isCopied === next.isCopied &&
@@ -783,6 +785,7 @@ export const MessageRow = memo(function MessageRow({
   showRuntimeReconnectCard = false,
   onRecoverThreadRuntime,
   onRecoverThreadRuntimeAndResend,
+  onThreadRecoveryFork,
   retryMessage = null,
   isCopied,
   onCopy,
@@ -1298,6 +1301,7 @@ export const MessageRow = memo(function MessageRow({
           onRecoverThreadRuntime={onRecoverThreadRuntime}
           retryMessage={retryMessage}
           onRecoverThreadRuntimeAndResend={onRecoverThreadRuntimeAndResend}
+          onThreadRecoveryFork={onThreadRecoveryFork}
         />
       ) : null}
       {hasText && (

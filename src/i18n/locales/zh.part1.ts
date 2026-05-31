@@ -2485,11 +2485,12 @@ const zhPart1 = {
     threadRecoveryThreadNotFound:
       "当前会话绑定的 Codex thread 已失效，原 thread 不能安全继续。幕布里已有内容会保留，但这次请求需要切到可用会话承接。",
     threadRecoveryRecommendation:
-      "建议下一步：点击 Fork 并重发，系统会创建一个可用会话，并自动发送上一条提示词继续执行。",
+      "建议下一步：点击 Fork，系统会基于当前对话创建一个可用会话继续承接。",
     threadRecoveryDetailLabel: "错误详情：",
     threadRecoveryAction: "尝试恢复会话",
     threadRecoveryRunning: "正在恢复...",
-    threadRecoveryForkResendAction: "Fork 并重发",
+    threadRecoveryForkAction: "Fork",
+    threadRecoveryForkResendAction: "Fork",
     threadRecoveryResendAction: "恢复并发送上一条提示词",
     threadRecoveryResendRunning: "正在恢复并发送...",
     threadRecoveryResendUnavailable: "当前没有可重发的上一条提示词。",

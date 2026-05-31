@@ -121,6 +121,7 @@ type MessagesTimelineProps = {
     threadId: string,
     message: Pick<QueuedMessage, "text" | "images">,
   ) => Promise<RuntimeReconnectRecoveryCallbackResult> | RuntimeReconnectRecoveryCallbackResult;
+  onThreadRecoveryFork?: () => Promise<void> | void;
   onAssistantVisibleTextRender?: (payload: {
     itemId: string;
     visibleText: string;
@@ -218,6 +219,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
   onOpenDiffPath,
   onRecoverThreadRuntime,
   onRecoverThreadRuntimeAndResend,
+  onThreadRecoveryFork,
   onAssistantVisibleTextRender,
   onShowAllHistoryItems,
   openFileLink,
@@ -449,6 +451,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
               showRuntimeReconnectCard={renderItem.id === latestRuntimeReconnectItemId}
               onRecoverThreadRuntime={onRecoverThreadRuntime}
               onRecoverThreadRuntimeAndResend={onRecoverThreadRuntimeAndResend}
+              onThreadRecoveryFork={onThreadRecoveryFork}
               retryMessage={
                 renderItem.id === latestRuntimeReconnectItemId
                   ? latestRetryMessage

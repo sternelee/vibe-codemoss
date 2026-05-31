@@ -2542,11 +2542,12 @@ const enPart1 = {
     threadRecoveryThreadNotFound:
       "This conversation is bound to a Codex thread that is no longer available. The existing canvas stays visible, but this request needs a usable conversation to continue safely.",
     threadRecoveryRecommendation:
-      "Recommended next step: fork and resend. The app will create a usable conversation and automatically send the previous prompt there.",
+      "Recommended next step: fork. The app will create a usable conversation from the current one.",
     threadRecoveryDetailLabel: "Error detail:",
     threadRecoveryAction: "Try recovery",
     threadRecoveryRunning: "Recovering...",
-    threadRecoveryForkResendAction: "Fork and resend",
+    threadRecoveryForkAction: "Fork",
+    threadRecoveryForkResendAction: "Fork",
     threadRecoveryResendAction: "Recover and resend previous prompt",
     threadRecoveryResendRunning: "Recovering and resending...",
     threadRecoveryResendUnavailable:

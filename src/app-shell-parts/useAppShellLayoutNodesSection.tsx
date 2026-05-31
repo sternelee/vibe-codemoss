@@ -448,6 +448,9 @@ export function useAppShellLayoutNodesSection(ctx: any) {
         connectWorkspace,
         sendUserMessageToThread,
       }),
+    onThreadRecoveryFork: async () => {
+      await startFork("/fork");
+    },
     handleExitPlanModeExecute,
     onOpenSettings: () => openSettings(),
     onOpenAgentSettings: () =>

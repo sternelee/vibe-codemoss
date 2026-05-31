@@ -316,6 +316,7 @@ type LayoutNodesOptions = {
     threadId: string,
     message: Pick<QueuedMessage, "text" | "images">,
   ) => Promise<RuntimeReconnectRecoveryCallbackResult> | RuntimeReconnectRecoveryCallbackResult;
+  onThreadRecoveryFork?: () => Promise<void> | void;
   handleExitPlanModeExecute?: (
     mode: Extract<AccessMode, "default" | "full-access">,
   ) => Promise<void> | void;
@@ -1660,6 +1661,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         onUserInputDismiss={options.handleUserInputDismiss}
         onRecoverThreadRuntime={options.onRecoverThreadRuntime}
         onRecoverThreadRuntimeAndResend={options.onRecoverThreadRuntimeAndResend}
+        onThreadRecoveryFork={options.onThreadRecoveryFork}
         onForkFromMessage={
           onForkFromMessage ? handleOpenForkConfirmFromMessage : undefined
         }
@@ -1717,6 +1719,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     options.handleUserInputDismiss,
     options.onRecoverThreadRuntime,
     options.onRecoverThreadRuntimeAndResend,
+    options.onThreadRecoveryFork,
     onForkFromMessage,
     handleOpenForkConfirmFromMessage,
     forkConfirmUserMessageId,
