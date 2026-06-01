@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-18.md`
-- **Total Sessions**: 662
+- **Total Sessions**: 663
 - **Last Active**: 2026-06-01
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-18.md` | ~491 | Active |
+| `journal-18.md` | ~535 | Active |
 | `journal-17.md` | ~1971 | Archived |
 | `journal-16.md` | ~1985 | Archived |
 | `journal-15.md` | ~1996 | Archived |
@@ -46,6 +46,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 663 | 2026-06-01 | Browser Context 类型契约修复 | `16f2187b` | `feature/v0.5.4` |
 | 662 | 2026-06-01 | 校准 Phase2b 启动证据 | `1cbbab37` | `feature/v0.5.4` |
 | 661 | 2026-06-01 | Browser Dock Phase 2 收口 | `f49c9ad2` | `feature/v0.5.4` |
 | 660 | 2026-06-01 | 提交内嵌浏览器 MVP phase1 | `372a1679` | `feature/v0.5.4` |

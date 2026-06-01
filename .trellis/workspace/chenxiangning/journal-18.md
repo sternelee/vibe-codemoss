@@ -489,3 +489,47 @@ Review result:
 ### Next Steps
 
 - None - task complete
+
+
+## Session 663: Browser Context 类型契约修复
+
+**Date**: 2026-06-01
+**Task**: Browser Context 类型契约修复
+**Branch**: `feature/v0.5.4`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| 项目 | 说明 |
+|------|------|
+| 修复范围 | 修复 Browser Context prompt 解析结果、send attachment、summary card 展示契约之间的 TypeScript 不一致。 |
+| 关键修复 | 将 parsed prompt 返回类型改为核心字段必填 + 结构化字段可选，避免 `visibleTextExcerpt` 被错误强制为必填。 |
+| 关键修复 | 将 visual evidence/code candidate 解析改为 `flatMap` 产出干净数组，消除 nullable map + type predicate 不兼容。 |
+| 关键修复 | SummaryCard 使用展示层宽松契约，兼容 live/history/send attachment 的 diagnostics、budget、privacy 字段。 |
+| 验证 | `npm run build` 通过；仅剩既有 Vite chunk size / dynamic import warning。 |
+
+**Updated Files**:
+- `src/features/browser-agent/utils/attachment.ts`
+- `src/features/browser-agent/components/BrowserContextSummaryCard.tsx`
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `16f2187b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
