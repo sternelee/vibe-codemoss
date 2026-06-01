@@ -133,6 +133,7 @@ function normalizeBrowserEvidence(value: unknown): TaskRunBrowserEvidenceRef | n
       state !== "available" &&
       state !== "stale" &&
       state !== "expired" &&
+      state !== "degraded" &&
       state !== "deleted" &&
       state !== "unsupported"
     )
@@ -147,6 +148,54 @@ function normalizeBrowserEvidence(value: unknown): TaskRunBrowserEvidenceRef | n
     title: normalizeNullableString(input.title),
     capturedAt,
     state,
+    summary: normalizeNullableString(input.summary),
+    diagnostics: Array.isArray(input.diagnostics)
+      ? input.diagnostics
+          .map((entry) => normalizeNullableString(entry))
+          .filter((entry): entry is string => Boolean(entry))
+      : [],
+    redactedKinds: Array.isArray(input.redactedKinds)
+      ? input.redactedKinds
+          .map((entry) => normalizeNullableString(entry))
+          .filter((entry): entry is string => Boolean(entry))
+      : [],
+    codeCandidates: Array.isArray(input.codeCandidates)
+      ? input.codeCandidates
+          .map((entry) => {
+            if (!entry || typeof entry !== "object") {
+              return null;
+            }
+            const candidate = entry as Record<string, unknown>;
+            const filePath = normalizeNullableString(candidate.filePath);
+            const reason = candidate.reason;
+            const confidence = candidate.confidence;
+            if (
+              !filePath ||
+              (
+                reason !== "route_match" &&
+                reason !== "visible_text_match" &&
+                reason !== "landmark_match" &&
+                reason !== "manual_hint"
+              ) ||
+              (confidence !== "high" && confidence !== "medium" && confidence !== "low")
+            ) {
+              return null;
+            }
+            const normalizedReason = reason as NonNullable<
+              TaskRunBrowserEvidenceRef["codeCandidates"]
+            >[number]["reason"];
+            const normalizedConfidence = confidence as NonNullable<
+              TaskRunBrowserEvidenceRef["codeCandidates"]
+            >[number]["confidence"];
+            return {
+              filePath,
+              reason: normalizedReason,
+              confidence: normalizedConfidence,
+              matchedText: normalizeNullableString(candidate.matchedText),
+            };
+          })
+          .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
+      : [],
   };
 }
 
@@ -328,6 +377,16 @@ export function buildTaskRunBrowserEvidenceRef(
     title: attachment.title,
     capturedAt: attachment.capturedAt,
     state: attachment.stale ? "stale" : "available",
+    summary: attachment.summary,
+    diagnostics: attachment.diagnostics?.map((diagnostic) => diagnostic.message) ?? [],
+    redactedKinds: attachment.privacy.redactedKinds,
+    codeCandidates:
+      attachment.codeCandidates?.map((candidate) => ({
+        filePath: candidate.filePath,
+        reason: candidate.reason,
+        confidence: candidate.confidence,
+        matchedText: candidate.matchedText ?? null,
+      })) ?? [],
   };
 }
 

@@ -12,6 +12,7 @@ import type {
   DebugEntry,
   ReviewTarget,
   WorkspaceInfo,
+  BrowserContextSendAttachment,
 } from "../../../types";
 import type { AutoSessionMetadata } from "../../../services/tauri";
 import {
@@ -101,6 +102,7 @@ import {
   resolveCodexAcceptedTurnFact,
   shouldDeferCodexActivityUntilTurnAccepted,
 } from "../utils/codexConversationLiveness";
+import { formatBrowserContextPrompt } from "../../browser-agent";
 
 type SendMessageOptions = {
   skipPromptExpansion?: boolean;
@@ -122,6 +124,7 @@ type SendMessageOptions = {
     prompt?: string | null;
     icon?: string | null;
   } | null;
+  browserContextAttachment?: BrowserContextSendAttachment | null;
   codexInvalidThreadRetryAttempted?: boolean;
   autoSession?: AutoSessionMetadata | null;
 };
@@ -624,6 +627,9 @@ export function useThreadMessaging({
       } else {
         clearPendingClaudeMcpOutputNotice(workspace.id, threadId);
       }
+      if (options?.browserContextAttachment) {
+        finalText = `${formatBrowserContextPrompt(options.browserContextAttachment)}\n\n${finalText}`;
+      }
       if (injectionResult.injectedCount > 0 && injectionResult.previewText) {
         dispatch({
           type: "upsertItem",
@@ -851,7 +857,12 @@ export function useThreadMessaging({
       const shouldAddOptimisticUserBubble =
         !options?.suppressUserMessageRender &&
         !options?.skipOptimisticUserBubble &&
-        (resolvedEngine === "codex" || wasProcessing || threadKind === "shared");
+        (
+          resolvedEngine === "codex" ||
+          wasProcessing ||
+          threadKind === "shared" ||
+          Boolean(options?.browserContextAttachment)
+        );
       let optimisticUserItem: Extract<ConversationItem, { kind: "message" }> | null = null;
       let optimisticGeneratedImageItem: Extract<
         ConversationItem,
@@ -861,7 +872,11 @@ export function useThreadMessaging({
         const optimisticDisplayText = visibleUserText;
         const optimisticText = finalText;
         const optimisticImages = finalImages;
-        if (optimisticDisplayText || optimisticImages.length > 0) {
+        if (
+          optimisticDisplayText ||
+          optimisticImages.length > 0 ||
+          options?.browserContextAttachment
+        ) {
           optimisticUserItem = {
             id: `optimistic-user-${Date.now()}-${Math.random()
               .toString(36)

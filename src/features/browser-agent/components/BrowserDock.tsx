@@ -16,6 +16,10 @@ import type {
   BrowserWebviewEvent,
 } from "../types";
 import {
+  clearActiveBrowserContextSession,
+  setActiveBrowserContextSession,
+} from "../state/activeBrowserContext";
+import {
   closeBrowserAgentSession,
   createBrowserAgentSession,
   getAppSettings,
@@ -157,6 +161,11 @@ export function BrowserDock({
         setSessions(nextSessions);
         const nextActive = nextSessions.find((session) => session.status !== "closed") ?? null;
         setActiveSessionId(nextActive?.browserSessionId ?? null);
+        if (nextActive) {
+          setActiveBrowserContextSession(nextActive, { rendererBound: false });
+        } else {
+          clearActiveBrowserContextSession();
+        }
         onSessionChangeRef.current?.(nextActive);
       } catch (error) {
         if (mounted) {
@@ -209,7 +218,7 @@ export function BrowserDock({
         }
         const currentActiveSession = activeSessionRef.current;
         if (currentActiveSession) {
-          onSessionChangeRef.current?.({
+          const nextActiveSession = {
             ...currentActiveSession,
             url: payload.url ?? currentActiveSession.url,
             normalizedUrl: payload.url ?? currentActiveSession.normalizedUrl,
@@ -220,6 +229,10 @@ export function BrowserDock({
               payload.diagnosticMessage ?? currentActiveSession.diagnosticMessage,
             updatedAt: payload.occurredAt,
             lastActivatedAt: payload.occurredAt,
+          };
+          setActiveBrowserContextSession(nextActiveSession, { rendererBound: true });
+          onSessionChangeRef.current?.({
+            ...nextActiveSession,
           });
         }
         return current;
@@ -264,6 +277,7 @@ export function BrowserDock({
   useEffect(() => {
     if (!resolvedEnabled || !activeSessionId) {
       hideBrowserRenderer();
+      clearActiveBrowserContextSession();
       return;
     }
     let disposed = false;
@@ -284,11 +298,12 @@ export function BrowserDock({
               browserSessionId: sessionId,
               bounds,
             }).then((session) => {
-            rendererBoundToSession = true;
-            rendererSessionIdRef.current = session.browserSessionId;
-            mountedSessionIdsRef.current.add(session.browserSessionId);
-            return session;
-          });
+              rendererBoundToSession = true;
+              rendererSessionIdRef.current = session.browserSessionId;
+              mountedSessionIdsRef.current.add(session.browserSessionId);
+              setActiveBrowserContextSession(session, { rendererBound: true });
+              return session;
+            });
         void task
           .then((session) => {
             if (!session || disposed) {
@@ -322,6 +337,7 @@ export function BrowserDock({
                   ),
                 );
                 if (activeSessionId === sessionId) {
+                  clearActiveBrowserContextSession(sessionId);
                   onSessionChangeRef.current?.(null);
                 }
               });
@@ -364,7 +380,7 @@ export function BrowserDock({
     setBusy(true);
     setNotice(null);
     try {
-      const validation = await validateBrowserAgentUrl(normalizedDraft);
+      const validation = await validateBrowserAgentUrl(normalizedDraft, workspaceId);
       if (!validation.allowed || !validation.normalizedUrl) {
         setNotice({
           kind: "warning",
@@ -376,12 +392,14 @@ export function BrowserDock({
       if (activeSession && nextUrl === undefined) {
         const updatedSession = await updateBrowserAgentSession({
           browserSessionId: activeSession.browserSessionId,
+          workspaceId,
           url: validation.normalizedUrl,
           status: "loading",
           diagnosticMessage: null,
           errorCode: null,
         });
         setActiveSessionId(updatedSession.browserSessionId);
+        setActiveBrowserContextSession(updatedSession, { rendererBound: false });
         setUrlDraft(validation.normalizedUrl);
         setSessions((current) =>
           current.map((item) =>
@@ -406,6 +424,7 @@ export function BrowserDock({
         ownerSurface,
       });
       setActiveSessionId(session.browserSessionId);
+      setActiveBrowserContextSession(session, { rendererBound: false });
       setUrlDraft(validation.normalizedUrl);
       setSessions((current) => [
         session,
@@ -492,6 +511,9 @@ export function BrowserDock({
       setActiveSessionId(session.browserSessionId);
       setUrlDraft(session.normalizedUrl);
       setNotice(null);
+      setActiveBrowserContextSession(session, {
+        rendererBound: rendererSessionIdRef.current === session.browserSessionId,
+      });
       onSessionChangeRef.current?.(
         rendererSessionIdRef.current === session.browserSessionId
           ? session
@@ -509,6 +531,7 @@ export function BrowserDock({
     try {
       const closed = await closeBrowserAgentSession(sessionId);
       mountedSessionIdsRef.current.delete(sessionId);
+      clearActiveBrowserContextSession(sessionId);
       setSessions((current) =>
         current.map((session) =>
           session.browserSessionId === closed.browserSessionId ? closed : session,
@@ -522,6 +545,11 @@ export function BrowserDock({
           return current;
         }
         setUrlDraft(nextActive?.normalizedUrl ?? "");
+        if (nextActive) {
+          setActiveBrowserContextSession(nextActive, {
+            rendererBound: rendererSessionIdRef.current === nextActive.browserSessionId,
+          });
+        }
         onSessionChangeRef.current?.(
           nextActive && rendererSessionIdRef.current === nextActive.browserSessionId
             ? nextActive

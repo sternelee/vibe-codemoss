@@ -199,6 +199,7 @@ pub(crate) struct BrowserUrlValidationResult {
     pub(crate) allowed: bool,
     pub(crate) blocked_reason: Option<String>,
     pub(crate) diagnostic: Option<BrowserDiagnostic>,
+    pub(crate) workspace_local_allowed: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
@@ -213,6 +214,7 @@ pub(crate) struct CreateBrowserSessionRequest {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct UpdateBrowserSessionRequest {
     pub(crate) browser_session_id: String,
+    pub(crate) workspace_id: Option<String>,
     pub(crate) status: Option<BrowserSessionStatus>,
     pub(crate) title: Option<String>,
     pub(crate) url: Option<String>,
@@ -267,6 +269,41 @@ pub(crate) struct BrowserSnapshotBudget {
     pub(crate) form_field_limit: usize,
     pub(crate) diagnostic_limit: usize,
     pub(crate) token_estimate: Option<usize>,
+    pub(crate) truncated: bool,
+    pub(crate) omitted_element_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum BrowserSnapshotFreshness {
+    Fresh,
+    Stale,
+    Expired,
+    Degraded,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct BrowserSnapshotSource {
+    pub(crate) url: String,
+    pub(crate) normalized_url: String,
+    pub(crate) origin: Option<String>,
+    pub(crate) title: Option<String>,
+    pub(crate) tab_label: String,
+    pub(crate) capture_reason: String,
+    pub(crate) workspace_local_allowed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct BrowserViewportState {
+    pub(crate) width: Option<f64>,
+    pub(crate) height: Option<f64>,
+    pub(crate) scroll_x: Option<f64>,
+    pub(crate) scroll_y: Option<f64>,
+    pub(crate) scroll_height: Option<f64>,
+    pub(crate) scroll_width: Option<f64>,
+    pub(crate) device_pixel_ratio: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -329,6 +366,97 @@ pub(crate) struct BrowserLandmark {
     pub(crate) text_preview: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct BrowserElementLandmark {
+    pub(crate) landmark_id: String,
+    pub(crate) role: String,
+    pub(crate) label: String,
+    pub(crate) text_preview: Option<String>,
+    pub(crate) selector_hint: Option<String>,
+    pub(crate) href: Option<String>,
+    pub(crate) placeholder: Option<String>,
+    pub(crate) enabled: bool,
+    pub(crate) visible: bool,
+    pub(crate) sensitive: bool,
+    pub(crate) bounds: Option<BrowserElementBounds>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct BrowserContentRegion {
+    pub(crate) region_id: String,
+    pub(crate) role: String,
+    pub(crate) label: String,
+    pub(crate) text_preview: String,
+    pub(crate) truncated: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum BrowserPageType {
+    Article,
+    Issue,
+    Docs,
+    Form,
+    Dashboard,
+    Spa,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct BrowserPrimaryContent {
+    pub(crate) text: String,
+    pub(crate) source: String,
+    pub(crate) score: i32,
+    pub(crate) truncated: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct BrowserReadableBlock {
+    pub(crate) block_id: String,
+    pub(crate) role: String,
+    pub(crate) text: String,
+    pub(crate) score: i32,
+    pub(crate) truncated: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct BrowserNoiseDiagnostic {
+    pub(crate) diagnostic_id: String,
+    pub(crate) kind: String,
+    pub(crate) severity: String,
+    pub(crate) message: String,
+    pub(crate) score: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct BrowserVisualEvidence {
+    pub(crate) evidence_id: String,
+    pub(crate) kind: String,
+    pub(crate) label: String,
+    pub(crate) alt_text: Option<String>,
+    pub(crate) src_origin: Option<String>,
+    pub(crate) nearby_text: Option<String>,
+    pub(crate) visible: bool,
+    pub(crate) sensitive: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct BrowserCodeCandidate {
+    pub(crate) candidate_id: String,
+    pub(crate) file_path: String,
+    pub(crate) symbol_name: Option<String>,
+    pub(crate) reason: String,
+    pub(crate) confidence: String,
+    pub(crate) matched_text: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct BrowserDiagnostic {
@@ -361,24 +489,27 @@ pub(crate) struct BrowserPrivacyReport {
     pub(crate) omitted_kinds: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct BrowserContextSnapshotSource {
-    pub(crate) url: String,
-    pub(crate) normalized_url: String,
-    pub(crate) title: Option<String>,
-    pub(crate) origin: Option<String>,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct BrowserContextSnapshotPage {
     pub(crate) visible_text: String,
+    pub(crate) page_type: BrowserPageType,
+    pub(crate) primary_content: Option<BrowserPrimaryContent>,
+    #[serde(default)]
+    pub(crate) readable_blocks: Vec<BrowserReadableBlock>,
+    #[serde(default)]
+    pub(crate) noise_diagnostics: Vec<BrowserNoiseDiagnostic>,
+    #[serde(default)]
+    pub(crate) visual_evidence: Vec<BrowserVisualEvidence>,
     pub(crate) text_truncated: bool,
     #[serde(default)]
     pub(crate) headings: Vec<BrowserTextNode>,
     #[serde(default)]
     pub(crate) landmarks: Vec<BrowserLandmark>,
+    #[serde(default)]
+    pub(crate) element_landmarks: Vec<BrowserElementLandmark>,
+    #[serde(default)]
+    pub(crate) content_regions: Vec<BrowserContentRegion>,
     #[serde(default)]
     pub(crate) links: Vec<BrowserActionTarget>,
     #[serde(default)]
@@ -386,6 +517,7 @@ pub(crate) struct BrowserContextSnapshotPage {
     #[serde(default)]
     pub(crate) forms: Vec<BrowserFormSummary>,
     pub(crate) selected_text: Option<String>,
+    pub(crate) language_hint: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -419,6 +551,11 @@ pub(crate) struct BrowserEvidenceRecord {
     pub(crate) state: String,
     pub(crate) summary: String,
     pub(crate) privacy: BrowserPrivacyReport,
+    pub(crate) freshness: BrowserSnapshotFreshness,
+    #[serde(default)]
+    pub(crate) diagnostics: Vec<BrowserDiagnostic>,
+    #[serde(default)]
+    pub(crate) code_candidates: Vec<BrowserCodeCandidate>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -435,8 +572,12 @@ pub(crate) struct BrowserContextSnapshot {
     pub(crate) browser_session_id: String,
     pub(crate) workspace_id: String,
     pub(crate) captured_at: u64,
-    pub(crate) source: BrowserContextSnapshotSource,
+    pub(crate) freshness: BrowserSnapshotFreshness,
+    pub(crate) source: BrowserSnapshotSource,
+    pub(crate) viewport: BrowserViewportState,
     pub(crate) page: BrowserContextSnapshotPage,
+    #[serde(default)]
+    pub(crate) code_candidates: Vec<BrowserCodeCandidate>,
     pub(crate) diagnostics: BrowserContextSnapshotDiagnostics,
     pub(crate) evidence: BrowserContextSnapshotEvidence,
     pub(crate) privacy: BrowserPrivacyReport,

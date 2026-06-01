@@ -28,6 +28,7 @@ import { languageFromPath } from "../../../utils/syntax";
 import type { PresentationProfile } from "../presentation/presentationProfile";
 import { parseAgentTaskNotification } from "../utils/agentTaskNotification";
 import {
+  BrowserContextSummaryCard,
   parseBrowserContextPrompt,
   stripBrowserContextPrompt,
 } from "../../browser-agent";
@@ -1389,21 +1390,7 @@ export const MessageRow = memo(function MessageRow({
     />
   ) : null;
   const browserContextSummaryNode = browserContextSummary ? (
-    <div className="browser-context-summary-card">
-      <div className="browser-context-summary-title">
-        {t("messages.browserContextSummary")}
-      </div>
-      <div className="browser-context-summary-url" title={browserContextSummary.url}>
-        {browserContextSummary.title || browserContextSummary.url}
-      </div>
-      <div className="browser-context-summary-meta">
-        {new Date(browserContextSummary.capturedAt).toLocaleString()}
-        {" · "}
-        {browserContextSummary.stale
-          ? t("messages.browserContextState.stale")
-          : t("messages.browserContextState.available")}
-      </div>
-    </div>
+    <BrowserContextSummaryCard attachment={browserContextSummary} />
   ) : null;
   const shouldRenderBubble =
     agentTaskNotification

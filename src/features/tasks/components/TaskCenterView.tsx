@@ -210,6 +210,12 @@ export function TaskCenterView({
                       {selectedRun.browserEvidence.title || selectedRun.browserEvidence.url}
                       {" · "}
                       {t(`taskCenter.browserEvidenceState.${selectedRun.browserEvidence.state}`)}
+                      {selectedRun.browserEvidence.codeCandidates?.length
+                        ? ` · ${selectedRun.browserEvidence.codeCandidates.length} candidates`
+                        : ""}
+                      {selectedRun.browserEvidence.diagnostics?.length
+                        ? ` · ${selectedRun.browserEvidence.diagnostics[0]}`
+                        : ""}
                     </span>
                   ) : (
                     t("taskCenter.noBrowserEvidence")

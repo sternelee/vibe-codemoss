@@ -30,6 +30,7 @@ import { WorkspaceNoteCardPanel } from "../../note-cards/components/WorkspaceNot
 import { WorkspaceSessionActivityPanel } from "../../session-activity/components/WorkspaceSessionActivityPanel";
 import { WorkspaceSessionRadarPanel } from "../../session-activity/components/WorkspaceSessionRadarPanel";
 import { BrowserDock } from "../../browser-agent/components/BrowserDock";
+import { requestBrowserContextAttachment } from "../../browser-agent/state/browserContextAttachmentCommands";
 import { DebugPanel } from "../../debug/components/DebugPanel";
 import { PanelTabs } from "../components/PanelTabs";
 import { TabBar } from "../../app/components/TabBar";
@@ -2651,7 +2652,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       aria-label={t("browserAgent.dock.panelTitle")}
     >
       <div className="browser-agent-center-panel-header">
-        <div>
+        <div className="browser-agent-center-panel-heading">
           <div className="browser-agent-center-panel-title">
             {t("browserAgent.dock.panelTitle")}
           </div>
@@ -2659,15 +2660,32 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
             {t("browserAgent.dock.panelKicker")}
           </div>
         </div>
-        <button
-          type="button"
-          className="browser-agent-center-panel-close"
-          onClick={options.onCloseBrowserDock}
-          aria-label={t("browserAgent.dock.closePanel")}
-          data-tauri-drag-region="false"
-        >
-          ×
-        </button>
+        <div className="browser-agent-center-panel-actions">
+          <button
+            type="button"
+            className="browser-agent-center-panel-attach"
+            onClick={() =>
+              requestBrowserContextAttachment({
+                workspaceId: options.activeWorkspaceId,
+              })
+            }
+            disabled={!options.activeWorkspaceId}
+            aria-label={t("browserAgent.composer.attach")}
+            title={t("browserAgent.composer.attach")}
+            data-tauri-drag-region="false"
+          >
+            {t("browserAgent.composer.attach")}
+          </button>
+          <button
+            type="button"
+            className="browser-agent-center-panel-close"
+            onClick={options.onCloseBrowserDock}
+            aria-label={t("browserAgent.dock.closePanel")}
+            data-tauri-drag-region="false"
+          >
+            ×
+          </button>
+        </div>
       </div>
       {options.activeWorkspaceId ? (
         <BrowserDock

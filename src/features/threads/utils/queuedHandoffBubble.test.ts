@@ -87,6 +87,53 @@ describe("queuedHandoffBubble", () => {
           capturedAt: 100,
           stale: false,
           summary: "bounded facts",
+          visibleTextExcerpt: "primary browser facts",
+          pageType: "issue",
+          primaryContent: "primary browser facts",
+          readableBlocks: [
+            {
+              blockId: "issue-body",
+              role: "issue_body",
+              text: "primary browser facts",
+              score: 900,
+              truncated: false,
+            },
+          ],
+          noiseDiagnostics: [],
+          visualEvidence: [
+            {
+              evidenceId: "visual-1",
+              kind: "image",
+              label: "issue screenshot",
+              altText: "error screenshot",
+              srcOrigin: "https://example.com",
+              nearbyText: "screenshot context",
+              visible: true,
+              sensitive: false,
+            },
+          ],
+          elementCounts: {
+            headings: 1,
+            links: 2,
+            buttons: 3,
+            forms: 0,
+            landmarks: 1,
+            codeCandidates: 0,
+            readableBlocks: 1,
+            visualEvidence: 1,
+          },
+          diagnostics: [],
+          budget: {
+            charLimit: 12_000,
+            visibleTextLimit: 8_000,
+            elementLimit: 120,
+            formFieldLimit: 80,
+            diagnosticLimit: 50,
+            tokenEstimate: null,
+            truncated: false,
+            omittedElementCount: 0,
+          },
+          codeCandidates: [],
           privacy: {
             redactionApplied: false,
             redactedKinds: [],
@@ -97,5 +144,7 @@ describe("queuedHandoffBubble", () => {
     });
 
     expect(bubble.browserContextAttachment?.snapshotId).toBe("browser-snapshot-1");
+    expect(bubble.browserContextAttachment?.pageType).toBe("issue");
+    expect(bubble.browserContextAttachment?.visualEvidence?.[0]?.label).toBe("issue screenshot");
   });
 });

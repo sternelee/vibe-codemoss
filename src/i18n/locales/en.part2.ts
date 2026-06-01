@@ -1807,6 +1807,7 @@ const enPart2 = {
       available: "available",
       stale: "stale",
       expired: "expired",
+      degraded: "degraded",
       deleted: "deleted",
       unsupported: "unsupported",
     },

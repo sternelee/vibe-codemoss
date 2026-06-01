@@ -1,11 +1,15 @@
+mod capture_script;
 mod platform;
 mod types;
 
 use std::{
+    collections::HashMap,
     sync::{Mutex, OnceLock},
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+use serde::Deserialize;
 use tauri::{
     AppHandle, Emitter, Manager, State, WebviewUrl,
     webview::{NewWindowResponse, WebviewBuilder},
@@ -17,11 +21,65 @@ pub(crate) use types::*;
 
 const BROWSER_WEBVIEW_EVENT: &str = "browser-agent://webview-event";
 const BROWSER_RENDERER_WEBVIEW_LABEL: &str = "browser-agent-webview-main";
+const BROWSER_CAPTURE_BRIDGE_HOST: &str = "browser-agent-capture.invalid";
+const BROWSER_CAPTURE_BRIDGE_PATH: &str = "/__mossx_capture__";
+const BROWSER_CAPTURE_CHUNK_SIZE: usize = 1_600;
+const BROWSER_CAPTURE_WAIT_ATTEMPTS: usize = 80;
 
 static BROWSER_RENDERER_SESSION_ID: OnceLock<Mutex<Option<String>>> = OnceLock::new();
+static BROWSER_CAPTURE_BRIDGE: OnceLock<Mutex<HashMap<String, BrowserCaptureBridgeState>>> =
+    OnceLock::new();
+
+#[derive(Debug, Clone)]
+struct BrowserCaptureBridgeState {
+    browser_session_id: String,
+    chunks: Vec<Option<String>>,
+}
+
+#[derive(Debug, Clone)]
+struct BrowserCaptureNavigationChunk {
+    token: String,
+    browser_session_id: String,
+    index: usize,
+    total: usize,
+    payload: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BrowserRawCapture {
+    title: Option<String>,
+    url: Option<String>,
+    selected_text: Option<String>,
+    viewport: Option<BrowserViewportState>,
+    visible_text: Option<String>,
+    #[serde(default)]
+    headings: Vec<BrowserTextNode>,
+    #[serde(default)]
+    links: Vec<BrowserActionTarget>,
+    #[serde(default)]
+    buttons: Vec<BrowserActionTarget>,
+    #[serde(default)]
+    forms: Vec<BrowserFormSummary>,
+    #[serde(default)]
+    content_regions: Vec<BrowserContentRegion>,
+    page_type: Option<BrowserPageType>,
+    primary_content: Option<BrowserPrimaryContent>,
+    #[serde(default)]
+    readable_blocks: Vec<BrowserReadableBlock>,
+    #[serde(default)]
+    noise_diagnostics: Vec<BrowserNoiseDiagnostic>,
+    #[serde(default)]
+    visual_evidence: Vec<BrowserVisualEvidence>,
+    language_hint: Option<String>,
+}
 
 fn browser_renderer_session_binding() -> &'static Mutex<Option<String>> {
     BROWSER_RENDERER_SESSION_ID.get_or_init(|| Mutex::new(None))
+}
+
+fn browser_capture_bridge() -> &'static Mutex<HashMap<String, BrowserCaptureBridgeState>> {
+    BROWSER_CAPTURE_BRIDGE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
 fn bind_browser_renderer_session(browser_session_id: &str) {
@@ -182,6 +240,7 @@ fn blocked_url(raw_url: &str, blocked_reason: &str, message: &str) -> BrowserUrl
             "warning",
             message,
         )),
+        workspace_local_allowed: false,
     }
 }
 
@@ -247,6 +306,10 @@ fn is_blocked_local_host(host: &str) -> bool {
         || host.starts_with("172.31.")
 }
 
+fn is_workspace_local_development_host(host: &str) -> bool {
+    host == "localhost" || host == "::1" || host.starts_with("127.")
+}
+
 fn is_cleanup_candidate(session: &BrowserSession, now: u64, max_closed_age_ms: u64) -> bool {
     let terminal = matches!(
         session.status,
@@ -267,13 +330,571 @@ fn snapshot_summary(snapshot: &BrowserContextSnapshot) -> String {
         .title
         .as_deref()
         .unwrap_or(snapshot.source.normalized_url.as_str());
-    let text = snapshot.page.visible_text.replace('\n', " ");
+    let text = snapshot
+        .page
+        .primary_content
+        .as_ref()
+        .map(|content| content.text.as_str())
+        .unwrap_or(snapshot.page.visible_text.as_str())
+        .replace('\n', " ");
     let compact = text.split_whitespace().collect::<Vec<_>>().join(" ");
     if compact.is_empty() {
         return title.to_string();
     }
     let excerpt = compact.chars().take(360).collect::<String>();
     format!("{title}\n{excerpt}")
+}
+
+fn default_browser_viewport() -> BrowserViewportState {
+    BrowserViewportState {
+        width: None,
+        height: None,
+        scroll_x: None,
+        scroll_y: None,
+        scroll_height: None,
+        scroll_width: None,
+        device_pixel_ratio: None,
+    }
+}
+
+fn current_browser_renderer_session_id() -> Option<String> {
+    browser_renderer_session_binding()
+        .lock()
+        .ok()
+        .and_then(|binding| binding.clone())
+}
+
+fn percent_decode_browser_capture(value: &str) -> String {
+    let bytes = value.as_bytes();
+    let mut decoded = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'%' && index + 2 < bytes.len() {
+            let hex = &value[index + 1..index + 3];
+            if let Ok(byte) = u8::from_str_radix(hex, 16) {
+                decoded.push(byte);
+                index += 3;
+                continue;
+            }
+        }
+        decoded.push(if bytes[index] == b'+' { b' ' } else { bytes[index] });
+        index += 1;
+    }
+    String::from_utf8_lossy(&decoded).into_owned()
+}
+
+fn parse_browser_capture_navigation(target_url: &str) -> Option<BrowserCaptureNavigationChunk> {
+    let prefix = format!("https://{BROWSER_CAPTURE_BRIDGE_HOST}{BROWSER_CAPTURE_BRIDGE_PATH}?");
+    let query = target_url.strip_prefix(prefix.as_str())?;
+    let mut token = None;
+    let mut browser_session_id = None;
+    let mut index = None;
+    let mut total = None;
+    let mut payload = None;
+    for pair in query.split('&') {
+        let Some((key, value)) = pair.split_once('=') else {
+            continue;
+        };
+        match key {
+            "token" => token = Some(percent_decode_browser_capture(value)),
+            "session" => browser_session_id = Some(percent_decode_browser_capture(value)),
+            "index" => index = value.parse::<usize>().ok(),
+            "total" => total = value.parse::<usize>().ok(),
+            "payload" => payload = Some(value.to_string()),
+            _ => {}
+        }
+    }
+    Some(BrowserCaptureNavigationChunk {
+        token: token?,
+        browser_session_id: browser_session_id?,
+        index: index?,
+        total: total?,
+        payload: payload?,
+    })
+}
+
+fn handle_browser_capture_navigation(target_url: &str) -> bool {
+    let Some(chunk) = parse_browser_capture_navigation(target_url) else {
+        return false;
+    };
+    if chunk.total == 0 || chunk.total > 256 || chunk.index >= chunk.total {
+        return true;
+    }
+    if let Ok(mut bridge) = browser_capture_bridge().lock() {
+        let entry =
+            bridge
+                .entry(chunk.token)
+                .or_insert_with(|| BrowserCaptureBridgeState {
+                    browser_session_id: chunk.browser_session_id.clone(),
+                    chunks: vec![None; chunk.total],
+                });
+        if entry.browser_session_id == chunk.browser_session_id && entry.chunks.len() == chunk.total
+        {
+            entry.chunks[chunk.index] = Some(chunk.payload);
+        }
+    }
+    true
+}
+
+fn take_browser_capture_payload(token: &str) -> Option<String> {
+    let mut bridge = browser_capture_bridge().lock().ok()?;
+    let entry = bridge.get(token)?;
+    if entry.chunks.iter().any(|chunk| chunk.is_none()) {
+        return None;
+    }
+    let encoded = entry
+        .chunks
+        .iter()
+        .filter_map(|chunk| chunk.as_deref())
+        .collect::<String>();
+    bridge.remove(token);
+    let decoded = URL_SAFE_NO_PAD.decode(encoded.as_bytes()).ok()?;
+    String::from_utf8(decoded).ok()
+}
+
+fn cleanup_browser_capture_payload(token: &str) {
+    if let Ok(mut bridge) = browser_capture_bridge().lock() {
+        bridge.remove(token);
+    }
+}
+
+fn escape_js_string(value: &str) -> String {
+    serde_json::to_string(value).unwrap_or_else(|_| "\"\"".to_string())
+}
+
+fn browser_capture_bridge_script(browser_session_id: &str, token: &str) -> String {
+    let capture_script = capture_script::READ_ONLY_CAPTURE_SCRIPT;
+    let session = escape_js_string(browser_session_id);
+    let capture_token = escape_js_string(token);
+    format!(
+        r#"
+(() => {{
+  const sessionId = {session};
+  const token = {capture_token};
+  const chunkSize = {BROWSER_CAPTURE_CHUNK_SIZE};
+  const bridgeBase = "https://{BROWSER_CAPTURE_BRIDGE_HOST}{BROWSER_CAPTURE_BRIDGE_PATH}";
+  const toBase64Url = (value) => {{
+    const bytes = typeof TextEncoder === "function"
+      ? new TextEncoder().encode(value)
+      : Array.from(unescape(encodeURIComponent(value))).map((char) => char.charCodeAt(0));
+    let binary = "";
+    bytes.forEach((byte) => {{
+      binary += String.fromCharCode(byte);
+    }});
+    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  }};
+  try {{
+    const facts = {capture_script};
+    const encoded = toBase64Url(JSON.stringify(facts || {{}}));
+    const chunks = encoded.match(new RegExp(".{{1," + chunkSize + "}}", "g")) || [""];
+    chunks.forEach((chunk, index) => {{
+      window.setTimeout(() => {{
+        const url = bridgeBase
+          + "?token=" + encodeURIComponent(token)
+          + "&session=" + encodeURIComponent(sessionId)
+          + "&index=" + index
+          + "&total=" + chunks.length
+          + "&payload=" + chunk;
+        window.location.href = url;
+      }}, index * 35);
+    }});
+  }} catch (error) {{
+    const fallback = toBase64Url(JSON.stringify({{
+      title: document.title || null,
+      url: location.href,
+      visibleText: "",
+      captureError: error && error.message ? String(error.message) : "capture_failed"
+    }}));
+    window.location.href = bridgeBase
+      + "?token=" + encodeURIComponent(token)
+      + "&session=" + encodeURIComponent(sessionId)
+      + "&index=0&total=1&payload=" + fallback;
+  }}
+}})();
+"#
+    )
+}
+
+async fn capture_browser_webview_dom(
+    app: &AppHandle,
+    browser_session_id: &str,
+) -> Result<BrowserRawCapture, String> {
+    let label = browser_webview_label(browser_session_id);
+    let webview = app
+        .get_webview(label.as_str())
+        .ok_or_else(|| format!("Browser Agent WebView not found: {browser_session_id}"))?;
+    let token = format!("browser-capture-{}", uuid::Uuid::new_v4());
+    let script = browser_capture_bridge_script(browser_session_id, token.as_str());
+    webview
+        .eval(script)
+        .map_err(|error| format!("failed to run Browser Agent read-only capture script: {error}"))?;
+    for _ in 0..BROWSER_CAPTURE_WAIT_ATTEMPTS {
+        if let Some(payload) = take_browser_capture_payload(token.as_str()) {
+            return serde_json::from_str::<BrowserRawCapture>(payload.as_str())
+                .map_err(|error| format!("failed to parse Browser Agent capture payload: {error}"));
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    cleanup_browser_capture_payload(token.as_str());
+    Err("Browser Agent read-only capture timed out.".to_string())
+}
+
+fn browser_snapshot_budget(settings: &BrowserAgentSettings) -> BrowserSnapshotBudget {
+    BrowserSnapshotBudget {
+        char_limit: settings.default_snapshot_budget_chars as usize,
+        visible_text_limit: 8_000,
+        element_limit: 120,
+        form_field_limit: 80,
+        diagnostic_limit: 50,
+        token_estimate: None,
+        truncated: false,
+        omitted_element_count: 0,
+    }
+}
+
+fn is_workspace_local_snapshot(session: &BrowserSession) -> bool {
+    host_from_normalized_url(session.normalized_url.as_str())
+        .map(|host| is_workspace_local_development_host(host.as_str()))
+        .unwrap_or(false)
+}
+
+fn browser_code_candidates_for_session(session: &BrowserSession) -> Vec<BrowserCodeCandidate> {
+    if !is_workspace_local_snapshot(session) {
+        return Vec::new();
+    }
+    let route = session
+        .normalized_url
+        .split("://")
+        .nth(1)
+        .and_then(|rest| rest.split('/').skip(1).next())
+        .unwrap_or_default();
+    let route_path = session
+        .normalized_url
+        .split("://")
+        .nth(1)
+        .and_then(|rest| rest.split_once('/').map(|(_, path)| path))
+        .map(|path| format!("/{path}"))
+        .unwrap_or_else(|| "/".to_string());
+    let leaf = route
+        .split('/')
+        .filter(|part| !part.trim().is_empty())
+        .next_back()
+        .unwrap_or("index");
+    vec![BrowserCodeCandidate {
+        candidate_id: format!("route_match:src/routes/{leaf}.tsx"),
+        file_path: format!("src/routes/{leaf}.tsx"),
+        symbol_name: None,
+        reason: "route_match".to_string(),
+        confidence: "low".to_string(),
+        matched_text: Some(route_path),
+    }]
+}
+
+fn compact_browser_text(value: &str) -> String {
+    value.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn mark_redaction(privacy: &mut BrowserPrivacyReport, kind: &str) {
+    privacy.redaction_applied = true;
+    if !privacy.redacted_kinds.iter().any(|entry| entry == kind) {
+        privacy.redacted_kinds.push(kind.to_string());
+    }
+}
+
+fn looks_sensitive(value: &str) -> bool {
+    let lower = value.to_ascii_lowercase();
+    lower.contains("password")
+        || lower.contains("passwd")
+        || lower.contains("token")
+        || lower.contains("secret")
+        || lower.contains("authorization")
+        || lower.contains("cookie")
+        || lower.contains("api_key")
+        || lower.contains("apikey")
+}
+
+fn redact_sensitive_assignments(value: &str, privacy: &mut BrowserPrivacyReport) -> String {
+    let parts = value.split_whitespace().collect::<Vec<_>>();
+    let mut redacted = Vec::with_capacity(parts.len());
+    let mut redact_next = false;
+    for part in parts {
+        let lower = part.to_ascii_lowercase();
+        if redact_next {
+            redacted.push("[redacted-sensitive]".to_string());
+            mark_redaction(privacy, "secret_like");
+            redact_next = false;
+            continue;
+        }
+        if let Some((key, _)) = part.split_once('=') {
+            if looks_sensitive(key) {
+                redacted.push(format!("{key}=[redacted]"));
+                mark_redaction(privacy, "secret_like");
+                continue;
+            }
+        }
+        if let Some((key, _)) = part.split_once(':') {
+            if looks_sensitive(key) {
+                redacted.push(format!("{key}:[redacted]"));
+                mark_redaction(privacy, "secret_like");
+                continue;
+            }
+        }
+        if lower == "authorization" || lower == "authorization:" || lower == "bearer" {
+            redacted.push(part.to_string());
+            redact_next = true;
+            continue;
+        }
+        redacted.push(part.to_string());
+    }
+    redacted.join(" ")
+}
+
+fn sanitize_browser_string(
+    value: Option<String>,
+    limit: usize,
+    privacy: &mut BrowserPrivacyReport,
+) -> Option<String> {
+    let raw = value?;
+    if raw.trim().is_empty() {
+        return None;
+    }
+    let mut sanitized = redact_sensitive_assignments(
+        compact_browser_text(raw.as_str()).as_str(),
+        privacy,
+    );
+    if sanitized.contains('@') && sanitized.contains('.') {
+        mark_redaction(privacy, "email");
+        sanitized = sanitized
+            .split_whitespace()
+            .map(|part| {
+                if part.contains('@') && part.contains('.') {
+                    "[redacted-email]"
+                } else {
+                    part
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(" ");
+    }
+    Some(sanitized.chars().take(limit).collect::<String>())
+}
+
+fn sanitize_browser_target(
+    mut target: BrowserActionTarget,
+    privacy: &mut BrowserPrivacyReport,
+) -> BrowserActionTarget {
+    let sensitive_identity = [
+        Some(target.label.as_str()),
+        target.accessible_name.as_deref(),
+        target.placeholder.as_deref(),
+        target.href.as_deref(),
+    ]
+    .into_iter()
+    .flatten()
+    .any(looks_sensitive);
+    target.sensitive = target.sensitive || sensitive_identity;
+    target.label = sanitize_browser_string(Some(target.label), 320, privacy).unwrap_or_default();
+    target.accessible_name = sanitize_browser_string(target.accessible_name, 320, privacy);
+    target.text = sanitize_browser_string(target.text, 640, privacy);
+    target.href = sanitize_browser_string(target.href, 640, privacy);
+    target.placeholder = sanitize_browser_string(target.placeholder, 320, privacy);
+    if target.sensitive {
+        mark_redaction(privacy, "hidden_input");
+        target.value_preview = None;
+    } else {
+        target.value_preview = sanitize_browser_string(target.value_preview, 320, privacy);
+    }
+    target
+}
+
+fn browser_element_landmarks_from_targets(
+    links: &[BrowserActionTarget],
+    buttons: &[BrowserActionTarget],
+    forms: &[BrowserFormSummary],
+) -> Vec<BrowserElementLandmark> {
+    let link_landmarks = links.iter().take(40).map(|target| BrowserElementLandmark {
+        landmark_id: target.target_id.clone(),
+        role: "link".to_string(),
+        label: target.label.clone(),
+        text_preview: target.text.clone(),
+        selector_hint: None,
+        href: target.href.clone(),
+        placeholder: target.placeholder.clone(),
+        enabled: !target.disabled,
+        visible: target.visible,
+        sensitive: target.sensitive,
+        bounds: target.bounds.clone(),
+    });
+    let button_landmarks = buttons.iter().take(40).map(|target| BrowserElementLandmark {
+        landmark_id: target.target_id.clone(),
+        role: "button".to_string(),
+        label: target.label.clone(),
+        text_preview: target.text.clone(),
+        selector_hint: None,
+        href: None,
+        placeholder: target.placeholder.clone(),
+        enabled: !target.disabled,
+        visible: target.visible,
+        sensitive: target.sensitive,
+        bounds: target.bounds.clone(),
+    });
+    let field_landmarks = forms.iter().flat_map(|form| {
+        form.fields.iter().take(12).map(|target| BrowserElementLandmark {
+            landmark_id: target.target_id.clone(),
+            role: target.kind.clone(),
+            label: target.label.clone(),
+            text_preview: target.text.clone(),
+            selector_hint: None,
+            href: None,
+            placeholder: target.placeholder.clone(),
+            enabled: !target.disabled,
+            visible: target.visible,
+            sensitive: target.sensitive,
+            bounds: target.bounds.clone(),
+        })
+    });
+    link_landmarks
+        .chain(button_landmarks)
+        .chain(field_landmarks)
+        .take(120)
+        .collect()
+}
+
+fn page_from_raw_capture(
+    raw: BrowserRawCapture,
+    budget: &mut BrowserSnapshotBudget,
+    privacy: &mut BrowserPrivacyReport,
+) -> BrowserContextSnapshotPage {
+    let visible_text = sanitize_browser_string(raw.visible_text, budget.visible_text_limit, privacy)
+        .unwrap_or_default();
+    let text_truncated = visible_text.chars().count() >= budget.visible_text_limit;
+    let headings = raw
+        .headings
+        .into_iter()
+        .take(80)
+        .map(|mut heading| {
+            heading.text =
+                sanitize_browser_string(Some(heading.text), 320, privacy).unwrap_or_default();
+            heading
+        })
+        .collect::<Vec<_>>();
+    let links = raw
+        .links
+        .into_iter()
+        .take(80)
+        .map(|target| sanitize_browser_target(target, privacy))
+        .collect::<Vec<_>>();
+    let buttons = raw
+        .buttons
+        .into_iter()
+        .take(80)
+        .map(|target| sanitize_browser_target(target, privacy))
+        .collect::<Vec<_>>();
+    let forms = raw
+        .forms
+        .into_iter()
+        .take(20)
+        .map(|mut form| {
+            form.label =
+                sanitize_browser_string(Some(form.label), 320, privacy).unwrap_or_default();
+            form.action_origin = sanitize_browser_string(form.action_origin, 320, privacy);
+            form.fields = form
+                .fields
+                .into_iter()
+                .take(budget.form_field_limit)
+                .map(|target| sanitize_browser_target(target, privacy))
+                .collect();
+            form.submit_targets = form
+                .submit_targets
+                .into_iter()
+                .take(20)
+                .map(|target| sanitize_browser_target(target, privacy))
+                .collect();
+            form
+        })
+        .collect::<Vec<_>>();
+    let content_regions = raw
+        .content_regions
+        .into_iter()
+        .take(8)
+        .map(|mut region| {
+            region.label =
+                sanitize_browser_string(Some(region.label), 240, privacy).unwrap_or_default();
+            region.text_preview =
+                sanitize_browser_string(Some(region.text_preview), 1_200, privacy)
+                    .unwrap_or_default();
+            region
+        })
+        .collect::<Vec<_>>();
+    let primary_content = raw.primary_content.map(|mut content| {
+        content.text =
+            sanitize_browser_string(Some(content.text), budget.visible_text_limit, privacy)
+                .unwrap_or_default();
+        content.truncated = content.truncated || content.text.chars().count() >= budget.visible_text_limit;
+        content
+    });
+    let readable_blocks = raw
+        .readable_blocks
+        .into_iter()
+        .take(12)
+        .map(|mut block| {
+            block.text = sanitize_browser_string(Some(block.text), 1_200, privacy)
+                .unwrap_or_default();
+            block
+        })
+        .collect::<Vec<_>>();
+    let noise_diagnostics = raw
+        .noise_diagnostics
+        .into_iter()
+        .take(budget.diagnostic_limit)
+        .map(|mut diagnostic| {
+            diagnostic.message =
+                sanitize_browser_string(Some(diagnostic.message), 320, privacy).unwrap_or_default();
+            diagnostic
+        })
+        .collect::<Vec<_>>();
+    let visual_evidence = raw
+        .visual_evidence
+        .into_iter()
+        .take(20)
+        .map(|mut item| {
+            item.label = sanitize_browser_string(Some(item.label), 320, privacy).unwrap_or_default();
+            item.alt_text = sanitize_browser_string(item.alt_text, 320, privacy);
+            item.src_origin = sanitize_browser_string(item.src_origin, 320, privacy);
+            item.nearby_text = if item.sensitive {
+                None
+            } else {
+                sanitize_browser_string(item.nearby_text, 640, privacy)
+            };
+            item
+        })
+        .collect::<Vec<_>>();
+    let element_landmarks = browser_element_landmarks_from_targets(&links, &buttons, &forms);
+    let selected_text = sanitize_browser_string(raw.selected_text, 1_000, privacy);
+    let used_elements =
+        headings.len() + links.len() + buttons.len() + forms.len() + element_landmarks.len();
+    budget.truncated = text_truncated || used_elements >= budget.element_limit;
+    budget.omitted_element_count = used_elements.saturating_sub(budget.element_limit);
+    BrowserContextSnapshotPage {
+        visible_text,
+        page_type: raw.page_type.unwrap_or(BrowserPageType::Unknown),
+        primary_content,
+        readable_blocks,
+        noise_diagnostics,
+        visual_evidence,
+        text_truncated,
+        headings,
+        landmarks: Vec::new(),
+        element_landmarks,
+        content_regions,
+        links,
+        buttons,
+        forms,
+        selected_text,
+        language_hint: raw
+            .language_hint
+            .and_then(|value| sanitize_browser_string(Some(value), 64, privacy)),
+    }
 }
 
 async fn persist_snapshot_evidence(
@@ -296,6 +917,9 @@ async fn persist_snapshot_evidence(
         state: "available".to_string(),
         summary: snapshot_summary(snapshot),
         privacy: snapshot.privacy.clone(),
+        freshness: snapshot.freshness.clone(),
+        diagnostics: snapshot.diagnostics.capture_warnings.clone(),
+        code_candidates: snapshot.code_candidates.clone(),
     };
     state.browser_evidence.lock().await.insert(evidence_id.clone(), record);
     BrowserContextSnapshotEvidence {
@@ -449,6 +1073,7 @@ fn create_browser_child_webview(
 
     let window = resolve_browser_parent_window(app)?;
     let session_id_for_navigation = session.browser_session_id.clone();
+    let workspace_id_for_navigation = session.workspace_id.clone();
     let session_id_for_load = session.browser_session_id.clone();
     let session_id_for_title = session.browser_session_id.clone();
     let app_for_navigation = app.clone();
@@ -457,7 +1082,13 @@ fn create_browser_child_webview(
 
     let webview_builder = WebviewBuilder::new(label, WebviewUrl::External(url))
         .on_navigation(move |target_url| {
-            let validation = validate_browser_url(target_url.as_str());
+            if handle_browser_capture_navigation(target_url.as_str()) {
+                return false;
+            }
+            let validation = validate_browser_url_for_workspace(
+                target_url.as_str(),
+                Some(workspace_id_for_navigation.as_str()),
+            );
             if validation.allowed {
                 return true;
             }
@@ -512,7 +1143,10 @@ fn create_browser_child_webview(
     Ok(())
 }
 
-fn validate_browser_url(raw_url: &str) -> BrowserUrlValidationResult {
+fn validate_browser_url_for_workspace(
+    raw_url: &str,
+    workspace_id: Option<&str>,
+) -> BrowserUrlValidationResult {
     let trimmed = raw_url.trim();
     if trimmed.is_empty() {
         return blocked_url(raw_url, "empty_url", "Browser Agent URL cannot be empty.");
@@ -541,7 +1175,10 @@ fn validate_browser_url(raw_url: &str) -> BrowserUrlValidationResult {
     let Some(host) = host_from_normalized_url(trimmed) else {
         return blocked_url(raw_url, "missing_host", "Browser Agent URL must include a host.");
     };
-    if is_blocked_local_host(&host) {
+    let workspace_local_allowed =
+        workspace_id.map(|id| !id.trim().is_empty()).unwrap_or(false)
+            && is_workspace_local_development_host(host.as_str());
+    if is_blocked_local_host(&host) && !workspace_local_allowed {
         return blocked_url(
             raw_url,
             "blocked_local_host",
@@ -555,6 +1192,7 @@ fn validate_browser_url(raw_url: &str) -> BrowserUrlValidationResult {
         allowed: true,
         blocked_reason: None,
         diagnostic: None,
+        workspace_local_allowed,
     }
 }
 
@@ -574,8 +1212,12 @@ pub(crate) async fn get_browser_agent_platform_capability(
 #[tauri::command]
 pub(crate) async fn validate_browser_agent_url(
     url: String,
+    workspace_id: Option<String>,
 ) -> Result<BrowserUrlValidationResult, String> {
-    Ok(validate_browser_url(url.as_str()))
+    Ok(validate_browser_url_for_workspace(
+        url.as_str(),
+        workspace_id.as_deref(),
+    ))
 }
 
 #[tauri::command]
@@ -588,7 +1230,10 @@ pub(crate) async fn create_browser_agent_session(
         return Err("Browser Agent is disabled in settings.".to_string());
     }
 
-    let validation = validate_browser_url(request.url.as_str());
+    let validation = validate_browser_url_for_workspace(
+        request.url.as_str(),
+        Some(request.workspace_id.as_str()),
+    );
     let Some(normalized_url) = validation.normalized_url else {
         return Err(validation
             .diagnostic
@@ -669,7 +1314,10 @@ pub(crate) async fn update_browser_agent_session(
         .ok_or_else(|| format!("Browser session not found: {}", request.browser_session_id))?;
 
     if let Some(next_url) = request.url {
-        let validation = validate_browser_url(next_url.as_str());
+        let validation = validate_browser_url_for_workspace(
+            next_url.as_str(),
+            request.workspace_id.as_deref(),
+        );
         let Some(normalized_url) = validation.normalized_url else {
             return Err(validation
                 .diagnostic
@@ -706,7 +1354,7 @@ pub(crate) async fn update_browser_agent_session(
 #[tauri::command]
 pub(crate) async fn close_browser_agent_session(
     browser_session_id: String,
-    app: AppHandle,
+    _app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<BrowserSession, String> {
     let now = unix_time_ms();
@@ -881,9 +1529,11 @@ pub(crate) async fn hide_browser_agent_webview(
 #[tauri::command]
 pub(crate) async fn capture_browser_agent_snapshot(
     browser_session_id: String,
+    app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<BrowserContextSnapshot, String> {
     let now = unix_time_ms();
+    let settings = current_settings(&state).await;
     let session = {
         let sessions = state.browser_sessions.lock().await;
         sessions
@@ -894,69 +1544,133 @@ pub(crate) async fn capture_browser_agent_snapshot(
     if session.status == BrowserSessionStatus::Closed {
         return Err(format!("Browser session is closed: {browser_session_id}"));
     }
+    let renderer_binding = current_browser_renderer_session_id();
+    let renderer_matches = renderer_binding.as_deref() == Some(browser_session_id.as_str());
 
-    let visible_text = session
-        .title
-        .as_ref()
-        .map(|title| format!("{title}\n{}", session.normalized_url))
-        .unwrap_or_else(|| session.normalized_url.clone());
-
+    let mut capture_warnings = Vec::new();
+    if !renderer_matches {
+        capture_warnings.push(browser_diagnostic(
+            "browser-renderer-mismatch",
+            "capture_warning",
+            "warning",
+            "Requested browser session is not bound to the active Browser Dock renderer; returning degraded metadata snapshot.",
+        ));
+    }
+    let raw_capture = if renderer_matches && session.status == BrowserSessionStatus::Ready {
+        match capture_browser_webview_dom(&app, browser_session_id.as_str()).await {
+            Ok(raw) => Some(raw),
+            Err(error) => {
+                capture_warnings.push(browser_diagnostic(
+                    "browser-capture-degraded",
+                    "capture_warning",
+                    "warning",
+                    format!(
+                        "Read-only WebView DOM transport failed; snapshot contains bounded session facts. {error}"
+                    )
+                    .as_str(),
+                ));
+                None
+            }
+        }
+    } else {
+        None
+    };
+    if raw_capture.is_none() && renderer_matches {
+        capture_warnings.push(browser_diagnostic(
+            "browser-capture-metadata-fallback",
+            "capture_warning",
+            "warning",
+            "Browser Agent returned a metadata-only fallback snapshot.",
+        ));
+    }
+    let has_live_capture = raw_capture.is_some();
+    let code_candidates = browser_code_candidates_for_session(&session);
+    let freshness = if has_live_capture {
+        BrowserSnapshotFreshness::Fresh
+    } else if renderer_matches && session.status == BrowserSessionStatus::Ready {
+        BrowserSnapshotFreshness::Degraded
+    } else {
+        BrowserSnapshotFreshness::Stale
+    };
+    let mut budget = browser_snapshot_budget(&settings);
+    let mut privacy = BrowserPrivacyReport {
+        redaction_applied: false,
+        redacted_kinds: Vec::new(),
+        omitted_kinds: vec![
+            "raw_dom".to_string(),
+            "cookies".to_string(),
+            "headers".to_string(),
+            "scripts".to_string(),
+            "styles".to_string(),
+            "hidden_nodes".to_string(),
+        ],
+    };
+    let (source_url, source_title, viewport, page) = if let Some(raw) = raw_capture {
+        let raw_url = raw.url.clone().unwrap_or_else(|| session.normalized_url.clone());
+        let raw_title = raw.title.clone().or_else(|| session.title.clone());
+        let viewport = raw.viewport.clone().unwrap_or_else(default_browser_viewport);
+        let page = page_from_raw_capture(raw, &mut budget, &mut privacy);
+        (raw_url, raw_title, viewport, page)
+    } else {
+        let visible_text = session
+            .title
+            .as_ref()
+            .map(|title| format!("{title}\n{}", session.normalized_url))
+            .unwrap_or_else(|| session.normalized_url.clone());
+        (
+            session.normalized_url.clone(),
+            session.title.clone(),
+            default_browser_viewport(),
+            BrowserContextSnapshotPage {
+                visible_text,
+                page_type: BrowserPageType::Unknown,
+                primary_content: None,
+                readable_blocks: Vec::new(),
+                noise_diagnostics: Vec::new(),
+                visual_evidence: Vec::new(),
+                text_truncated: false,
+                headings: Vec::new(),
+                landmarks: Vec::new(),
+                element_landmarks: Vec::new(),
+                content_regions: Vec::new(),
+                links: Vec::new(),
+                buttons: Vec::new(),
+                forms: Vec::new(),
+                selected_text: None,
+                language_hint: None,
+            },
+        )
+    };
     let mut snapshot = BrowserContextSnapshot {
         snapshot_id: format!("browser-snapshot-{now}"),
         browser_session_id: session.browser_session_id.clone(),
         workspace_id: session.workspace_id.clone(),
         captured_at: now,
-        source: BrowserContextSnapshotSource {
-            url: session.url.clone(),
-            normalized_url: session.normalized_url.clone(),
-            title: session.title.clone(),
-            origin: session.origin.clone(),
+        freshness,
+        source: BrowserSnapshotSource {
+            url: source_url.clone(),
+            normalized_url: source_url.clone(),
+            origin: origin_from_normalized_url(source_url.as_str()).or_else(|| session.origin.clone()),
+            title: source_title,
+            tab_label: session.label.clone(),
+            capture_reason: "manual_attach".to_string(),
+            workspace_local_allowed: is_workspace_local_snapshot(&session),
         },
-        page: BrowserContextSnapshotPage {
-            visible_text,
-            text_truncated: false,
-            headings: Vec::new(),
-            landmarks: Vec::new(),
-            links: Vec::new(),
-            buttons: Vec::new(),
-            forms: Vec::new(),
-            selected_text: None,
-        },
+        viewport,
+        page,
+        code_candidates,
         diagnostics: BrowserContextSnapshotDiagnostics {
             console: Vec::new(),
             network: None,
-            capture_warnings: vec![browser_diagnostic(
-                "browser-capture-degraded",
-                "capture_warning",
-                "warning",
-                "Live WebView DOM capture is not wired in this MVP slice; snapshot contains session metadata only.",
-            )],
+            capture_warnings,
         },
         evidence: BrowserContextSnapshotEvidence {
             screenshot_ref: None,
             html_excerpt_ref: None,
         },
-        privacy: BrowserPrivacyReport {
-            redaction_applied: false,
-            redacted_kinds: Vec::new(),
-            omitted_kinds: vec![
-                "raw_dom".to_string(),
-                "cookies".to_string(),
-                "headers".to_string(),
-                "scripts".to_string(),
-                "styles".to_string(),
-                "hidden_nodes".to_string(),
-            ],
-        },
-        budget: BrowserSnapshotBudget {
-            char_limit: current_settings(&state).await.default_snapshot_budget_chars as usize,
-            visible_text_limit: 8_000,
-            element_limit: 120,
-            form_field_limit: 80,
-            diagnostic_limit: 50,
-            token_estimate: None,
-        },
-        availability: "partial".to_string(),
+        privacy,
+        budget,
+        availability: if has_live_capture { "available" } else { "partial" }.to_string(),
     };
     snapshot.evidence = persist_snapshot_evidence(&state, &snapshot).await;
     {
@@ -967,6 +1681,31 @@ pub(crate) async fn capture_browser_agent_snapshot(
         }
     }
     Ok(snapshot)
+}
+
+#[tauri::command]
+pub(crate) async fn capture_browser_agent_snapshot_v2(
+    browser_session_id: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<BrowserContextSnapshot, String> {
+    capture_browser_agent_snapshot(browser_session_id, app, state).await
+}
+
+#[tauri::command]
+pub(crate) async fn refresh_browser_agent_snapshot(
+    browser_session_id: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<BrowserContextSnapshot, String> {
+    capture_browser_agent_snapshot(browser_session_id, app, state).await
+}
+
+#[tauri::command]
+pub(crate) async fn generate_browser_agent_code_candidates(
+    snapshot: BrowserContextSnapshot,
+) -> Result<Vec<BrowserCodeCandidate>, String> {
+    Ok(snapshot.code_candidates)
 }
 
 #[tauri::command]
@@ -1134,22 +1873,36 @@ mod tests {
             browser_session_id: "session-1".to_string(),
             workspace_id: "workspace-1".to_string(),
             captured_at: 100,
-            source: BrowserContextSnapshotSource {
+            freshness: BrowserSnapshotFreshness::Fresh,
+            source: BrowserSnapshotSource {
                 url: "https://example.com".to_string(),
                 normalized_url: "https://example.com".to_string(),
-                title: Some("Example".to_string()),
                 origin: Some("https://example.com".to_string()),
+                title: Some("Example".to_string()),
+                tab_label: "Example".to_string(),
+                capture_reason: "manual_attach".to_string(),
+                workspace_local_allowed: false,
             },
+            viewport: default_browser_viewport(),
             page: BrowserContextSnapshotPage {
                 visible_text: "first line\nsecond line".to_string(),
+                page_type: BrowserPageType::Unknown,
+                primary_content: None,
+                readable_blocks: Vec::new(),
+                noise_diagnostics: Vec::new(),
+                visual_evidence: Vec::new(),
                 text_truncated: false,
                 headings: Vec::new(),
                 landmarks: Vec::new(),
+                element_landmarks: Vec::new(),
+                content_regions: Vec::new(),
                 links: Vec::new(),
                 buttons: Vec::new(),
                 forms: Vec::new(),
                 selected_text: None,
+                language_hint: None,
             },
+            code_candidates: Vec::new(),
             diagnostics: BrowserContextSnapshotDiagnostics {
                 console: Vec::new(),
                 network: None,
@@ -1171,6 +1924,8 @@ mod tests {
                 form_field_limit: 80,
                 diagnostic_limit: 50,
                 token_estimate: None,
+                truncated: false,
+                omitted_element_count: 0,
             },
             availability: "available".to_string(),
         };

@@ -9,6 +9,7 @@ import type {
   BrowserSession,
   BrowserSessionCleanupResult,
   BrowserContextSnapshot,
+  BrowserCodeCandidate,
   BrowserUrlValidationResult,
   CreateBrowserSessionRequest,
   UpdateBrowserSessionRequest,
@@ -44,9 +45,11 @@ export async function routeBrowserAgentProvider(
 
 export async function validateBrowserAgentUrl(
   url: string,
+  workspaceId?: string | null,
 ): Promise<BrowserUrlValidationResult> {
   return invoke<BrowserUrlValidationResult>("validate_browser_agent_url", {
     url,
+    workspaceId,
   });
 }
 
@@ -129,6 +132,30 @@ export async function captureBrowserAgentSnapshot(
 ): Promise<BrowserContextSnapshot> {
   return invoke<BrowserContextSnapshot>("capture_browser_agent_snapshot", {
     browserSessionId,
+  });
+}
+
+export async function captureBrowserAgentSnapshotV2(
+  browserSessionId: string,
+): Promise<BrowserContextSnapshot> {
+  return invoke<BrowserContextSnapshot>("capture_browser_agent_snapshot_v2", {
+    browserSessionId,
+  });
+}
+
+export async function refreshBrowserAgentSnapshot(
+  browserSessionId: string,
+): Promise<BrowserContextSnapshot> {
+  return invoke<BrowserContextSnapshot>("refresh_browser_agent_snapshot", {
+    browserSessionId,
+  });
+}
+
+export async function generateBrowserAgentCodeCandidates(
+  snapshot: BrowserContextSnapshot,
+): Promise<BrowserCodeCandidate[]> {
+  return invoke<BrowserCodeCandidate[]>("generate_browser_agent_code_candidates", {
+    snapshot,
   });
 }
 

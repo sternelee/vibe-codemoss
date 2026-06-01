@@ -1717,6 +1717,7 @@ const zhPart2 = {
       available: "可用",
       stale: "已过时",
       expired: "已过期",
+      degraded: "降级",
       deleted: "已删除",
       unsupported: "不支持",
     },

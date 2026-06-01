@@ -13,7 +13,6 @@ import {
   ensureWorkspacePathDir,
   getWorkspaceFiles,
   isWebServiceRuntime,
-  listBrowserAgentSessions,
 } from "../services/tauri";
 import { pushErrorToast } from "../services/toasts";
 import {
@@ -41,7 +40,7 @@ import {
 } from "../features/tasks/utils/taskRunStorage";
 import {
   buildBrowserContextAttachment,
-  formatBrowserContextPrompt,
+  getActiveBrowserContext,
 } from "../features/browser-agent";
 import type { TaskRunRecord } from "../features/tasks/types";
 import {
@@ -1210,10 +1209,16 @@ export function useAppShellSections(ctx: any) {
         const baseMessage = task.description?.trim() || task.title;
         let browserContextAttachment = null;
         try {
-          const browserSessions = await listBrowserAgentSessions(workspace.id);
-          const browserSession = browserSessions.find((entry) => entry.status !== "closed");
-          if (browserSession) {
-            const snapshot = await captureBrowserAgentSnapshot(browserSession.browserSessionId);
+          const activeBrowserContext = getActiveBrowserContext();
+          if (
+            activeBrowserContext &&
+            activeBrowserContext.workspaceId === workspace.id &&
+            activeBrowserContext.rendererBound &&
+            activeBrowserContext.session.status === "ready"
+          ) {
+            const snapshot = await captureBrowserAgentSnapshot(
+              activeBrowserContext.browserSessionId,
+            );
             browserContextAttachment = buildBrowserContextAttachment(snapshot);
           }
         } catch (error) {
@@ -1222,12 +1227,9 @@ export function useAppShellSections(ctx: any) {
             error,
           );
         }
-        const browserContextPrefix = browserContextAttachment
-          ? `${formatBrowserContextPrompt(browserContextAttachment)}\n\n`
-          : "";
         const firstMessage = params.injectedPrefix
-          ? `${browserContextPrefix}${params.injectedPrefix}\n\n${baseMessage}`
-          : `${browserContextPrefix}${baseMessage}`;
+          ? `${params.injectedPrefix}\n\n${baseMessage}`
+          : baseMessage;
         if (firstMessage) {
           await sendUserMessageToThread(workspace, threadId, firstMessage, task.images ?? [], {
             ...(outboundModel ? { model: outboundModel } : {}),

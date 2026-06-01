@@ -51,7 +51,7 @@ export function getBrowserPlatformCapability(
       "macos",
       "wkwebview",
       [
-        "Read-only snapshot capture is not wired yet.",
+        "Read-only snapshot capture returns bounded page metadata and may degrade when live DOM transport is unavailable.",
         "Element and form actions remain disabled until a later phase.",
       ],
       "unsupported",
@@ -64,7 +64,7 @@ export function getBrowserPlatformCapability(
       "webview2",
       [
         "WebView2 runtime availability must be checked before Browser Dock launch.",
-        "Read-only snapshot capture is not wired yet.",
+        "Read-only snapshot capture returns bounded page metadata and may degrade when live DOM transport is unavailable.",
       ],
       "unsupported",
     );
@@ -76,7 +76,7 @@ export function getBrowserPlatformCapability(
       "webkitgtk",
       [
         "WebKitGTK behavior can vary by distribution and AppImage runtime.",
-        "Read-only snapshot capture is not wired yet.",
+        "Read-only snapshot capture returns bounded page metadata and may degrade when live DOM transport is unavailable.",
       ],
       "unsupported",
     );

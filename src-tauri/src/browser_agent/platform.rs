@@ -49,7 +49,7 @@ pub(crate) fn current_platform_capability() -> BrowserPlatformCapability {
             BrowserPlatform::Macos,
             BrowserWebviewRuntime::Wkwebview,
             vec![
-                "Read-only snapshot capture is not wired yet.".to_string(),
+                "Read-only snapshot capture returns bounded page metadata and may degrade when live DOM transport is unavailable.".to_string(),
                 "Element and form actions remain disabled until a later phase.".to_string(),
             ],
         );
@@ -63,7 +63,7 @@ pub(crate) fn current_platform_capability() -> BrowserPlatformCapability {
             vec![
                 "WebView2 runtime availability must be checked before Browser Dock launch."
                     .to_string(),
-                "Read-only snapshot capture is not wired yet.".to_string(),
+                "Read-only snapshot capture returns bounded page metadata and may degrade when live DOM transport is unavailable.".to_string(),
             ],
         );
     }
@@ -75,7 +75,7 @@ pub(crate) fn current_platform_capability() -> BrowserPlatformCapability {
             BrowserWebviewRuntime::Webkitgtk,
             vec![
                 "WebKitGTK behavior can vary by distribution and AppImage runtime.".to_string(),
-                "Read-only snapshot capture is not wired yet.".to_string(),
+                "Read-only snapshot capture returns bounded page metadata and may degrade when live DOM transport is unavailable.".to_string(),
             ],
         );
     }

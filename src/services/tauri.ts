@@ -107,10 +107,12 @@ export {
 export { getComputerUseBridgeStatus, runComputerUseActivationProbe, runComputerUseCodexBroker, runComputerUseHostContractDiagnostics } from "./tauri/computerUse";
 export {
   captureBrowserAgentSnapshot,
+  captureBrowserAgentSnapshotV2,
   cleanupBrowserAgentEvidence,
   cleanupBrowserAgentSessions,
   closeBrowserAgentSession,
   createBrowserAgentSession,
+  generateBrowserAgentCodeCandidates,
   getBrowserAgentPlatformCapability,
   getBrowserAgentSettings,
   getBrowserAgentStatus,
@@ -118,6 +120,7 @@ export {
   listBrowserAgentEvidence,
   listBrowserAgentSessions,
   mountBrowserAgentWebview,
+  refreshBrowserAgentSnapshot,
   routeBrowserAgentProvider,
   runBrowserAgentAction,
   syncBrowserAgentWebviewBounds,
@@ -136,6 +139,7 @@ export type {
   BrowserAgentStatus,
   BrowserContextAttachment,
   BrowserContextSnapshot,
+  BrowserCodeCandidate,
   BrowserSession,
   BrowserSessionCleanupResult,
   BrowserSessionStatus,
@@ -150,8 +154,6 @@ export type {
   BrowserPlatformCapability,
   BrowserPrivacyReport,
   BrowserProviderRouteDecision,
-  BrowserSession,
-  BrowserSessionStatus,
   BrowserSnapshotBudget,
   BrowserTextNode,
 } from "../features/browser-agent/types";

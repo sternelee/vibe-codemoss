@@ -1734,7 +1734,85 @@ export type BrowserContextSendAttachment = {
   url: string;
   capturedAt: number;
   stale: boolean;
+  freshness?: "fresh" | "stale" | "expired" | "degraded";
   summary: string;
+  visibleTextExcerpt?: string;
+  pageType?: "article" | "issue" | "docs" | "form" | "dashboard" | "spa" | "unknown";
+  primaryContent?: string;
+  readableBlocks?: Array<{
+    blockId: string;
+    role:
+      | "article"
+      | "issue_body"
+      | "docs_section"
+      | "form"
+      | "dashboard_panel"
+      | "paragraph"
+      | "code"
+      | "other";
+    text: string;
+    score: number;
+    truncated: boolean;
+  }>;
+  noiseDiagnostics?: Array<{
+    diagnosticId: string;
+    kind:
+      | "navigation_noise"
+      | "link_dense_region"
+      | "control_dense_region"
+      | "auth_wall"
+      | "spa_shell"
+      | "low_readability";
+    severity: "info" | "warning";
+    message: string;
+    score: number;
+  }>;
+  visualEvidence?: Array<{
+    evidenceId: string;
+    kind: "image" | "figure" | "attachment" | "video";
+    label: string;
+    altText?: string | null;
+    srcOrigin?: string | null;
+    nearbyText?: string | null;
+    visible: boolean;
+    sensitive: boolean;
+  }>;
+  elementCounts?: {
+    headings: number;
+    links: number;
+    buttons: number;
+    forms: number;
+    landmarks: number;
+    codeCandidates: number;
+    readableBlocks?: number;
+    visualEvidence?: number;
+  };
+  diagnostics?: Array<{
+    diagnosticId: string;
+    kind: string;
+    severity: "info" | "warning" | "error";
+    message: string;
+    source?: string | null;
+    redacted: boolean;
+  }>;
+  budget?: {
+    charLimit: number;
+    visibleTextLimit: number;
+    elementLimit: number;
+    formFieldLimit: number;
+    diagnosticLimit: number;
+    tokenEstimate?: number | null;
+    truncated?: boolean;
+    omittedElementCount?: number;
+  };
+  codeCandidates?: Array<{
+    candidateId: string;
+    filePath: string;
+    symbolName?: string | null;
+    reason: "route_match" | "visible_text_match" | "landmark_match" | "manual_hint";
+    confidence: "high" | "medium" | "low";
+    matchedText?: string | null;
+  }>;
   privacy: {
     redactionApplied: boolean;
     redactedKinds: string[];

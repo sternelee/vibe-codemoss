@@ -93,11 +93,7 @@ import {
   mergeUniqueNames,
 } from "../utils/inlineSelections";
 import { useStreamActivityPhase } from "../../threads/hooks/useStreamActivityPhase";
-import {
-  captureBrowserAgentSnapshot,
-  exportRewindFiles,
-  listBrowserAgentSessions,
-} from "../../../services/tauri";
+import { exportRewindFiles } from "../../../services/tauri";
 import { pushErrorToast } from "../../../services/toasts";
 import { getManualMemoryInjectionMode } from "../../project-memory/utils/manualInjectionMode";
 import type { RewindMode } from "../../threads/utils/rewindMode";
@@ -117,9 +113,8 @@ import type {
   ContextLedgerProjection,
 } from "../../context-ledger/types";
 import {
-  buildBrowserContextAttachment,
-  formatBrowserContextPrompt,
-  type BrowserContextAttachment,
+  BrowserContextPreview,
+  useBrowserContextAttachment,
 } from "../../browser-agent";
 
 type RewindExecutionOptions = {
@@ -665,10 +660,7 @@ export const Composer = memo(function Composer({
   const [carryOverContextChipKeys, setCarryOverContextChipKeys] = useState<string[]>([]);
   const [retainedContextChipKeys, setRetainedContextChipKeys] = useState<string[]>([]);
   const [selectedInlineFileReferences, setSelectedInlineFileReferences] = useState<InlineFileReferenceSelection[]>([]);
-  const [browserContextAttachment, setBrowserContextAttachment] =
-    useState<BrowserContextAttachment | null>(null);
-  const [browserContextBusy, setBrowserContextBusy] = useState(false);
-  const [browserContextError, setBrowserContextError] = useState<string | null>(null);
+  const browserContext = useBrowserContextAttachment(activeWorkspaceId);
   const [contextLedgerExpanded, setContextLedgerExpanded] = useState(false);
   const currentContextLedgerProjectionRef = useRef<ContextLedgerProjection | null>(null);
   const previousContextLedgerSessionKeyRef = useRef("");
@@ -1376,29 +1368,6 @@ export const Composer = memo(function Composer({
     void onSend("/fork", []);
   }, [disabled, onForkQuickStart, onSend, selectedEngine]);
 
-  const handleAttachBrowserContext = useCallback(async () => {
-    const workspaceId = activeWorkspaceId?.trim();
-    if (!workspaceId || browserContextBusy) {
-      return;
-    }
-    setBrowserContextBusy(true);
-    setBrowserContextError(null);
-    try {
-      const sessions = await listBrowserAgentSessions(workspaceId);
-      const session = sessions.find((item) => item.status === "ready");
-      if (!session) {
-        setBrowserContextError(t("browserAgent.composer.noSession"));
-        return;
-      }
-      const snapshot = await captureBrowserAgentSnapshot(session.browserSessionId);
-      setBrowserContextAttachment(buildBrowserContextAttachment(snapshot));
-    } catch (error) {
-      setBrowserContextError(error instanceof Error ? error.message : String(error));
-    } finally {
-      setBrowserContextBusy(false);
-    }
-  }, [activeWorkspaceId, browserContextBusy, t]);
-
   const handleSend = useCallback(
     (submittedText?: string, submittedImages?: string[]) => {
       if (disabled) {
@@ -1479,6 +1448,7 @@ export const Composer = memo(function Composer({
       const selectedNoteCardIds = selectedNoteCards.map((entry) => entry.id);
       const selectedMemoryInjectionMode = getManualMemoryInjectionMode();
       const shouldReferenceMemory = memoryReferenceMode !== "off";
+      const browserContextAttachment = browserContext.attachment;
       const hasBrowserContextAttachment = Boolean(browserContextAttachment);
       const sendOptions =
         selectedMemoryIds.length > 0 ||
@@ -1494,16 +1464,13 @@ export const Composer = memo(function Composer({
               ...(browserContextAttachment ? { browserContextAttachment } : {}),
             }
           : undefined;
-      const resolvedTextWithBrowserContext = browserContextAttachment
-        ? `${formatBrowserContextPrompt(browserContextAttachment)}\n\n${resolvedFinalTextWithAnnotations}`
-        : resolvedFinalTextWithAnnotations;
       const sendResult = onSend(
-        resolvedTextWithBrowserContext,
+        resolvedFinalTextWithAnnotations,
         mergedImages,
         sendOptions,
       );
       if (browserContextAttachment) {
-        setBrowserContextAttachment(null);
+        browserContext.remove();
       }
       const retainedManualMemories = filterRetainedEntries(
         selectedManualMemories,
@@ -1554,7 +1521,7 @@ export const Composer = memo(function Composer({
     [
       attachedImages,
       activeWorkspaceId,
-      browserContextAttachment,
+      browserContext,
       disabled,
       applyActiveFileReference,
       opencodeDisconnected,
@@ -2341,41 +2308,21 @@ export const Composer = memo(function Composer({
                 )}
               </div>
             ) : null}
-            {activeWorkspaceId ? (
+            {activeWorkspaceId && (browserContext.attachment || browserContext.error) ? (
               <div className="composer-browser-context">
-                {browserContextAttachment ? (
-                  <div className="composer-browser-context-card">
-                    <div>
-                      <div className="composer-browser-context-title">
-                        {t("browserAgent.composer.attached")}
-                      </div>
-                      <div className="composer-browser-context-url">
-                        {browserContextAttachment.url}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className="composer-browser-context-remove"
-                      onClick={() => setBrowserContextAttachment(null)}
-                    >
-                      {t("browserAgent.composer.remove")}
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    className="composer-browser-context-attach"
-                    onClick={() => void handleAttachBrowserContext()}
-                    disabled={browserContextBusy}
-                  >
-                    {browserContextBusy
-                      ? t("browserAgent.composer.attaching")
-                      : t("browserAgent.composer.attach")}
-                  </button>
-                )}
-                {browserContextError ? (
+                {browserContext.attachment ? (
+                  <BrowserContextPreview
+                    attachment={browserContext.attachment}
+                    busy={browserContext.busy}
+                    onRefresh={() => void browserContext.refresh()}
+                    onRemove={browserContext.remove}
+                  />
+                ) : null}
+                {browserContext.error ? (
                   <div className="composer-browser-context-error" role="status">
-                    {browserContextError}
+                    {browserContext.error === "browser_context_no_active_session"
+                      ? t("browserAgent.composer.noSession")
+                      : browserContext.error}
                   </div>
                 ) : null}
               </div>

@@ -32,7 +32,16 @@ export type TaskRunBrowserEvidenceRef = {
   url: string;
   title?: string | null;
   capturedAt: number;
-  state: "available" | "stale" | "expired" | "deleted" | "unsupported";
+  state: "available" | "stale" | "expired" | "degraded" | "deleted" | "unsupported";
+  summary?: string | null;
+  diagnostics?: string[];
+  redactedKinds?: string[];
+  codeCandidates?: Array<{
+    filePath: string;
+    reason: "route_match" | "visible_text_match" | "landmark_match" | "manual_hint";
+    confidence: "high" | "medium" | "low";
+    matchedText?: string | null;
+  }>;
 };
 
 export type TaskRunRecoveryAction =

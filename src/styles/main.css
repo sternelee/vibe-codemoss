@@ -1686,6 +1686,11 @@ body[data-panel-resizing="true"] .main {
   border-bottom: 1px solid var(--border-subtle);
 }
 
+.browser-agent-center-panel-heading {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .browser-agent-center-panel-title {
   color: var(--text-primary);
   font-size: 14px;
@@ -1697,6 +1702,44 @@ body[data-panel-resizing="true"] .main {
   color: var(--text-muted);
   font-size: 12px;
   line-height: 1.35;
+}
+
+.browser-agent-center-panel-actions {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.browser-agent-center-panel-attach {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 96px;
+  height: 28px;
+  border: 1px solid color-mix(in srgb, #2563eb 46%, transparent);
+  border-radius: 10px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, #2563eb 16%, var(--surface-base)),
+    color-mix(in srgb, #2563eb 7%, var(--surface-base))
+  );
+  color: #1d4ed8;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.browser-agent-center-panel-attach:hover {
+  border-color: color-mix(in srgb, #2563eb 70%, transparent);
+  background: color-mix(in srgb, #2563eb 14%, var(--surface-base));
+}
+
+.browser-agent-center-panel-attach:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .browser-agent-center-panel-close {
