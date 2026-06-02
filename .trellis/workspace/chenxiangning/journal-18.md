@@ -1272,3 +1272,48 @@ Validation performed before commit:
 ### Next Steps
 
 - None - task complete
+
+
+## Session 680: 修复被动读取拉起 Codex 进程
+
+**Date**: 2026-06-02
+**Task**: 修复被动读取拉起 Codex 进程
+**Branch**: `feature/v0.5.5`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| Area | Summary |
+|------|---------|
+| OpenSpec | Created `prevent-passive-runtime-acquisition` proposal/design/spec/tasks for passive runtime acquisition regression. |
+| Frontend | Marked passive workspace hydration, focus refresh, and restore thread-list refresh as `allowRuntimeReconnect: false`. |
+| Backend | Removed implicit runtime acquisition from Codex helper reads; daemon/direct commands return degraded fallback when no session exists. |
+| Validation | `openspec validate --all --strict --no-interactive`, `npm run typecheck`, and `cargo check --manifest-path src-tauri/Cargo.toml` passed. |
+
+**Code Commit**: `20e17a52 fix(runtime): 阻止被动读取拉起 Codex 进程`
+
+**Notes**:
+- Existing explicit runtime actions such as send, resume, and manual reconnect remain runtime-acquiring paths.
+- Unrelated browser-agent working tree changes were intentionally excluded from the code commit.
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `20e17a52` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
