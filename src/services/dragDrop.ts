@@ -1,3 +1,4 @@
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 export type DragDropPayload = {
@@ -19,6 +20,17 @@ type SubscriptionOptions = {
 let unlisten: (() => void) | null = null;
 let listenPromise: Promise<() => void> | null = null;
 const listeners = new Set<Listener>();
+const FORWARDED_WINDOW_DRAG_DROP_EVENT = "main-window://drag-drop";
+
+function dispatchDragDropEvent(event: DragDropEvent) {
+  for (const listener of listeners) {
+    try {
+      listener(event);
+    } catch (error) {
+      console.error("[drag-drop] listener failed", error);
+    }
+  }
+}
 
 function start(options?: SubscriptionOptions) {
   if (unlisten || listenPromise) {
@@ -31,15 +43,18 @@ function start(options?: SubscriptionOptions) {
     options?.onError?.(error);
     return;
   }
-  listenPromise = currentWindow.onDragDropEvent((event) => {
-    for (const listener of listeners) {
-      try {
-        listener(event as DragDropEvent);
-      } catch (error) {
-        console.error("[drag-drop] listener failed", error);
-      }
+  listenPromise = Promise.all([
+    currentWindow.onDragDropEvent((event) => {
+      dispatchDragDropEvent(event as DragDropEvent);
+    }) as Promise<() => void>,
+    listen<DragDropPayload>(FORWARDED_WINDOW_DRAG_DROP_EVENT, (event) => {
+      dispatchDragDropEvent({ payload: event.payload });
+    }),
+  ]).then((handlers) => () => {
+    for (const handler of handlers) {
+      handler();
     }
-  }) as Promise<() => void>;
+  });
   listenPromise
     .then((handler) => {
       listenPromise = null;
