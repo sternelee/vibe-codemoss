@@ -1088,3 +1088,46 @@ Validation performed before commit:
 ### Next Steps
 
 - None - task complete
+
+
+## Session 676: 修复 DMG 安装引导布局回退
+
+**Date**: 2026-06-02
+**Task**: 修复 DMG 安装引导布局回退
+**Branch**: `feature/v0.5.5`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| 项目 | 内容 |
+|------|------|
+| 问题 | 最新 DMG 打开后退回 Finder 白底默认布局，未显示拖拽到 Applications 的安装引导背景。 |
+| 根因 | `scripts/create-dmg.sh` 将 Finder AppleScript layout 失败降级为 warning，导致背景图与图标坐标未写入时仍可发布产物。 |
+| 修复 | 默认阻断 AppleScript layout 失败，新增 `ALLOW_DMG_LAYOUT_FALLBACK=1` 作为显式降级开关，并检查 `.background/background.png` 与 `.DS_Store`。 |
+| 影响 | macOS DMG 发布流程会在安装引导布局无法持久化时失败，避免继续发布回退样式安装包。 |
+| 验证 | 本次未运行完整 macOS build；提交前检查了 diff 与提交状态。 |
+
+**Updated Files**:
+- `scripts/create-dmg.sh`
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e0ec07c6` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
