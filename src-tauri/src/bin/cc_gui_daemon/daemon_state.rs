@@ -2637,22 +2637,66 @@ impl DaemonState {
     }
 
     pub(super) async fn model_list(&self, workspace_id: String) -> Result<Value, String> {
-        self.ensure_codex_session_for_workspace(&workspace_id)
-            .await?;
-        codex_core::model_list_core(&self.sessions, workspace_id).await
+        match codex_core::model_list_core(&self.sessions, workspace_id.clone()).await {
+            Ok(response) => Ok(response),
+            Err(error) if error == "workspace not connected" => {
+                log::debug!(
+                    "[daemon:model_list] passive model/list skipped runtime acquisition for {}: {}",
+                    workspace_id,
+                    error
+                );
+                Ok(json!({
+                    "data": [],
+                    "degraded": true,
+                    "runtimeAvailable": false,
+                    "reason": "workspace not connected",
+                }))
+            }
+            Err(error) => Err(error),
+        }
     }
 
     pub(super) async fn collaboration_mode_list(
         &self,
         workspace_id: String,
     ) -> Result<Value, String> {
-        codex_core::collaboration_mode_list_core(&self.sessions, workspace_id).await
+        match codex_core::collaboration_mode_list_core(&self.sessions, workspace_id.clone()).await {
+            Ok(response) => Ok(response),
+            Err(error) if error == "workspace not connected" => {
+                log::debug!(
+                    "[daemon:collaboration_mode_list] passive collaborationMode/list skipped runtime acquisition for {}: {}",
+                    workspace_id,
+                    error
+                );
+                Ok(json!({
+                    "data": [],
+                    "degraded": true,
+                    "runtimeAvailable": false,
+                    "reason": "workspace not connected",
+                }))
+            }
+            Err(error) => Err(error),
+        }
     }
 
     pub(super) async fn account_rate_limits(&self, workspace_id: String) -> Result<Value, String> {
-        self.ensure_codex_session_for_workspace(&workspace_id)
-            .await?;
-        codex_core::account_rate_limits_core(&self.sessions, workspace_id).await
+        match codex_core::account_rate_limits_core(&self.sessions, workspace_id.clone()).await {
+            Ok(response) => Ok(response),
+            Err(error) if error == "workspace not connected" => {
+                log::debug!(
+                    "[daemon:account_rate_limits] passive account/rateLimits read skipped runtime acquisition for {}: {}",
+                    workspace_id,
+                    error
+                );
+                Ok(json!({
+                    "rateLimits": null,
+                    "degraded": true,
+                    "runtimeAvailable": false,
+                    "reason": "workspace not connected",
+                }))
+            }
+            Err(error) => Err(error),
+        }
     }
 
     pub(super) async fn account_read(&self, workspace_id: String) -> Result<Value, String> {

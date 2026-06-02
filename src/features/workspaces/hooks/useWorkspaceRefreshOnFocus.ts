@@ -13,6 +13,7 @@ type WorkspaceRefreshOptions = {
       preserveState?: boolean;
       includeOpenCodeSessions?: boolean;
       recoverySource?: "focus-refresh";
+      allowRuntimeReconnect?: boolean;
     },
   ) => Promise<void>;
 };
@@ -72,7 +73,8 @@ export function useWorkspaceRefreshOnFocus({
             preserveState: true,
             includeOpenCodeSessions: false,
             recoverySource: "focus-refresh",
-          });
+          allowRuntimeReconnect: false,
+});
         }
         await Promise.allSettled(
           rest.map((workspace) =>
@@ -80,7 +82,8 @@ export function useWorkspaceRefreshOnFocus({
               preserveState: true,
               includeOpenCodeSessions: false,
               recoverySource: "focus-refresh",
-            }),
+            allowRuntimeReconnect: false,
+}),
           ),
         );
       } finally {
