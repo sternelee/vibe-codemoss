@@ -1475,3 +1475,43 @@ Validation performed before commit:
 ### Next Steps
 
 - None - task complete
+
+
+## Session 684: 校准 Project Map 视图交互与门禁噪音
+
+**Date**: 2026-06-03
+**Task**: 校准 Project Map 视图交互与门禁噪音
+**Branch**: `feature/v0.5.5`
+
+### Summary
+
+完成 Project Map 视图信息架构、导航/关系/健康语义校准，并修复相关 CI gate 噪音与 branding 残留。
+
+### Main Changes
+
+- 重构 Project Map 顶部视图层：移除低价值 Guided Tour 和主视图 Evidence Files 面板，将导航、关系、健康问题收敛为 secondary investigation actions。
+- 压缩导航和关系区域，去除胶囊/重边框/彩色渐变，改为更克制的主题自适应极简分区。
+- 修复节点点击后的上下文同步：路径查找起点跟随当前选中节点，typed/hierarchy relations 在全部方向下收敛到当前节点相关关系，顶部关系数字显示过滤后数量。
+- 校准 Graph Repair 语义：健康入口改为未解决问题数，修复动作区分可确定清理与缺证据标记，并显示清理/标记结果。
+- 修复 CI gate：useLayoutNodes client UI visibility 测试统一 flush renderHook 后异步更新，降低 heavy-test-noise act warning；heavy-test-noise runner boundary 不再携带 stale stream context。
+- 修复 doctor:win branding：shipping surface 中的 mossx 事件前缀、默认 copy、browser toolbar host/path 改为 ccgui。
+- 未在本回合运行完整 typecheck、doctor:win 或全量测试；相关 OpenSpec validation/typecheck/focused tests 仍按 tasks.md 保持待执行状态。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0ed9db03` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

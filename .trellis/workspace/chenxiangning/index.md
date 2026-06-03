@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-18.md`
-- **Total Sessions**: 683
+- **Total Sessions**: 684
 - **Last Active**: 2026-06-03
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-18.md` | ~1477 | Active |
+| `journal-18.md` | ~1517 | Active |
 | `journal-17.md` | ~1971 | Archived |
 | `journal-16.md` | ~1985 | Archived |
 | `journal-15.md` | ~1996 | Archived |
@@ -46,6 +46,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 684 | 2026-06-03 | 校准 Project Map 视图交互与门禁噪音 | `0ed9db03` | `feature/v0.5.5` |
 | 683 | 2026-06-03 | Project Map 图谱体系与大文件治理批量收口 | `e672301c`, `c1ecd630`, `1e7123c3`, `66929982` | `feature/v0.5.5` |
 | 682 | 2026-06-03 | Browser Agent 浏览器上下文收口 | `e05159c7` | `feature/v0.5.5` |
 | 681 | 2026-06-02 | 回滚 DMG 创建脚本到 v0.5.4 | `862fb673` | `feature/v0.5.5` |
