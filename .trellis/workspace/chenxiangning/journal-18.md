@@ -1869,3 +1869,60 @@ Validation performed before commit:
 ### Next Steps
 
 - None - task complete
+
+
+## Session 692: 修复 WebView2 消息图片内存压力
+
+**Date**: 2026-06-05
+**Task**: 修复 WebView2 消息图片内存压力
+**Branch**: `feature/v0.5.6`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| Area | Summary |
+|------|---------|
+| Root cause | Windows WebView2 renderer memory pressure from long-lived inline `data:image` payloads, deferred Claude image hydration, and image-heavy message timelines. |
+| Frontend | Added transient object URL rendering for inline message images and lightbox previews while preserving fallback display behavior. |
+| Deferred images | Added explicit `blob:` ownership and release handling for normal unmount, state overwrite, hydration failure, and async late resolve after unmount. |
+| Virtualization | Added render-density based virtualization for image-heavy timelines without changing the old row-count streaming guard. |
+| Regression coverage | Added tests for deferred image resource release and deferred image updates on an existing message row. |
+
+**Updated Files**:
+- `src/features/messages/components/MessageMediaBlocks.tsx`
+- `src/features/messages/components/MessagesRows.tsx`
+- `src/features/messages/components/MessagesTimeline.tsx`
+- `src/features/messages/components/messagesTimelineVirtualization.ts`
+- `src/features/messages/components/Messages.rich-content.test.tsx`
+- `src/features/messages/components/messagesTimelineVirtualization.test.ts`
+- `openspec/changes/fix-webview2-message-image-memory-pressure/**`
+- `.trellis/tasks/archive/2026-06/06-04-fix-webview2-message-image-memory-pressure/**`
+
+**Validation**:
+- `pnpm typecheck` passed.
+- `pnpm vitest run src/features/messages/components/Messages.rich-content.test.tsx src/features/messages/components/messagesTimelineVirtualization.test.ts` passed: 2 files, 25 tests.
+
+**Code Commit**:
+- `63d6e8b8 fix(messages): 修复 WebView2 图片内存压力`
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `63d6e8b8` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
