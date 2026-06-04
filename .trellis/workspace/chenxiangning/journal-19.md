@@ -41,3 +41,62 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 695: 归档稳定性提案
+
+**Date**: 2026-06-05
+**Task**: 归档稳定性提案
+**Branch**: `feature/v0.5.6`
+
+### Summary
+
+归档 OpenSpec 稳定性收口提案并同步主规范。
+
+### Main Changes
+
+### Summary
+
+完成 OpenSpec 稳定性收口提案归档提交：
+
+- 归档 5 个已完成或经 owner 确认带 caveat 收口的 active changes：
+  - add-session-attribution-mode-setting
+  - deepen-project-map-query-and-association-workbench
+  - fix-claude-argv-prompt-shell-escaping
+  - fix-webview2-message-image-memory-pressure
+  - refactor-project-map-view-information-architecture
+- 同步 main specs：
+  - workspace-session-attribution-mode
+  - workspace-session-catalog-projection
+  - workspace-session-source-fact-cache
+  - project-xray-panel
+  - claude-code-realtime-stream-visibility
+  - conversation-realtime-client-performance
+  - long-list-virtualization-performance
+- WebView2 Windows 手工验证因当前无 Windows/WebView2 环境未执行，已在归档 tasks 中保留 caveat，未伪造完成。
+
+### Validation
+
+- npm exec vitest run src/features/messages/components/messagesTimelineVirtualization.test.ts src/features/messages/components/LocalImage.test.tsx src/features/messages/components/Messages.rich-content.test.tsx: 28 passed
+- npm exec vitest run src/features/project-map/components/ProjectMapPanel.test.tsx src/features/project-map/projectMapLayoutCss.test.ts: 56 passed
+- npm run typecheck: passed
+- openspec validate --all --strict --no-interactive: 309 passed, 0 failed
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `291a7698` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
