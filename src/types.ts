@@ -229,6 +229,7 @@ export type ReviewTarget =
 
 export type AccessMode = "default" | "read-only" | "current" | "full-access";
 export type BackendMode = "local" | "remote";
+export type WorkspaceSessionAttributionMode = "related" | "workspace-only";
 export type ThemeAppearance = "light" | "dark";
 export type ThemePreference = "system" | "light" | "dark" | "dim" | "custom";
 export type LightThemePresetId =
@@ -742,6 +743,7 @@ export type AppSettings = {
   terminalShellPath: string | null;
   geminiEnabled: boolean;
   opencodeEnabled: boolean;
+  sessionAttributionMode?: WorkspaceSessionAttributionMode;
   backendMode: BackendMode;
   remoteBackendHost: string;
   remoteBackendToken: string | null;

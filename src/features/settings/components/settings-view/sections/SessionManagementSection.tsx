@@ -44,8 +44,10 @@ import {
 } from "../../../../app/constants";
 import { EngineIcon } from "../../../../engine/components/EngineIcon";
 import type {
+  AppSettings,
   ConversationItem,
   EngineType,
+  WorkspaceSessionAttributionMode,
   WorkspaceInfo,
   WorkspaceSettings,
 } from "../../../../../types";
@@ -95,9 +97,11 @@ type NoticeState =
 type SessionManagementSectionProps = {
   title: string;
   description: string;
+  appSettings?: AppSettings;
   workspaces: WorkspaceInfo[];
   groupedWorkspaces: GroupedWorkspace[];
   initialWorkspaceId?: string | null;
+  onUpdateAppSettings?: (next: AppSettings) => Promise<void>;
   onUpdateWorkspaceSettings?: (
     workspaceId: string,
     settings: Partial<WorkspaceSettings>,
@@ -449,9 +453,11 @@ function collectDeletedThreadIdsByWorkspaceId(
 export function SessionManagementSection({
   title,
   description,
+  appSettings,
   workspaces,
   groupedWorkspaces,
   initialWorkspaceId = null,
+  onUpdateAppSettings,
   onUpdateWorkspaceSettings,
   onSessionsMutated,
 }: SessionManagementSectionProps) {
@@ -512,17 +518,30 @@ export function SessionManagementSection({
     useState(String(DEFAULT_VISIBLE_THREAD_ROOT_COUNT));
   const [isSavingVisibleThreadRootCount, setIsSavingVisibleThreadRootCount] =
     useState(false);
+  const [isSavingAttributionMode, setIsSavingAttributionMode] =
+    useState(false);
   const [sessionCurtain, setSessionCurtain] =
     useState<SessionCurtainState | null>(null);
   sessionCurtainRef.current = sessionCurtain;
   const primarySource: WorkspaceSessionCatalogSource = "strict";
+  const resolvedAppSettings =
+    appSettings ?? ({ sessionAttributionMode: "related" } as AppSettings);
+  const effectiveAttributionMode: WorkspaceSessionAttributionMode =
+    resolvedAppSettings.sessionAttributionMode === "workspace-only"
+      ? "workspace-only"
+      : "related";
+  const effectiveAttributionModeLabel =
+    effectiveAttributionMode === "workspace-only"
+      ? t("settings.sessionAttributionModeWorkspaceOnly")
+      : t("settings.sessionAttributionModeRelated");
   const summaryQuery = useMemo(
     () => ({
       keyword: filters.keyword,
       engine: filters.engine,
       status: filters.status,
+      sessionAttributionMode: effectiveAttributionMode,
     }),
-    [filters.engine, filters.keyword, filters.status],
+    [effectiveAttributionMode, filters.engine, filters.keyword, filters.status],
   );
   const catalogFilters = useMemo<WorkspaceSessionCatalogFilters>(
     () => ({
@@ -560,6 +579,7 @@ export function SessionManagementSection({
     mode,
     workspaceId,
     filters: catalogFilters,
+    sessionAttributionMode: effectiveAttributionMode,
     source: primarySource,
   });
   const {
@@ -576,8 +596,9 @@ export function SessionManagementSection({
     mode: "project",
     workspaceId,
     filters,
+    sessionAttributionMode: effectiveAttributionMode,
     source: "related",
-    enabled: mode === "project",
+    enabled: mode === "project" && effectiveAttributionMode === "related",
   });
 
   const loadedFolderCountSummary = useMemo(
@@ -615,8 +636,11 @@ export function SessionManagementSection({
   const visiblePrimaryEntries = useMemo(() => primaryEntries, [primaryEntries]);
   const visibleRelatedEntries = useMemo(
     () =>
-      sessionFolderFilter === SESSION_FOLDER_FILTER_ALL ? relatedEntries : [],
-    [relatedEntries, sessionFolderFilter],
+      effectiveAttributionMode === "related" &&
+      sessionFolderFilter === SESSION_FOLDER_FILTER_ALL
+        ? relatedEntries
+        : [],
+    [effectiveAttributionMode, relatedEntries, sessionFolderFilter],
   );
   const visibleEntries = useMemo(
     () =>
@@ -751,6 +775,33 @@ export function SessionManagementSection({
     setMoveTargetFolderId(SESSION_FOLDER_FILTER_ROOT);
     resetSelection();
     setNotice(null);
+  };
+
+  const handleAttributionModeChange = async (
+    nextMode: WorkspaceSessionAttributionMode,
+  ) => {
+    if (nextMode === effectiveAttributionMode || isSavingAttributionMode) {
+      return;
+    }
+    if (!onUpdateAppSettings) {
+      return;
+    }
+    setIsSavingAttributionMode(true);
+    try {
+      await onUpdateAppSettings({
+        ...resolvedAppSettings,
+        sessionAttributionMode: nextMode,
+      });
+      resetSelection();
+      setNotice(null);
+    } catch (error) {
+      setNotice({
+        kind: "error",
+        text: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setIsSavingAttributionMode(false);
+    }
   };
 
   const handleSessionFolderFilterChange = (
@@ -1649,6 +1700,78 @@ export function SessionManagementSection({
               >
                 <RotateCw size={14} aria-hidden />
                 {t("settings.projectSessionRefresh")}
+              </Button>
+            </div>
+          </div>
+
+          <div className="settings-project-sessions-attribution-panel">
+            <div className="settings-project-sessions-attribution-copy">
+              <div className="settings-project-sessions-attribution-title-row">
+                <div className="settings-project-sessions-attribution-title">
+                  {t("settings.sessionAttributionModeTitle")}
+                </div>
+                <span className="settings-project-sessions-attribution-current">
+                  {t("settings.sessionAttributionModeCurrent", {
+                    mode: effectiveAttributionModeLabel,
+                  })}
+                </span>
+              </div>
+              <p>{t("settings.sessionAttributionModeDescription")}</p>
+            </div>
+            <div
+              className="settings-project-sessions-attribution-toggle"
+              role="radiogroup"
+              aria-label={t("settings.sessionAttributionModeTitle")}
+            >
+              <Button
+                type="button"
+                size="sm"
+                variant={
+                  effectiveAttributionMode === "related"
+                    ? "default"
+                    : "outline"
+                }
+                role="radio"
+                aria-checked={effectiveAttributionMode === "related"}
+                disabled={isSavingAttributionMode}
+                onClick={() => void handleAttributionModeChange("related")}
+              >
+                <span className="settings-project-sessions-attribution-radio" aria-hidden />
+                <span className="settings-project-sessions-attribution-option-copy">
+                  <span className="settings-project-sessions-attribution-option-title">
+                    {t("settings.sessionAttributionModeRelated")}
+                  </span>
+                  <span className="settings-project-sessions-attribution-option-description">
+                    {t("settings.sessionAttributionModeRelatedDescription")}
+                  </span>
+                </span>
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={
+                  effectiveAttributionMode === "workspace-only"
+                    ? "default"
+                    : "outline"
+                }
+                role="radio"
+                aria-checked={effectiveAttributionMode === "workspace-only"}
+                disabled={isSavingAttributionMode}
+                onClick={() =>
+                  void handleAttributionModeChange("workspace-only")
+                }
+              >
+                <span className="settings-project-sessions-attribution-radio" aria-hidden />
+                <span className="settings-project-sessions-attribution-option-copy">
+                  <span className="settings-project-sessions-attribution-option-title">
+                    {t("settings.sessionAttributionModeWorkspaceOnly")}
+                  </span>
+                  <span className="settings-project-sessions-attribution-option-description">
+                    {t(
+                      "settings.sessionAttributionModeWorkspaceOnlyDescription",
+                    )}
+                  </span>
+                </span>
               </Button>
             </div>
           </div>

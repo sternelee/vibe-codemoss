@@ -101,6 +101,7 @@ describe("useWorkspaceSessionCatalog", () => {
           engine: null,
           status: "active",
           folderId: null,
+          sessionAttributionMode: "related",
         },
         cursor: null,
         limit: 9_999,
@@ -168,6 +169,37 @@ describe("useWorkspaceSessionCatalog", () => {
       requestedLimit: 9_999,
       effectiveLimit: 9_999,
       limitCapped: false,
+    });
+  });
+
+  it("passes workspace-only attribution mode into project catalog queries", async () => {
+    vi.mocked(listWorkspaceSessions).mockResolvedValueOnce({
+      data: [],
+      nextCursor: null,
+      partialSource: null,
+    });
+
+    renderHook(() =>
+      useWorkspaceSessionCatalog({
+        mode: "project",
+        workspaceId: "ws-1",
+        filters: DEFAULT_FILTERS,
+        sessionAttributionMode: "workspace-only",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(listWorkspaceSessions).toHaveBeenCalledWith("ws-1", {
+        query: {
+          keyword: null,
+          engine: null,
+          status: "active",
+          folderId: null,
+          sessionAttributionMode: "workspace-only",
+        },
+        cursor: null,
+        limit: 9_999,
+      });
     });
   });
 
@@ -413,6 +445,7 @@ describe("useWorkspaceSessionCatalog", () => {
           engine: "claude",
           status: "active",
           folderId: null,
+          sessionAttributionMode: "related",
         },
         cursor: null,
         limit: 9_999,
@@ -497,6 +530,7 @@ describe("useWorkspaceSessionCatalog", () => {
           engine: null,
           status: "active",
           folderId: null,
+          sessionAttributionMode: "related",
         },
         cursor: null,
         limit: 9_999,
@@ -544,6 +578,7 @@ describe("useWorkspaceSessionCatalog", () => {
           engine: "claude",
           status: "active",
           folderId: null,
+          sessionAttributionMode: "related",
         },
         cursor: null,
         limit: 9_999,

@@ -11,6 +11,7 @@ import {
   type WorkspaceSessionCatalogEntry,
   type WorkspaceSessionCatalogQuery,
 } from "../../../../../services/tauri";
+import type { WorkspaceSessionAttributionMode } from "../../../../../types";
 
 export type WorkspaceSessionCatalogStatus = "active" | "archived" | "all";
 export type WorkspaceSessionCatalogMode = "project" | "global";
@@ -60,6 +61,7 @@ type UseWorkspaceSessionCatalogOptions = {
   mode: WorkspaceSessionCatalogMode;
   workspaceId: string | null;
   filters: WorkspaceSessionCatalogFilters;
+  sessionAttributionMode?: WorkspaceSessionAttributionMode;
   source?: WorkspaceSessionCatalogSource;
   enabled?: boolean;
 };
@@ -103,12 +105,14 @@ function normalizeErrorMessage(error: unknown): string {
 
 function toQuery(
   filters: WorkspaceSessionCatalogFilters,
+  sessionAttributionMode: WorkspaceSessionAttributionMode,
 ): WorkspaceSessionCatalogQuery {
   return {
     keyword: filters.keyword.trim() || null,
     engine: filters.engine.trim() || null,
     status: filters.status,
     folderId: filters.folderId?.trim() || null,
+    sessionAttributionMode,
   };
 }
 
@@ -175,6 +179,7 @@ export function useWorkspaceSessionCatalog({
   mode,
   workspaceId,
   filters,
+  sessionAttributionMode = "related",
   source = "strict",
   enabled = true,
 }: UseWorkspaceSessionCatalogOptions) {
@@ -195,8 +200,12 @@ export function useWorkspaceSessionCatalog({
   const { engine, folderId, keyword, status } = filters;
 
   const query = useMemo(
-    () => toQuery({ engine, folderId, keyword, status }),
-    [engine, folderId, keyword, status],
+    () =>
+      toQuery(
+        { engine, folderId, keyword, status },
+        sessionAttributionMode,
+      ),
+    [engine, folderId, keyword, sessionAttributionMode, status],
   );
 
   const loadPage = useCallback(

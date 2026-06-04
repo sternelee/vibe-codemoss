@@ -372,7 +372,7 @@ describe("useThreadActions thread list recovery and pagination", () => {
     });
 
     expect(listWorkspaceSessions).toHaveBeenCalledWith("ws-1", {
-      query: { status: "active" },
+      query: { status: "active", sessionAttributionMode: "related" },
       cursor: "offset:200",
       limit: 9_999,
     });

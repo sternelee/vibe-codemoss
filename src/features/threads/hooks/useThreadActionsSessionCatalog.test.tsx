@@ -42,7 +42,7 @@ describe("useThreadActionsSessionCatalog", () => {
       await result.current.loadActiveProjectCatalogSessions("ws-1");
 
     expect(listWorkspaceSessionsService).toHaveBeenNthCalledWith(1, "ws-1", {
-      query: { status: "active" },
+      query: { status: "active", sessionAttributionMode: "related" },
       cursor: null,
       limit: 9_999,
     });
@@ -87,6 +87,33 @@ describe("useThreadActionsSessionCatalog", () => {
     expect(listWorkspaceSessionsService).toHaveBeenCalledTimes(1);
     expect(catalog?.nextCursor).toBeNull();
     expect(catalog?.partialSource).toBeNull();
+  });
+
+  it("passes workspace-only mode into active project catalog requests", async () => {
+    const listWorkspaceSessionsService = vi.fn().mockResolvedValueOnce({
+      data: [],
+      nextCursor: null,
+      partialSource: null,
+    });
+
+    const { result } = renderHook(() =>
+      useThreadActionsSessionCatalog({
+        canListWorkspaceSessions: true,
+        listWorkspaceSessionsService,
+        listWorkspaceSessionArchiveEvidenceService: null,
+      }),
+    );
+
+    await result.current.loadActiveProjectCatalogSessions(
+      "ws-1",
+      "workspace-only",
+    );
+
+    expect(listWorkspaceSessionsService).toHaveBeenCalledWith("ws-1", {
+      query: { status: "active", sessionAttributionMode: "workspace-only" },
+      cursor: null,
+      limit: 9_999,
+    });
   });
 
   it("preserves automatic session metadata from catalog rows", async () => {

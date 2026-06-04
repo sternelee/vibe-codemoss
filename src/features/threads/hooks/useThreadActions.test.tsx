@@ -1911,7 +1911,7 @@ describe("useThreadActions", () => {
     });
 
     expect(listWorkspaceSessions).toHaveBeenCalledWith("ws-1", {
-      query: { status: "active" },
+      query: { status: "active", sessionAttributionMode: "related" },
       cursor: null,
       limit: 9_999,
     });
@@ -2103,7 +2103,7 @@ describe("useThreadActions", () => {
     expect(listClaudeSessions).toHaveBeenCalled();
     expect(getOpenCodeSessionList).toHaveBeenCalled();
     expect(listWorkspaceSessions).toHaveBeenCalledWith("ws-1", {
-      query: { status: "active" },
+      query: { status: "active", sessionAttributionMode: "related" },
       cursor: null,
       limit: 9_999,
     });
