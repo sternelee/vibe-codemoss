@@ -1816,3 +1816,56 @@ Validation performed before commit:
 ### Next Steps
 
 - None - task complete
+
+
+## Session 691: 归档运行时交互卡顿优化提案
+
+**Date**: 2026-06-04
+**Task**: 归档运行时交互卡顿优化提案
+**Branch**: `feature/v0.5.6`
+
+### Summary
+
+归档 OpenSpec 提案 fix-client-runtime-interaction-jank，提交客户端运行时交互卡顿优化、性能证据和规范同步。
+
+### Main Changes
+
+## 完成内容
+
+- 归档 OpenSpec change：`fix-client-runtime-interaction-jank` -> `openspec/changes/archive/2026-06-04-fix-client-runtime-interaction-jank/`。
+- 同步 5 个主 specs：`conversation-realtime-client-performance`、`long-list-virtualization-performance`、`runtime-performance-evidence-gates`、`workspace-session-catalog-projection`、`workspace-session-radar-overview`。
+- 提交客户端运行时交互卡顿优化：Composer advisory props 稳定、StatusPanel scoped projection、Messages streaming 控制即时路径、Foreground-first thread switching、Sidebar/session folder projection cache、Session catalog bounded paging/dedupe/stale guards、Radar/prewarm staging。
+- 更新性能证据：`docs/perf/baseline.*`、`docs/perf/runtime-evidence-gates.*`、`docs/perf/history/v0.5.6-baseline.*`、提案内 `performance-evidence-report.md`。
+
+## 验证
+
+- `npm run check:heavy-test-noise`：通过，608 个 test files 完成，act warnings 0，stdout/stderr payload noise 0。
+- `node scripts/check-heavy-test-noise.mjs --input .artifacts/heavy-test-noise.log --mode report`：通过，0 breaches。
+- `npm run typecheck`：通过。
+- `openspec validate --all --strict --no-interactive`：通过，312 items passed。
+- `npm run perf:baseline:all`：通过。
+- `npm run check:runtime-evidence-gates`：通过。
+- `git diff --check`：通过。
+
+## 残余边界
+
+- 当前自动化证据包含 proxy baseline、runtime evidence gate、browser scroll measured evidence；真实 Tauri/WebView streaming typing React Profiler/PerformanceObserver 采样仍属于 release qualifier，不能据此夸大为完整真实用户环境性能结论。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `980a7b57ac9b07804455e31f8a1eab133677b4bc` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
