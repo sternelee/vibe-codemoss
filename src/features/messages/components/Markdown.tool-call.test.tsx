@@ -125,4 +125,21 @@ describe("Markdown tool-call fallback", () => {
     expect(screen.getByText("read")).toBeTruthy();
     expect(screen.getByText("AGENTS.md")).toBeTruthy();
   });
+
+  it("keeps streaming XML literal when it follows an unclosed inline code delimiter", () => {
+    const value = "Document `<function_calls><invoke name=\"example\">";
+
+    const { container } = render(
+      <Markdown
+        value={value}
+        className="markdown"
+        codeBlockStyle="message"
+        streamingThrottleMs={0}
+      />,
+    );
+
+    expect(screen.queryByRole("group", { name: "messages.toolCallCard.title" })).toBeNull();
+    expect(container.textContent ?? "").toContain("<function_calls>");
+    expect(container.textContent ?? "").toContain("<invoke name=\"example\">");
+  });
 });

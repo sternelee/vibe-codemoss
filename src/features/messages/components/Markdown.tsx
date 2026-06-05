@@ -40,7 +40,10 @@ import {
   remarkFileLinks,
   toFileLink,
 } from "../../../utils/remarkFileLinks";
-import { normalizeOutsideMarkdownCode } from "../../../utils/markdownCodeRegions";
+import {
+  getMarkdownInlineCodeInfo,
+  normalizeOutsideMarkdownCode,
+} from "../../../utils/markdownCodeRegions";
 import { highlightLine } from "../../../utils/syntax";
 import { detectCodexLeadMarker, type CodexLeadMarkerConfig } from "../constants/codexLeadMarkers";
 import { parseToolCallBlocks, type Block } from "../utils/toolCallBlocks";
@@ -1992,7 +1995,9 @@ export const Markdown = memo(function Markdown({
   );
 
   const renderMarkdownContent = useCallback((nextContent: string) => {
-    if (liveRenderMode === "lightweight") {
+    const hasSyntaxIncompleteInlineCode =
+      getMarkdownInlineCodeInfo(nextContent).hasUnclosedInlineCode;
+    if (liveRenderMode === "lightweight" || hasSyntaxIncompleteInlineCode) {
       return (
         <LightweightMarkdown
           value={nextContent}
