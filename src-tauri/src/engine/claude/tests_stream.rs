@@ -562,7 +562,10 @@ async fn ask_user_question_resume_spawn_failure_includes_wrapper_context() {
         .last()
         .expect("spawn failure should emit a resume diagnostic");
     assert_eq!(diagnostic.workspace_id, "test-workspace");
-    assert_eq!(diagnostic.thread_id.as_deref(), Some("thread-spawn-failure"));
+    assert_eq!(
+        diagnostic.thread_id.as_deref(),
+        Some("thread-spawn-failure")
+    );
     assert_eq!(diagnostic.turn_id, "turn-spawn-failure");
     assert_eq!(
         diagnostic.request_id.as_deref(),

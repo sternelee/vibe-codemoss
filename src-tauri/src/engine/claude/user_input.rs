@@ -573,7 +573,7 @@ impl ClaudeSession {
                 "Claude session disposed; refusing AskUserQuestion resume spawn".to_string();
             self.emit_ask_user_question_resume_diagnostic(
                 turn_id,
-                    resume_request_id.clone(),
+                resume_request_id.clone(),
                 false,
                 Some(error.clone()),
             );
@@ -603,7 +603,7 @@ impl ClaudeSession {
                                     .await;
                                 self.emit_ask_user_question_resume_diagnostic(
                                     turn_id,
-                    resume_request_id.clone(),
+                                    resume_request_id.clone(),
                                     false,
                                     Some(failure.clone()),
                                 );
@@ -625,7 +625,7 @@ impl ClaudeSession {
                                     .await;
                                 self.emit_ask_user_question_resume_diagnostic(
                                     turn_id,
-                    resume_request_id.clone(),
+                                    resume_request_id.clone(),
                                     false,
                                     Some(failure.clone()),
                                 );
@@ -645,7 +645,7 @@ impl ClaudeSession {
                                 .await;
                             self.emit_ask_user_question_resume_diagnostic(
                                 turn_id,
-                    resume_request_id.clone(),
+                                resume_request_id.clone(),
                                 false,
                                 Some(failure.clone()),
                             );
@@ -664,7 +664,7 @@ impl ClaudeSession {
                                 .await;
                             self.emit_ask_user_question_resume_diagnostic(
                                 turn_id,
-                    resume_request_id.clone(),
+                                resume_request_id.clone(),
                                 false,
                                 Some(failure.clone()),
                             );
@@ -681,7 +681,7 @@ impl ClaudeSession {
                             .await;
                         self.emit_ask_user_question_resume_diagnostic(
                             turn_id,
-                    resume_request_id.clone(),
+                            resume_request_id.clone(),
                             false,
                             Some(failure.clone()),
                         );
@@ -704,7 +704,7 @@ impl ClaudeSession {
                             .await;
                         self.emit_ask_user_question_resume_diagnostic(
                             turn_id,
-                    resume_request_id.clone(),
+                            resume_request_id.clone(),
                             false,
                             Some(failure.clone()),
                         );
@@ -739,7 +739,7 @@ impl ClaudeSession {
                             .to_string();
                     self.emit_ask_user_question_resume_diagnostic(
                         turn_id,
-                    resume_request_id.clone(),
+                        resume_request_id.clone(),
                         false,
                         Some(error.clone()),
                     );

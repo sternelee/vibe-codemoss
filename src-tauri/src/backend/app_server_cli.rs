@@ -1349,10 +1349,8 @@ mod tests {
 
     #[test]
     fn prefer_windows_executable_variant_prefers_stable_wrapper_before_ps1() {
-        let root = std::env::temp_dir().join(format!(
-            "ccgui-wrapper-preference-{}",
-            uuid::Uuid::new_v4()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("ccgui-wrapper-preference-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&root).expect("create temp dir");
         let base = root.join("claude");
         let cmd_path = root.join("claude.cmd");
