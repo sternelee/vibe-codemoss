@@ -981,6 +981,7 @@ export function AppShell() {
     activeEngine,
     useNormalizedRealtimeAdapters: appSettings.chatCanvasUseNormalizedRealtime,
     useUnifiedHistoryLoader: appSettings.chatCanvasUseUnifiedHistoryLoader,
+    sessionAttributionMode: appSettings.sessionAttributionMode,
     resolveOpenCodeAgent: resolveOpenCodeAgentForThread,
     resolveOpenCodeVariant: resolveOpenCodeVariantForThread,
     resolveCollaborationUiMode,
