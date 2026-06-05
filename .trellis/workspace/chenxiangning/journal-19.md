@@ -1313,3 +1313,48 @@ OpenSpec 回写：
 ### Next Steps
 
 - None - task complete
+
+
+## Session 722: 禁用文件关系滚轮缩放
+
+**Date**: 2026-06-06
+**Task**: 禁用文件关系滚轮缩放
+**Branch**: `feature/v0.5.7`
+
+### Summary
+
+禁用文件关系 Graph 与 Files 视图的鼠标滚轮缩放，并固定 Files 列表视口与文件卡片高度。
+
+### Main Changes
+
+本次只提交用户确认范围内的改动：
+- 删除文件关系 Graph canvas 的 onWheel 缩放 handler。
+- 删除文件关系 Files tree 的 onWheel 缩放 handler。
+- Files 视图列表改为固定高度 viewport，内部滚动。
+- Files 文件卡片固定高度，减少 role/filter 切换时的高度跳动。
+
+提交策略：
+- 工作区存在 API contract 相关未提交改动，本次未纳入功能提交。
+- 使用 git apply --cached 只 stage 本轮 hunk，避免 git add 整文件带入 unrelated changes。
+
+验证：
+- 用户要求单独提交，本轮未运行测试。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `98c16634` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
