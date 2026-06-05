@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-19.md`
-- **Total Sessions**: 714
+- **Total Sessions**: 715
 - **Last Active**: 2026-06-05
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-19.md` | ~956 | Active |
+| `journal-19.md` | ~1000 | Active |
 | `journal-18.md` | ~1966 | Archived |
 | `journal-17.md` | ~1971 | Archived |
 | `journal-16.md` | ~1985 | Archived |
@@ -47,6 +47,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 715 | 2026-06-05 | 提交 Project Map Relationship Dashboard 提案 | `1344da54` | `feature/v0.5.6` |
 | 714 | 2026-06-05 | 全量 CI 门禁与格式化收口 | `425b2d8e` | `feature/v0.5.6` |
 | 713 | 2026-06-05 | 加固 Claude 提问恢复边界 | `19d0485c10212a0e946657c99eb4c860cc0112ec` | `feature/v0.5.6` |
 | 712 | 2026-06-05 | 收口实时吸顶对齐任务 | `77f29fa49f1f6065ccf86bab8715a251378c28e9` | `feature/v0.5.6` |
