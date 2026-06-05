@@ -382,3 +382,46 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 702: 修复实时 inline code 工具卡误判
+
+**Date**: 2026-06-05
+**Task**: 修复实时 inline code 工具卡误判
+**Branch**: `feature/v0.5.6`
+
+### Summary
+
+修复 live Markdown 中未闭合 inline code 后的 tool-call XML 误判；未闭合 backtick 区间改为 protected region，并在 Markdown 渲染时对 syntax-incomplete inline code 使用 lightweight readable surface。验证通过 focused Vitest、typecheck、OpenSpec strict validation，并归档 fix-live-inline-code-markdown-rendering-continuity。
+
+### Main Changes
+
+本次完成 fix-live-inline-code-markdown-rendering-continuity：
+- tool-call fallback parser 将未闭合 inline code delimiter 到当前 streaming fragment 末尾标记为 protected region。
+- Markdown renderer 对 syntax-incomplete inline code segment 使用 lightweight readable surface，避免 full raw HTML pipeline 吞掉 literal XML。
+- 增加 parser-level 和 renderer-level regression tests。
+- 归档 OpenSpec change，并同步 message-markdown-streaming-compatibility 主 spec。
+验证：
+- npm exec vitest run src/features/messages/utils/toolCallBlocks.test.ts src/features/messages/components/Markdown.tool-call.test.tsx
+- npm run typecheck
+- openspec validate fix-live-inline-code-markdown-rendering-continuity --strict --no-interactive
+- openspec validate --all --strict --no-interactive
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a0f379c89f7b269ba884d8ea9af6845d12e7b9ba` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
