@@ -686,6 +686,36 @@ export type ProjectMapRelationshipImpactSummary = {
   riskFlags: ProjectMapContextRiskFlag[];
 };
 
+export type ProjectMapRelationshipStaleReasonKind =
+  | "git-commit-changed"
+  | "fingerprint-changed"
+  | "unmapped-changed-file"
+  | "file-read-failed";
+
+export type ProjectMapRelationshipRefreshMode = "full" | "partial" | "ignore-only";
+
+export type ProjectMapRelationshipStaleReason = {
+  kind: ProjectMapRelationshipStaleReasonKind;
+  message: string;
+  path?: string;
+  previous?: string;
+  current?: string;
+};
+
+export type ProjectMapRelationshipStaleSummary = {
+  schemaVersion: 1;
+  generatedAt: string;
+  isFresh: boolean;
+  reasons: ProjectMapRelationshipStaleReason[];
+  staleFileCount: number;
+  changedFiles: string[];
+  refreshSuggestion?: {
+    mode: ProjectMapRelationshipRefreshMode;
+    changedFiles: string[];
+    reason: string;
+  } | null;
+};
+
 export type ProjectMapRelationshipAgentReadPlan = {
   schemaVersion: 1;
   generatedAt: string;
@@ -700,6 +730,7 @@ export type ProjectMapRelationshipAgentReadPlan = {
     fileIds: string[];
   };
   staleReason?: string;
+  staleReasons?: ProjectMapRelationshipStaleReason[];
 };
 
 export type ProjectMapRelationshipReadResponse = {
@@ -718,6 +749,7 @@ export type ProjectMapRelationshipReadResponse = {
   modules?: unknown;
   impact?: unknown;
   contextPack?: unknown;
+  stale?: unknown;
   repair?: unknown;
   readErrors?: Array<{
     path: string;

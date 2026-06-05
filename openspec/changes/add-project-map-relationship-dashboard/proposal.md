@@ -112,11 +112,11 @@
 
 本节记录当前 implementation 与原 proposal/design/tasks 的对齐校准。
 结论：当前方向没有跑偏，仍然围绕 `scan -> persist -> dashboard -> impact/read-plan -> consume` 主链路推进。
-但当前仍属于 `Alpha closure candidate`，不是最终验收完成态；剩余风险主要集中在 stale、UA-style actions、Composer consumption 与 validation。
+截至 2026-06-05 本轮收口，implementation 已覆盖 stale、UA-style actions 与 Composer/Agent consumption；focused validation 已完成。
 
 ### 当前完成度 / Current progress
 
-- OpenSpec task progress：`19 / 23`。
+- OpenSpec task progress：`23 / 23`。
 - 已完成主链路：
   - `Scan Relationships` action 已进入 Project Map 视图。
   - deterministic scan artifacts 已落盘到 `project-map-relations/<storage-key>/`。
@@ -125,6 +125,9 @@
   - Scan Snapshot 与现有 Project Map Semantic Relations 已视觉隔离；Semantic Relations 默认收起，避免把两个 source layer 混成一套关系图。
   - Impact summary、Hotspots、Agent Read Plan 已以 capped scan snapshot cards 方式展示。
   - `context-packs/latest.json` 已从占位 artifact 推进为 conservative Agent Read Plan artifact。
+  - `read` response 已动态返回 stale summary，并把 stale reason 注入 context-pack consumer contract。
+  - `File Relations` 已提供 Explain / Diff Impact / Guided Read / Ask Map / Domain Lens 五类 UA-style action。
+  - Agent orchestration 的 `project-map` provider 已消费 relationship context-pack，作为 resource discovery candidate。
 
 ### 对齐确认 / Alignment check
 
@@ -136,9 +139,9 @@
 | dashboard selected neighborhood + filters | 已实现 | 对齐。并补充 UA-like board/list/neighborhood 多视图。 |
 | impact overlay | 已实现 Alpha | 对齐但需注明：当前是 summary card + one-hop/transitive artifact，不是 canvas overlay。 |
 | Agent Read Plan | 已实现 Alpha | 对齐但需注明：当前是 conservative context-pack artifact，还未接入 Composer/Agent 自动消费。 |
-| stale/repair visibility | 部分实现 | repair/read issues 已显示；stale detection 仍在 Task 16。 |
-| UA lessons 内化 | 部分实现 | dashboard/diff/read-plan 已借鉴；explain/guided read/ask/domain 仍在 Task 17。 |
-| Composer resource discovery | 未完成 | Task 18 保持待办，不应提前标记 closed。 |
+| stale/repair visibility | 已实现 | repair/read issues 已显示；stale detection 支持 git commit、fingerprint、refresh suggestion。 |
+| UA lessons 内化 | 已实现 Alpha | dashboard/diff/read-plan 已借鉴；explain/guided read/ask/domain 以 mossx-native action panel 落地。 |
+| Composer resource discovery | 已实现 Alpha | Agent orchestration provider 消费 relationship context-pack；无 context-pack 时保持原 fallback。 |
 
 ### 校准发现 / Calibration findings
 
@@ -149,23 +152,22 @@
 - 需要保留为风险：large scan confirmation、扫描阶段 progress、错误类型细分目前仍不完整，不能作为最终验收完成项。
 - 需要保留为风险：hotspot 当前以 `many-dependents` 为主，`cross-layer-hub / missing-test / stale / large-file` 还未完整成为 hotspot reason；其中 `missing-test` 已先进入 risk flag。
 - 需要保留为风险：module summary 当前偏 `fileCount/relationCount`，尚未完整覆盖 `cross-module count / stale flag / relation density`。
-- 需要保留为风险：当前未执行 focused validation；Task 19 仍必须保留。
+- 已完成 focused validation：`openspec validate add-project-map-relationship-dashboard --strict --no-interactive`、`npm run typecheck`、`cargo check --manifest-path src-tauri/Cargo.toml` 均通过。
 
 ### 当前阶段判断 / Phase judgement
 
 当前实现可定义为：
 
-`MVP-1.5 Alpha: deterministic scan snapshot + relationship dashboard + impact/read-plan artifacts`
+`MVP-2 Closure Candidate: deterministic scan snapshot + relationship dashboard + stale/actions/context consumption`
 
-它已经满足“用户可以扫描、读取、选择文件、查看关系、看到 impact/read-plan 摘要”的阶段目标；
-但还没有达到“完整闭环归档”的标准，因为 context-pack 尚未被 Composer/Agent consumption path 消费，stale/incremental UX 尚未完成，UA-style actions 尚未全部内化。
+它已经满足“用户可以扫描、读取、选择文件、查看关系、看到 impact/read-plan 摘要、识别 stale、触发 UA-style action，并让 Agent resource discovery 消费 context-pack”的阶段目标；
+归档前仍建议做一次用户真实项目 smoke test，但跨层 contract 与 strict typecheck 已完成 focused validation。
 
 ### 下一阶段建议 / Next calibrated batch
 
-1. Task 16：实现 stale detection 与 incremental refresh UX。
-2. Task 17：实现 UA-style actions 的 mossx 内化入口，优先 `Explain selected file` 与 `Guided read tour`。
-3. Task 18：打通 Composer/Agent resource discovery 对 `context-packs/latest.json` 的消费。
-4. Task 19：执行 focused validation，并把 validation evidence 写入 change artifacts 后再考虑 verify/sync/archive。
+1. 用户在真实项目上做一次 scan -> stale/action -> Agent resource discovery smoke test。
+2. 若 smoke test 无阻塞，提交本轮实现。
+3. 提交后再执行 OpenSpec verify / sync / archive。
 
 
 ## 中文+English 术语对照（Proposal Glossary）

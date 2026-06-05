@@ -33,6 +33,7 @@ pub(crate) struct ProjectMapRelationshipReadResponse {
     modules: Option<Value>,
     impact: Option<Value>,
     context_pack: Option<Value>,
+    stale: Option<Value>,
     repair: Option<Value>,
     read_errors: Vec<ProjectMapRelationshipReadError>,
 }
@@ -74,7 +75,7 @@ pub(crate) struct ProjectMapRelationshipScanResponse {
     repair_issue_count: usize,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ScannedFile {
     id: String,
@@ -1523,6 +1524,171 @@ fn read_json_with_errors(
     }
 }
 
+fn relationship_stale_reason(
+    kind: &str,
+    message: String,
+    path: Option<String>,
+    previous: Option<String>,
+    current: Option<String>,
+) -> Value {
+    json!({
+        "kind": kind,
+        "message": message,
+        "path": path,
+        "previous": previous,
+        "current": current
+    })
+}
+
+fn summarize_relationship_stale_state(
+    scan_root: &Path,
+    manifest: &Option<Value>,
+    files_value: &Option<Value>,
+) -> Value {
+    let generated_at = chrono::Utc::now().to_rfc3339();
+    let manifest_commit_hash = manifest
+        .as_ref()
+        .and_then(|value| value.get("gitCommitHash"))
+        .and_then(Value::as_str)
+        .map(str::to_string);
+    let (_, current_commit_hash) = git_metadata(scan_root);
+    let mut reasons = Vec::new();
+
+    if let (Some(previous), Some(current)) = (&manifest_commit_hash, &current_commit_hash) {
+        if previous != current {
+            reasons.push(relationship_stale_reason(
+                "git-commit-changed",
+                "Workspace git HEAD differs from the latest relationship scan.".to_string(),
+                None,
+                Some(previous.clone()),
+                Some(current.clone()),
+            ));
+        }
+    }
+
+    let scanned_files = files_value
+        .clone()
+        .and_then(|value| serde_json::from_value::<Vec<ScannedFile>>(value).ok())
+        .unwrap_or_default();
+    let file_by_path = scanned_files
+        .iter()
+        .map(|file| (file.path.clone(), file))
+        .collect::<HashMap<_, _>>();
+    let changed_paths = git_status_changed_paths(scan_root);
+    let mut stale_paths = Vec::new();
+    let mut unmapped_paths = Vec::new();
+
+    for path in &changed_paths {
+        let Some(file) = file_by_path.get(path) else {
+            unmapped_paths.push(path.clone());
+            reasons.push(relationship_stale_reason(
+                "unmapped-changed-file",
+                format!("Changed file is not present in latest relationship scan: {path}"),
+                Some(path.clone()),
+                None,
+                None,
+            ));
+            continue;
+        };
+
+        let absolute_path = scan_root.join(path);
+        match fs::read_to_string(&absolute_path) {
+            Ok(content) => {
+                let current_hash = content_hash(&content);
+                if current_hash != file.content_hash {
+                    stale_paths.push(path.clone());
+                    reasons.push(relationship_stale_reason(
+                        "fingerprint-changed",
+                        format!("Scanned file fingerprint changed after latest relationship scan: {path}"),
+                        Some(path.clone()),
+                        Some(file.content_hash.clone()),
+                        Some(current_hash),
+                    ));
+                }
+            }
+            Err(error) => {
+                stale_paths.push(path.clone());
+                reasons.push(relationship_stale_reason(
+                    "file-read-failed",
+                    format!("Changed file could not be read for stale detection: {path}: {error}"),
+                    Some(path.clone()),
+                    Some(file.content_hash.clone()),
+                    None,
+                ));
+            }
+        }
+    }
+
+    reasons.truncate(40);
+    let refresh_mode = if unmapped_paths.is_empty() && stale_paths.is_empty() {
+        if reasons.is_empty() {
+            "ignore-only"
+        } else {
+            "full"
+        }
+    } else if unmapped_paths.is_empty() {
+        "partial"
+    } else {
+        "full"
+    };
+    let is_fresh = reasons.is_empty();
+
+    json!({
+        "schemaVersion": 1,
+        "generatedAt": generated_at,
+        "isFresh": is_fresh,
+        "reasons": reasons,
+        "staleFileCount": stale_paths.len(),
+        "changedFiles": changed_paths,
+        "refreshSuggestion": if is_fresh {
+            Value::Null
+        } else {
+            json!({
+                "mode": refresh_mode,
+                "changedFiles": stale_paths.into_iter().chain(unmapped_paths).take(80).collect::<Vec<_>>(),
+                "reason": "Latest relationship snapshot is older than current workspace facts."
+            })
+        }
+    })
+}
+
+fn enrich_context_pack_with_stale_state(
+    context_pack: Option<Value>,
+    stale_summary: &Option<Value>,
+) -> Option<Value> {
+    let Some(mut context_pack) = context_pack else {
+        return None;
+    };
+    let Some(stale) = stale_summary else {
+        return Some(context_pack);
+    };
+    let Some(is_fresh) = stale.get("isFresh").and_then(Value::as_bool) else {
+        return Some(context_pack);
+    };
+    if is_fresh {
+        return Some(context_pack);
+    }
+    let Some(object) = context_pack.as_object_mut() else {
+        return Some(context_pack);
+    };
+    let stale_reason = stale
+        .get("reasons")
+        .and_then(Value::as_array)
+        .and_then(|reasons| reasons.first())
+        .and_then(|reason| reason.get("message"))
+        .and_then(Value::as_str)
+        .unwrap_or("Project Map relationship context is stale. Refresh before broad agent work.");
+    object.insert("staleReason".to_string(), Value::String(stale_reason.to_string()));
+    object.insert(
+        "staleReasons".to_string(),
+        stale
+            .get("reasons")
+            .cloned()
+            .unwrap_or_else(|| Value::Array(Vec::new())),
+    );
+    Some(context_pack)
+}
+
 fn scan_workspace(
     entry: &WorkspaceEntry,
     storage_key: &str,
@@ -2109,24 +2275,42 @@ pub(crate) async fn project_map_relationship_read(
     let (key, root) = relationship_root_for_mode(&entry, storage_mode.as_deref())?;
     let exists = root.join("manifest.json").is_file();
     let mut read_errors = Vec::new();
+    let manifest = read_json_with_errors(&root, "manifest.json", &mut read_errors);
+    let profile = read_json_with_errors(&root, "profile.json", &mut read_errors);
+    let run = read_json_with_errors(&root, "runs/latest.json", &mut read_errors);
+    let scan = read_json_with_errors(&root, "scans/latest.json", &mut read_errors);
+    let files_manifest = read_json_with_errors(&root, "files/manifest.json", &mut read_errors);
+    let files = read_json_with_errors(&root, "files/chunks-000.json", &mut read_errors);
+    let relations = read_json_with_errors(&root, "relations/latest.json", &mut read_errors);
+    let relations_by_file = read_json_with_errors(&root, "relations/by-file.json", &mut read_errors);
+    let relations_by_type = read_json_with_errors(&root, "relations/by-type.json", &mut read_errors);
+    let modules = read_json_with_errors(&root, "modules/latest.json", &mut read_errors);
+    let impact = read_json_with_errors(&root, "impact/latest.json", &mut read_errors);
+    let context_pack = read_json_with_errors(&root, "context-packs/latest.json", &mut read_errors);
+    let stale = exists.then(|| {
+        summarize_relationship_stale_state(Path::new(&entry.path), &manifest, &files)
+    });
+    let context_pack = enrich_context_pack_with_stale_state(context_pack, &stale);
+    let repair = read_json_with_errors(&root, "repair/latest.json", &mut read_errors);
 
     Ok(ProjectMapRelationshipReadResponse {
         storage_key: key,
         storage_dir: root.to_string_lossy().to_string(),
         exists,
-        manifest: read_json_with_errors(&root, "manifest.json", &mut read_errors),
-        profile: read_json_with_errors(&root, "profile.json", &mut read_errors),
-        run: read_json_with_errors(&root, "runs/latest.json", &mut read_errors),
-        scan: read_json_with_errors(&root, "scans/latest.json", &mut read_errors),
-        files_manifest: read_json_with_errors(&root, "files/manifest.json", &mut read_errors),
-        files: read_json_with_errors(&root, "files/chunks-000.json", &mut read_errors),
-        relations: read_json_with_errors(&root, "relations/latest.json", &mut read_errors),
-        relations_by_file: read_json_with_errors(&root, "relations/by-file.json", &mut read_errors),
-        relations_by_type: read_json_with_errors(&root, "relations/by-type.json", &mut read_errors),
-        modules: read_json_with_errors(&root, "modules/latest.json", &mut read_errors),
-        impact: read_json_with_errors(&root, "impact/latest.json", &mut read_errors),
-        context_pack: read_json_with_errors(&root, "context-packs/latest.json", &mut read_errors),
-        repair: read_json_with_errors(&root, "repair/latest.json", &mut read_errors),
+        manifest,
+        profile,
+        run,
+        scan,
+        files_manifest,
+        files,
+        relations,
+        relations_by_file,
+        relations_by_type,
+        modules,
+        impact,
+        context_pack,
+        stale,
+        repair,
         read_errors,
     })
 }

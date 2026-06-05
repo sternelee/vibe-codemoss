@@ -407,6 +407,105 @@
   color: var(--project-map-text-strong);
 }
 
+.project-map-relationship-stale-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid color-mix(in srgb, var(--project-map-warning) 44%, var(--project-map-border));
+  border-radius: 9px;
+  padding: 8px 9px;
+  background: color-mix(in srgb, var(--project-map-warning) 10%, var(--project-map-surface));
+  color: var(--project-map-text-muted);
+}
+
+.project-map-relationship-stale-banner div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.project-map-relationship-stale-banner strong {
+  color: var(--project-map-warning);
+  font-size: 11px;
+}
+
+.project-map-relationship-stale-banner span {
+  overflow: hidden;
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-map-relationship-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.project-map-relationship-actions button {
+  border: 1px solid color-mix(in srgb, var(--project-map-border) 72%, transparent);
+  border-radius: 999px;
+  padding: 5px 8px;
+  background: color-mix(in srgb, var(--project-map-surface-strong) 70%, transparent);
+  color: var(--project-map-text-muted);
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.project-map-relationship-actions button.is-active {
+  border-color: color-mix(in srgb, var(--project-map-accent) 54%, transparent);
+  background: color-mix(in srgb, var(--project-map-accent) 16%, var(--project-map-surface));
+  color: var(--project-map-text-strong);
+}
+
+.project-map-relationship-action-output {
+  display: grid;
+  gap: 7px;
+  border: 1px solid color-mix(in srgb, var(--project-map-accent) 24%, var(--project-map-border));
+  border-radius: 10px;
+  padding: 9px;
+  background: color-mix(in srgb, var(--project-map-accent) 7%, var(--project-map-surface));
+}
+
+.project-map-relationship-action-output header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.project-map-relationship-action-output header strong {
+  color: var(--project-map-text-strong);
+  font-size: 11px;
+}
+
+.project-map-relationship-action-output header button {
+  border: 0;
+  background: transparent;
+  color: var(--project-map-accent);
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.project-map-relationship-action-output p,
+.project-map-relationship-action-output li {
+  color: var(--project-map-text-muted);
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+
+.project-map-relationship-action-output ul {
+  display: grid;
+  max-height: 150px;
+  gap: 4px;
+  overflow: auto;
+  margin: 0;
+  padding-left: 16px;
+  scrollbar-width: thin;
+}
+
 .project-map-relationship-insight-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

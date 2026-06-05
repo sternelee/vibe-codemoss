@@ -130,6 +130,8 @@ import type {
   ProjectMapRelationshipHotspot,
   ProjectMapRelationshipImpactSummary,
   ProjectMapRelationshipAgentReadPlan,
+  ProjectMapRelationshipStaleReason,
+  ProjectMapRelationshipStaleSummary,
   ProjectMapScannedFile,
   ProjectMapPreferredLanguage,
   ProjectMapProfile,
@@ -210,11 +212,25 @@ type ProjectMapRelationshipDashboardData = {
   hotspots: ProjectMapRelationshipHotspot[];
   impactSummary: ProjectMapRelationshipImpactSummary | null;
   contextPack: ProjectMapRelationshipAgentReadPlan | null;
+  staleSummary: ProjectMapRelationshipStaleSummary | null;
   repairIssues: ProjectMapRelationshipRepairIssue[];
   readErrors: Array<{ path: string; message: string }>;
 };
 
 type ProjectMapRelationshipDashboardViewMode = "board" | "list" | "neighborhood";
+type ProjectMapRelationshipActionKind = "explain" | "diff" | "guided" | "ask" | "domain";
+
+type ProjectMapRelationshipActionState = {
+  kind: ProjectMapRelationshipActionKind;
+  title: string;
+  summary: string;
+  items: string[];
+};
+
+type ProjectMapRelationshipScanScope = {
+  paths?: string[];
+  changedFiles?: string[];
+};
 
 const ZOOM_STEP = 0.1;
 const MINI_MAP_SIZE = { width: 180, height: 118 };
@@ -727,11 +743,73 @@ function normalizeProjectMapRelationshipContextPack(
     contracts: readProjectMapRelationshipStringArray(value, "contracts"),
     riskFlags: normalizeProjectMapRelationshipRiskFlags(value.riskFlags),
     staleReason: readProjectMapRelationshipString(value, "staleReason") ?? undefined,
+    staleReasons: normalizeProjectMapRelationshipStaleReasons(value.staleReasons),
     provenance: {
       scanRunId,
       relationIds: provenance ? readProjectMapRelationshipStringArray(provenance, "relationIds") : [],
       fileIds: provenance ? readProjectMapRelationshipStringArray(provenance, "fileIds") : [],
     },
+  };
+}
+
+function normalizeProjectMapRelationshipStaleReasons(value: unknown): ProjectMapRelationshipStaleReason[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((item) => {
+    if (!isProjectMapRelationshipRecord(item)) {
+      return [];
+    }
+    const message = readProjectMapRelationshipString(item, "message");
+    if (!message) {
+      return [];
+    }
+    const kind = readProjectMapRelationshipString(item, "kind") ?? "fingerprint-changed";
+    const normalizedKind: ProjectMapRelationshipStaleReason["kind"] =
+      kind === "git-commit-changed" ||
+      kind === "fingerprint-changed" ||
+      kind === "unmapped-changed-file" ||
+      kind === "file-read-failed"
+        ? kind
+        : "fingerprint-changed";
+    return [{
+      kind: normalizedKind,
+      message,
+      path: readProjectMapRelationshipString(item, "path") ?? undefined,
+      previous: readProjectMapRelationshipString(item, "previous") ?? undefined,
+      current: readProjectMapRelationshipString(item, "current") ?? undefined,
+    }];
+  });
+}
+
+function normalizeProjectMapRelationshipStaleSummary(value: unknown): ProjectMapRelationshipStaleSummary | null {
+  if (!isProjectMapRelationshipRecord(value)) {
+    return null;
+  }
+  const generatedAt = readProjectMapRelationshipString(value, "generatedAt");
+  if (!generatedAt || typeof value.isFresh !== "boolean") {
+    return null;
+  }
+  const suggestedMode = isProjectMapRelationshipRecord(value.refreshSuggestion)
+    ? readProjectMapRelationshipString(value.refreshSuggestion, "mode")
+    : undefined;
+  const refreshMode: NonNullable<ProjectMapRelationshipStaleSummary["refreshSuggestion"]>["mode"] =
+    suggestedMode === "partial" || suggestedMode === "ignore-only" ? suggestedMode : "full";
+  const refreshSuggestion = isProjectMapRelationshipRecord(value.refreshSuggestion)
+    ? {
+        mode: refreshMode,
+        changedFiles: readProjectMapRelationshipStringArray(value.refreshSuggestion, "changedFiles"),
+        reason: readProjectMapRelationshipString(value.refreshSuggestion, "reason") ?? "",
+      }
+    : null;
+  return {
+    schemaVersion: 1,
+    generatedAt,
+    isFresh: value.isFresh,
+    reasons: normalizeProjectMapRelationshipStaleReasons(value.reasons),
+    staleFileCount: readProjectMapRelationshipNumber(value, "staleFileCount"),
+    changedFiles: readProjectMapRelationshipStringArray(value, "changedFiles"),
+    refreshSuggestion,
   };
 }
 
@@ -773,6 +851,7 @@ function normalizeProjectMapRelationshipDashboardData(
     hotspots: normalizeProjectMapRelationshipHotspots(response.modules),
     impactSummary: normalizeProjectMapRelationshipImpactSummary(response.impact),
     contextPack: normalizeProjectMapRelationshipContextPack(response.contextPack),
+    staleSummary: normalizeProjectMapRelationshipStaleSummary(response.stale),
     repairIssues: normalizeProjectMapRelationshipRepairIssues(response.repair),
     readErrors: response.readErrors ?? [],
   };
@@ -944,6 +1023,8 @@ export function ProjectMapPanel({
   const [relationshipDashboardViewMode, setRelationshipDashboardViewMode] =
     useState<ProjectMapRelationshipDashboardViewMode>("board");
   const [selectedRelationshipFileId, setSelectedRelationshipFileId] = useState<string | null>(null);
+  const [relationshipActionState, setRelationshipActionState] =
+    useState<ProjectMapRelationshipActionState | null>(null);
   const [dragPreviewPositions, setDragPreviewPositions] = useState<
     Record<string, ProjectMapGraphNodePosition>
   >({});
@@ -2244,10 +2325,12 @@ export function ProjectMapPanel({
     }));
   };
 
-  const handleRelationshipScanClick = useCallback(() => {
+  const runRelationshipScan = useCallback((scope?: ProjectMapRelationshipScanScope) => {
     if (!activeWorkspace?.id || relationshipScanState.status === "running") {
       return;
     }
+    const scopedChangedFiles = scope?.changedFiles ?? changedFilePaths;
+    const scopedPaths = scope?.paths?.filter((path) => path.trim().length > 0);
 
     setRelationshipScanState({ status: "running" });
     void scanProjectMapRelationships({
@@ -2255,7 +2338,8 @@ export function ProjectMapPanel({
       options: {
         maxFiles: 10_000,
         includeIgnoredHints: true,
-        changedFiles: changedFilePaths.length ? changedFilePaths : undefined,
+        paths: scopedPaths?.length ? scopedPaths : undefined,
+        changedFiles: scopedChangedFiles.length ? scopedChangedFiles : undefined,
       },
       storageLocation: datasetController.activeReadLocation,
     })
@@ -2269,6 +2353,8 @@ export function ProjectMapPanel({
           });
           setRelationshipDashboardData(normalizeProjectMapRelationshipDashboardData(response));
           setSelectedRelationshipFileId(null);
+          setRelationshipActionState(null);
+          await datasetController.reloadRelationshipContext();
         } catch {
           setRelationshipDashboardData(null);
         }
@@ -2283,14 +2369,29 @@ export function ProjectMapPanel({
     activeWorkspace?.id,
     changedFilePaths,
     datasetController.activeReadLocation,
+    datasetController.reloadRelationshipContext,
     relationshipScanState.status,
   ]);
+
+  const handleRelationshipScanClick = useCallback(() => {
+    runRelationshipScan();
+  }, [runRelationshipScan]);
+
+  const handleRelationshipStaleRefreshClick = useCallback(() => {
+    const refreshSuggestion = relationshipDashboardData?.staleSummary?.refreshSuggestion;
+    const scopedFiles = refreshSuggestion?.changedFiles ?? [];
+    runRelationshipScan({
+      paths: refreshSuggestion?.mode === "partial" ? scopedFiles : undefined,
+      changedFiles: scopedFiles.length ? scopedFiles : undefined,
+    });
+  }, [relationshipDashboardData?.staleSummary?.refreshSuggestion, runRelationshipScan]);
 
   useEffect(() => {
     if (!activeWorkspace?.id) {
       setRelationshipScanState({ status: "idle" });
       setRelationshipDashboardData(null);
       setSelectedRelationshipFileId(null);
+      setRelationshipActionState(null);
       return;
     }
 
@@ -2306,6 +2407,7 @@ export function ProjectMapPanel({
         const summary = normalizeProjectMapRelationshipReadSummary(response);
         const dashboardData = normalizeProjectMapRelationshipDashboardData(response);
         setRelationshipDashboardData(summary ? dashboardData : null);
+        void datasetController.reloadRelationshipContext();
         setRelationshipScanState((current) => {
           if (current.status === "running") {
             return current;
@@ -2333,7 +2435,7 @@ export function ProjectMapPanel({
     return () => {
       cancelled = true;
     };
-  }, [activeWorkspace?.id, datasetController.activeReadLocation]);
+  }, [activeWorkspace?.id, datasetController.activeReadLocation, datasetController.reloadRelationshipContext]);
 
   const relationshipDashboardFileIndex = useMemo(() => {
     const index = new Map<string, ProjectMapScannedFile>();
@@ -2549,6 +2651,118 @@ export function ProjectMapPanel({
       .sort((left, right) => right.score - left.score || left.fileId.localeCompare(right.fileId))
       .slice(0, 5)
   ), [relationshipDashboardData]);
+
+  const handleRelationshipAction = useCallback((kind: ProjectMapRelationshipActionKind) => {
+    if (!relationshipDashboardData) {
+      return;
+    }
+    const relationRows = selectedRelationshipRelations.slice(0, 8).map((relation) => {
+      const sourceFile = relationshipDashboardFileIndex.get(relation.sourceFileId);
+      const targetFile = relationshipDashboardFileIndex.get(relation.targetFileId);
+      return `${relation.type}: ${sourceFile?.basename ?? relation.sourceFileId} -> ${targetFile?.basename ?? relation.targetFileId}`;
+    });
+    const contextPack = relationshipDashboardData.contextPack;
+    const impact = relationshipDashboardData.impactSummary;
+    const moduleItems = relationshipDashboardData.modules
+      .slice(0, 6)
+      .map((module) => `${module.label}: ${module.fileCount} files / ${module.relationCount} relations`);
+    const hotspotItems = relationshipDashboardTopHotspots.map((hotspot) => {
+      const file = relationshipDashboardFileIndex.get(hotspot.fileId);
+      return `${hotspot.reason}: ${file?.path ?? hotspot.fileId}`;
+    });
+
+    if (kind === "explain") {
+      setRelationshipActionState({
+        kind,
+        title: t("projectMap.relationship.actions.explainTitle"),
+        summary: selectedRelationshipFile
+          ? t("projectMap.relationship.actions.explainSummary", {
+              path: selectedRelationshipFile.path,
+              role: selectedRelationshipFile.role,
+              language: selectedRelationshipFile.language,
+            })
+          : t("projectMap.relationship.actions.noSelection"),
+        items: relationRows.length ? relationRows : [t("projectMap.relationship.emptyRelations")],
+      });
+      return;
+    }
+
+    if (kind === "diff") {
+      setRelationshipActionState({
+        kind,
+        title: t("projectMap.relationship.actions.diffTitle"),
+        summary: impact
+          ? t("projectMap.relationship.actions.diffSummary", {
+              changed: impact.changedFiles.length,
+              direct: impact.directlyAffectedFiles.length,
+              transitive: impact.transitivelyAffectedFiles.length,
+              unmapped: impact.unmappedFiles.length,
+            })
+          : t("projectMap.relationship.impactEmpty"),
+        items: [
+          ...(impact?.changedFiles.slice(0, 4).map((path) => `changed: ${path}`) ?? []),
+          ...(impact?.directlyAffectedFiles.slice(0, 4).map((path) => `direct: ${path}`) ?? []),
+          ...(impact?.transitivelyAffectedFiles.slice(0, 4).map((path) => `transitive: ${path}`) ?? []),
+        ],
+      });
+      return;
+    }
+
+    if (kind === "guided") {
+      setRelationshipActionState({
+        kind,
+        title: t("projectMap.relationship.actions.guidedTitle"),
+        summary: contextPack
+          ? t("projectMap.relationship.actions.guidedSummary", {
+              must: contextPack.mustReadFiles.length,
+              related: contextPack.relatedFiles.length,
+              tests: contextPack.testTargets.length,
+              contracts: contextPack.contracts.length,
+            })
+          : t("projectMap.relationship.readPlanEmpty"),
+        items: [
+          ...(contextPack?.mustReadFiles.slice(0, 5).map((path) => `must-read: ${path}`) ?? []),
+          ...(contextPack?.relatedFiles.slice(0, 5).map((path) => `related: ${path}`) ?? []),
+          ...(contextPack?.testTargets.slice(0, 4).map((path) => `test: ${path}`) ?? []),
+          ...(contextPack?.contracts.slice(0, 4).map((path) => `contract: ${path}`) ?? []),
+        ],
+      });
+      return;
+    }
+
+    if (kind === "ask") {
+      setRelationshipActionState({
+        kind,
+        title: t("projectMap.relationship.actions.askTitle"),
+        summary: t("projectMap.relationship.actions.askSummary"),
+        items: [
+          selectedRelationshipFile
+            ? `selected: ${selectedRelationshipFile.path}`
+            : t("projectMap.relationship.actions.noSelection"),
+          ...relationRows.slice(0, 4),
+          ...(contextPack?.riskFlags.slice(0, 3).map((flag) => `risk: ${flag.label}`) ?? []),
+        ],
+      });
+      return;
+    }
+
+    setRelationshipActionState({
+      kind,
+      title: t("projectMap.relationship.actions.domainTitle"),
+      summary: t("projectMap.relationship.actions.domainSummary", {
+        modules: relationshipDashboardData.modules.length,
+        hotspots: relationshipDashboardTopHotspots.length,
+      }),
+      items: [...moduleItems, ...hotspotItems].slice(0, 10),
+    });
+  }, [
+    relationshipDashboardData,
+    relationshipDashboardFileIndex,
+    relationshipDashboardTopHotspots,
+    selectedRelationshipFile,
+    selectedRelationshipRelations,
+    t,
+  ]);
 
   const handleNodeDrillClick = (
     event: MouseEvent<HTMLButtonElement>,
@@ -2983,6 +3197,28 @@ export function ProjectMapPanel({
                   ) : null}
                   {relationshipDashboardData ? (
                     <div className="project-map-relationship-dashboard">
+                      {relationshipDashboardData.staleSummary && !relationshipDashboardData.staleSummary.isFresh ? (
+                        <div className="project-map-relationship-stale-banner">
+                          <div>
+                            <strong>{t("projectMap.relationship.staleTitle")}</strong>
+                            <span>
+                              {relationshipDashboardData.staleSummary.reasons[0]?.message
+                                ?? t("projectMap.relationship.staleFallback")}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            className="project-map-toolbar-action"
+                            onClick={handleRelationshipStaleRefreshClick}
+                            disabled={!activeWorkspace?.id || relationshipScanState.status === "running"}
+                          >
+                            <RefreshCw aria-hidden />
+                            {t("projectMap.relationship.staleRefresh", {
+                              mode: relationshipDashboardData.staleSummary.refreshSuggestion?.mode ?? "full",
+                            })}
+                          </button>
+                        </div>
+                      ) : null}
                       <div className="project-map-relationship-dashboard-rule">
                         <strong>{t("projectMap.relationship.snapshotLabel")}</strong>
                         <span>{t("projectMap.relationship.snapshotRule")}</span>
@@ -3052,6 +3288,36 @@ export function ProjectMapPanel({
                           </button>
                         ))}
                       </div>
+                      <div className="project-map-relationship-actions">
+                        {(["explain", "diff", "guided", "ask", "domain"] as ProjectMapRelationshipActionKind[]).map((kind) => (
+                          <button
+                            key={kind}
+                            type="button"
+                            className={cn(relationshipActionState?.kind === kind && "is-active")}
+                            onClick={() => handleRelationshipAction(kind)}
+                          >
+                            {t(`projectMap.relationship.actions.${kind}`)}
+                          </button>
+                        ))}
+                      </div>
+                      {relationshipActionState ? (
+                        <article className="project-map-relationship-action-output">
+                          <header>
+                            <strong>{relationshipActionState.title}</strong>
+                            <button type="button" onClick={() => setRelationshipActionState(null)}>
+                              {t("projectMap.relationship.actions.clear")}
+                            </button>
+                          </header>
+                          <p>{relationshipActionState.summary}</p>
+                          {relationshipActionState.items.length ? (
+                            <ul>
+                              {relationshipActionState.items.map((item, index) => (
+                                <li key={`${item}:${index}`}>{item}</li>
+                              ))}
+                            </ul>
+                          ) : null}
+                        </article>
+                      ) : null}
                       {relationshipDashboardData.impactSummary
                         || relationshipDashboardTopHotspots.length
                         || relationshipDashboardData.contextPack ? (

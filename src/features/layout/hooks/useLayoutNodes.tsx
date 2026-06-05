@@ -2543,6 +2543,8 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
   const [selectedOrchestrationTaskId, setSelectedOrchestrationTaskId] = useState<string | null>(null);
   const [projectMapSourceFocusNodeId, setProjectMapSourceFocusNodeId] = useState<string | null>(null);
   const projectMapDataset = options.projectMapDatasetController?.dataset ?? null;
+  const projectMapRelationshipContextPack =
+    options.projectMapDatasetController?.relationshipContextPack ?? null;
   const orchestrationWorkspaceId =
     options.activeWorkspace?.id ??
     projectMapDataset?.manifest.storageKey ??
@@ -2589,6 +2591,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       const coreSnapshots = collectCoreOrchestrationProviderSnapshots({
         workspaceId: orchestrationWorkspaceId,
         projectMapDataset,
+        projectMapRelationshipContextPack,
         taskRuns: taskRunStore.runs,
       });
       if (
@@ -2608,6 +2611,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     [
       orchestrationWorkspaceId,
       projectMapDataset,
+      projectMapRelationshipContextPack,
       specWorkspaceSnapshot,
       taskRunStore.runs,
     ],

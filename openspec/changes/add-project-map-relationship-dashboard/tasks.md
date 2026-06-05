@@ -33,10 +33,10 @@
 - [x] Task 13B：固化并实现多视图 Dashboard，支持 UA-like Board / List / Neighborhood 三种 scan snapshot 展示方式。
 - [x] Task 14：实现 impact overlay 与 hotspot panel，覆盖 changed/direct/affected/unmapped/risk flags。
 - [x] Task 15：实现 Agent Read Plan 与 `context-packs/latest.json` 生成/读取。
-- [ ] Task 16：实现 stale detection 与 incremental refresh UX，覆盖 git commit、fingerprint、refresh suggestion。
-- [ ] Task 17：实现 UA-style actions 的 mossx 内化入口，覆盖 explain/diff/guided read/ask/domain 的 context pack 基础。
-- [ ] Task 18：打通 Composer/Agent resource discovery 对 Project Map relationship context-pack 的消费。
-- [ ] Task 19：完成 focused validation，更新 specs/tasks 状态，准备 verify/sync/archive。
+- [x] Task 16：实现 stale detection 与 incremental refresh UX，覆盖 git commit、fingerprint、refresh suggestion。
+- [x] Task 17：实现 UA-style actions 的 mossx 内化入口，覆盖 explain/diff/guided read/ask/domain 的 context pack 基础。
+- [x] Task 18：打通 Composer/Agent resource discovery 对 Project Map relationship context-pack 的消费。
+- [x] Task 19：完成 focused validation，更新 specs/tasks 状态，准备 verify/sync/archive。
 
 ## 里程碑与任务
 
