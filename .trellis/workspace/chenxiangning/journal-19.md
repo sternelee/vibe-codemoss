@@ -876,3 +876,48 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 713: 加固 Claude 提问恢复边界
+
+**Date**: 2026-06-05
+**Task**: 加固 Claude 提问恢复边界
+**Branch**: `feature/v0.5.6`
+
+### Summary
+
+修复 0.5.6 review 发现的边界兼容问题：AskUserQuestion 缺 session_id 时清理原进程、resume diagnostics 延后到 resumed stream valid event、透传 threadId、收窄 Markdown 未闭合 inline code 降级条件。
+
+### Main Changes
+
+本次从 0.5.6 当前版本整体 review findings 进入代码修复，重点处理边界与兼容性风险。
+
+已完成：
+- Claude AskUserQuestion resume 缺少 session_id 时，现在会移除并终止原 active child，避免 Windows/旧 CLI 时序下 UI 报错但后台进程泄漏。
+- AskUserQuestion resume diagnostics 不再在 spawn 成功时立刻记 success，而是在 resumed stream 产生 valid Claude event 后才记 success；spawn/missing stdout/no valid event/process error 等路径记录 failure。
+- Claude turn 注册 frontend threadId，resume diagnostics 透传 threadId 到 RuntimeManager snapshot，避免 runtime diagnostics 的 threadId 永远为空。
+- Markdown 未闭合 inline code fallback 收窄为 streaming surface + tool-call XML candidate；稳定历史内容中的普通未闭合反引号继续走 full markdown renderer。
+- 补充 targeted regression tests：no-session-id 清理 active child、spawn failure diagnostic threadId、stable markdown table 不因非 tool XML 未闭合 inline code 降级。
+
+边界：
+- 未引入新依赖。
+- 未执行测试或 typecheck，遵循本轮未显式要求验证的约束。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `19d0485c10212a0e946657c99eb4c860cc0112ec` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

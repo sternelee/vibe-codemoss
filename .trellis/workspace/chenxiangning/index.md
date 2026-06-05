@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-19.md`
-- **Total Sessions**: 712
+- **Total Sessions**: 713
 - **Last Active**: 2026-06-05
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-19.md` | ~878 | Active |
+| `journal-19.md` | ~923 | Active |
 | `journal-18.md` | ~1966 | Archived |
 | `journal-17.md` | ~1971 | Archived |
 | `journal-16.md` | ~1985 | Archived |
@@ -47,6 +47,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 713 | 2026-06-05 | 加固 Claude 提问恢复边界 | `19d0485c10212a0e946657c99eb4c860cc0112ec` | `feature/v0.5.6` |
 | 712 | 2026-06-05 | 收口实时吸顶对齐任务 | `77f29fa49f1f6065ccf86bab8715a251378c28e9` | `feature/v0.5.6` |
 | 711 | 2026-06-05 | 收口实时提问吸顶任务 | `89641455d8ce32180c47020494f8e63b9f62b2c6` | `feature/v0.5.6` |
 | 710 | 2026-06-05 | 修复 Claude Windows 互动回答恢复链路 | `21048455` | `feature/v0.5.6` |
