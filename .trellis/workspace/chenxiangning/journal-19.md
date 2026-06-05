@@ -954,3 +954,47 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 715: 提交 Project Map Relationship Dashboard 提案
+
+**Date**: 2026-06-05
+**Task**: 提交 Project Map Relationship Dashboard 提案
+**Branch**: `feature/v0.5.6`
+
+### Summary
+
+完成 Project Map Relationship Dashboard 提案与 OpenSpec artifacts 落盘
+
+### Main Changes
+
+本次会话完成 Project Map Relationship Dashboard 提案落盘与提交。
+
+主要内容：
+- 新增推进指导文档 docs/plans/2026-06-05-project-map-relationship-dashboard.md。
+- 新增 OpenSpec change add-project-map-relationship-dashboard。
+- 补齐 proposal、design、tasks 与 4 个 spec delta。
+- 明确 project-map-relations 默认存储位置为 ~/.ccgui/project-map-relations/<storage-key>/，与现有 ~/.ccgui/project-map/<storage-key>/ 平级。
+- 文档覆盖 Scan Relationships、deterministic scanner、layered storage、relationship dashboard、impact、stale/repair、Agent Read Plan、Composer context-pack 复用。
+
+验证：
+- 本轮按用户要求仅提交提案文档，未运行 OpenSpec validate、测试、lint 或 typecheck。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1344da54` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
