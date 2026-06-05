@@ -921,3 +921,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 714: 全量 CI 门禁与格式化收口
+
+**Date**: 2026-06-05
+**Task**: 全量 CI 门禁与格式化收口
+**Branch**: `feature/v0.5.6`
+
+### Summary
+
+跑完全量本地 CI/质量门禁：lint、typecheck、前端测试、doctor、build、Rust fmt/test、CI 静态治理、large-file、heavy-test-noise、memory-kind-contract 与 Tauri debug build 均通过；根据 cargo fmt 门禁提交 Rust 格式化收口，并按用户确认包含 CHANGELOG.md。
+
+### Main Changes
+
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `425b2d8e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
