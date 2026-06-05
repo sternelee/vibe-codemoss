@@ -555,3 +555,48 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 706: 收口 stale 线程绑定任务
+
+**Date**: 2026-06-05
+**Task**: 收口 stale 线程绑定任务
+**Branch**: `feature/v0.5.6`
+
+### Summary
+
+将 fix-stale-thread-binding-recovery Trellis task 从 planning 收口为 completed，补齐已完成实现 commit、OpenSpec archive、主 spec、代码/测试关联文件与验证记录。
+
+### Main Changes
+
+本次继续清理 Trellis/OpenSpec 残留债，只处理 fix-stale-thread-binding-recovery 的任务 metadata。
+
+已完成：
+- 将 .trellis/tasks/04-21-fix-stale-thread-binding-recovery/task.json 的 status 更新为 completed。
+- 补齐 dev_type=frontend、scope=threads、completedAt=2026-06-05、current_phase=6。
+- 关联既有实现 commit cec8360fdc24d7506fadbdd97323afffc3d0ee16。
+- 关联 OpenSpec archive、主 spec、threadStorage/useThreads 实现与测试文件。
+- notes 记录此前已完成的 regression tests、integration tests、typecheck、OpenSpec validation。
+
+边界：
+- 未修改生产代码。
+- 未触碰另一个 AI 正在处理的 harden-windows-ask-user-question-resume 相关 dirty 文件。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0f68b5da2611013c147556171793316f1adff639` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

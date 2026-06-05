@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-19.md`
-- **Total Sessions**: 705
+- **Total Sessions**: 706
 - **Last Active**: 2026-06-05
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-19.md` | ~557 | Active |
+| `journal-19.md` | ~602 | Active |
 | `journal-18.md` | ~1966 | Archived |
 | `journal-17.md` | ~1971 | Archived |
 | `journal-16.md` | ~1985 | Archived |
@@ -47,6 +47,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 706 | 2026-06-05 | 收口 stale 线程绑定任务 | `0f68b5da2611013c147556171793316f1adff639` | `feature/v0.5.6` |
 | 705 | 2026-06-05 | 收口完成提示音任务 | `64f2e89be3f9501ea9068628dbb314672faf8cb3` | `feature/v0.5.6` |
 | 704 | 2026-06-05 | 收口 explored 卡片折叠任务 | `aa64758348cb06ff93064322fd7e418b32cba353` | `feature/v0.5.6` |
 | 703 | 2026-06-05 | 归档 Codex 历史加载状态提案 | `b0e18b4fa1f87fb7079db1d93ce61971d0e5463a` | `feature/v0.5.6` |
