@@ -1416,3 +1416,60 @@ OpenSpec 回写：
 ### Next Steps
 
 - None - task complete
+
+
+## Session 724: 提交收口：意图画布与项目地图上下文
+
+**Date**: 2026-06-06
+**Task**: 提交收口：意图画布与项目地图上下文
+**Branch**: `feature/v0.5.7`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+本次会话完成阶段性提交收口，提交哈希为 d9560c94，提交标题为 feat: 完成意图画布与项目地图上下文收口。
+
+主要改动覆盖当前工作区全部代码变更：
+- 新增 intent-canvas 前端功能目录、意图画布管理器、附件卡片、场景序列化、AI context 构建、workspace 文件存储与样式。
+- 新增 Tauri project_canvas 与 project_identity 后端桥接，并扩展 app_paths、command_registry、lib、project_map 与前端 tauri service facade。
+- 扩展 Project Map 面板 API contract/context 展示、Composer 附件上下文、Layout/App Shell 状态编排、Workspace selection 与 Git/Live Edit 相关联动。
+- 更新 OpenSpec 变更文档，包括 add-intent-canvas-workspace-files、add-project-map-intent-canvas-context，以及 add-project-map-api-contract-view 的 proposal/design。
+- 补齐中英文 i18n、package/package-lock 依赖脚本更新，以及 intent-canvas/project-map 相关样式。
+
+提交前 review 修复的关键问题：
+- intentCanvasStorage 对 canvas id 与路径派生做 fail-closed 约束，避免损坏 index 或异常输入造成路径越界与跨平台路径歧义。
+- scene sanitize 过滤 null、primitive 与畸形 Excalidraw element，AI context 跳过 isDeleted 元素，避免删除态节点泄漏到 Composer/AI 上下文。
+- JSON 序列化增加 cycle guard，并提前剔除 collaborators runtime state，避免 cyclic appState/files 导致测试或保存路径崩溃。
+- IntentCanvasManager 改为 lazy import Excalidraw，避免普通测试路径触发 Excalidraw/open-color JSON import attribute 问题。
+- 删除缺失 canvas 文件时仍清理 index，save/create 错误显式落到组件状态，避免 unhandled promise。
+
+已执行验证：
+- npm exec vitest -- run src/features/intent-canvas/utils/scene.test.ts，5 个测试通过。
+- npm run typecheck，通过。
+- node --test scripts/check-large-files.test.mjs && npm run check:large-files:near-threshold && npm run check:large-files:gate，通过；large-file gate found=0，near-threshold 仅保留既有 watch warning。
+- node --test scripts/check-heavy-test-noise.test.mjs scripts/test-batched.test.mjs，通过，19 个测试通过。
+- npm run check:heavy-test-noise，通过；609 个 test files 完成，act warnings=0，stdout/stderr payload lines=0，仅剩环境级 npm electron_mirror warning。
+
+当前状态：代码提交已完成，Trellis session record 按 post-commit invariant 写入。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d9560c94` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
