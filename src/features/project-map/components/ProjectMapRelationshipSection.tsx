@@ -23,6 +23,14 @@ import {
   readProjectMapRelationships,
   scanProjectMapRelationships,
 } from "../services/projectMapPersistence";
+import {
+  queryProjectMapRelationshipEdge,
+} from "../../intent-canvas/services/relationshipImportQueries";
+import {
+  projectRelationshipEdgeToCanvasSemanticGraph,
+  projectRelationshipFileRelationsToCanvasSemanticGraph,
+} from "../../intent-canvas/services/relationshipProjector";
+import type { IntentCanvasOpenRequest } from "../../intent-canvas/types";
 import type {
   ProjectMapApiGroup,
   ProjectMapApiEndpoint,
@@ -93,6 +101,7 @@ type ProjectMapRelationshipSectionProps = {
   activeReadLocation: ProjectMapDatasetController["activeReadLocation"];
   expanded: boolean;
   onOpenEvidenceFile?: (path: string, location?: { line: number; column: number }) => void;
+  onOpenIntentCanvasFromRelationship?: (request: Omit<IntentCanvasOpenRequest, "requestId">) => void;
   reloadRelationshipContext: () => Promise<void>;
   scanRequestId: number;
   onSummaryStateChange: (state: ProjectMapRelationshipSummaryState) => void;
@@ -243,6 +252,7 @@ export function ProjectMapRelationshipSection({
   activeReadLocation,
   expanded,
   onOpenEvidenceFile,
+  onOpenIntentCanvasFromRelationship,
   reloadRelationshipContext,
   scanRequestId,
   onSummaryStateChange,
@@ -275,6 +285,8 @@ export function ProjectMapRelationshipSection({
   const [selectedRelationshipFileId, setSelectedRelationshipFileId] = useState<string | null>(null);
   const [inspectedRelationshipFileId, setInspectedRelationshipFileId] = useState<string | null>(null);
   const [selectedRelationshipRelationId, setSelectedRelationshipRelationId] = useState<string | null>(null);
+  const [isRelationshipCanvasImporting, setIsRelationshipCanvasImporting] = useState(false);
+  const [relationshipCanvasImportError, setRelationshipCanvasImportError] = useState<string | null>(null);
   const [expandedRelationshipTopRoleGroups, setExpandedRelationshipTopRoleGroups] = useState<Set<string>>(() => new Set());
   const [collapsedRelationshipTopRoleGroups, setCollapsedRelationshipTopRoleGroups] = useState<Set<string>>(() => new Set());
   const [expandedRelationshipTopModuleGroups, setExpandedRelationshipTopModuleGroups] = useState<Set<string>>(() => new Set());
@@ -1139,6 +1151,146 @@ export function ProjectMapRelationshipSection({
       ?? inspectedRelationshipRelations[0]
       ?? null;
   }, [inspectedRelationshipRelations, selectedRelationshipRelationId]);
+
+  const normalizeRelationshipCanvasImportError = useCallback((error: unknown) => {
+    if (error instanceof Error) {
+      return error.message || t("projectMap.relationship.importFailureUnknown");
+    }
+    if (typeof error === "string" && error.trim().length > 0) {
+      return error;
+    }
+    return t("projectMap.relationship.importFailureUnknown");
+  }, [t]);
+
+  const handleImportRelationshipNeighborhoodToCanvas = useCallback(async () => {
+    if (!inspectedRelationshipFile) {
+      setRelationshipCanvasImportError(t("projectMap.relationship.importNoFile"));
+      return;
+    }
+    if (!activeWorkspaceId) {
+      setRelationshipCanvasImportError(t("projectMap.relationship.importNoWorkspace"));
+      return;
+    }
+    if (!onOpenIntentCanvasFromRelationship) {
+      setRelationshipCanvasImportError(t("projectMap.relationship.importNotReady"));
+      return;
+    }
+    if (!inspectedRelationshipRelations.length) {
+      setRelationshipCanvasImportError(t("projectMap.relationship.importNoRelations"));
+      return;
+    }
+    setIsRelationshipCanvasImporting(true);
+    setRelationshipCanvasImportError(null);
+    try {
+      const graph = projectRelationshipFileRelationsToCanvasSemanticGraph({
+        workspaceId: activeWorkspaceId,
+        centerFile: inspectedRelationshipFile,
+        relations: inspectedRelationshipRelations,
+        filesById: relationshipDashboardFileIndex,
+        maxNodes: 40,
+        maxEdges: 80,
+      });
+      onOpenIntentCanvasFromRelationship({
+        mode: "architect",
+        title: t("projectMap.relationship.importNodeTitle", {
+          file: inspectedRelationshipFile.basename,
+        }),
+        summary: t("projectMap.relationship.importNodeSummary", {
+          path: inspectedRelationshipFile.path,
+          file: inspectedRelationshipFile.basename,
+          count: inspectedRelationshipRelations.length,
+        }),
+        source: {
+          filePath: inspectedRelationshipFile.path,
+          nodeTitle: inspectedRelationshipFile.basename,
+          nodeKind: inspectedRelationshipFile.role ?? inspectedRelationshipFile.language,
+          summary: inspectedRelationshipFile.path,
+        },
+        seedSemanticGraphs: [graph],
+      });
+    } catch (error) {
+      setRelationshipCanvasImportError(normalizeRelationshipCanvasImportError(error));
+    } finally {
+      setIsRelationshipCanvasImporting(false);
+    }
+  }, [
+    activeWorkspaceId,
+    inspectedRelationshipFile,
+    inspectedRelationshipRelations,
+    onOpenIntentCanvasFromRelationship,
+    normalizeRelationshipCanvasImportError,
+    relationshipDashboardFileIndex,
+    t,
+  ]);
+
+  const handleImportRelationshipEdgeToCanvas = useCallback(async () => {
+    if (!selectedRelationshipRelation) {
+      setRelationshipCanvasImportError(t("projectMap.relationship.importNoEdge"));
+      return;
+    }
+    if (!activeWorkspaceId) {
+      setRelationshipCanvasImportError(t("projectMap.relationship.importNoWorkspace"));
+      return;
+    }
+    if (!onOpenIntentCanvasFromRelationship) {
+      setRelationshipCanvasImportError(t("projectMap.relationship.importNotReady"));
+      return;
+    }
+    setIsRelationshipCanvasImporting(true);
+    setRelationshipCanvasImportError(null);
+    try {
+      const edgeContext = await queryProjectMapRelationshipEdge({
+        workspaceId: activeWorkspaceId,
+        edgeId: selectedRelationshipRelation.id,
+        storageLocation: activeReadLocation,
+      });
+      if (!edgeContext) {
+        throw new Error(t("projectMap.relationship.importEdgeUnavailable"));
+      }
+      const graph = projectRelationshipEdgeToCanvasSemanticGraph({
+        workspaceId: activeWorkspaceId,
+        edgeContext,
+      });
+      onOpenIntentCanvasFromRelationship({
+        mode: "architect",
+        title: t("projectMap.relationship.importEdgeTitle", {
+          source: (edgeContext.sourceNode?.basename || edgeContext.relation.sourceFileId),
+          target: (edgeContext.targetNode?.basename || edgeContext.relation.targetFileId),
+        }),
+        summary: t("projectMap.relationship.importEdgeSummary", {
+          source: (edgeContext.sourceNode?.path || edgeContext.relation.sourceFileId),
+          target: (edgeContext.targetNode?.path || edgeContext.relation.targetFileId),
+          type: selectedRelationshipRelation.type,
+        }),
+        source: {
+          filePath: edgeContext.sourceNode?.path || edgeContext.relation.sourceFileId,
+          nodeTitle: `${edgeContext.sourceNode?.basename || edgeContext.relation.sourceFileId} -> ${edgeContext.targetNode?.basename || edgeContext.relation.targetFileId}`,
+          nodeKind: edgeContext.relation.type,
+          summary: t("projectMap.relationship.importEdgeSummary", {
+            source: edgeContext.sourceNode?.path || edgeContext.relation.sourceFileId,
+            target: edgeContext.targetNode?.path || edgeContext.relation.targetFileId,
+            type: selectedRelationshipRelation.type,
+          }),
+        },
+        seedSemanticGraphs: [graph],
+      });
+    } catch (error) {
+      setRelationshipCanvasImportError(normalizeRelationshipCanvasImportError(error));
+    } finally {
+      setIsRelationshipCanvasImporting(false);
+    }
+  }, [
+    activeReadLocation,
+    activeWorkspaceId,
+    onOpenIntentCanvasFromRelationship,
+    normalizeRelationshipCanvasImportError,
+    selectedRelationshipRelation,
+    t,
+  ]);
+
+  useEffect(() => {
+    setRelationshipCanvasImportError(null);
+  }, [inspectedRelationshipFile?.id, selectedRelationshipRelationId]);
 
   const selectedRelationshipScopeWarnings = useMemo(() => (
     relationshipDashboardData?.staleSummary?.reasons.filter(
@@ -2347,6 +2499,34 @@ export function ProjectMapRelationshipSection({
                                       {t("projectMap.relationship.inspectorTotalShort")}
                                     </button>
                                   </div>
+                                  <div className="project-map-relationship-inspector-file-actions">
+                                    <span className="project-map-relationship-inspector-action-label">
+                                      {t("projectMap.relationship.importFileActionGroup")}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      className="project-map-relationship-inspector-primary-action"
+                                      onClick={handleImportRelationshipNeighborhoodToCanvas}
+                                      disabled={!onOpenIntentCanvasFromRelationship || isRelationshipCanvasImporting}
+                                    >
+                                      <ExternalLink aria-hidden />
+                                      {isRelationshipCanvasImporting
+                                        ? t("projectMap.relationship.importing")
+                                        : t("projectMap.relationship.importFileGraphToCanvas", {
+                                          count: inspectedRelationshipRelations.length,
+                                        })}
+                                    </button>
+                                  </div>
+                                  {isRelationshipCanvasImporting ? (
+                                    <p className="project-map-relationship-inspector-empty">
+                                      {t("projectMap.relationship.importing")}
+                                    </p>
+                                  ) : null}
+                                  {relationshipCanvasImportError ? (
+                                    <p className="project-map-relationship-inspector-empty">
+                                      {relationshipCanvasImportError}
+                                    </p>
+                                  ) : null}
                                 </>
                               ) : (
                                 <p className="project-map-relationship-inspector-empty">
@@ -2377,6 +2557,9 @@ export function ProjectMapRelationshipSection({
                                     </p>
                                     {callCandidate ? <em>{callCandidate}</em> : null}
                                     <div className="project-map-relationship-inspector-file-actions">
+                                      <span className="project-map-relationship-inspector-action-label">
+                                        {t("projectMap.relationship.importEdgeActionGroup")}
+                                      </span>
                                       <button
                                         type="button"
                                         disabled={!sourceFile || !onOpenEvidenceFile}
@@ -2401,6 +2584,17 @@ export function ProjectMapRelationshipSection({
                                       >
                                         <ExternalLink aria-hidden />
                                         {t("projectMap.relationship.openTargetFile")}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="project-map-relationship-inspector-secondary-action"
+                                        disabled={!onOpenIntentCanvasFromRelationship || isRelationshipCanvasImporting}
+                                        onClick={handleImportRelationshipEdgeToCanvas}
+                                      >
+                                        <ExternalLink aria-hidden />
+                                        {isRelationshipCanvasImporting
+                                          ? t("projectMap.relationship.importing")
+                                          : t("projectMap.relationship.importEdgeToCanvas")}
                                       </button>
                                     </div>
                                     {evidence ? (

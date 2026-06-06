@@ -144,6 +144,7 @@ type ProjectMapPanelProps = {
   onOpenEvidenceFile?: (path: string, location?: { line: number; column: number }) => void;
   onOpenOrchestrationTask?: (taskId: string) => void;
   onOpenIntentCanvas?: (request: Omit<IntentCanvasOpenRequest, "requestId">) => void;
+  onOpenIntentCanvasFromRelationship?: (request: Omit<IntentCanvasOpenRequest, "requestId">) => void;
 };
 
 type GraphViewport = ProjectMapGraphViewport;
@@ -1796,6 +1797,11 @@ export function ProjectMapPanel({
     setIsDetailCollapsed(false);
   }, [onOpenIntentCanvas, selectedNode]);
 
+  const handleOpenIntentCanvasFromRelationship = useCallback((request: Omit<IntentCanvasOpenRequest, "requestId">) => {
+    onOpenIntentCanvas?.(request);
+    setIsDetailCollapsed(false);
+  }, [onOpenIntentCanvas]);
+
   const handleNodeDrillClick = (
     event: MouseEvent<HTMLButtonElement>,
     node: ProjectMapNode,
@@ -2308,6 +2314,7 @@ export function ProjectMapPanel({
           activeReadLocation={datasetController.activeReadLocation}
           expanded={isFileRelationsWorkspaceVisible}
           onOpenEvidenceFile={onOpenEvidenceFile}
+          onOpenIntentCanvasFromRelationship={handleOpenIntentCanvasFromRelationship}
           reloadRelationshipContext={datasetController.reloadRelationshipContext}
           scanRequestId={relationshipScanRequestId}
           onSummaryStateChange={setRelationshipSummaryState}

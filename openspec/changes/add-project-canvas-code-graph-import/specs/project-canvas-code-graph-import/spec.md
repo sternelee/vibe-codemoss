@@ -16,12 +16,16 @@
 - **THEN** 导入后的 Canvas graph SHALL 保存 code-symbol source anchor，包含 workspace identity、file path、symbol name、symbol kind，以及可用的 source range
 
 ### Requirement: Relationship graph node import
-系统 SHALL 允许用户把 `project-map-relations` graph 中选中的 node 导入 Project Canvas，生成 bounded semantic graph projection。
+系统 SHALL 允许用户把 `project-map-relations` graph 中选中的 file node 导入 Project Canvas，生成以该文件为中心的 bounded direct relationship semantic graph projection。
 
 #### Scenario: node import creates centered graph
 - **WHEN** 用户选择 relationship graph node 并执行 import to Canvas
 - **THEN** 系统 SHALL 创建或追加 Canvas graph，并把 selected node 放在中心
-- **AND** 系统 SHALL 默认包含 bounded one-hop neighborhood
+- **AND** 系统 SHALL 默认包含该文件 direct incoming / outgoing relationship neighborhood
+- **AND** 系统 SHALL 使用当前 Relationship Inspector 已解析出的 direct relation set，保持 Canvas 导入结果与 inspector 计数一致
+- **AND** 系统 SHALL 在视觉上区分 incoming、current file、outgoing 三个关系区域
+- **AND** Canvas node 的 title/path 文本 SHALL 绑定在 node container 内，而不是作为未绑定的独立文本散落在画布上
+- **AND** Canvas relation arrow SHALL 绑定到 source/target node containers
 
 #### Scenario: node import respects graph limits
 - **WHEN** selected relationship node 的 neighbors 超过 Canvas import limit
@@ -29,12 +33,15 @@
 - **AND** 系统 SHALL 明确提示还有额外 neighbors 被 summarized 或 omitted
 
 ### Requirement: Relationship graph edge import
-系统 SHALL 允许用户把 `project-map-relations` graph 中选中的 edge 导入 Project Canvas，生成 traceable source-target relation。
+系统 SHALL 允许用户把 `project-map-relations` graph 中选中的 edge 导入 Project Canvas，生成 traceable source-target relation；该能力是 evidence-level secondary import，不替代 file node relationship graph import。
 
 #### Scenario: edge import creates source target relation
 - **WHEN** 用户选择 relationship graph edge 并执行 import to Canvas
 - **THEN** 系统 SHALL 创建或追加 edge source / target 的 Canvas nodes
 - **AND** 系统 SHALL 创建 directed Canvas edge，并保留 relation kind 和 evidence reference
+- **AND** source/target node labels SHALL be container-bound and the directed edge SHALL attach to both node containers
+- **AND** 如果 relationship evidence 中存在 method/function call candidate，Canvas edge label SHALL 显示该方法/函数名，而不是只显示 relation kind
+- **AND** method/function label SHALL be bound to the Canvas arrow element rather than rendered as an unrelated free-floating text element
 
 #### Scenario: edge import preserves evidence access
 - **WHEN** 用户选中 imported Canvas edge
@@ -118,3 +125,18 @@
 #### Scenario: AI output is not authoritative fact
 - **WHEN** AI 返回 imported Canvas graph 的 explanation 或 annotation
 - **THEN** 系统 SHALL 在视觉或结构上区分 AI output 与 fact-backed imported nodes/edges
+
+### Requirement: Sequenced dependency with API contract proposal
+本提案执行顺序为 relation projection 优先；API contract 仅作为 optional additive context source，不是关系图导入的前置事实条件。
+
+#### Scenario: Canvas import without API artifacts
+- **WHEN** 用户触发 relationship node / edge / code method 导入 Project Canvas
+- **AND** API contract artifact 不存在或扫描失败
+- **THEN** Canvas 导入 SHALL 基于 `project-map-relations` source anchors 正常完成
+- **AND** 系统 SHALL 显示 API context 状态为 unavailable，而非阻断导入主链路
+
+#### Scenario: API contract failure does not block import
+- **WHEN** API contract branch 显式失败
+- **AND** Canvas projection pipeline 已经拿到稳定的 relationship snapshot
+- **THEN** Canvas import SHALL 继续完成
+- **AND** AI explanation context SHALL 标记 API context 为 unavailable，projection context 保持可用

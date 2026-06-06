@@ -238,14 +238,16 @@ Relationship Graph UI                 Code/File View
 
 - Relationship node context action: `导入 Canvas` / `Import to Canvas`。
 - Relationship edge inspector action: `导入 Canvas` / `Import to Canvas`。
+- File-node import is the primary action and MUST be labeled as `导入当前文件关系图` / `Import file graph`。
+- Edge import is an evidence-level secondary action and MUST be labeled as `导入这条关系` / `Import this relation`。
 - Code selection action: `导入调用图到 Canvas` / `Import call graph to Canvas`。
 - Import target options:
   - Create new Canvas from graph。
   - Append to currently open Canvas。
   - Replace selected imported graph group after confirmation。
 - Default import depth:
-  - Node: one-hop neighborhood。
-  - Edge: source + target + selected edge。
+  - File node: complete bounded direct one-hop file relationship graph from the selected file perspective。
+  - Edge: source + target + selected edge only。
   - Code symbol: callers + callees, depth 1。
 - Hard limits:
   - Default max nodes: 40。
@@ -279,6 +281,19 @@ Relationship Graph UI                 Code/File View
 
 ## Migration Plan / 迁移计划
 
+## Execution sequencing / 执行先后
+
+- Scope gate: 本次变更以 `project-map-relations` 关系事实为唯一必选输入，不要求 API contract 扫描完成。
+- 前置依赖：API contract branch 的独立 artifact namespace、ownership/stale 门控、redaction 能力需要保持稳定（`add-project-map-api-contract-view` 已定义）。
+- 交付边界：Canvas 的 fact-backed graph 不依赖 API contract 发现器；API contract view 同样不反写 Project Map semantic nodes。
+- 回退策略：若 API scanner 未稳定，可关闭 API-driven 上下文路径，Canvas import 主链路不受影响。
+
+## OpenSpec coordination / 提案解耦策略
+
+- 继续保持两个 OpenSpec change 独立提交与归档，避免高复杂度 adapter 工作阻塞 Canvas 的第一阶段交付。
+- Canvas 侧预留 `source anchor` 的 schema，后续再增加 API endpoint / method chain 可选补充 context。
+- 任何 cross-change 引入字段必须先声明 provenance（workspaceId、scanRunId、evidenceIds）并在 stale/unresolved path 中保留可见性，不与 fact graph 混淆。
+
 1. 现有 Canvas documents 不需要迁移。
 2. 没有 `semanticGraphs` 的 documents 继续按 plain drawing canvas 加载。
 3. 新导入行为只新增 optional `semanticGraphs` / `aiAnnotations`。
@@ -299,6 +314,11 @@ Relationship Graph UI                 Code/File View
 - `project_map_relationship_read` 已返回 MVP 需要的 artifacts：manifest、files、relations、symbols、context pack、stale summary、repair issues。
 - `ProjectMapRelationshipSection` 已持有 selected file id、inspected file id、selected relation id。
 - `ProjectMapRelationshipSection` 已计算 centered selected file、incoming lane、outgoing lane、secondary nodes、aggregate nodes、bounded edges。
+- 2026-06-06 calibration: Relationship edge import is intentionally single-edge; file-node import is the primary path for importing the selected file's complete bounded direct relationship graph into Canvas。
+- 2026-06-06 implementation correction: file-node import MUST use the current Relationship Inspector direct relation set as the source of truth, because the inspector already resolves the selected file's incoming/outgoing relation count and endpoint files. Re-reading storage for this action can drift from the user's selected visual state.
+- 2026-06-06 projection correction: Canvas visual projection MUST create real Excalidraw bindings. Node title/path text is bound to the node container via `containerId` and node `boundElements`; relation arrows are bound to source/target node containers via `startBinding` / `endBinding`. Standalone text next to a rectangle is not an acceptable node label implementation.
+- 2026-06-06 edge-label correction: Canvas relation labels MUST preserve the method/function call candidate when Project Map has one, such as `ApiResponse.success` or `error.getDefaultMessage`. Relation kind (`calls`, `imports`, `configures`) is metadata/fallback, not the primary label for method-level evidence.
+- 2026-06-06 visual projection correction: Canvas edge labels MUST be bound text on the arrow container, not free-floating nearby text. Imported file nodes SHOULD use role-aware visual styling and multi-lane placement to reduce dense graph monotony.
 - 当前 Relationship Dashboard 默认渲染的是 file nodes 和 relation edges，不是 symbol-level graph nodes。
 - 当前 target-symbol resolution 使用 `ProjectMapRelationshipSymbol.fileId`、`name`、`line`；range/column 不保证存在。
 - 当前 `IntentCanvasDocument` normalizer 会从 Excalidraw scene 重建 `aiContext`，不会自动保留未知 semantic graph fields。
@@ -306,7 +326,7 @@ Relationship Graph UI                 Code/File View
 
 ### Calibrated implementation path / 校准后的实现路径
 
-1. 先从 Relationship Dashboard 抽取 file-node graph projection helper。
+1. 先从 Relationship Dashboard 复用 file-node relationship model，按 selected file 生成完整 bounded direct neighborhood。
 2. 先给 Project Canvas document 增加 optional semantic graph fields 和 normalizers。
 3. 先实现 relationship file-node import 和 edge import。
 4. 第一版 code symbol anchor 支持 line-level source anchor；range/column 有就填，没有不阻塞。
@@ -316,5 +336,9 @@ Relationship Graph UI                 Code/File View
 ### Proposal calibration / 提案校准
 
 原始 `source anchor` contract 保持有效，但 MVP 里 `relationship-node` 先按 `file` node 理解。`symbol` node 保留在协议里，等 relationship graph 后续支持 symbol nodes 再落地。
+
+`edge import` 只代表 selected source-target evidence relation；它不是 file-level graph import 的替代品。用户需要完整关系时，应使用 file inspector 的 `Import all file relations` 主操作，并导入当前 inspector 中显示的 direct relation set。
+
+Canvas visual elements must stay structurally connected after import: moving a file node should move its title/path label with the node and keep relation arrows attached to the source/target containers.
 
 `code-symbol` anchor 保持有效，但 `selectionRange` / `definitionRange` 是 optional enhancement，不是第一版必要条件。

@@ -2808,6 +2808,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       onOpenEvidenceFile={handleOpenProjectMapEvidenceFile}
       onOpenOrchestrationTask={handleOpenOrchestrationTask}
       onOpenIntentCanvas={options.onOpenIntentCanvas}
+      onOpenIntentCanvasFromRelationship={options.onOpenIntentCanvas}
     />
   );
 

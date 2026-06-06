@@ -2087,6 +2087,33 @@
   gap: 6px;
 }
 
+.project-map-relationship-inspector-action-label {
+  flex: 1 0 100%;
+  color: var(--project-map-text-muted);
+  font-size: 9px;
+  font-weight: 820;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.project-map-relationship-inspector-file-actions button.project-map-relationship-inspector-primary-action {
+  width: 100%;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--project-map-accent) 58%, transparent);
+  border-radius: 12px;
+  padding: 9px 10px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--project-map-accent) 24%, transparent), transparent 62%),
+    color-mix(in srgb, var(--project-map-surface-strong) 86%, transparent);
+  color: var(--project-map-text-strong);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--project-map-accent) 14%, transparent);
+}
+
+.project-map-relationship-inspector-file-actions button.project-map-relationship-inspector-secondary-action {
+  color: var(--project-map-text-muted);
+  font-size: 9.5px;
+}
+
 .project-map-relationship-inspector-evidence {
   display: grid;
   min-width: 0;

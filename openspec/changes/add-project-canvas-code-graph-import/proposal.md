@@ -219,6 +219,18 @@ openspec validate add-project-canvas-code-graph-import --strict --no-interactive
 - 当前已有 line/column navigation 和 OpenCode LSP command，但 Project Canvas 还没有专门的 code-selection import surface。
 - 所以代码选中方法导入要先确认 active editor/file view 是否暴露 selection state；没有的话先补 adapter。
 
+## Implementation Calibration - 2026-06-06 / 阶段实现校准
+
+- Relationship file-node import 是 Project Canvas Phase 2 的主入口：用户在 Relationship Inspector 中选择文件后，应通过 `导入全部 N 条关系到 Canvas` 导入当前 inspector 已解析出的 direct incoming / outgoing relation set。
+- Relationship edge import 是 evidence-level secondary action：`仅导入这条关系` 只生成 source / target / selected relation，不替代 file-level full relationship graph import。
+- Canvas visual projection 必须使用 Excalidraw structural binding：
+  - file node title/path text 绑定到 node container。
+  - relation arrow 绑定到 source / target node containers。
+  - method/function label 绑定到 arrow container。
+- Canvas edge label 必须优先保留 Project Map 已解析的 method/function call candidate，例如 `ApiResponse.success`、`error.getDefaultMessage`；`calls/imports/configures` 等 relation kind 只是 metadata/fallback。
+- 第一阶段已经将 file-level relationship graph 导入与 edge-level relation 导入区分清楚，并完成 Canvas semantic graph metadata 的 normalize/save/clone 保留。
+- Method-level selected code import 仍未完成，继续保留在后续 `6.x` task，不应在本阶段归档或宣称完成。
+
 ## 建议实施顺序 / Recommended Implementation Order
 
 ```text

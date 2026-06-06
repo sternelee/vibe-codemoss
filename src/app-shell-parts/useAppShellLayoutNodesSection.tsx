@@ -484,6 +484,7 @@ export function useAppShellLayoutNodesSection(ctx: any) {
         title: request.title ?? null,
         summary: request.summary ?? null,
         source: request.source ?? null,
+        seedSemanticGraphs: request.seedSemanticGraphs,
       });
     },
     [

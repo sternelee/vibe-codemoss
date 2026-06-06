@@ -4,6 +4,12 @@ import {
   writeProjectCanvasFile,
 } from "../../../services/tauri";
 import type {
+  CanvasAiAnnotation,
+  CanvasCodeSymbolKind,
+  CanvasSemanticGraph,
+  CanvasSemanticEdge,
+  CanvasSemanticNode,
+  CanvasSourceAnchor,
   IntentCanvasDocument,
   IntentCanvasIndexEntry,
   IntentCanvasIndexFile,
@@ -39,8 +45,48 @@ function createCanvasId(): string {
   return `canvas-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function uniqueStrings(values: string[]): string[] {
-  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+function uniqueStrings(values: Array<string | null | undefined>): string[] {
+  return Array.from(
+    new Set(
+      values.flatMap((value) => {
+        if (typeof value !== "string") {
+          return [];
+        }
+        const normalized = value.trim();
+        return normalized ? [normalized] : [];
+      }),
+    ),
+  );
+}
+
+function collectSeedProjectMapNodeIds(seedSemanticGraphs: CanvasSemanticGraph[]): string[] {
+  const nodeIds = new Set<string>();
+  seedSemanticGraphs.forEach((graph) => {
+    graph.nodes.forEach((node) => {
+      if (node.sourceAnchor?.kind === "relationship-node") {
+        nodeIds.add(node.sourceAnchor.nodeId);
+      }
+    });
+  });
+  return Array.from(nodeIds);
+}
+
+function collectSeedFilePaths(seedSemanticGraphs: CanvasSemanticGraph[]): string[] {
+  const filePaths = new Set<string>();
+  seedSemanticGraphs.forEach((graph) => {
+    graph.nodes.forEach((node) => {
+      if (node.sourceAnchor?.kind === "code-symbol" || node.sourceAnchor?.kind === "relationship-node") {
+        if (node.sourceAnchor.filePath) {
+          filePaths.add(node.sourceAnchor.filePath);
+        }
+      }
+    });
+  });
+  return Array.from(filePaths);
+}
+
+function collectSeedSemanticGraphs(seedSemanticGraphs: CanvasSemanticGraph[] | undefined): CanvasSemanticGraph[] {
+  return (seedSemanticGraphs ?? []).map(cloneCanvasGraph);
 }
 
 function normalizeCanvasId(value: unknown): string | null {
@@ -80,6 +126,292 @@ function normalizeLinks(value: unknown): IntentCanvasLinks {
     filePaths: asStringArray(value.filePaths),
     threadIds: asStringArray(value.threadIds),
   };
+}
+
+function asBoolean(value: unknown): boolean | null {
+  return typeof value === "boolean" ? value : null;
+}
+
+function normalizeFiniteNumber(value: unknown, minimum: number): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return null;
+  }
+  const normalized = Math.floor(value);
+  return normalized >= minimum ? normalized : null;
+}
+
+function normalizePathValue(value: unknown): string | null {
+  const path = asString(value);
+  if (!path) {
+    return null;
+  }
+  return path.replace(/\\/g, "/");
+}
+
+function normalizeCanvasSourceRange(value: unknown): { startLine: number; startColumn?: number | null; endLine?: number | null; endColumn?: number | null } | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const startLine = normalizeFiniteNumber(value.startLine, 1);
+  const startColumn = normalizeFiniteNumber(value.startColumn, 0);
+  const endLine = normalizeFiniteNumber(value.endLine, 1);
+  const endColumn = normalizeFiniteNumber(value.endColumn, 0);
+  if (startLine === null && endLine === null) {
+    return null;
+  }
+  return {
+    startLine: startLine ?? endLine ?? 1,
+    startColumn: startColumn,
+    endLine: endLine ?? startLine ?? 1,
+    endColumn: endColumn,
+  };
+}
+
+function normalizeCanvasSourceAnchor(value: unknown): CanvasSourceAnchor | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const kind = asString(value.kind);
+  const workspaceId = asString(value.workspaceId);
+  if (!workspaceId || !kind) {
+    return null;
+  }
+  if (kind === "code-symbol") {
+    const filePath = normalizePathValue(value.filePath);
+    const symbolName = asString(value.symbolName);
+    const symbolKind = asString(value.symbolKind);
+    if (!filePath || !symbolName) {
+      return null;
+    }
+    const resolvedSymbolKind: CanvasCodeSymbolKind =
+      symbolKind === "function" || symbolKind === "method" || symbolKind === "class" || symbolKind === "module"
+        ? symbolKind
+        : "unknown";
+    return {
+      kind,
+      workspaceId,
+      filePath,
+      symbolName,
+      symbolKind: resolvedSymbolKind,
+      scanRunId: asString(value.scanRunId),
+      symbolId: asString(value.symbolId),
+      selectionRange: normalizeCanvasSourceRange(value.selectionRange),
+      definitionRange: normalizeCanvasSourceRange(value.definitionRange),
+      resolvedBy: asString(value.resolvedBy) ?? undefined,
+    };
+  }
+  if (kind === "relationship-node") {
+    const nodeId = asString(value.nodeId);
+    const nodeKind = asString(value.nodeKind);
+    const scanRunId = asString(value.scanRunId);
+    if (!nodeId || !nodeKind || !scanRunId) {
+      return null;
+    }
+    return {
+      kind,
+      workspaceId,
+      scanRunId,
+      nodeId,
+      nodeKind,
+      filePath: normalizePathValue(value.filePath),
+      symbolId: asString(value.symbolId),
+    };
+  }
+  if (kind === "relationship-edge") {
+    const edgeId = asString(value.edgeId);
+    const relationKind = asString(value.relationKind);
+    const sourceNodeId = asString(value.sourceNodeId);
+    const targetNodeId = asString(value.targetNodeId);
+    const scanRunId = asString(value.scanRunId);
+    if (!edgeId || !relationKind || !sourceNodeId || !targetNodeId || !scanRunId) {
+      return null;
+    }
+    return {
+      kind,
+      workspaceId,
+      scanRunId,
+      edgeId,
+      relationKind,
+      sourceNodeId,
+      targetNodeId,
+      evidenceIds: asStringArray(value.evidenceIds),
+    };
+  }
+  return null;
+}
+
+function normalizeCanvasSemanticGraph(value: unknown): CanvasSemanticGraph | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const graphId = asString(value.graphId);
+  const createdAt = asString(value.createdAt);
+  if (!graphId || !createdAt) {
+    return null;
+  }
+  const nodes = Array.isArray(value.nodes)
+    ? value.nodes.flatMap((node) => {
+      const normalized = normalizeCanvasSemanticNode(node);
+      return normalized ? [normalized] : [];
+    })
+    : [];
+  const edges = Array.isArray(value.edges)
+    ? value.edges.flatMap((edge) => {
+      const normalized = normalizeCanvasSemanticEdge(edge);
+      return normalized ? [normalized] : [];
+    })
+    : [];
+  const sourceSnapshot = isRecord(value.sourceSnapshot) && value.sourceSnapshot.kind === "project-map-relations"
+    ? {
+        kind: "project-map-relations" as const,
+        scanRunId: asString(value.sourceSnapshot.scanRunId),
+        snapshotVersion: asString(value.sourceSnapshot.snapshotVersion),
+      }
+    : null;
+
+  const importOptions = isRecord(value.importOptions)
+    ? {
+        depth: normalizeFiniteNumber(value.importOptions.depth, 0),
+        direction: asString(value.importOptions.direction) as
+          | "callers"
+          | "callees"
+          | "both"
+          | "neighborhood"
+          | undefined,
+        centerNodeId: asString(value.importOptions.centerNodeId),
+        maxNodes: normalizeFiniteNumber(value.importOptions.maxNodes, 0),
+        maxEdges: normalizeFiniteNumber(value.importOptions.maxEdges, 0),
+        omittedNodes: normalizeFiniteNumber(value.importOptions.omittedNodes, 0),
+        omittedEdges: normalizeFiniteNumber(value.importOptions.omittedEdges, 0),
+      }
+    : undefined;
+
+  return {
+    graphId,
+    createdAt,
+    sourceSnapshot: sourceSnapshot && sourceSnapshot.scanRunId ? {
+      kind: sourceSnapshot.kind,
+      scanRunId: sourceSnapshot.scanRunId,
+      snapshotVersion: sourceSnapshot.snapshotVersion,
+    } : undefined,
+    nodes,
+    edges,
+    importOptions,
+  };
+}
+
+function normalizeCanvasSemanticNode(value: unknown): {
+  id: string;
+  label: string;
+  kind: "file" | "symbol" | "module" | "group" | "endpoint" | "unknown";
+  sourceAnchor?: CanvasSourceAnchor | null;
+  evidenceIds?: string[];
+  summary?: string | null;
+  stale?: boolean;
+  unresolved?: boolean;
+} | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = asString(value.id);
+  const rawLabel = asString(value.label);
+  const rawKind = asString(value.kind);
+  if (!id || !rawLabel) {
+    return null;
+  }
+  const kind =
+    rawKind === "file" || rawKind === "symbol" || rawKind === "module" || rawKind === "group" || rawKind === "endpoint"
+      ? rawKind
+      : "unknown";
+  return {
+    id,
+    label: rawLabel,
+    kind,
+    sourceAnchor: isRecord(value.sourceAnchor) ? normalizeCanvasSourceAnchor(value.sourceAnchor) : undefined,
+    evidenceIds: asStringArray(value.evidenceIds),
+    summary: asString(value.summary),
+    stale: asBoolean(value.stale) ?? false,
+    unresolved: asBoolean(value.unresolved) ?? false,
+  };
+}
+
+function normalizeCanvasSemanticEdge(value: unknown): {
+  id: string;
+  sourceNodeId: string;
+  targetNodeId: string;
+  relationKind: string;
+  direction?: "out" | "in" | "both" | "undirected";
+  sourceAnchor?: CanvasSourceAnchor | null;
+  label?: string | null;
+  evidenceIds?: string[];
+} | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = asString(value.id);
+  const sourceNodeId = asString(value.sourceNodeId);
+  const targetNodeId = asString(value.targetNodeId);
+  const relationKind = asString(value.relationKind);
+  if (!id || !sourceNodeId || !targetNodeId || !relationKind) {
+    return null;
+  }
+  const direction = asString(value.direction);
+  return {
+    id,
+    sourceNodeId,
+    targetNodeId,
+    relationKind,
+    direction:
+      direction === "out" || direction === "in" || direction === "both" || direction === "undirected"
+        ? direction
+        : undefined,
+    sourceAnchor: isRecord(value.sourceAnchor) ? normalizeCanvasSourceAnchor(value.sourceAnchor) : undefined,
+    label: asString(value.label),
+    evidenceIds: asStringArray(value.evidenceIds),
+  };
+}
+
+function normalizeCanvasAiAnnotation(value: unknown): CanvasAiAnnotation | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = asString(value.id);
+  const targetGraphId = asString(value.targetGraphId);
+  const content = asString(value.content);
+  const createdAt = asString(value.createdAt);
+  const annotationKind = asString(value.annotationKind);
+  if (!id || !targetGraphId || !content || !createdAt || !annotationKind) {
+    return null;
+  }
+  return {
+    id,
+    targetGraphId,
+    targetNodeIds: asStringArray(value.targetNodeIds),
+    targetEdgeIds: asStringArray(value.targetEdgeIds),
+    annotationKind,
+    content,
+    createdAt,
+  };
+}
+
+function normalizeCanvasSemanticGraphs(value: unknown): CanvasSemanticGraph[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((graph) => {
+    const normalized = normalizeCanvasSemanticGraph(graph);
+    return normalized ? [normalized] : [];
+  });
+}
+
+function normalizeCanvasAiAnnotations(value: unknown): CanvasAiAnnotation[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((item) => {
+    const normalized = normalizeCanvasAiAnnotation(item);
+    return normalized ? [normalized] : [];
+  });
 }
 
 function buildIndexEntry(document: IntentCanvasDocument): IntentCanvasIndexEntry {
@@ -169,6 +501,8 @@ export function normalizeIntentCanvasDocument(value: unknown): IntentCanvasDocum
       )
     : createInitialIntentCanvasScene(null);
   const summary = asString(value.summary) ?? "";
+  const semanticGraphs = normalizeCanvasSemanticGraphs(value.semanticGraphs);
+  const aiAnnotations = normalizeCanvasAiAnnotations(value.aiAnnotations);
   return {
     version: 1,
     id,
@@ -185,6 +519,57 @@ export function normalizeIntentCanvasDocument(value: unknown): IntentCanvasDocum
     links,
     scene,
     aiContext: buildIntentCanvasAiContext(scene, summary),
+    semanticGraphs,
+    aiAnnotations,
+  };
+}
+
+function cloneCanvasSourceAnchor(value: CanvasSourceAnchor): CanvasSourceAnchor {
+  return {
+    ...value,
+  };
+}
+
+function cloneCanvasSemanticNode(value: CanvasSemanticNode): CanvasSemanticNode {
+  return {
+    ...value,
+    sourceAnchor: value.sourceAnchor ? cloneCanvasSourceAnchor(value.sourceAnchor) : value.sourceAnchor,
+    evidenceIds: value.evidenceIds ? [...value.evidenceIds] : undefined,
+  };
+}
+
+function cloneCanvasSemanticEdge(value: CanvasSemanticEdge): CanvasSemanticEdge {
+  return {
+    ...value,
+    sourceAnchor: value.sourceAnchor ? cloneCanvasSourceAnchor(value.sourceAnchor) : value.sourceAnchor,
+    evidenceIds: value.evidenceIds ? [...value.evidenceIds] : undefined,
+  };
+}
+
+function cloneCanvasGraph(value: CanvasSemanticGraph): CanvasSemanticGraph {
+  return {
+    ...value,
+    nodes: value.nodes.map(cloneCanvasSemanticNode),
+    edges: value.edges.map(cloneCanvasSemanticEdge),
+    importOptions: value.importOptions
+      ? {
+          depth: value.importOptions.depth,
+          direction: value.importOptions.direction,
+          centerNodeId: value.importOptions.centerNodeId,
+          maxNodes: value.importOptions.maxNodes,
+          maxEdges: value.importOptions.maxEdges,
+          omittedNodes: value.importOptions.omittedNodes,
+          omittedEdges: value.importOptions.omittedEdges,
+        }
+      : undefined,
+  };
+}
+
+function cloneCanvasAiAnnotation(value: CanvasAiAnnotation): CanvasAiAnnotation {
+  return {
+    ...value,
+    targetNodeIds: value.targetNodeIds ? [...value.targetNodeIds] : undefined,
+    targetEdgeIds: value.targetEdgeIds ? [...value.targetEdgeIds] : undefined,
   };
 }
 
@@ -278,6 +663,7 @@ export function createIntentCanvasDocument(input: {
   const now = new Date().toISOString();
   const id = createCanvasId();
   const source = input.request?.source ?? null;
+  const seedSemanticGraphs = collectSeedSemanticGraphs(input.request?.seedSemanticGraphs);
   const title =
     input.request?.title?.trim() ||
     source?.nodeTitle?.trim() ||
@@ -285,11 +671,17 @@ export function createIntentCanvasDocument(input: {
     "Untitled Intent Canvas";
   const summary = input.request?.summary?.trim() || source?.summary?.trim() || "";
   const links: IntentCanvasLinks = {
-    projectMapNodeIds: uniqueStrings(source?.projectMapNodeId ? [source.projectMapNodeId] : []),
-    filePaths: uniqueStrings(source?.filePath ? [source.filePath] : []),
+    projectMapNodeIds: uniqueStrings([
+      ...source?.projectMapNodeId ? [source.projectMapNodeId] : [],
+      ...collectSeedProjectMapNodeIds(seedSemanticGraphs),
+    ]),
+    filePaths: uniqueStrings([
+      ...source?.filePath ? [source.filePath] : [],
+      ...collectSeedFilePaths(seedSemanticGraphs),
+    ]),
     threadIds: [],
   };
-  const scene = createInitialIntentCanvasScene(source);
+  const scene = createInitialIntentCanvasScene(source, seedSemanticGraphs);
   return {
     version: 1,
     id,
@@ -303,6 +695,8 @@ export function createIntentCanvasDocument(input: {
     links,
     scene,
     aiContext: buildIntentCanvasAiContext(scene, summary),
+    semanticGraphs: seedSemanticGraphs,
+    aiAnnotations: [],
   };
 }
 
@@ -315,6 +709,8 @@ export function cloneIntentCanvasDocument(input: {
   const title = `${input.source.title} Copy`;
   return {
     ...input.source,
+    semanticGraphs: input.source.semanticGraphs.map(cloneCanvasGraph),
+    aiAnnotations: input.source.aiAnnotations.map(cloneCanvasAiAnnotation),
     id,
     title,
     createdAt: now,

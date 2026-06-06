@@ -14,5 +14,5 @@
 
 ## 3. Validation
 
-- [ ] 3.1 Manually verify that clicking `扫描关系` shows the loading overlay during scan and removes it after completion.
+- [x] 3.1 Manually verify that clicking `扫描关系` shows the loading overlay during scan and removes it after completion.
 - [x] 3.2 Confirm no backend/Rust command contract or relationship artifact format changed.
