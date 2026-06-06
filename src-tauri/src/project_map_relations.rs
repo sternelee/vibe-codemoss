@@ -1543,11 +1543,11 @@ mod tests {
     fn relationship_snapshot_ownership_requires_matching_manifest() {
         let files = vec![ProjectMapRelationshipWriteFile {
             relative_path: "manifest.json".to_string(),
-            content: r#"{"schemaVersion":1,"storageKey":"mossx-12345678"}"#.to_string(),
+            content: r#"{"schemaVersion":1,"storageKey":"project-12345678"}"#.to_string(),
         }];
 
-        assert!(validate_relationship_snapshot_ownership("mossx-12345678", &files).is_ok());
+        assert!(validate_relationship_snapshot_ownership("project-12345678", &files).is_ok());
         assert!(validate_relationship_snapshot_ownership("other-12345678", &files).is_err());
-        assert!(validate_relationship_snapshot_ownership("mossx-12345678", &[]).is_err());
+        assert!(validate_relationship_snapshot_ownership("project-12345678", &[]).is_err());
     }
 }
