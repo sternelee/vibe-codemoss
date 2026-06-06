@@ -113,6 +113,7 @@ import {
 import {
   buildProjectMapEvidenceFileIndex,
 } from "../utils/evidenceFileIndex";
+import type { IntentCanvasMode, IntentCanvasOpenRequest } from "../../intent-canvas";
 import type { ProjectMapHierarchyRelationView } from "./ProjectMapPanelSurfaces";
 import type {
   ProjectMapDataset,
@@ -142,6 +143,7 @@ type ProjectMapPanelProps = {
   sourceFocusNodeId?: string | null;
   onOpenEvidenceFile?: (path: string, location?: { line: number; column: number }) => void;
   onOpenOrchestrationTask?: (taskId: string) => void;
+  onOpenIntentCanvas?: (request: Omit<IntentCanvasOpenRequest, "requestId">) => void;
 };
 
 type GraphViewport = ProjectMapGraphViewport;
@@ -372,6 +374,7 @@ export function ProjectMapPanel({
   sourceFocusNodeId = null,
   onOpenEvidenceFile,
   onOpenOrchestrationTask,
+  onOpenIntentCanvas,
 }: ProjectMapPanelProps) {
   const { t, i18n } = useTranslation();
   const preferredLanguage = resolveProjectMapPreferredLanguage(
@@ -1752,6 +1755,46 @@ export function ProjectMapPanel({
     setRelationshipScanRequestId((current) => current + 1);
   }, []);
 
+  const handleOpenIntentCanvas = useCallback((mode: IntentCanvasMode) => {
+    if (!selectedNode) {
+      return;
+    }
+    onOpenIntentCanvas?.({
+      mode,
+      title: mode === "spotlight"
+        ? `${selectedNode.title} Spotlight`
+        : `${selectedNode.title} Intent Canvas`,
+      summary: selectedNode.summary,
+      source: {
+        projectMapNodeId: selectedNode.id,
+        nodeTitle: selectedNode.title,
+        nodeKind: selectedNode.nodeKind,
+        summary: selectedNode.summary,
+      },
+    });
+    setIsDetailCollapsed(false);
+  }, [onOpenIntentCanvas, selectedNode]);
+
+  const handleOpenIntentCanvasForFile = useCallback((filePath: string) => {
+    const trimmedPath = filePath.trim();
+    if (!trimmedPath) {
+      return;
+    }
+    onOpenIntentCanvas?.({
+      mode: "file",
+      title: `${trimmedPath} Intent Canvas`,
+      summary: selectedNode?.summary ?? "",
+      source: {
+        projectMapNodeId: selectedNode?.id ?? null,
+        nodeTitle: selectedNode?.title ?? null,
+        nodeKind: selectedNode?.nodeKind ?? null,
+        summary: selectedNode?.summary ?? null,
+        filePath: trimmedPath,
+      },
+    });
+    setIsDetailCollapsed(false);
+  }, [onOpenIntentCanvas, selectedNode]);
+
   const handleNodeDrillClick = (
     event: MouseEvent<HTMLButtonElement>,
     node: ProjectMapNode,
@@ -2712,6 +2755,13 @@ export function ProjectMapPanel({
               onSelectRelation={handleRelationSelect}
               onGraphHealthExpandedChange={setIsGraphHealthExpanded}
               onRepairGraph={handleRepairGraphIntegrity}
+              onOpenIntentCanvasArchitect={
+                onOpenIntentCanvas ? () => handleOpenIntentCanvas("architect") : undefined
+              }
+              onOpenIntentCanvasSpotlight={
+                onOpenIntentCanvas ? () => handleOpenIntentCanvas("spotlight") : undefined
+              }
+              onOpenIntentCanvasForFile={onOpenIntentCanvas ? handleOpenIntentCanvasForFile : undefined}
             />
           </div>
         )}

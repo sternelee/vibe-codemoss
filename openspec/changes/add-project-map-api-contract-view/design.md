@@ -235,3 +235,49 @@ Alternatives considered:
 
 - 是否需要把 API graph 结果作为 Agent Read Plan 的高优先级 resource candidate。
 - 是否需要为每种 adapter 建独立 fixture directory 与 focused test suite。
+
+## Implementation stage notes（2026-06-06）
+
+### 中文导读
+
+本阶段设计校准的核心判断是：先把 `API contract graph` 的阅读界面做成稳定消费端，再继续补 scanner/parser provider。
+这不是偏离原设计，而是把架构切成两个可验证层：`presentation contract` 与 `discovery contract`。
+
+### Current implementation shape
+
+```text
+Project Map Relationship Dashboard
+  -> API tab
+  -> API graph mapper
+  -> group-first rendering thresholds
+  -> drill-down state
+  -> endpoint/group inspector
+  -> redacted evidence display
+
+Project Map scan orchestration
+  -> independent API branch started
+  -> API artifact namespace started
+  -> parser source metadata started
+  -> redaction utility completed
+```
+
+### Design calibration
+
+- UI SHOULD continue consuming `ApiContractGraph` as the only stable input model.
+- Scanner adapters SHOULD remain evidence providers. They MUST NOT leak parser-specific schemas into persisted mossx artifacts.
+- The API view SHOULD tolerate incomplete scanner output by rendering empty, partial, or low-confidence states instead of fabricating endpoint facts.
+- Endpoint inspector SHOULD prefer unavailable/unknown states over generated filler copy when `description` or `usageScenario` lacks evidence.
+- Group-first rendering remains the default for scale. Filters and search MUST preserve hierarchy rather than replacing the graph with a flat result table.
+
+### Next implementation batch
+
+1. Complete domain model and ownership gate before adding more language-specific parser logic.
+2. Implement protocol-specific canonical endpoint identity and strong-contract/source merge before deep framework adapters.
+3. Register first-stage adapter skeletons for every declared language with explicit parser source metadata and unsupported/no-candidate reason.
+4. Implement scan scope controls and skipped reason metadata so API scanning cannot regress into dependency/generated directory traversal.
+5. Add method chain inspector after conservative chain extraction exists; do not show synthetic chain narratives before edge evidence is available.
+
+### Rollback boundary
+
+If API discovery proves unstable in a real workspace, the API tab can continue showing the graph empty/partial state while the API branch is disabled or hidden.
+This rollback does not affect existing file relationship scan artifacts or Project Map semantic graph because the artifact namespace and UI state are isolated.

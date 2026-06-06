@@ -26,6 +26,8 @@ import { WorkspaceSearchPanel } from "../../search/components/WorkspaceSearchPan
 import { PromptPanel } from "../../prompts/components/PromptPanel";
 import { ProjectMemoryPanel } from "../../project-memory/components/ProjectMemoryPanel";
 import { ProjectMapPanel, type ProjectMapDatasetController } from "../../project-map";
+import { IntentCanvasManager } from "../../intent-canvas/components/IntentCanvasManager";
+import type { IntentCanvasDocument, IntentCanvasOpenRequest } from "../../intent-canvas/types";
 import { buildGitStatusProjectMapImpactInput } from "../../project-map/utils/impactSources";
 import {
   OrchestrationCenterView,
@@ -476,8 +478,8 @@ type LayoutNodesOptions = {
   mainHeaderActionsNode?: ReactNode;
   browserDockOpen?: boolean;
   onCloseBrowserDock?: () => void;
-  centerMode: "chat" | "diff" | "editor" | "memory" | "projectMap";
-  setCenterMode: (mode: "chat" | "diff" | "editor" | "memory" | "projectMap") => void;
+  centerMode: "chat" | "diff" | "editor" | "memory" | "projectMap" | "intentCanvas";
+  setCenterMode: (mode: "chat" | "diff" | "editor" | "memory" | "projectMap" | "intentCanvas") => void;
   editorSplitCompanion: "chat" | "projectMap";
   setEditorSplitCompanion: (companion: "chat" | "projectMap") => void;
   editorSplitLayout: "vertical" | "horizontal";
@@ -512,6 +514,12 @@ type LayoutNodesOptions = {
   onGitPanelModeChange: (mode: "diff" | "log" | "issues" | "prs") => void;
   onOpenGitHistoryPanel: () => void;
   onOpenProjectMap: () => void;
+  intentCanvasOpenRequest?: IntentCanvasOpenRequest | null;
+  onOpenIntentCanvas?: (request?: Omit<IntentCanvasOpenRequest, "requestId">) => void;
+  onIntentCanvasOpenRequestConsumed?: (requestId: number) => void;
+  onAttachIntentCanvasToThread?: (document: IntentCanvasDocument) => Promise<void> | void;
+  pendingIntentCanvasDocuments?: IntentCanvasDocument[];
+  onRemovePendingIntentCanvas?: (documentId: string) => void;
   gitDiffViewStyle: "split" | "unified";
   gitDiffListView: GitDiffListView;
   onGitDiffListViewChange: (view: "flat" | "tree") => void;
@@ -833,6 +841,7 @@ type LayoutNodesResult = {
   gitDiffViewerNode: ReactNode;
   fileViewPanelNode: ReactNode;
   projectMapPanelNode: ReactNode;
+  intentCanvasPanelNode: ReactNode;
   browserDockNode: ReactNode;
   planPanelNode: ReactNode;
   debugPanelNode: ReactNode;
@@ -844,7 +853,7 @@ type LayoutNodesResult = {
   compactGitBackNode: ReactNode;
 };
 
-type RightPanelTabSelection = LayoutNodesOptions["filePanelMode"] | "projectMap";
+type RightPanelTabSelection = LayoutNodesOptions["filePanelMode"] | "projectMap" | "intentCanvas";
 
 const EMPTY_COMMANDS: CustomCommandOption[] = [];
 
@@ -1949,6 +1958,8 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         onPickImages={options.onPickImages}
         onAttachImages={options.onAttachImages}
         onRemoveImage={options.onRemoveImage}
+        intentCanvasAttachments={options.pendingIntentCanvasDocuments}
+        onRemoveIntentCanvasAttachment={options.onRemovePendingIntentCanvas}
         prefillDraft={options.prefillDraft}
         onPrefillHandled={options.onPrefillHandled}
         insertText={options.insertText}
@@ -2196,6 +2207,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     options.centerMode === "diff" ? options.selectedDiffPath : null;
   const onFilePanelModeChange = options.onFilePanelModeChange;
   const onOpenProjectMap = options.onOpenProjectMap;
+  const onOpenIntentCanvas = options.onOpenIntentCanvas;
   const centerMode = options.centerMode;
   const setCenterMode = options.setCenterMode;
   const editorSplitCompanion = options.editorSplitCompanion;
@@ -2203,9 +2215,18 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
   const isProjectMapSurfaceActive =
     centerMode === "projectMap" ||
     (centerMode === "editor" && editorSplitCompanion === "projectMap");
+  const isIntentCanvasSurfaceActive = centerMode === "intentCanvas";
 
   const handleRightPanelTabSelect = useCallback(
     (tabId: RightPanelTabSelection) => {
+      if (tabId === "intentCanvas") {
+        if (isIntentCanvasSurfaceActive) {
+          setCenterMode("chat");
+          return;
+        }
+        onOpenIntentCanvas?.();
+        return;
+      }
       if (tabId === "projectMap") {
         if (isProjectMapSurfaceActive) {
           if (centerMode === "editor") {
@@ -2228,10 +2249,12 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       onFilePanelModeChange(tabId);
     },
     [
+      isIntentCanvasSurfaceActive,
       isProjectMapSurfaceActive,
       centerMode,
       onFilePanelModeChange,
       onOpenProjectMap,
+      onOpenIntentCanvas,
       isEditorFileMaximized,
       onToggleEditorFileMaximized,
       setCenterMode,
@@ -2243,7 +2266,13 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     showRightActivityToolbar && hasVisibleRightToolbarControl ? (
     <div className="right-panel-toolbar">
       <PanelTabs
-        active={isProjectMapSurfaceActive ? "projectMap" : options.filePanelMode}
+        active={
+          isIntentCanvasSurfaceActive
+            ? "intentCanvas"
+            : isProjectMapSurfaceActive
+              ? "projectMap"
+              : options.filePanelMode
+        }
         onSelect={handleRightPanelTabSelect}
         liveStates={{
           activity: workspaceActivity.isProcessing,
@@ -2778,6 +2807,18 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       sourceFocusNodeId={projectMapSourceFocusNodeId}
       onOpenEvidenceFile={handleOpenProjectMapEvidenceFile}
       onOpenOrchestrationTask={handleOpenOrchestrationTask}
+      onOpenIntentCanvas={options.onOpenIntentCanvas}
+    />
+  );
+
+  const intentCanvasPanelNode = (
+    <IntentCanvasManager
+      activeWorkspace={options.activeWorkspace ?? null}
+      activeThreadId={options.activeThreadId ?? null}
+      openRequest={options.intentCanvasOpenRequest ?? null}
+      onOpenRequestConsumed={options.onIntentCanvasOpenRequestConsumed}
+      onAttachToThread={options.onAttachIntentCanvasToThread}
+      onOpenProjectMap={options.onOpenProjectMap}
     />
   );
 
@@ -2931,6 +2972,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     gitDiffViewerNode,
     fileViewPanelNode,
     projectMapPanelNode,
+    intentCanvasPanelNode,
     browserDockNode,
     planPanelNode,
     debugPanelNode,

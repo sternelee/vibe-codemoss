@@ -1616,6 +1616,21 @@ export async function writeWorkspaceFile(workspaceId: string, path: string, cont
   return invoke("write_workspace_file", { workspaceId, path, content });
 }
 
+export async function readProjectCanvasFile(workspaceId: string, path: string): Promise<{ content: string; truncated: boolean }> {
+  return invoke<{ content: string; truncated: boolean }>("project_canvas_read_file", {
+    workspaceId,
+    path,
+  });
+}
+
+export async function writeProjectCanvasFile(workspaceId: string, path: string, content: string): Promise<void> {
+  return invoke("project_canvas_write_file", { workspaceId, path, content });
+}
+
+export async function trashProjectCanvasFile(workspaceId: string, path: string): Promise<void> {
+  return invoke("project_canvas_trash_file", { workspaceId, path });
+}
+
 export type ExportRewindFilesParams = {
   workspaceId: string;
   engine: "claude" | "codex" | "gemini";
