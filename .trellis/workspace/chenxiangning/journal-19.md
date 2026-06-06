@@ -1657,3 +1657,60 @@ OpenSpec 回写：
 ### Next Steps
 
 - None - task complete
+
+
+## Session 729: 修复 Project Map 文件关系扫描与收起语义
+
+**Date**: 2026-06-06
+**Task**: 修复 Project Map 文件关系扫描与收起语义
+**Branch**: `feature/v0.5.7`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| Area | Summary |
+|------|---------|
+| Project Map relationships | Added a theme-compatible relationship scan loading overlay driven by running scan state. |
+| Scan trigger semantics | Treated parent scan request ids as edge-triggered events so remount/collapse/expand cannot replay old scans. |
+| Header collapse behavior | Kept the selected file relationship workspace visible when the Project Map header is collapsed, instead of falling back to the base node graph or blank stage. |
+| API view search | Wired API tab text search to endpoint/group projection and hid file relationship role/type/noise filters in API mode. |
+| OpenSpec | Updated relationship scan loading proposal/design/spec/tasks and API contract view proposal/design/tasks with the bug-fix semantics. |
+
+**Committed Files**:
+- `src/features/project-map/components/ProjectMapPanel.tsx`
+- `src/features/project-map/components/ProjectMapRelationshipSection.tsx`
+- `src/styles/project-map.relationship.css`
+- `src/styles/project-map.relationship-workspace.css`
+- `src/i18n/locales/zh.part5.ts`
+- `src/i18n/locales/en.part5.ts`
+- `openspec/changes/add-project-map-relations-scan-loading/**`
+- `openspec/changes/add-project-map-api-contract-view/proposal.md`
+- `openspec/changes/add-project-map-api-contract-view/design.md`
+- `openspec/changes/add-project-map-api-contract-view/tasks.md`
+
+**Notes**:
+- Manual user confirmation covered the collapse behavior path.
+- No validation command was run in this session.
+- Unrelated `add-project-canvas-code-graph-import` changes were intentionally left uncommitted.
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `bf46b1b7` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

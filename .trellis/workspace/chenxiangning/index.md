@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-19.md`
-- **Total Sessions**: 728
+- **Total Sessions**: 729
 - **Last Active**: 2026-06-06
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-19.md` | ~1659 | Active |
+| `journal-19.md` | ~1716 | Active |
 | `journal-18.md` | ~1966 | Archived |
 | `journal-17.md` | ~1971 | Archived |
 | `journal-16.md` | ~1985 | Archived |
@@ -47,6 +47,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 729 | 2026-06-06 | 修复 Project Map 文件关系扫描与收起语义 | `bf46b1b7` | `feature/v0.5.7` |
 | 728 | 2026-06-06 | 提交 Project Canvas 代码图导入提案 | `8f2343e1` | `feature/v0.5.7` |
 | 727 | 2026-06-06 | 更新现有 OpenSpec 变更提案 | `3ac4742b` | `feature/v0.5.7` |
 | 726 | 2026-06-06 | 规范化 Intent Canvas Excalidraw 选择状态 | `153926fd` | `feature/v0.5.7` |
