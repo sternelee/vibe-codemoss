@@ -1762,3 +1762,52 @@ OpenSpec 回写：
 ### Next Steps
 
 - None - task complete
+
+
+## Session 731: 修复代码关系导入 Intent Canvas 稳定性
+
+**Date**: 2026-06-06
+**Task**: 修复代码关系导入 Intent Canvas 稳定性
+**Branch**: `feature/v0.5.7`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| Area | Summary |
+|------|---------|
+| Intent Canvas | 修复 Project Map / code graph 关系导入到 Intent Canvas 的目标刷新、append 合并和旧画布自愈问题。 |
+| Scene repair | 为系统生成的 `intent-node-*` / `intent-node-text-*` / `intent-edge-*` 元素增加稳定 id、旧深色 palette 修复、文字 binding 修复与空 label 系统框过滤。 |
+| Import UX | 关系导入目标 Canvas 列表增加 reload 与 stale request guard，减少新建/保存 Canvas 后目标下拉不及时的问题。 |
+| OpenSpec | 回写 `add-project-canvas-code-graph-import` 阶段性 proposal，记录旧 Canvas 合并导入黑框/空框根因与行为边界。 |
+| Scope | 按用户确认提交当前工作区全部改动，包含已有 OpenSpec/code graph import 相关变更与新增测试文件。 |
+| Validation | 本回合未运行自动化验证；建议后续跑 Intent Canvas focused tests 和相关 frontend checks。 |
+
+**Code Commit**: `83c6feaf fix(intent-canvas): 修复代码关系导入画布稳定性`
+
+**Key Files**:
+- `src/features/intent-canvas/utils/scene.ts`
+- `src/features/intent-canvas/utils/scene.test.ts`
+- `src/features/project-map/components/ProjectMapRelationshipSection.tsx`
+- `openspec/changes/add-project-canvas-code-graph-import/proposal.md`
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `83c6feaf` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
