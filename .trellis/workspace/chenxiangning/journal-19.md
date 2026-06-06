@@ -1811,3 +1811,47 @@ OpenSpec 回写：
 ### Next Steps
 
 - None - task complete
+
+
+## Session 732: 完善代码关系导入画布链路
+
+**Date**: 2026-06-06
+**Task**: 完善代码关系导入画布链路
+**Branch**: `feature/v0.5.7`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+本阶段继续推进 OpenSpec change add-project-canvas-code-graph-import。
+
+主要改动：
+- 补齐 Project Map relationship import 到 Intent Canvas 的 source backlink、evidence backlink、stale/unresolved 状态展示。
+- 右侧 AI Context rail 加宽，并为来源追溯增加返回 Project Map 的 link。
+- 修复导入到旧 Canvas 时 generated element 黑框/空框风险，保持颜色与主题适配。
+- 撤销 replace selected imported graph 能力，删除 UI 选项、target 分支、storage 替换逻辑、i18n 文案和 OpenSpec 任务项。
+- 更新 OpenSpec proposal/tasks 的阶段性回写。
+
+验证：
+- 未主动运行测试或类型检查；本次遵循用户交互节奏，仅做阶段性提交。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d2d14f4d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
