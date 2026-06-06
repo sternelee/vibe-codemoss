@@ -1895,3 +1895,42 @@ OpenSpec 回写：
 ### Next Steps
 
 - None - task complete
+
+
+## Session 734: 归档 Project Canvas 代码关系图导入变更
+
+**Date**: 2026-06-07
+**Task**: 归档 Project Canvas 代码关系图导入变更
+**Branch**: `feature/v0.5.7`
+
+### Summary
+
+归档 add-project-canvas-code-graph-import OpenSpec change，并同步主规格 project-canvas-code-graph-import。
+
+### Main Changes
+
+- 使用 `openspec archive add-project-canvas-code-graph-import --no-validate -y` 完成归档。
+- OpenSpec CLI 将变更归档到 `openspec/changes/archive/2026-06-06-add-project-canvas-code-graph-import/`。
+- 同步创建主规格 `openspec/specs/project-canvas-code-graph-import/spec.md`。
+- 按当前会话约束跳过 validation；归档命令输出已记录 validation skipped warning。
+- 提交 `a26a3a9d chore(openspec): 归档项目画布代码关系图导入`。
+- 未纳入无关未跟踪目录 `openspec/changes/harden-client-renderer-stability-under-pressure/`。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a26a3a9d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
