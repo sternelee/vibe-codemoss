@@ -104,6 +104,11 @@
   line-height: 1.55;
 }
 
+.intent-canvas-attachment-context-status {
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .intent-canvas-manager-hero p {
   display: block;
   overflow: hidden;
@@ -1006,6 +1011,7 @@
 
 .intent-canvas-attachment-body dl {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   margin: 8px 0 0;
 }
@@ -1022,6 +1028,42 @@
   color: var(--text-strong);
   font-size: 13px;
   font-weight: 900;
+}
+
+.intent-canvas-attachment-context-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  min-width: 0;
+}
+
+.intent-canvas-attachment-context-chip {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  padding: 3px 7px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--surface-control), transparent 8%);
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.intent-canvas-attachment-context-chip.is-complete {
+  border-color: color-mix(in srgb, #2563eb, transparent 55%);
+  color: var(--text-accent);
+  background: color-mix(in srgb, #2563eb, transparent 88%);
+}
+
+.intent-canvas-attachment-context-chip.is-compressed {
+  border-color: color-mix(in srgb, #b45309, transparent 48%);
+  color: color-mix(in srgb, #b45309, var(--text-strong) 18%);
+  background: color-mix(in srgb, #f59e0b, transparent 86%);
 }
 
 .intent-canvas-attachment-remove {

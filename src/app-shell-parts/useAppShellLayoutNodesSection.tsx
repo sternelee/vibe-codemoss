@@ -7,10 +7,12 @@ import { WorkspaceAliasPrompt } from "../features/workspaces/components/Workspac
 import { useClientUiVisibility } from "../features/client-ui-visibility/hooks/useClientUiVisibility";
 import { useProjectMapDataset } from "../features/project-map";
 import {
+  buildIntentCanvasContextAttachment,
   formatIntentCanvasThreadContext,
   type IntentCanvasDocument,
   type IntentCanvasOpenRequest,
 } from "../features/intent-canvas";
+import type { IntentCanvasCodeSelectionAnchor } from "../features/intent-canvas/types";
 import { normalizeSharedSessionEngine } from "../features/shared-session/utils/sharedSessionEngines";
 import {
   recoverThreadBindingAndResendForManualRecovery,
@@ -73,6 +75,8 @@ export function useAppShellLayoutNodesSection(ctx: any) {
   const [focusedWorkspaceNoteRequestKey, setFocusedWorkspaceNoteRequestKey] = useState(0);
   const [intentCanvasOpenRequest, setIntentCanvasOpenRequest] =
     useState<IntentCanvasOpenRequest | null>(null);
+  const [activeIntentCanvasCodeSelectionAnchor, setActiveIntentCanvasCodeSelectionAnchor] =
+    useState<IntentCanvasCodeSelectionAnchor | null>(null);
   const intentCanvasOpenRequestSequenceRef = useRef(0);
   const [pendingIntentCanvasByThreadId, setPendingIntentCanvasByThreadId] =
     useState<Record<string, IntentCanvasDocument[]>>({});
@@ -193,6 +197,27 @@ export function useAppShellLayoutNodesSection(ctx: any) {
     [activeWorkspace?.name],
   );
 
+  const appendPendingIntentCanvasSendOptions = useCallback(
+    (documents: IntentCanvasDocument[], options?: any) => {
+      if (documents.length === 0) {
+        return options;
+      }
+      const attachments = documents.map((document) =>
+        buildIntentCanvasContextAttachment(document, activeWorkspace?.name),
+      );
+      return {
+        ...(options ?? {}),
+        intentCanvasContextAttachments: [
+          ...(Array.isArray(options?.intentCanvasContextAttachments)
+            ? options.intentCanvasContextAttachments
+            : []),
+          ...attachments,
+        ],
+      };
+    },
+    [activeWorkspace?.name],
+  );
+
   const clearPendingIntentCanvasForThread = useCallback((targetThreadId: string) => {
     setPendingIntentCanvasByThreadId((current) => {
       if (!current[targetThreadId]?.length) {
@@ -233,7 +258,8 @@ export function useAppShellLayoutNodesSection(ctx: any) {
     async (text: string, images: string[], options?: any) => {
       const stagedDocuments = pendingIntentCanvasDocuments;
       const nextText = appendPendingIntentCanvasContext(text, stagedDocuments);
-      await handleComposerSendWithEditorFallback(nextText, images, options);
+      const nextOptions = appendPendingIntentCanvasSendOptions(stagedDocuments, options);
+      await handleComposerSendWithEditorFallback(nextText, images, nextOptions);
       if (activeThreadId && stagedDocuments.length > 0) {
         clearPendingIntentCanvasForThread(activeThreadId);
       }
@@ -241,6 +267,7 @@ export function useAppShellLayoutNodesSection(ctx: any) {
     [
       activeThreadId,
       appendPendingIntentCanvasContext,
+      appendPendingIntentCanvasSendOptions,
       clearPendingIntentCanvasForThread,
       handleComposerSendWithEditorFallback,
       pendingIntentCanvasDocuments,
@@ -251,7 +278,8 @@ export function useAppShellLayoutNodesSection(ctx: any) {
     async (text: string, images: string[], options?: any) => {
       const stagedDocuments = pendingIntentCanvasDocuments;
       const nextText = appendPendingIntentCanvasContext(text, stagedDocuments);
-      await handleComposerQueueWithEditorFallback(nextText, images, options);
+      const nextOptions = appendPendingIntentCanvasSendOptions(stagedDocuments, options);
+      await handleComposerQueueWithEditorFallback(nextText, images, nextOptions);
       if (activeThreadId && stagedDocuments.length > 0) {
         clearPendingIntentCanvasForThread(activeThreadId);
       }
@@ -259,6 +287,7 @@ export function useAppShellLayoutNodesSection(ctx: any) {
     [
       activeThreadId,
       appendPendingIntentCanvasContext,
+      appendPendingIntentCanvasSendOptions,
       clearPendingIntentCanvasForThread,
       handleComposerQueueWithEditorFallback,
       pendingIntentCanvasDocuments,
@@ -1303,6 +1332,8 @@ export function useAppShellLayoutNodesSection(ctx: any) {
     onOpenComposerKanbanPanel: handleOpenComposerKanbanPanel,
     activeComposerFilePath: activeEditorFilePath,
     activeComposerFileLineRange: activeEditorLineRange,
+    activeCodeSelectionAnchor: activeIntentCanvasCodeSelectionAnchor,
+    onActiveCodeSelectionAnchorChange: setActiveIntentCanvasCodeSelectionAnchor,
     fileReferenceMode,
     onFileReferenceModeChange: setFileReferenceMode,
     showComposer,

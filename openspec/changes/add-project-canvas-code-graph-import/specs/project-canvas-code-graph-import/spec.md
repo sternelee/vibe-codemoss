@@ -134,7 +134,7 @@
 - **THEN** 系统 SHALL 在视觉或结构上区分 AI output 与 fact-backed imported nodes/edges
 
 ### Requirement: Sequenced dependency with API contract proposal
-本提案执行顺序为 relation projection 优先；API contract 仅作为 optional additive context source，不是关系图导入的前置事实条件。
+系统 SHALL 以 relation projection 为 Project Canvas code graph import 的主链路；API contract 仅作为 optional additive context source，MUST NOT 成为关系图导入的前置事实条件。
 
 #### Scenario: Canvas import without API artifacts
 - **WHEN** 用户触发 relationship node / edge / code method 导入 Project Canvas

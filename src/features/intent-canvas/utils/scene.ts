@@ -323,10 +323,13 @@ function createGraphNodeShape(
   const title = compactCanvasLabel(node.label, "Relationship Node");
   const subtitle = getNodePathLabel(node);
   const roleLabel = getNodeRoleLabel(node);
+  const summaryLabel = node.kind === "symbol" && node.summary
+    ? node.summary.split(/\n|;\s*/).map((line) => line.trim()).filter(Boolean).slice(0, 3).join("\n")
+    : null;
   const nodeText = [
     title,
     roleLabel ? `${roleLabel} · ${node.kind}` : node.kind,
-    subtitle,
+    summaryLabel ?? subtitle,
   ].filter(Boolean).join("\n");
   return [
     {
@@ -437,7 +440,7 @@ function buildGraphSeedSkeleton(seedSemanticGraphs: CanvasSemanticGraph[] | unde
       x,
       y,
       width: GRAPH_NODE_WIDTH,
-      height: GRAPH_NODE_HEIGHT,
+      height: node.kind === "symbol" ? 128 : GRAPH_NODE_HEIGHT,
     });
   };
   incomingNodes.forEach((node, index) => placeNode(node, 80, 130 + index * GRAPH_ROW_GAP));

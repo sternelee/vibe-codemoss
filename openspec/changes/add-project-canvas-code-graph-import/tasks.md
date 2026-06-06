@@ -54,13 +54,18 @@
 
 ## 6. Code selection entry point / 代码选择入口
 
-- [ ] 6.1 Identify active file/code selection surface that can provide workspace id、file path、selected text、source range。
-- [ ] 6.2 Add lightweight adapter if active editor/file view does not expose selection state to Project Canvas。
-- [ ] 6.3 Resolve selection against relationship `symbols` artifact before fallback path。
-- [ ] 6.4 Support line-level symbol anchors when range/column data is unavailable。
-- [ ] 6.5 Import callers/callees for resolved method/function symbol with default depth 1。
-- [ ] 6.6 Show unresolved-symbol state when selection cannot resolve。
-- [ ] 6.7 Ensure AI is not used to invent fact-backed call graph edges。
+- [x] 6.1 Identify active file/code selection surface that can provide workspace id、file path、selected text、source range。
+- [x] 6.2 Add lightweight adapter if active editor/file view does not expose selection state to Project Canvas。
+- [x] 6.3 Resolve selection against relationship `symbols` artifact before fallback path。
+- [x] 6.4 Support line-level symbol anchors when range/column data is unavailable。
+- [x] 6.5 Import callers/callees for resolved method/function symbol with default depth 1。
+- [x] 6.6 Show unresolved-symbol state when selection cannot resolve。
+- [x] 6.7 Ensure AI is not used to invent fact-backed call graph edges。
+- [x] 6.8 Show declaration-only code selection entry in the file editor toolbar and keep relationship inspector status compact。
+- [x] 6.9 Generate method Canvas from declaration + method-body reference tokens, without blocking on missing symbol artifact or empty relation result。
+- [x] 6.10 Resolve editor Canvas action from the current line to its enclosing declaration block before generating method Canvas。
+- [x] 6.11 Fix editor `关联 Canvas` method graph generation runtime error by using explicit `input.anchor` and centralized `formatCodeAnchorLineLabel(anchor)` instead of a free `anchor` variable。
+- [x] 6.12 Document failed repair path: do not stabilize Intent Canvas send-audit cards by reducer-level text/index guessing; hydrate attachments at history/render boundary only when raw compact JSON or explicit attachment metadata is available。
 
 ## 7. Canvas source backlinks and stale state / 来源回跳与状态
 
@@ -93,3 +98,6 @@
 - [ ] 10.1 Update Project Canvas user-facing copy and documentation for graph import。
 - [x] 10.2 Update OpenSpec artifacts with implementation calibration notes after coding。
 - [ ] 10.3 Verify strict OpenSpec validation before sync/archive。
+- [x] 10.4 Rework Intent Canvas send-audit JSON viewer as a bounded modal instead of expanding raw JSON inside the message history row。
+- [x] 10.5 Preserve Intent Canvas send-audit cards in historical thread replay and switch the card surface from gradient to theme-compatible single color。
+- [x] 10.6 Document Claude / Claude Code legacy-history boundary: new or raw-preserved histories can show send-audit cards, but pre-fix histories without compact JSON payload must not be retroactively guessed。

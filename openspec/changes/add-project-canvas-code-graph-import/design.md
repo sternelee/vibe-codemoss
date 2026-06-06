@@ -207,6 +207,120 @@ AI context 包含：
 
 AI output 只能成为 annotations 或 chat context。除非用户显式转换为 manual note，否则不能成为 fact-backed node/edge。
 
+### Decision 8: Code selection projection must consume explicit anchors only
+
+文件编辑页的 `关联 Canvas` action 必须把当前 declaration 解析成显式 `IntentCanvasCodeSelectionAnchor`，再交给 graph projection。
+
+正确数据流：
+
+```text
+FileViewPanel current line/declaration
+  -> IntentCanvasCodeSelectionAnchor
+  -> loadCodeSelectionRelationshipGraph({ workspaceId, anchor, storageLocation })
+  -> createCodeSelectionRelationshipGraph({ anchor, centerFile, relations, ... })
+  -> CanvasSemanticGraph
+```
+
+禁止模式：
+
+```ts
+// Wrong: projector 函数内引用不存在或外层闭包变量
+const lineSegment = anchor.startLine === anchor.endLine
+  ? `L${anchor.startLine}`
+  : `L${anchor.startLine}-L${anchor.endLine}`;
+```
+
+正确模式：
+
+```ts
+// Correct: 显式使用函数入参，并复用统一 helper
+const lineSegment = formatCodeAnchorLineLabel(input.anchor);
+```
+
+原因：
+
+- Projector 是 pure projection function，不应该依赖 UI 闭包里的 selection state。
+- `IntentCanvasCodeSelectionAnchor` 是 code selection import 的唯一 source contract。
+- line label 是 source-anchor contract 的一部分，必须集中在 `formatCodeAnchorLineLabel()`，不能在每个业务函数里手写。
+
+### Decision 9: Intent Canvas send-audit display is hydrated at history boundary
+
+发送到 Codex 的 Intent Canvas context 有两层：
+
+```text
+actual model input: full compact JSON context appended to finalText
+visible user bubble: user's short text, e.g. "测试" / "111"
+```
+
+因此 message renderer 不能假设 visible user text 里一定还有完整 JSON。稳定展示审计卡的责任边界是：
+
+```text
+Codex raw turn item / local fallback history
+  -> parse compact Intent Canvas payload
+  -> hydrate ConversationItem.intentCanvasContextAttachments
+  -> MessagesRows renders audit card
+```
+
+禁止模式：
+
+```text
+optimistic user item appears
+  -> reducer tries to match by text key
+  -> remote history replaces user item
+  -> metadata may disappear
+```
+
+原因：
+
+- optimistic item、remote item、visible item 的 text 可能不一致。
+- reducer 只适合保留局部 UI metadata，例如 selected agent label；它不是发送上下文事实源。
+- Codex loader 已经承担 memory context / richer user image 的 hydrate 责任，Intent Canvas audit metadata 应对齐该模式。
+
+这个决策来自一次失败修复过程：曾尝试在 reducer 层按 comparable key / user index 迁移附件，表现不稳定，已回退并改为 loader hydrate。
+
+### Decision 10: Claude send-audit replay is best-effort, not retroactive reconstruction
+
+Claude / Claude Code 的历史幕布存在两种情况：
+
+```text
+new or raw-preserved history
+  -> user text / thread item still contains compact JSON marker
+  -> parse Intent Canvas payload
+  -> render send-audit card
+
+pre-fix legacy history without raw payload
+  -> visible user text only, e.g. "1"
+  -> no reliable payload evidence
+  -> do not synthesize audit card
+```
+
+这不是展示层能力缺失，而是审计证据边界：
+
+- Send-audit card 表示“这一轮实际发送过的 structured context”。
+- 如果历史里没有 compact JSON marker 或 explicit attachment metadata，前端不能证明该 turn 发送的是哪份 Canvas。
+- 不能根据 assistant 回复里提到的文件名、Canvas title、用户短文本、tab title 或 turn index 反推 attachment。
+
+正确模式：
+
+```ts
+const summaries = parseIntentCanvasContextSummaries(rawUserText);
+return summaries.length > 0 ? summaries : [];
+```
+
+禁止模式：
+
+```text
+assistant mentioned Intent Canvas
+  -> guess nearest pending Canvas
+  -> attach audit card to historical user bubble
+```
+
+原因：
+
+- Claude history、visible user bubble、raw user prompt 的保留策略可能不同。
+- 旧历史没有 payload 时做 backfill 会把 audit card 从证据变成推测。
+- 新发送和 raw-preserved history 已覆盖主要使用场景；legacy backfill 不值得引入误挂风险。
+
 ## Architecture Sketch / 架构草图
 
 ```text

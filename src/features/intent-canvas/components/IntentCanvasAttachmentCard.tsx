@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import X from "lucide-react/dist/esm/icons/x";
 
 import type { IntentCanvasDocument, IntentCanvasElementDigest } from "../types";
+import { buildIntentCanvasTransmissionContext } from "../utils/context";
 
 type IntentCanvasAttachmentCardProps = {
   document: IntentCanvasDocument;
@@ -146,6 +147,18 @@ export function IntentCanvasAttachmentCard({
     () => projectElements(document.aiContext.elementDigest),
     [document.aiContext.elementDigest],
   );
+  const transmissionContext = useMemo(
+    () => buildIntentCanvasTransmissionContext(document),
+    [document],
+  );
+  const completeness = transmissionContext.completeness;
+  const digestElementCount = document.aiContext.elementDigest.length;
+  const totalElementCount = completeness.elements.total;
+  const omittedDigestElementCount = Math.max(0, totalElementCount - digestElementCount);
+  const isContextCompressed = completeness.truncated || omittedDigestElementCount > 0;
+  const contextStatusLabel = isContextCompressed
+    ? t("intentCanvas.attachment.contextCompressed")
+    : t("intentCanvas.attachment.contextComplete");
 
   return (
     <article className="intent-canvas-attachment-card">
@@ -164,7 +177,7 @@ export function IntentCanvasAttachmentCard({
         <dl>
           <div>
             <dt>{t("intentCanvas.editor.elements")}</dt>
-            <dd>{document.aiContext.elementDigest.length}</dd>
+            <dd>{totalElementCount}</dd>
           </div>
           <div>
             <dt>{t("intentCanvas.editor.files")}</dt>
@@ -175,6 +188,45 @@ export function IntentCanvasAttachmentCard({
             <dd>{document.links.projectMapNodeIds.length}</dd>
           </div>
         </dl>
+        <div
+          className="intent-canvas-attachment-context-status"
+          aria-label={t("intentCanvas.attachment.contextStatusAriaLabel")}
+        >
+          <span className={`intent-canvas-attachment-context-chip ${isContextCompressed ? "is-compressed" : "is-complete"}`}>
+            {contextStatusLabel}
+          </span>
+          <span className="intent-canvas-attachment-context-chip">
+            {t("intentCanvas.attachment.elementDigest", {
+              sent: digestElementCount,
+              total: totalElementCount,
+            })}
+          </span>
+          {omittedDigestElementCount > 0 ? (
+            <span className="intent-canvas-attachment-context-chip is-compressed">
+              {t("intentCanvas.attachment.omittedElements", {
+                count: omittedDigestElementCount,
+              })}
+            </span>
+          ) : null}
+          <span className="intent-canvas-attachment-context-chip">
+            {t("intentCanvas.attachment.semanticNodes", {
+              sent: completeness.semanticNodes.sent,
+              total: completeness.semanticNodes.total,
+            })}
+          </span>
+          <span className="intent-canvas-attachment-context-chip">
+            {t("intentCanvas.attachment.semanticEdges", {
+              sent: completeness.semanticEdges.sent,
+              total: completeness.semanticEdges.total,
+            })}
+          </span>
+          <span className="intent-canvas-attachment-context-chip">
+            {t("intentCanvas.attachment.visualTextBlocks", {
+              sent: completeness.visualTextBlocks.sent,
+              total: completeness.visualTextBlocks.total,
+            })}
+          </span>
+        </div>
       </div>
       {onRemove ? (
         <button

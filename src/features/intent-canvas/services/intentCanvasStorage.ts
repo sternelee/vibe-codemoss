@@ -8,6 +8,7 @@ import type {
   CanvasAiAnnotation,
   CanvasCodeSymbolKind,
   CanvasEvidenceRef,
+  IntentCanvasCodeSelectionAnchor,
   CanvasSemanticGraph,
   CanvasSemanticEdge,
   CanvasSemanticNode,
@@ -77,6 +78,9 @@ function collectSeedProjectMapNodeIds(seedSemanticGraphs: CanvasSemanticGraph[])
 function collectSeedFilePaths(seedSemanticGraphs: CanvasSemanticGraph[]): string[] {
   const filePaths = new Set<string>();
   seedSemanticGraphs.forEach((graph) => {
+    if (graph.sourceSelection?.filePath) {
+      filePaths.add(graph.sourceSelection.filePath);
+    }
     graph.nodes.forEach((node) => {
       if (node.sourceAnchor?.kind === "code-symbol" || node.sourceAnchor?.kind === "relationship-node") {
         if (node.sourceAnchor.filePath) {
@@ -167,6 +171,59 @@ function normalizeCanvasSourceRange(value: unknown): { startLine: number; startC
     startColumn: startColumn,
     endLine: endLine ?? startLine ?? 1,
     endColumn: endColumn,
+  };
+}
+
+function normalizePositiveLineNumber(value: unknown): number | null {
+  const line = typeof value === "number" ? Math.trunc(value) : Number.NaN;
+  return Number.isFinite(line) && line >= 1 ? line : null;
+}
+
+function normalizeIntentCanvasCodeSelectionAnchor(value: unknown): IntentCanvasCodeSelectionAnchor | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const source = asString(value.source);
+  const filePath = asString(value.filePath);
+  const startLine = normalizePositiveLineNumber(value.startLine);
+  const endLine = normalizePositiveLineNumber(value.endLine);
+  const declarationLine = normalizePositiveLineNumber(value.declarationLine);
+  const symbolName = asString(value.symbolName);
+  const symbolKind = asString(value.symbolKind);
+  if (
+    source !== "active-editor-selection" ||
+    !filePath ||
+    !startLine ||
+    !endLine ||
+    !declarationLine ||
+    !symbolName ||
+    !symbolKind
+  ) {
+    return null;
+  }
+  const normalizedStartLine = Math.min(startLine, endLine);
+  const normalizedEndLine = Math.max(startLine, endLine);
+  return {
+    source,
+    filePath,
+    startLine: normalizedStartLine,
+    endLine: normalizedEndLine,
+    declarationLine,
+    symbolName,
+    symbolKind: [
+      "class",
+      "method",
+      "function",
+      "property",
+      "interface",
+      "enum",
+      "record",
+      "type",
+      "struct",
+      "trait",
+    ].includes(symbolKind)
+      ? symbolKind as IntentCanvasCodeSelectionAnchor["symbolKind"]
+      : "property",
   };
 }
 
@@ -297,6 +354,7 @@ function normalizeCanvasSemanticGraph(value: unknown): CanvasSemanticGraph | nul
       scanRunId: sourceSnapshot.scanRunId,
       snapshotVersion: sourceSnapshot.snapshotVersion,
     } : undefined,
+    sourceSelection: normalizeIntentCanvasCodeSelectionAnchor(value.sourceSelection) ?? undefined,
     nodes,
     edges,
     importOptions,
@@ -584,6 +642,7 @@ function cloneCanvasSemanticEdge(value: CanvasSemanticEdge): CanvasSemanticEdge 
 function cloneCanvasGraph(value: CanvasSemanticGraph): CanvasSemanticGraph {
   return {
     ...value,
+    sourceSelection: value.sourceSelection ? { ...value.sourceSelection } : value.sourceSelection,
     nodes: value.nodes.map(cloneCanvasSemanticNode),
     edges: value.edges.map(cloneCanvasSemanticEdge),
     importOptions: value.importOptions

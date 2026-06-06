@@ -17,6 +17,27 @@ export type IntentCanvasOpenSource = {
   filePath?: string | null;
 };
 
+export type IntentCanvasCodeSelectionAnchor = {
+  source: "active-editor-selection";
+  filePath: string;
+  startLine: number;
+  endLine: number;
+  declarationLine: number;
+  symbolName: string;
+  referenceTokens?: string[];
+  symbolKind:
+    | "class"
+    | "method"
+    | "function"
+    | "property"
+    | "interface"
+    | "enum"
+    | "record"
+    | "type"
+    | "struct"
+    | "trait";
+};
+
 export type IntentCanvasOpenRequest = {
   requestId: number;
   mode: IntentCanvasMode;
@@ -50,6 +71,71 @@ export type IntentCanvasAiContext = {
   elementDigest: IntentCanvasElementDigest[];
   relationDigest: IntentCanvasRelationDigest[];
   lastContextSnapshot: string;
+};
+
+export type IntentCanvasContextCompleteness = {
+  elements: { total: number; sent: number; omitted: number };
+  semanticNodes: { total: number; sent: number; omitted: number };
+  semanticEdges: { total: number; sent: number; omitted: number };
+  evidence: { total: number; sent: number; omitted: number };
+  visualTextBlocks: { total: number; sent: number; omitted: number };
+  visualArrows: { total: number; sent: number; omitted: number };
+  unlabeledShapeCount: number;
+  truncated: boolean;
+  compressionMode: "compact" | "semantic" | "chunked";
+};
+
+export type IntentCanvasTransmissionSemanticNode = {
+  id: string;
+  label: string;
+  kind: CanvasSemanticNodeType;
+  filePath?: string | null;
+  role?: string | null;
+  summary?: string | null;
+};
+
+export type IntentCanvasTransmissionSemanticEdge = {
+  id: string;
+  source: string;
+  target: string;
+  relation: string;
+  label?: string | null;
+  evidenceIds?: string[];
+};
+
+export type IntentCanvasTransmissionEvidence = {
+  id: string;
+  summary: string;
+};
+
+export type IntentCanvasTransmissionVisualArrow = {
+  id: string;
+  from?: string | null;
+  to?: string | null;
+  label?: string | null;
+};
+
+export type IntentCanvasTransmissionContext = {
+  type: "intent_canvas_context";
+  version: 2;
+  canvasId: string;
+  title: string;
+  mode: IntentCanvasMode;
+  workspaceName: string | null;
+  summary: string;
+  links: IntentCanvasLinks;
+  updatedAt: string;
+  completeness: IntentCanvasContextCompleteness;
+  semanticGraph: {
+    nodes: IntentCanvasTransmissionSemanticNode[];
+    edges: IntentCanvasTransmissionSemanticEdge[];
+    evidence: IntentCanvasTransmissionEvidence[];
+  };
+  visualClues: {
+    textBlocks: string[];
+    arrows: IntentCanvasTransmissionVisualArrow[];
+    unlabeledShapeCount: number;
+  };
 };
 
 export type SourceRange = {
@@ -145,6 +231,7 @@ export type CanvasSemanticGraph = {
     scanRunId: string;
     snapshotVersion?: string | null;
   };
+  sourceSelection?: IntentCanvasCodeSelectionAnchor | null;
   nodes: CanvasSemanticNode[];
   edges: CanvasSemanticEdge[];
   importOptions?: {

@@ -31,7 +31,11 @@ import {
   projectRelationshipEdgeToCanvasSemanticGraph,
   projectRelationshipFileRelationsToCanvasSemanticGraph,
 } from "../../intent-canvas/services/relationshipProjector";
-import type { IntentCanvasIndexEntry, IntentCanvasOpenRequest } from "../../intent-canvas/types";
+import type {
+  IntentCanvasCodeSelectionAnchor,
+  IntentCanvasIndexEntry,
+  IntentCanvasOpenRequest,
+} from "../../intent-canvas/types";
 import type {
   ProjectMapApiGroup,
   ProjectMapApiEndpoint,
@@ -101,6 +105,7 @@ type ProjectMapRelationshipSectionProps = {
   activeWorkspaceId: string | null;
   activeReadLocation: ProjectMapDatasetController["activeReadLocation"];
   expanded: boolean;
+  activeCodeSelectionAnchor?: IntentCanvasCodeSelectionAnchor | null;
   onOpenEvidenceFile?: (path: string, location?: { line: number; column: number }) => void;
   onOpenIntentCanvasFromRelationship?: (request: Omit<IntentCanvasOpenRequest, "requestId">) => void;
   reloadRelationshipContext: () => Promise<void>;
@@ -128,6 +133,16 @@ const PROJECT_MAP_RELATIONSHIP_VIEW_ORDER: ProjectMapRelationshipDashboardViewMo
   "read",
   "api",
 ];
+
+function formatActiveCodeSelectionLineLabel(anchor: IntentCanvasCodeSelectionAnchor): string {
+  return anchor.startLine === anchor.endLine
+    ? `L${anchor.startLine}`
+    : `L${anchor.startLine}-L${anchor.endLine}`;
+}
+
+function getActiveCodeSelectionFileName(anchor: IntentCanvasCodeSelectionAnchor): string {
+  return anchor.filePath.split(/[\\/]/).filter(Boolean).pop() ?? anchor.filePath;
+}
 
 function getProjectMapRelationshipTimestamp(value: string): number | null {
   const timestamp = Date.parse(value);
@@ -253,6 +268,7 @@ export function ProjectMapRelationshipSection({
   activeWorkspaceId,
   activeReadLocation,
   expanded,
+  activeCodeSelectionAnchor = null,
   onOpenEvidenceFile,
   onOpenIntentCanvasFromRelationship,
   reloadRelationshipContext,
@@ -2589,6 +2605,19 @@ export function ProjectMapRelationshipSection({
                                         ))}
                                       </select>
                                     </label>
+                                    {activeCodeSelectionAnchor ? (
+                                      <div
+                                        className="project-map-relationship-code-anchor"
+                                        title={`${activeCodeSelectionAnchor.filePath}#${formatActiveCodeSelectionLineLabel(activeCodeSelectionAnchor)}`}
+                                      >
+                                        <span>{t("projectMap.relationship.activeCodeAnchor")}</span>
+                                        <code>
+                                          {getActiveCodeSelectionFileName(activeCodeSelectionAnchor)}
+                                          {" · "}
+                                          {formatActiveCodeSelectionLineLabel(activeCodeSelectionAnchor)}
+                                        </code>
+                                      </div>
+                                    ) : null}
                                     {relationshipCanvasTargetLoadError ? (
                                       <p className="project-map-relationship-import-target-error">
                                         {t("projectMap.relationship.importTargetLoadFailed")}
@@ -2670,6 +2699,19 @@ export function ProjectMapRelationshipSection({
                                           ))}
                                         </select>
                                       </label>
+                                      {activeCodeSelectionAnchor ? (
+                                        <div
+                                          className="project-map-relationship-code-anchor"
+                                          title={`${activeCodeSelectionAnchor.filePath}#${formatActiveCodeSelectionLineLabel(activeCodeSelectionAnchor)}`}
+                                        >
+                                          <span>{t("projectMap.relationship.activeCodeAnchor")}</span>
+                                          <code>
+                                            {getActiveCodeSelectionFileName(activeCodeSelectionAnchor)}
+                                            {" · "}
+                                            {formatActiveCodeSelectionLineLabel(activeCodeSelectionAnchor)}
+                                          </code>
+                                        </div>
+                                      ) : null}
                                       {relationshipCanvasTargetLoadError ? (
                                         <p className="project-map-relationship-import-target-error">
                                           {t("projectMap.relationship.importTargetLoadFailed")}

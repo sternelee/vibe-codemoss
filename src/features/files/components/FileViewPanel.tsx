@@ -42,6 +42,7 @@ import {
   readLocalImageDataUrl,
 } from "../../../services/tauri";
 import { pushErrorToast } from "../../../services/toasts";
+import type { IntentCanvasCodeSelectionAnchor } from "../../intent-canvas/types";
 import {
   isEditableShortcutTarget,
   matchesShortcutForPlatform,
@@ -116,6 +117,8 @@ type FileViewPanelProps = {
   onFileReferenceModeChange?: (mode: "path" | "none") => void;
   activeFileLineRange?: { startLine: number; endLine: number } | null;
   onActiveFileLineRangeChange?: (range: { startLine: number; endLine: number } | null) => void;
+  onActiveCodeAnchorChange?: (anchor: IntentCanvasCodeSelectionAnchor | null) => void;
+  onAssociateIntentCanvasCodeAnchor?: (anchor: IntentCanvasCodeSelectionAnchor) => Promise<void> | void;
   initialMode?: "edit" | "preview";
   openTargets: OpenAppTarget[];
   openAppIconById: Record<string, string>;
@@ -315,6 +318,259 @@ function formatAnnotationLineLabel(lineRange: CodeAnnotationLineRange) {
   return lineRange.startLine === lineRange.endLine
     ? `L${lineRange.startLine}`
     : `L${lineRange.startLine}-L${lineRange.endLine}`;
+}
+
+function getDeclarationLineText(content: string, lineNumber: number): string {
+  if (!Number.isFinite(lineNumber) || lineNumber < 1) {
+    return "";
+  }
+  return content.split(/\r?\n/)[lineNumber - 1] ?? "";
+}
+
+function stripInlineComment(line: string): string {
+  return line.replace(/\s+\/\/.*$/, "").trim();
+}
+
+function countBraceDelta(line: string): number {
+  let delta = 0;
+  for (const char of line) {
+    if (char === "{") {
+      delta += 1;
+    } else if (char === "}") {
+      delta -= 1;
+    }
+  }
+  return delta;
+}
+
+function resolveDeclarationBlockEndLine(content: string, declarationLine: number): number {
+  const lines = content.split(/\r?\n/);
+  if (declarationLine < 1 || declarationLine > lines.length) {
+    return declarationLine;
+  }
+  let braceDepth = 0;
+  let hasOpenedBlock = false;
+  for (let index = declarationLine - 1; index < lines.length; index += 1) {
+    const delta = countBraceDelta(stripInlineComment(lines[index] ?? ""));
+    if (delta > 0) {
+      hasOpenedBlock = true;
+    }
+    braceDepth += delta;
+    if (hasOpenedBlock && braceDepth <= 0) {
+      return index + 1;
+    }
+    if (!hasOpenedBlock && index - declarationLine > 8) {
+      return declarationLine;
+    }
+  }
+  return declarationLine;
+}
+
+function extractLastIdentifier(value: string): string | null {
+  const matches = value.match(/[A-Za-z_$][\w$]*/g);
+  return matches ? matches[matches.length - 1] : null;
+}
+
+const CODE_REFERENCE_TOKEN_LIMIT = 80;
+const CODE_DECLARATION_LOOKBACK_LINES = 160;
+const CODE_REFERENCE_STOP_WORDS = new Set([
+  "if",
+  "for",
+  "while",
+  "switch",
+  "catch",
+  "return",
+  "throw",
+  "new",
+  "this",
+  "super",
+  "class",
+  "interface",
+  "enum",
+  "record",
+  "public",
+  "private",
+  "protected",
+  "static",
+  "final",
+  "void",
+  "boolean",
+  "byte",
+  "short",
+  "int",
+  "long",
+  "float",
+  "double",
+  "char",
+  "true",
+  "false",
+  "null",
+]);
+
+function stripQuotedSegments(line: string): string {
+  return line
+    .replace(/"(?:\\.|[^"\\])*"/g, " ")
+    .replace(/'(?:\\.|[^'\\])*'/g, " ");
+}
+
+function pushCodeReferenceToken(tokens: Set<string>, value: string | null | undefined) {
+  const token = value?.trim();
+  if (!token || CODE_REFERENCE_STOP_WORDS.has(token) || /^\d+$/.test(token)) {
+    return;
+  }
+  tokens.add(token);
+  if (token.includes(".") || token.includes("::")) {
+    token
+      .split(/\.|::/)
+      .map((part) => part.trim())
+      .filter((part) => part.length > 1 && !CODE_REFERENCE_STOP_WORDS.has(part))
+      .forEach((part) => tokens.add(part));
+  }
+}
+
+function extractCodeReferenceTokens(input: {
+  content: string;
+  startLine: number;
+  endLine: number;
+  symbolName: string;
+}): string[] {
+  const lines = input.content.split(/\r?\n/);
+  const tokens = new Set<string>([input.symbolName]);
+  const selectedLines = lines.slice(
+    Math.max(0, input.startLine - 1),
+    Math.max(input.startLine, input.endLine),
+  );
+
+  selectedLines.forEach((line) => {
+    const normalizedLine = stripQuotedSegments(stripInlineComment(line));
+    for (const match of normalizedLine.matchAll(/\b([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+)\s*(?:\(|\b)/g)) {
+      pushCodeReferenceToken(tokens, match[1]);
+    }
+    for (const match of normalizedLine.matchAll(/\b([A-Za-z_$][\w$]*)::([A-Za-z_$][\w$]*)\b/g)) {
+      pushCodeReferenceToken(tokens, `${match[1]}::${match[2]}`);
+    }
+    for (const match of normalizedLine.matchAll(/\b([A-Za-z_$][\w$]*)\s*\(/g)) {
+      pushCodeReferenceToken(tokens, match[1]);
+    }
+    for (const match of normalizedLine.matchAll(/\b([A-Z][A-Za-z_$][\w$]*)\b/g)) {
+      pushCodeReferenceToken(tokens, match[1]);
+    }
+  });
+
+  return Array.from(tokens).slice(0, CODE_REFERENCE_TOKEN_LIMIT);
+}
+
+function parseDeclarationLine(line: string): Pick<IntentCanvasCodeSelectionAnchor, "symbolKind" | "symbolName"> | null {
+  const normalizedLine = stripInlineComment(line);
+  if (
+    !normalizedLine ||
+    /^(?:\/\/|\/\*|\*|#|@|import\b|package\b|return\b|throw\b|if\b|for\b|while\b|switch\b|case\b|else\b|try\b|catch\b|finally\b)/.test(normalizedLine)
+  ) {
+    return null;
+  }
+
+  const classLike = normalizedLine.match(/\b(class|interface|enum|record|struct|trait)\s+([A-Za-z_$][\w$]*)/);
+  if (classLike) {
+    return {
+      symbolKind: classLike[1] as IntentCanvasCodeSelectionAnchor["symbolKind"],
+      symbolName: classLike[2],
+    };
+  }
+
+  const typeAlias = normalizedLine.match(/^(?:export\s+)?type\s+([A-Za-z_$][\w$]*)\b/);
+  if (typeAlias) {
+    return {
+      symbolKind: "type",
+      symbolName: typeAlias[1],
+    };
+  }
+
+  const namedFunction = normalizedLine.match(/\b(?:function|func|def|fn)\s+([A-Za-z_$][\w$]*)\s*\(/);
+  if (namedFunction) {
+    return {
+      symbolKind: "function",
+      symbolName: namedFunction[1],
+    };
+  }
+
+  const methodLike = normalizedLine.match(
+    /^(?!(?:new|return|throw)\b)(?:(?:public|private|protected|static|final|abstract|async|override|open|suspend|inline|export)\s+)*(?:[A-Za-z_$][\w$<>\[\].?,]+\s+)?([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*(?:[:\w\s<>\[\].?,]*)(?:\{|=>|;|$)/,
+  );
+  if (methodLike && !normalizedLine.includes(`.${methodLike[1]}(`)) {
+    const methodNameIndex = normalizedLine.indexOf(methodLike[1]);
+    const methodPrefix = normalizedLine.slice(0, methodNameIndex).trim();
+    const methodTail = normalizedLine.slice(normalizedLine.indexOf(")", methodNameIndex) + 1);
+    if (!methodPrefix && !/[{:=>]/.test(methodTail)) {
+      return null;
+    }
+    return {
+      symbolKind: "method",
+      symbolName: methodLike[1],
+    };
+  }
+
+  const propertyLike = normalizedLine.match(
+    /^(?:(?:public|private|protected|static|final|readonly|volatile|lateinit|transient|export|declare)\s+)+(.+?)(?:[=;]|$)/,
+  );
+  const propertyName = propertyLike ? extractLastIdentifier(propertyLike[1]) : null;
+  return propertyName
+    ? {
+        symbolKind: "property",
+        symbolName: propertyName,
+      }
+    : null;
+}
+
+function resolveDeclarationCodeSelectionAnchor(input: {
+  filePath: string;
+  content: string;
+  lineRange: CodeAnnotationLineRange | null;
+}): IntentCanvasCodeSelectionAnchor | null {
+  if (!input.filePath || !input.lineRange) {
+    return null;
+  }
+  const activeLine = input.lineRange.startLine;
+  const createAnchorFromDeclarationLine = (declarationLine: number) => {
+    const declaration = parseDeclarationLine(getDeclarationLineText(input.content, declarationLine));
+    if (!declaration) {
+      return null;
+    }
+    const endLine = Math.max(
+      declarationLine,
+      resolveDeclarationBlockEndLine(input.content, declarationLine),
+    );
+    if (activeLine < declarationLine || activeLine > endLine) {
+      return null;
+    }
+    return {
+      source: "active-editor-selection" as const,
+      filePath: input.filePath,
+      startLine: declarationLine,
+      endLine,
+      declarationLine,
+      symbolName: declaration.symbolName,
+      referenceTokens: extractCodeReferenceTokens({
+        content: input.content,
+        startLine: declarationLine,
+        endLine,
+        symbolName: declaration.symbolName,
+      }),
+      symbolKind: declaration.symbolKind,
+    };
+  };
+
+  const directAnchor = createAnchorFromDeclarationLine(activeLine);
+  if (directAnchor) {
+    return directAnchor;
+  }
+  const minimumDeclarationLine = Math.max(1, activeLine - CODE_DECLARATION_LOOKBACK_LINES);
+  for (let declarationLine = activeLine - 1; declarationLine >= minimumDeclarationLine; declarationLine -= 1) {
+    const enclosingAnchor = createAnchorFromDeclarationLine(declarationLine);
+    if (enclosingAnchor) {
+      return enclosingAnchor;
+    }
+  }
+  return null;
 }
 
 type FileAnnotationDraftState = {
@@ -600,8 +856,11 @@ export function FileViewPanel({
   onActivateTab,
   onCloseTab,
   onCloseAllTabs,
+  fileReferenceMode = "path",
   activeFileLineRange = null,
   onActiveFileLineRangeChange,
+  onActiveCodeAnchorChange,
+  onAssociateIntentCanvasCodeAnchor,
   initialMode = "edit",
   openTargets,
   openAppIconById,
@@ -903,6 +1162,41 @@ export function FileViewPanel({
     skipTextRead,
     externalAbsoluteReadOnlyMessage: t("files.externalAbsoluteReadOnly"),
   });
+
+  const activeDeclarationCodeAnchor = useMemo(
+    () => resolveDeclarationCodeSelectionAnchor({
+      filePath,
+      content,
+      lineRange: editorLocalLineRange ?? activeFileLineRange,
+    }),
+    [
+      activeFileLineRange,
+      content,
+      editorLocalLineRange,
+      filePath,
+    ],
+  );
+
+  useEffect(() => {
+    onActiveCodeAnchorChange?.(activeDeclarationCodeAnchor);
+  }, [
+    activeDeclarationCodeAnchor,
+    onActiveCodeAnchorChange,
+  ]);
+
+  const handleAssociateIntentCanvasCodeAnchor = useCallback(() => {
+    if (!activeDeclarationCodeAnchor) {
+      pushErrorToast({
+        title: t("files.associateIntentCanvasUnavailableTitle"),
+        message: t("files.associateIntentCanvasUnavailable"),
+        variant: "info",
+        durationMs: 4200,
+      });
+      return;
+    }
+    onAssociateIntentCanvasCodeAnchor?.(activeDeclarationCodeAnchor);
+  }, [activeDeclarationCodeAnchor, onAssociateIntentCanvasCodeAnchor, t]);
+
   const {
     externalChangeConflict,
     externalPendingRefresh,
@@ -1713,6 +2007,25 @@ export function FileViewPanel({
             </div>
           ) : (
             <div className="fvp-action-group" role="group">
+              {onAssociateIntentCanvasCodeAnchor ? (
+                <button
+                  type="button"
+                  className={`ghost fvp-action-btn fvp-intent-canvas-anchor-btn ${
+                    activeDeclarationCodeAnchor ? "is-active" : "is-empty"
+                  }`}
+                  onClick={handleAssociateIntentCanvasCodeAnchor}
+                  title={
+                    activeDeclarationCodeAnchor
+                      ? t("files.associateIntentCanvasTitle", {
+                          symbol: activeDeclarationCodeAnchor.symbolName,
+                        })
+                      : t("files.associateIntentCanvasUnavailable")
+                  }
+                >
+                  <ExternalLink size={14} aria-hidden />
+                  <span>{t("files.associateIntentCanvas")}</span>
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="ghost fvp-action-btn"

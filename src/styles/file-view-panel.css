@@ -241,6 +241,27 @@
   flex-shrink: 0;
 }
 
+.fvp-intent-canvas-anchor-btn {
+  font-weight: 700;
+}
+
+.fvp-intent-canvas-anchor-btn.is-active {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border-subtle));
+  background: color-mix(in srgb, var(--accent-soft) 42%, transparent);
+  color: var(--accent);
+}
+
+.fvp-intent-canvas-anchor-btn.is-empty {
+  border-color: color-mix(in srgb, var(--border-subtle) 82%, var(--accent) 18%);
+  background: color-mix(in srgb, var(--surface-control) 76%, transparent);
+  color: var(--text-muted);
+}
+
+.fvp-intent-canvas-anchor-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent-soft) 68%, var(--surface-control));
+  color: var(--accent-strong, var(--accent));
+}
+
 .fvp-external-change-banner {
   display: flex;
   align-items: center;

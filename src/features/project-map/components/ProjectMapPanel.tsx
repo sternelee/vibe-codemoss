@@ -114,6 +114,7 @@ import {
   buildProjectMapEvidenceFileIndex,
 } from "../utils/evidenceFileIndex";
 import type { IntentCanvasMode, IntentCanvasOpenRequest } from "../../intent-canvas";
+import type { IntentCanvasCodeSelectionAnchor } from "../../intent-canvas/types";
 import type { ProjectMapHierarchyRelationView } from "./ProjectMapPanelSurfaces";
 import type {
   ProjectMapDataset,
@@ -141,6 +142,7 @@ type ProjectMapPanelProps = {
   changedFilePaths?: string[];
   changedFileSource?: ProjectMapImpactSourceMetadata;
   sourceFocusNodeId?: string | null;
+  activeCodeSelectionAnchor?: IntentCanvasCodeSelectionAnchor | null;
   onOpenEvidenceFile?: (path: string, location?: { line: number; column: number }) => void;
   onOpenOrchestrationTask?: (taskId: string) => void;
   onOpenIntentCanvas?: (request: Omit<IntentCanvasOpenRequest, "requestId">) => void;
@@ -373,6 +375,7 @@ export function ProjectMapPanel({
   changedFilePaths = [],
   changedFileSource,
   sourceFocusNodeId = null,
+  activeCodeSelectionAnchor = null,
   onOpenEvidenceFile,
   onOpenOrchestrationTask,
   onOpenIntentCanvas,
@@ -1798,9 +1801,18 @@ export function ProjectMapPanel({
   }, [onOpenIntentCanvas, selectedNode]);
 
   const handleOpenIntentCanvasFromRelationship = useCallback((request: Omit<IntentCanvasOpenRequest, "requestId">) => {
-    onOpenIntentCanvas?.(request);
+    const enrichedRequest = activeCodeSelectionAnchor && request.seedSemanticGraphs?.length
+      ? {
+          ...request,
+          seedSemanticGraphs: request.seedSemanticGraphs.map((graph) => ({
+            ...graph,
+            sourceSelection: activeCodeSelectionAnchor,
+          })),
+        }
+      : request;
+    onOpenIntentCanvas?.(enrichedRequest);
     setIsDetailCollapsed(false);
-  }, [onOpenIntentCanvas]);
+  }, [activeCodeSelectionAnchor, onOpenIntentCanvas]);
 
   const handleNodeDrillClick = (
     event: MouseEvent<HTMLButtonElement>,
@@ -2313,6 +2325,7 @@ export function ProjectMapPanel({
           activeWorkspaceId={activeWorkspace?.id ?? null}
           activeReadLocation={datasetController.activeReadLocation}
           expanded={isFileRelationsWorkspaceVisible}
+          activeCodeSelectionAnchor={activeCodeSelectionAnchor}
           onOpenEvidenceFile={onOpenEvidenceFile}
           onOpenIntentCanvasFromRelationship={handleOpenIntentCanvasFromRelationship}
           reloadRelationshipContext={datasetController.reloadRelationshipContext}

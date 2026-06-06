@@ -56,6 +56,7 @@ import {
   loadProjectMapRelationshipImportSourceState,
   type ProjectMapRelationshipImportSourceState,
 } from "../services/relationshipImportQueries";
+import { buildIntentCanvasTransmissionContext } from "../utils/context";
 import { buildIntentCanvasAiContext, sanitizeIntentCanvasScene } from "../utils/scene";
 
 type IntentCanvasSourceLocation = { line: number; column: number };
@@ -93,6 +94,7 @@ type IntentCanvasEditorProps = {
 
 const EMPTY_CANVAS_ENTRIES: IntentCanvasIndexEntry[] = [];
 const EMPTY_SOURCE_BACKLINKS: IntentCanvasSourceBacklink[] = [];
+const EMPTY_CODE_SELECTION_BACKLINKS: IntentCanvasSourceBacklink[] = [];
 const EMPTY_EVIDENCE_BACKLINKS: IntentCanvasEvidenceBacklink[] = [];
 const LazyExcalidraw = lazy(async () => {
   const module = await import("@excalidraw/excalidraw");
@@ -129,6 +131,7 @@ type IntentCanvasTraceabilityProjection = {
   staleGraphCount: number;
   unresolvedAnchorCount: number;
   refreshableGraphCount: number;
+  codeSelectionBacklinks: IntentCanvasSourceBacklink[];
   sourceBacklinks: IntentCanvasSourceBacklink[];
   evidenceBacklinks: IntentCanvasEvidenceBacklink[];
 };
@@ -310,10 +313,45 @@ function createEvidenceBacklink(input: {
   };
 }
 
+function formatCodeSelectionLineLabel(startLine: number, endLine: number): string {
+  return startLine === endLine ? `L${startLine}` : `L${startLine}-L${endLine}`;
+}
+
+function getCodeSelectionFileName(filePath: string): string {
+  return filePath.split(/[\\/]/).filter(Boolean).pop() ?? filePath;
+}
+
+function createCodeSelectionBacklink(graph: CanvasSemanticGraph): IntentCanvasSourceBacklink | null {
+  const selection = graph.sourceSelection;
+  if (!selection?.filePath) {
+    return null;
+  }
+  const lineLabel = formatCodeSelectionLineLabel(selection.startLine, selection.endLine);
+  return {
+    id: `${graph.graphId}:code-selection:${selection.filePath}:${lineLabel}`,
+    label: selection.symbolName,
+    detail: `${getCodeSelectionFileName(selection.filePath)} · ${lineLabel}`,
+    path: selection.filePath,
+    location: {
+      line: selection.declarationLine,
+      column: 1,
+    },
+    unresolved: false,
+  };
+}
+
 function buildTraceabilityProjection(
   graphs: CanvasSemanticGraph[],
   sourceState: ProjectMapRelationshipImportSourceState | null,
 ): IntentCanvasTraceabilityProjection {
+  const codeSelectionBacklinks = new Map<string, IntentCanvasSourceBacklink>();
+  graphs.forEach((graph) => {
+    const codeSelectionBacklink = createCodeSelectionBacklink(graph);
+    if (codeSelectionBacklink) {
+      codeSelectionBacklinks.set(codeSelectionBacklink.id, codeSelectionBacklink);
+    }
+  });
+
   const relationshipGraphs = graphs.filter(isProjectMapRelationshipGraph);
   if (!relationshipGraphs.length) {
     return {
@@ -321,6 +359,7 @@ function buildTraceabilityProjection(
       staleGraphCount: 0,
       unresolvedAnchorCount: 0,
       refreshableGraphCount: 0,
+      codeSelectionBacklinks: Array.from(codeSelectionBacklinks.values()),
       sourceBacklinks: EMPTY_SOURCE_BACKLINKS,
       evidenceBacklinks: EMPTY_EVIDENCE_BACKLINKS,
     };
@@ -356,6 +395,7 @@ function buildTraceabilityProjection(
     staleGraphCount: relationshipGraphs.filter((graph) => isGraphSnapshotStale(graph, sourceState)).length,
     unresolvedAnchorCount,
     refreshableGraphCount: relationshipGraphs.filter((graph) => isGraphRefreshable(graph, sourceState)).length,
+    codeSelectionBacklinks: Array.from(codeSelectionBacklinks.values()),
     sourceBacklinks: Array.from(sourceBacklinks.values()),
     evidenceBacklinks: Array.from(evidenceBacklinks.values()),
   };
@@ -796,7 +836,7 @@ function IntentCanvasEditor({
                   </div>
                 </dl>
               </section>
-              {traceabilityProjection.importedGraphCount > 0 ? (
+              {traceabilityProjection.importedGraphCount > 0 || traceabilityProjection.codeSelectionBacklinks.length > 0 ? (
                 <section className="intent-canvas-card intent-canvas-source-trace-card">
                   <h3>{t("intentCanvas.editor.sourceTraceability")}</h3>
                   <p>{t("intentCanvas.editor.sourceTraceabilityHint")}</p>
@@ -861,6 +901,29 @@ function IntentCanvasEditor({
                         count: traceabilityProjection.unresolvedAnchorCount,
                       })}
                     </p>
+                  ) : null}
+                  {traceabilityProjection.codeSelectionBacklinks.length > 0 ? (
+                    <div className="intent-canvas-source-list">
+                      <strong>{t("intentCanvas.editor.sourceCodeSelection")}</strong>
+                      {traceabilityProjection.codeSelectionBacklinks.slice(0, 4).map((source) => (
+                        <button
+                          key={source.id}
+                          type="button"
+                          className="intent-canvas-source-action"
+                          onClick={() => handleOpenBacklink(source)}
+                          disabled={!onOpenSourceFile}
+                          aria-label={t("intentCanvas.editor.sourceOpenCodeSelection", {
+                            path: source.path,
+                            line: source.location?.line ?? 1,
+                          })}
+                          title={source.path}
+                        >
+                          <FileText aria-hidden />
+                          <span>{source.label}</span>
+                          <small>{source.detail}</small>
+                        </button>
+                      ))}
+                    </div>
                   ) : null}
                   {traceabilityProjection.sourceBacklinks.length > 0 ? (
                     <div className="intent-canvas-source-list">
@@ -931,7 +994,11 @@ function IntentCanvasEditor({
               ) : null}
               <section className="intent-canvas-card">
                 <h3>{t("intentCanvas.editor.contextPreview")}</h3>
-                <pre>{buildDraftDocument({ includeActiveThread: false }).aiContext.lastContextSnapshot}</pre>
+                <pre>{JSON.stringify(
+                  buildIntentCanvasTransmissionContext(buildDraftDocument({ includeActiveThread: false })),
+                  null,
+                  2,
+                )}</pre>
               </section>
               {saveError || managerErrorMessage ? (
                 <p className="intent-canvas-error" role="alert">{saveError ?? managerErrorMessage}</p>

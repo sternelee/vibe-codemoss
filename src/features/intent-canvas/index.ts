@@ -1,5 +1,8 @@
 export { IntentCanvasAttachmentCard } from "./components/IntentCanvasAttachmentCard";
-export { formatIntentCanvasThreadContext } from "./utils/context";
+export {
+  buildIntentCanvasContextAttachment,
+  formatIntentCanvasThreadContext,
+} from "./utils/context";
 export type {
   IntentCanvasDocument,
   IntentCanvasMode,

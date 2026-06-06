@@ -219,6 +219,29 @@ openspec validate add-project-canvas-code-graph-import --strict --no-interactive
 - 当前已有 line/column navigation 和 OpenCode LSP command，但 Project Canvas 还没有专门的 code-selection import surface。
 - 所以代码选中方法导入要先确认 active editor/file view 是否暴露 selection state；没有的话先补 adapter。
 
+## Debug Calibration - 2026-06-07 / 调试校准
+
+本次实现过程中暴露了两个必须记录的工程事实：
+
+1. 文件编辑页的 `关联 Canvas` 入口生成方法关系图时，`createCodeSelectionRelationshipGraph()` 不允许引用自由变量 `anchor`。
+   - 正确 contract 是：该函数只消费 `input.anchor: IntentCanvasCodeSelectionAnchor`。
+   - graph id、source summary、line label、source selection 都必须从 `input.anchor` 或统一 helper 派生。
+   - 已修复的运行时错误：`Can't find variable: anchor`。
+
+2. 方法/行号 label 不允许散落手写。
+   - 正确 helper 是 `formatCodeAnchorLineLabel(anchor)`。
+   - 禁止在 projector 内重复写 `anchor.startLine === anchor.endLine ? ... : ...`。
+   - 原因：single-line / multi-line selection label 是 source-anchor contract 的一部分，不能每个调用点各自拼接。
+
+3. Intent Canvas 发送审计 UI 的稳定性不能靠 message reducer 猜测修复。
+   - 错误路径：在 `threadReducerOptimisticItemMerge` 里按 text key 或 user index 迁移 `intentCanvasContextAttachments`。
+   - 问题：Codex optimistic user text、visible user text、remote history text 可能不同；reducer 层无法可靠判断哪条真实 user message 应该继承 Canvas audit metadata。
+   - 正确方向：与 memory context / user image hydrate 一样，在 Codex history loader 层从 raw turn item 或 local fallback history hydrate Intent Canvas attachment，再交给 message renderer 展示。
+
+4. 本变更的长期原则仍是 `Graph first, AI second`。
+   - 代码编辑器、relationship dashboard、chat context 三个入口都只能消费 deterministic `CanvasSemanticGraph` / `CanvasSourceAnchor`。
+   - AI 只能解释已导入的 source-backed graph，不能补造 fact-backed edge。
+
 ## Implementation Calibration - 2026-06-06 / 阶段实现校准
 
 - Relationship file-node import 是 Project Canvas Phase 2 的主入口：用户在 Relationship Inspector 中选择文件后，应通过 `导入全部 N 条关系到 Canvas` 导入当前 inspector 已解析出的 direct incoming / outgoing relation set。
@@ -277,5 +300,74 @@ openspec validate add-project-canvas-code-graph-import --strict --no-interactive
 - 不新增 Rust command，不改变 Project Canvas 全局存储根。
 - 不把 Canvas 内容反写 Project Map 或 `project-map-relations`。
 - 不自动删除 unresolved node/edge，也不自动覆盖用户手工编辑过的画布内容。
-- `replace selected imported graph group` 仍保留为独立后续任务，避免本阶段引入误删风险。
+- `replace selected imported graph group` 已撤销；最终保留 `New Canvas` 和 `Append to existing Canvas` 两条稳定导入路径。
 
+## 阶段性回写：declaration-only code selection anchor（2026-06-06）
+
+本阶段推进代码选择入口，但按 UX 决策收敛为 declaration-only provenance。
+
+### 实现校准
+
+- File View 继续复用现有 active editor line range，不新增全局 selection store。
+- File View 只在当前行命中 class / method / function / property / interface / enum / record / type / struct / trait declaration 时发布 `active-editor-selection` anchor。
+- 普通调用行、控制流、import、注释、空行不会形成 Canvas code anchor；关系 evidence 仍可指向任意调用行，两者语义分离。
+- Project Map relationship import 会把 active declaration anchor 写入 `CanvasSemanticGraph.sourceSelection`，作为 graph-level provenance，而不是临时 UI state。
+- Project Map 导入操作区显示弱提示；Intent Canvas 右侧 `Source traceability` 显示可点击的 code selection chip，可跳回声明行。
+
+### 行为边界
+
+- 本阶段不解析 relationship `symbols` artifact，不推断 callers/callees。
+- 本阶段不使用 AI 生成 fact-backed call graph edge。
+- 未命中 declaration line 时不报错、不弹 toast、不阻断导入。
+
+## 阶段性回写：code selection entry visibility（2026-06-06）
+
+- The code-selection Canvas entry now lives in the active file editor toolbar as a small `关联 Canvas / Link Canvas` action when the cursor/selection resolves to a class / method / property declaration anchor.
+- Relationship import actions no longer render a large empty source-anchor card; when a declaration anchor exists, the inspector only shows a compact source chip.
+- Linking from the editor opens a file-mode Intent Canvas with a fact-backed `sourceSelection` backlink and does not invent callers/callees or relationship edges.
+- This is a UI/UX correction for task `6.8`; symbol resolution and caller/callee graph expansion remain in `6.3` and `6.5`.
+
+## 阶段性回写：editor Canvas entry fallback visibility（2026-06-06）
+
+- The editor toolbar `关联 Canvas / Link Canvas` entry is now always visible when the file editor can open Intent Canvas, instead of disappearing when declaration-anchor parsing is not yet available.
+- Code anchor capture is decoupled from chat file-reference mode; `fileReferenceMode=none` no longer hides the Canvas linking entry or blocks declaration anchor resolution.
+- Clicking the entry resolves the current declaration line at action time; unresolved lines show a short user-facing message and are not written into Canvas source metadata.
+
+## 阶段性回写：method Canvas fact graph correction（2026-06-07）
+
+- The editor `关联 Canvas / Link Canvas` action no longer opens a default file-mode seed template for method/class/property anchors.
+- The action now resolves the active declaration against the relationship `symbols` artifact, expands the declaration block line range, and imports only fact-backed relations whose evidence touches the declaration block or symbol name.
+- If the relationship snapshot, current file, symbol, or matched relations cannot be resolved, the UI shows an explicit toast and does not create a placeholder Canvas.
+- The generated semantic graph uses the selected declaration as the center symbol node, writes symbol kind / file / line range / relation count into that center element, and connects related files with solid bound relationship arrows.
+- This completes tasks `6.3`, `6.5`, `6.6`, and `6.7` for the current method-entry implementation pass.
+
+## 阶段性回写：method reference-token graph correction（2026-06-07）
+
+- The editor code anchor now carries bounded `referenceTokens` extracted from the selected declaration block, such as method calls, qualified references, static method references, and class-like symbols.
+- Method Canvas generation no longer blocks when the relationship `symbols` artifact misses the selected declaration; symbol resolution is used as metadata enrichment, with declaration + token matching as fallback.
+- Relationship matching now checks the selected method range, method name, extracted reference tokens, relation call candidate, evidence path/excerpt, and source/target file path/basename.
+- If a method has no matched relation in the current fact snapshot, the action still creates a method-centered Canvas graph instead of showing a hard failure toast; AI is still not allowed to invent missing fact edges.
+- The editor entry reads `project-map-relations` from the active Project Map read location, avoiding false negatives when the user is working from project-local relationship storage.
+- The editor toolbar action can now be triggered from any line inside an enclosing declaration block; the stored provenance still points back to the declaration line, not the arbitrary cursor line.
+
+## 阶段性回写：send audit JSON viewer stability（2026-06-07）
+
+- Intent Canvas send-audit cards no longer expand compact JSON inline inside the message history row.
+- The card now keeps the same summary footprint and opens the compact JSON in a bounded modal, following the existing Project Memory payload viewer pattern.
+- The modal uses its own fixed overlay, Escape / close button dismissal, internal scrolling, and wrapped compact JSON text so a long one-line payload cannot erase or visually push away conversation history.
+- This does not change the actual Intent Canvas transmission payload; it only changes how the audit payload is inspected in the chat UI.
+
+## 阶段性回写：send audit history replay stability（2026-06-07）
+
+- Historical thread replay now preserves Intent Canvas send-audit cards by hydrating `intentCanvasContextAttachments` at the `threadItems` user-message adapter boundary.
+- The adapter first accepts explicit camelCase / snake_case attachment fields from the thread item or metadata, then falls back to parsing the compact JSON marker from user text.
+- Attachments are de-duplicated by `attachmentId`, so local optimistic replay, remote Codex history, and fallback session history can converge without duplicate audit cards.
+- The send-audit card surface was changed from a blue gradient to a theme-compatible single-color surface, while keeping the existing accent border, chips, and modal payload viewer.
+
+## 阶段性回写：Claude history send-audit boundary（2026-06-07）
+
+- Claude / Claude Code 新历史里已经可以显示 Intent Canvas send-audit card，前提是历史 user text 或 thread item 中仍保留 compact JSON marker。
+- 旧历史如果没有保存 compact JSON payload，前端不做 retroactive backfill；缺 payload 时无法证明本轮发送过哪一份 Canvas context。
+- 禁止为了补旧历史而在 reducer 层按 visible text、tab title、assistant mention、user turn index 猜测 `intentCanvasContextAttachments`。
+- 正确边界是 best-effort replay：新发送和保留 raw compact JSON 的历史可以展示审计卡；pre-fix legacy history 只在有可解析 payload 时展示。
+- 这条边界避免把审计卡从“发送证据”降级成“UI 猜测”，也避免误把某张 Canvas 挂到错误的 Claude turn 上。
