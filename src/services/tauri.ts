@@ -947,15 +947,30 @@ export async function getOpenCodeAgentsList(refresh = false) {
 }
 
 export async function getOpenCodeSessionList(workspaceId: string) {
-  return traceStartupInvoke("opencode_session_list", workspaceScope(workspaceId), () =>
-    invoke<
-      Array<{
-        sessionId: string;
-        title: string;
-        updatedLabel: string;
-        updatedAt?: number | null;
-      }>
-    >("opencode_session_list", { workspaceId }),
+  return traceStartupInvoke(
+    "opencode_session_list",
+    workspaceScope(workspaceId),
+    async () => {
+      try {
+        return await invoke<
+          Array<{
+            sessionId: string;
+            title: string;
+            updatedLabel: string;
+            updatedAt?: number | null;
+          }>
+        >("opencode_session_list", { workspaceId });
+      } catch (error) {
+        if (
+          String(error).includes(
+            "OpenCode CLI is disabled in CLI validation settings",
+          )
+        ) {
+          return [];
+        }
+        throw error;
+      }
+    },
   );
 }
 
