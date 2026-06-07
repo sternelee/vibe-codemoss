@@ -822,3 +822,41 @@ Codex app-server 对话链路切换为 codex-tui 兼容身份，补 terminal env
 ### Next Steps
 
 - None - task complete
+
+
+## Session 755: 收口 Project Map Read Path 提案与门禁修复
+
+**Date**: 2026-06-08
+**Task**: 收口 Project Map Read Path 提案与门禁修复
+**Branch**: `feature/v0.5.8`
+
+### Summary
+
+回写 Project Map Read Path 提案，移除无效定位关系入口，并修复完整前端门禁 lint 问题。
+
+### Main Changes
+
+- 回写 polish-project-map-files-api-mvp OpenSpec proposal/design/spec/tasks，使 Read Path 定位到文件解剖图与方法链路闭环。
+- 移除 Read Path 关系卡片里的“定位关系”动作入口，减少无效点击噪音。
+- 修复完整 CI 暴露的 lint 问题：清理未使用 scope warning 类型/变量，修正 Java 方法声明正则中的无效转义。
+- 验证通过：npm run lint && npm run typecheck && npm run test。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5a657356` | (see git log) |
+| `4b916613` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
