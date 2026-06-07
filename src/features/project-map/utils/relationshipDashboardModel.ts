@@ -535,6 +535,7 @@ function normalizeProjectMapApiParameterLocation(value: unknown): ProjectMapApiP
     case "query":
     case "header":
     case "cookie":
+    case "body":
       return value;
     default:
       return "query";
@@ -617,8 +618,10 @@ function normalizeProjectMapApiParameters(value: unknown): ProjectMapApiParamete
       location: normalizeProjectMapApiParameterLocation(item.location),
       required: typeof item.required === "boolean" ? item.required : undefined,
       schema: normalizeProjectMapApiSchemaRef(item.schema),
+      description: readProjectMapRelationshipString(item, "description") ?? undefined,
       defaultValue: readProjectMapRelationshipString(item, "defaultValue") ?? undefined,
       example: example ? redactProjectMapApiEvidenceText(example) : undefined,
+      structuredFields: normalizeProjectMapApiStructuredSchemaFields(item.structuredFields),
       evidence: normalizeProjectMapApiEvidence(item.evidence),
     }];
   });
@@ -632,6 +635,7 @@ function normalizeProjectMapApiRequestBody(value: unknown): ProjectMapApiRequest
     contentType: readProjectMapRelationshipString(value, "contentType") ?? undefined,
     required: typeof value.required === "boolean" ? value.required : undefined,
     schema: normalizeProjectMapApiSchemaRef(value.schema),
+    structuredFields: normalizeProjectMapApiStructuredSchemaFields(value.structuredFields),
     examples: readProjectMapRelationshipStringArray(value, "examples")
       .map(redactProjectMapApiEvidenceText),
     evidence: normalizeProjectMapApiEvidence(value.evidence),
@@ -650,6 +654,7 @@ function normalizeProjectMapApiResponses(value: unknown): ProjectMapApiResponse[
       statusCode: readProjectMapRelationshipString(item, "statusCode") ?? undefined,
       contentType: readProjectMapRelationshipString(item, "contentType") ?? undefined,
       schema: normalizeProjectMapApiSchemaRef(item.schema),
+      structuredFields: normalizeProjectMapApiStructuredSchemaFields(item.structuredFields),
       examples: readProjectMapRelationshipStringArray(item, "examples")
         .map(redactProjectMapApiEvidenceText),
       isError: typeof item.isError === "boolean" ? item.isError : undefined,
@@ -679,6 +684,67 @@ function normalizeProjectMapApiEndpointIdentityKind(value: unknown): ProjectMapA
     return value as ProjectMapApiEndpoint["identityKind"];
   }
   return undefined;
+}
+
+function normalizeProjectMapApiDescriptionSourceKind(value: unknown) {
+  if (
+    value === "doc-comment"
+    || value === "swagger-annotation"
+    || value === "schema-description"
+    || value === "route-name"
+    || value === "fallback"
+  ) {
+    return value;
+  }
+  return "fallback";
+}
+
+function normalizeProjectMapApiStructuredSchemaFields(value: unknown): NonNullable<ProjectMapApiEndpoint["requestBody"]>["structuredFields"] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((item) => {
+    if (!isProjectMapRelationshipRecord(item)) {
+      return [];
+    }
+    const name = readProjectMapRelationshipString(item, "name");
+    if (!name) {
+      return [];
+    }
+    return [{
+      name,
+      type: readProjectMapRelationshipString(item, "type") ?? undefined,
+      required: typeof item.required === "boolean" ? item.required : undefined,
+      defaultValue: readProjectMapRelationshipString(item, "defaultValue") ?? undefined,
+      description: readProjectMapRelationshipString(item, "description") ?? undefined,
+      enumValues: readProjectMapRelationshipStringArray(item, "enumValues"),
+      range: readProjectMapRelationshipString(item, "range") ?? undefined,
+      example: readProjectMapRelationshipString(item, "example") ?? undefined,
+      children: normalizeProjectMapApiStructuredSchemaFields(item.children),
+      evidence: normalizeProjectMapApiEvidence(item.evidence),
+    }];
+  });
+}
+
+function normalizeProjectMapApiDescriptionSources(value: unknown): ProjectMapApiEndpoint["descriptionSources"] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((item) => {
+    if (!isProjectMapRelationshipRecord(item)) {
+      return [];
+    }
+    const text = readProjectMapRelationshipString(item, "text");
+    if (!text) {
+      return [];
+    }
+    return [{
+      kind: normalizeProjectMapApiDescriptionSourceKind(item.kind),
+      text,
+      language: readProjectMapRelationshipString(item, "language") ?? undefined,
+      evidence: normalizeProjectMapApiEvidence(item.evidence),
+    }];
+  });
 }
 
 function normalizeProjectMapApiCallChainEdgeKind(value: unknown): ProjectMapApiCallChainEdge["kind"] {
@@ -726,6 +792,7 @@ function normalizeProjectMapApiEndpoints(value: unknown): ProjectMapApiEndpoint[
       requestSchema: normalizeProjectMapApiSchemaRef(item.requestSchema),
       responseSchema: normalizeProjectMapApiSchemaRef(item.responseSchema),
       description: readProjectMapRelationshipString(item, "description") ?? undefined,
+      descriptionSources: normalizeProjectMapApiDescriptionSources(item.descriptionSources),
       usageScenario: readProjectMapRelationshipString(item, "usageScenario") ?? undefined,
       groupIds: readProjectMapRelationshipStringArray(item, "groupIds"),
       callChainIds: readProjectMapRelationshipStringArray(item, "callChainIds"),

@@ -6,6 +6,14 @@ use sha2::{Digest, Sha256};
 
 use crate::project_map_relations::ScannedFile;
 
+#[path = "project_map_api_contracts_schema_sources.rs"]
+mod project_map_api_contracts_schema_sources;
+use project_map_api_contracts_schema_sources::{
+    api_contract_schema_ref_from_name, extract_graphql_contract_candidates,
+    extract_openapi_contract_candidates, extract_proto_contract_candidates, is_graphql_contract_file,
+    is_openapi_contract_file, is_proto_contract_file,
+};
+
 fn stable_hash(value: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(value.as_bytes());
@@ -61,6 +69,245 @@ fn java_declared_type(content: &str) -> Option<String> {
     None
 }
 
+fn java_annotation_description(line: &str) -> Option<String> {
+    if line.contains("@Schema") || line.contains("@ApiModelProperty") {
+        quoted_value_after_key(line, "description")
+            .or_else(|| quoted_value_after_key(line, "value"))
+            .or_else(|| quoted_value_after_key(line, "notes"))
+            .or_else(|| first_quoted_value(line))
+    } else {
+        None
+    }
+}
+
+fn java_annotation_example(line: &str) -> Option<String> {
+    if line.contains("@Schema") || line.contains("@ApiModelProperty") {
+        quoted_value_after_key(line, "example")
+    } else {
+        None
+    }
+}
+
+fn java_validation_required(line: &str) -> bool {
+    line.contains("@NotNull")
+        || line.contains("@NotBlank")
+        || line.contains("@NotEmpty")
+        || line.contains("@NonNull")
+}
+
+fn java_validation_range(line: &str) -> Option<String> {
+    let mut parts = Vec::new();
+    if let Some(value) = quoted_value_after_key(line, "regexp") {
+        parts.push(format!("pattern={value}"));
+    }
+    for key in ["min", "max", "size"] {
+        if let Some(index) = line.find(key) {
+            let tail = &line[index + key.len()..];
+            if let Some(value) = tail
+                .trim_start()
+                .strip_prefix('=')
+                .and_then(|value| value.trim_start().split([',', ')']).next())
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+            {
+                parts.push(format!("{key}={value}"));
+            }
+        }
+    }
+    if parts.is_empty() {
+        None
+    } else {
+        Some(parts.join(", "))
+    }
+}
+
+fn java_field_from_line(
+    file: &ScannedFile,
+    line_number: usize,
+    line: &str,
+    pending_description: Option<String>,
+    pending_required: bool,
+    pending_example: Option<String>,
+    pending_range: Option<String>,
+    generated_at: &str,
+) -> Option<ApiStructuredSchemaField> {
+    let trimmed = line.trim();
+    if trimmed.is_empty()
+        || trimmed.starts_with('@')
+        || trimmed.starts_with('/')
+        || trimmed.starts_with('*')
+        || trimmed.starts_with("package ")
+        || trimmed.starts_with("import ")
+        || trimmed.contains('(')
+        || trimmed.contains(" class ")
+        || trimmed.starts_with("class ")
+        || !trimmed.contains(';')
+    {
+        return None;
+    }
+    let before_assignment = trimmed.split('=').next().unwrap_or(trimmed);
+    let cleaned = strip_java_annotations(before_assignment)
+        .replace(';', " ")
+        .replace(',', " ");
+    let tokens = cleaned
+        .split_whitespace()
+        .filter(|token| {
+            !matches!(
+                *token,
+                "public"
+                    | "private"
+                    | "protected"
+                    | "static"
+                    | "final"
+                    | "transient"
+                    | "volatile"
+                    | "serialVersionUID"
+            )
+        })
+        .collect::<Vec<_>>();
+    if tokens.len() < 2 {
+        return None;
+    }
+    let name = tokens.last()?.trim_matches(|character: char| {
+        !character.is_ascii_alphanumeric() && character != '_'
+    });
+    if name.is_empty() {
+        return None;
+    }
+    let field_type = tokens
+        .iter()
+        .rev()
+        .skip(1)
+        .next()
+        .map(|value| (*value).to_string());
+    let description = java_annotation_description(line).or(pending_description);
+    let example = java_annotation_example(line).or(pending_example);
+    let range = java_validation_range(line).or(pending_range);
+    Some(ApiStructuredSchemaField {
+        name: name.to_string(),
+        field_type,
+        required: Some(pending_required || java_validation_required(line)),
+        default_value: None,
+        description,
+        enum_values: Vec::new(),
+        range,
+        example,
+        children: Vec::new(),
+        evidence: vec![api_evidence_payload(
+            &file.path,
+            line_number,
+            trimmed,
+            "fallback-pattern",
+            generated_at,
+        )],
+    })
+}
+
+fn build_java_schema_field_index(
+    file_contents: &[(ScannedFile, String)],
+    generated_at: &str,
+) -> BTreeMap<String, Vec<ApiStructuredSchemaField>> {
+    let mut index = BTreeMap::new();
+    for (file, content) in file_contents {
+        if !matches!(file.language.as_str(), "java" | "kotlin") {
+            continue;
+        }
+        let mut current_type: Option<String> = None;
+        let mut current_fields = Vec::new();
+        let mut pending_description: Option<String> = None;
+        let mut pending_example: Option<String> = None;
+        let mut pending_range: Option<String> = None;
+        let mut pending_required = false;
+        for (line_index, line) in content.lines().enumerate() {
+            let line_number = line_index + 1;
+            let trimmed = line.trim();
+            let tokens = trimmed
+                .split(|character: char| !character.is_ascii_alphanumeric() && character != '_')
+                .filter(|token| !token.is_empty())
+                .collect::<Vec<_>>();
+            if let Some(type_name) = tokens.iter().enumerate().find_map(|(index, token)| {
+                if matches!(*token, "class" | "interface" | "enum" | "record") {
+                    tokens.get(index + 1).map(|value| (*value).to_string())
+                } else {
+                    None
+                }
+            }) {
+                if let Some(previous_type) = current_type.take() {
+                    if !current_fields.is_empty() {
+                        index.insert(previous_type, std::mem::take(&mut current_fields));
+                    }
+                }
+                current_type = Some(type_name);
+                pending_description = None;
+                pending_example = None;
+                pending_range = None;
+                pending_required = false;
+                continue;
+            }
+            if trimmed.starts_with('@') || trimmed.starts_with("/**") || trimmed.starts_with('*') || trimmed.starts_with("//") {
+                pending_description = java_annotation_description(line)
+                    .or_else(|| java_comment_text(line))
+                    .or(pending_description);
+                pending_example = java_annotation_example(line).or(pending_example);
+                pending_range = java_validation_range(line).or(pending_range);
+                pending_required = pending_required || java_validation_required(line);
+                continue;
+            }
+            if let Some(field) = java_field_from_line(
+                file,
+                line_number,
+                line,
+                pending_description.take(),
+                pending_required,
+                pending_example.take(),
+                pending_range.take(),
+                generated_at,
+            ) {
+                if current_type.is_some() {
+                    current_fields.push(field);
+                }
+                pending_required = false;
+                continue;
+            }
+            pending_description = None;
+            pending_example = None;
+            pending_range = None;
+            pending_required = false;
+        }
+        if let Some(type_name) = current_type {
+            if !current_fields.is_empty() {
+                index.insert(type_name, current_fields);
+            }
+        }
+    }
+    index
+}
+
+fn api_schema_lookup_names(schema_name: &str) -> Vec<String> {
+    let normalized = schema_name
+        .trim()
+        .trim_end_matches("[]")
+        .trim()
+        .to_string();
+    let mut names = vec![normalized.clone()];
+    if let Some((_, inner)) = normalized.split_once('<') {
+        let inner = inner.trim_end_matches('>').trim();
+        names.extend(inner.split(',').map(|value| value.trim().to_string()));
+    }
+    names.retain(|value| !value.is_empty());
+    names
+}
+
+fn structured_fields_for_schema(
+    schema_name: &str,
+    schema_field_index: &BTreeMap<String, Vec<ApiStructuredSchemaField>>,
+) -> Vec<ApiStructuredSchemaField> {
+    api_schema_lookup_names(schema_name)
+        .into_iter()
+        .find_map(|name| schema_field_index.get(&name).cloned())
+        .unwrap_or_default()
+}
+
 #[derive(Debug, Clone)]
 struct ApiRouteAnnotation {
     method: Option<String>,
@@ -68,6 +315,13 @@ struct ApiRouteAnnotation {
     framework: String,
     confidence: String,
     parser_source: String,
+}
+
+#[derive(Debug, Clone, Default)]
+struct JavaApiMethodMetadata {
+    description: Option<String>,
+    parameter_descriptions: BTreeMap<String, String>,
+    response_descriptions: Vec<(String, String)>,
 }
 
 #[derive(Debug, Clone)]
@@ -139,9 +393,37 @@ pub(crate) struct ApiParameter {
     #[serde(skip_serializing_if = "Option::is_none")]
     schema: Option<ApiSchemaRef>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     default_value: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     example: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    structured_fields: Vec<ApiStructuredSchemaField>,
+    evidence: Vec<ApiEvidence>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ApiStructuredSchemaField {
+    name: String,
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    field_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    required: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    default_value: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    description: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    enum_values: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    range: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    example: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    children: Vec<ApiStructuredSchemaField>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     evidence: Vec<ApiEvidence>,
 }
 
@@ -153,6 +435,8 @@ pub(crate) struct ApiRequestBody {
     required: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     schema: Option<ApiSchemaRef>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    structured_fields: Vec<ApiStructuredSchemaField>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     examples: Vec<String>,
     evidence: Vec<ApiEvidence>,
@@ -168,8 +452,20 @@ pub(crate) struct ApiResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     schema: Option<ApiSchemaRef>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    structured_fields: Vec<ApiStructuredSchemaField>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     examples: Vec<String>,
     is_error: bool,
+    evidence: Vec<ApiEvidence>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ApiDescriptionSource {
+    kind: String,
+    text: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    language: Option<String>,
     evidence: Vec<ApiEvidence>,
 }
 
@@ -200,6 +496,8 @@ pub(crate) struct ApiEndpoint {
     response_schema: Option<ApiSchemaRef>,
     #[serde(skip_serializing_if = "Option::is_none")]
     description: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    description_sources: Vec<ApiDescriptionSource>,
     #[serde(skip_serializing_if = "Option::is_none")]
     usage_scenario: Option<String>,
     group_ids: Vec<String>,
@@ -212,6 +510,35 @@ pub(crate) struct ApiEndpoint {
     canonical_identity: Option<String>,
     identity_kind: String,
     ambiguous_identity: bool,
+}
+
+fn api_description_sources(candidate: &ApiRouteCandidate, evidence: &[ApiEvidence]) -> Vec<ApiDescriptionSource> {
+    candidate
+        .description
+        .as_ref()
+        .map(|description| {
+            let kind = if candidate.confidence == "spec" {
+                "schema-description"
+            } else if candidate
+                .framework
+                .as_deref()
+                .map(|framework| framework.contains("Spring") || framework.contains("Swagger"))
+                .unwrap_or(false)
+            {
+                "swagger-annotation"
+            } else if candidate.parser_source == "fallback-pattern" {
+                "doc-comment"
+            } else {
+                "swagger-annotation"
+            };
+            vec![ApiDescriptionSource {
+                kind: kind.to_string(),
+                text: description.clone(),
+                language: Some(candidate.language.clone()),
+                evidence: evidence.to_vec(),
+            }]
+        })
+        .unwrap_or_default()
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -495,688 +822,6 @@ fn api_workspace_fingerprint(file_contents: &[(ScannedFile, String)]) -> String 
     stable_hash(&fingerprints.join("|"))
 }
 
-fn is_openapi_contract_file(file: &ScannedFile) -> bool {
-    let extension = file.extension.to_ascii_lowercase();
-    let name = format!("{} {}", file.basename, file.path).to_ascii_lowercase();
-    matches!(extension.as_str(), "json" | "yaml" | "yml")
-        && (name.contains("openapi") || name.contains("swagger"))
-}
-
-fn parse_openapi_document(file: &ScannedFile, content: &str) -> Result<Value, String> {
-    match file.extension.to_ascii_lowercase().as_str() {
-        "json" => serde_json::from_str(content)
-            .map_err(|error| format!("failed to parse OpenAPI JSON {}: {error}", file.path)),
-        "yaml" | "yml" => serde_yaml::from_str(content)
-            .map_err(|error| format!("failed to parse OpenAPI YAML {}: {error}", file.path)),
-        extension => Err(format!(
-            "unsupported OpenAPI extension {extension} for {}",
-            file.path
-        )),
-    }
-}
-
-fn openapi_document_title(document: &Value, file: &ScannedFile) -> String {
-    if let Some(title) = document
-        .get("info")
-        .and_then(|info| info.get("title"))
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-    {
-        title.to_string()
-    } else {
-        file_stem_label(&file.path)
-    }
-}
-
-fn openapi_line_number(content: &str, path: &str, method: &str) -> usize {
-    let method_lower = method.to_ascii_lowercase();
-    let mut path_line = None;
-    for (index, line) in content.lines().enumerate() {
-        let line_number = index + 1;
-        if path_line.is_none() && line.contains(path) {
-            path_line = Some(line_number);
-        }
-        let trimmed = line.trim().to_ascii_lowercase();
-        if path_line.is_some()
-            && (trimmed.starts_with(&format!("{method_lower}:"))
-                || trimmed.contains(&format!("\"{method_lower}\""))
-                || trimmed.contains(&format!("'{method_lower}'")))
-        {
-            return line_number;
-        }
-    }
-    path_line.unwrap_or(1)
-}
-
-fn openapi_excerpt(content: &str, line: usize, fallback: &str) -> String {
-    content
-        .lines()
-        .nth(line.saturating_sub(1))
-        .map(api_trimmed_excerpt)
-        .filter(|value| !value.is_empty())
-        .unwrap_or_else(|| fallback.to_string())
-}
-
-fn openapi_schema_ref_name(schema: &Value, fallback_name: &str) -> String {
-    schema
-        .get("$ref")
-        .and_then(Value::as_str)
-        .and_then(|reference| reference.rsplit('/').next())
-        .or_else(|| schema.get("title").and_then(Value::as_str))
-        .or_else(|| schema.get("type").and_then(Value::as_str))
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .unwrap_or(fallback_name)
-        .to_string()
-}
-
-fn openapi_schema_ref(
-    schema: &Value,
-    file: &ScannedFile,
-    line: usize,
-    excerpt: &str,
-    generated_at: &str,
-    fallback_name: &str,
-) -> Option<ApiSchemaRef> {
-    if !schema.is_object() {
-        return None;
-    }
-    let name = openapi_schema_ref_name(schema, fallback_name);
-    Some(ApiSchemaRef {
-        id: format!(
-            "api-schema-{}",
-            stable_hash(&format!("{}|{}|{}", file.path, line, name))
-        ),
-        name,
-        language: "unknown".to_string(),
-        source_file: file.path.clone(),
-        evidence: vec![api_evidence_payload(
-            &file.path,
-            line,
-            excerpt,
-            "schema-parser",
-            generated_at,
-        )],
-    })
-}
-
-fn openapi_first_content_schema(value: &Value) -> (Option<String>, Option<&Value>) {
-    let Some(content) = value.get("content").and_then(Value::as_object) else {
-        return (None, None);
-    };
-    content
-        .iter()
-        .find_map(|(content_type, media)| {
-            media
-                .get("schema")
-                .map(|schema| (Some(content_type.clone()), Some(schema)))
-        })
-        .unwrap_or((None, None))
-}
-
-fn openapi_parameter(
-    parameter: &Value,
-    file: &ScannedFile,
-    line: usize,
-    excerpt: &str,
-    generated_at: &str,
-) -> Option<ApiParameter> {
-    let name = parameter.get("name").and_then(Value::as_str)?.trim();
-    if name.is_empty() {
-        return None;
-    }
-    let location = parameter
-        .get("in")
-        .and_then(Value::as_str)
-        .unwrap_or("query")
-        .trim()
-        .to_string();
-    let schema = parameter
-        .get("schema")
-        .or_else(|| parameter.get("type").map(|_| parameter))
-        .and_then(|schema| openapi_schema_ref(schema, file, line, excerpt, generated_at, name));
-    let example = parameter
-        .get("example")
-        .and_then(Value::as_str)
-        .map(|value| redact_api_evidence_excerpt(value).0);
-    Some(ApiParameter {
-        name: name.to_string(),
-        location,
-        required: parameter
-            .get("required")
-            .and_then(Value::as_bool)
-            .unwrap_or(false),
-        schema,
-        default_value: None,
-        example,
-        evidence: vec![api_evidence_payload(
-            &file.path,
-            line,
-            excerpt,
-            "schema-parser",
-            generated_at,
-        )],
-    })
-}
-
-fn openapi_parameters(
-    path_item: &Value,
-    operation: &Value,
-    file: &ScannedFile,
-    line: usize,
-    excerpt: &str,
-    generated_at: &str,
-) -> Vec<ApiParameter> {
-    let mut parameters = Vec::new();
-    for source in [path_item.get("parameters"), operation.get("parameters")] {
-        let Some(items) = source.and_then(Value::as_array) else {
-            continue;
-        };
-        for item in items {
-            if let Some(parameter) = openapi_parameter(item, file, line, excerpt, generated_at) {
-                parameters.push(parameter);
-            }
-        }
-    }
-    parameters
-}
-
-fn openapi_request_body(
-    operation: &Value,
-    parameters: &[ApiParameter],
-    file: &ScannedFile,
-    line: usize,
-    excerpt: &str,
-    generated_at: &str,
-) -> Option<ApiRequestBody> {
-    if let Some(body) = operation.get("requestBody") {
-        let (content_type, schema) = openapi_first_content_schema(body);
-        return Some(ApiRequestBody {
-            content_type,
-            required: body
-                .get("required")
-                .and_then(Value::as_bool)
-                .unwrap_or(false),
-            schema: schema.and_then(|schema| {
-                openapi_schema_ref(schema, file, line, excerpt, generated_at, "requestBody")
-            }),
-            examples: Vec::new(),
-            evidence: vec![api_evidence_payload(
-                &file.path,
-                line,
-                excerpt,
-                "schema-parser",
-                generated_at,
-            )],
-        });
-    }
-    parameters
-        .iter()
-        .find(|parameter| parameter.location == "body")
-        .map(|parameter| ApiRequestBody {
-            content_type: Some("application/json".to_string()),
-            required: parameter.required,
-            schema: parameter.schema.clone(),
-            examples: Vec::new(),
-            evidence: parameter.evidence.clone(),
-        })
-}
-
-fn openapi_response(
-    status_code: &str,
-    response: &Value,
-    file: &ScannedFile,
-    line: usize,
-    excerpt: &str,
-    generated_at: &str,
-) -> ApiResponse {
-    let (content_type, schema) = openapi_first_content_schema(response);
-    let swagger_schema = response.get("schema");
-    let schema = schema.or(swagger_schema).and_then(|schema| {
-        openapi_schema_ref(schema, file, line, excerpt, generated_at, status_code)
-    });
-    let is_error = status_code == "default"
-        || status_code
-            .parse::<u16>()
-            .map(|code| code >= 400)
-            .unwrap_or(false);
-    ApiResponse {
-        status_code: Some(status_code.to_string()),
-        content_type,
-        schema,
-        examples: Vec::new(),
-        is_error,
-        evidence: vec![api_evidence_payload(
-            &file.path,
-            line,
-            excerpt,
-            "schema-parser",
-            generated_at,
-        )],
-    }
-}
-
-fn openapi_responses(
-    operation: &Value,
-    file: &ScannedFile,
-    line: usize,
-    excerpt: &str,
-    generated_at: &str,
-) -> Vec<ApiResponse> {
-    let Some(responses) = operation.get("responses").and_then(Value::as_object) else {
-        return Vec::new();
-    };
-    responses
-        .iter()
-        .map(|(status_code, response)| {
-            openapi_response(status_code, response, file, line, excerpt, generated_at)
-        })
-        .collect()
-}
-
-fn extract_openapi_contract_candidates(
-    file: &ScannedFile,
-    content: &str,
-    generated_at: &str,
-) -> Result<Vec<ApiRouteCandidate>, String> {
-    let document = parse_openapi_document(file, content)?;
-    let Some(paths) = document.get("paths").and_then(Value::as_object) else {
-        return Ok(Vec::new());
-    };
-    let title = openapi_document_title(&document, file);
-    let base_path = document
-        .get("basePath")
-        .and_then(Value::as_str)
-        .map(str::to_string);
-    let mut candidates = Vec::new();
-    for (raw_path, path_item) in paths {
-        let Some(path_item_object) = path_item.as_object() else {
-            continue;
-        };
-        for method in [
-            "get", "post", "put", "delete", "patch", "options", "head", "trace",
-        ] {
-            let Some(operation) = path_item_object.get(method) else {
-                continue;
-            };
-            let line = openapi_line_number(content, raw_path, method);
-            let excerpt = openapi_excerpt(
-                content,
-                line,
-                &format!("{} {}", method.to_ascii_uppercase(), raw_path),
-            );
-            let parameters =
-                openapi_parameters(path_item, operation, file, line, &excerpt, generated_at);
-            let request_body =
-                openapi_request_body(operation, &parameters, file, line, &excerpt, generated_at);
-            let responses = openapi_responses(operation, file, line, &excerpt, generated_at);
-            let operation_name = operation
-                .get("operationId")
-                .and_then(Value::as_str)
-                .map(str::to_string);
-            let tag = operation
-                .get("tags")
-                .and_then(Value::as_array)
-                .and_then(|tags| tags.first())
-                .and_then(Value::as_str)
-                .map(str::to_string);
-            let description = operation
-                .get("summary")
-                .and_then(Value::as_str)
-                .or_else(|| operation.get("description").and_then(Value::as_str))
-                .map(str::to_string);
-            let path = base_path
-                .as_deref()
-                .and_then(|prefix| join_api_paths(prefix, Some(raw_path.clone())))
-                .or_else(|| normalize_api_path(Some(raw_path.clone())));
-            let response_schema = responses
-                .iter()
-                .find_map(|response| response.schema.clone());
-            candidates.push(ApiRouteCandidate {
-                protocol: "http".to_string(),
-                language: "unknown".to_string(),
-                framework: Some(if document.get("swagger").is_some() {
-                    "Swagger".to_string()
-                } else {
-                    "OpenAPI".to_string()
-                }),
-                method: Some(method.to_ascii_uppercase()),
-                path,
-                operation_name,
-                handler_symbol: None,
-                source_file: file.path.clone(),
-                line,
-                excerpt,
-                confidence: "spec".to_string(),
-                parser_source: "schema-parser".to_string(),
-                module_label: format!("api-contract:{title}"),
-                controller_label: tag.unwrap_or_else(|| title.clone()),
-                parameter_overrides: parameters,
-                request_schema_override: request_body.as_ref().and_then(|body| body.schema.clone()),
-                request_body_override: request_body,
-                response_schema_override: response_schema,
-                response_overrides: responses,
-                description,
-                usage_scenario: None,
-            });
-        }
-    }
-    Ok(candidates)
-}
-
-fn is_proto_contract_file(file: &ScannedFile) -> bool {
-    file.extension.eq_ignore_ascii_case("proto")
-}
-
-fn is_graphql_contract_file(file: &ScannedFile) -> bool {
-    matches!(
-        file.extension.to_ascii_lowercase().as_str(),
-        "graphql" | "gql"
-    )
-}
-
-fn api_contract_schema_ref_from_name(
-    name: &str,
-    file: &ScannedFile,
-    line: usize,
-    excerpt: &str,
-    parser_source: &str,
-    generated_at: &str,
-) -> Option<ApiSchemaRef> {
-    let normalized = name
-        .trim()
-        .trim_start_matches('&')
-        .trim_start_matches('[')
-        .trim_end_matches(']')
-        .trim_end_matches('!')
-        .trim();
-    if normalized.is_empty() {
-        return None;
-    }
-    Some(ApiSchemaRef {
-        id: format!(
-            "api-schema-{}",
-            stable_hash(&format!("{}|{}|{}", file.path, line, normalized))
-        ),
-        name: normalized.to_string(),
-        language: "unknown".to_string(),
-        source_file: file.path.clone(),
-        evidence: vec![api_evidence_payload(
-            &file.path,
-            line,
-            excerpt,
-            parser_source,
-            generated_at,
-        )],
-    })
-}
-
-fn proto_package_name(content: &str) -> Option<String> {
-    content.lines().find_map(|line| {
-        let trimmed = line.trim();
-        trimmed
-            .strip_prefix("package ")
-            .map(|tail| tail.trim_end_matches(';').trim().to_string())
-            .filter(|value| !value.is_empty())
-    })
-}
-
-fn proto_rpc_signature(line: &str) -> Option<(String, String, String)> {
-    let trimmed = line.trim();
-    let rpc_tail = trimmed.strip_prefix("rpc ")?;
-    let method = rpc_tail.split_whitespace().next()?.trim();
-    let request_start = trimmed.find('(')?;
-    let request_end = trimmed[request_start + 1..].find(')')? + request_start + 1;
-    let request_type = trimmed[request_start + 1..request_end].trim();
-    let returns_index = trimmed.find("returns")?;
-    let response_start = trimmed[returns_index..].find('(')? + returns_index;
-    let response_end = trimmed[response_start + 1..].find(')')? + response_start + 1;
-    let response_type = trimmed[response_start + 1..response_end].trim();
-    if method.is_empty() || request_type.is_empty() || response_type.is_empty() {
-        return None;
-    }
-    Some((
-        method.to_string(),
-        request_type.to_string(),
-        response_type.to_string(),
-    ))
-}
-
-fn extract_proto_contract_candidates(
-    file: &ScannedFile,
-    content: &str,
-    generated_at: &str,
-) -> Vec<ApiRouteCandidate> {
-    let package_name = proto_package_name(content).unwrap_or_else(|| module_label(&file.path));
-    let mut service_name: Option<String> = None;
-    let mut candidates = Vec::new();
-    for (line_index, line) in content.lines().enumerate() {
-        let line_number = line_index + 1;
-        let trimmed = line.trim();
-        if let Some(tail) = trimmed.strip_prefix("service ") {
-            service_name = tail
-                .split(|character: char| character.is_whitespace() || character == '{')
-                .next()
-                .map(str::to_string)
-                .filter(|value| !value.is_empty());
-            continue;
-        }
-        if trimmed.starts_with('}') {
-            service_name = None;
-            continue;
-        }
-        let Some(service) = service_name.clone() else {
-            continue;
-        };
-        let Some((method, request_type, response_type)) = proto_rpc_signature(trimmed) else {
-            continue;
-        };
-        let excerpt = api_trimmed_excerpt(line);
-        let request_schema = api_contract_schema_ref_from_name(
-            &request_type,
-            file,
-            line_number,
-            &excerpt,
-            "descriptor",
-            generated_at,
-        );
-        let response_schema = api_contract_schema_ref_from_name(
-            &response_type,
-            file,
-            line_number,
-            &excerpt,
-            "descriptor",
-            generated_at,
-        );
-        let operation_name = format!("{service}.{method}");
-        candidates.push(ApiRouteCandidate {
-            protocol: "grpc".to_string(),
-            language: "unknown".to_string(),
-            framework: Some("gRPC".to_string()),
-            method: None,
-            path: None,
-            operation_name: Some(operation_name.clone()),
-            handler_symbol: Some(operation_name),
-            source_file: file.path.clone(),
-            line: line_number,
-            excerpt,
-            confidence: "spec".to_string(),
-            parser_source: "descriptor".to_string(),
-            module_label: package_name.clone(),
-            controller_label: service,
-            parameter_overrides: Vec::new(),
-            request_body_override: Some(ApiRequestBody {
-                content_type: Some("application/grpc".to_string()),
-                required: true,
-                schema: request_schema.clone(),
-                examples: Vec::new(),
-                evidence: vec![api_evidence_payload(
-                    &file.path,
-                    line_number,
-                    line,
-                    "descriptor",
-                    generated_at,
-                )],
-            }),
-            response_overrides: vec![ApiResponse {
-                status_code: None,
-                content_type: Some("application/grpc".to_string()),
-                schema: response_schema.clone(),
-                examples: Vec::new(),
-                is_error: false,
-                evidence: vec![api_evidence_payload(
-                    &file.path,
-                    line_number,
-                    line,
-                    "descriptor",
-                    generated_at,
-                )],
-            }],
-            request_schema_override: request_schema,
-            response_schema_override: response_schema,
-            description: None,
-            usage_scenario: None,
-        });
-    }
-    candidates
-}
-
-fn graphql_field_signature(line: &str) -> Option<(String, Option<String>, String)> {
-    let trimmed = line.trim().trim_end_matches(',');
-    if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with('}') {
-        return None;
-    }
-    let (left, response_type) = trimmed.split_once(':')?;
-    let field_name = left
-        .split('(')
-        .next()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())?;
-    let args = left
-        .split_once('(')
-        .and_then(|(_, tail)| {
-            tail.rsplit_once(')')
-                .map(|(args, _)| args.trim().to_string())
-        })
-        .filter(|value| !value.is_empty());
-    Some((
-        field_name.to_string(),
-        args,
-        response_type.trim().to_string(),
-    ))
-}
-
-fn extract_graphql_contract_candidates(
-    file: &ScannedFile,
-    content: &str,
-    generated_at: &str,
-) -> Vec<ApiRouteCandidate> {
-    let mut operation_type: Option<String> = None;
-    let mut candidates = Vec::new();
-    for (line_index, line) in content.lines().enumerate() {
-        let line_number = line_index + 1;
-        let trimmed = line.trim();
-        for (type_name, operation) in [
-            ("type Query", "query"),
-            ("type Mutation", "mutation"),
-            ("type Subscription", "subscription"),
-        ] {
-            if trimmed.starts_with(type_name) {
-                operation_type = Some(operation.to_string());
-            }
-        }
-        if trimmed.starts_with('}') {
-            operation_type = None;
-            continue;
-        }
-        let Some(operation) = operation_type.clone() else {
-            continue;
-        };
-        let Some((field_name, args, response_type)) = graphql_field_signature(trimmed) else {
-            continue;
-        };
-        let excerpt = api_trimmed_excerpt(line);
-        let response_schema = api_contract_schema_ref_from_name(
-            &response_type,
-            file,
-            line_number,
-            &excerpt,
-            "schema-parser",
-            generated_at,
-        );
-        let parameters = args
-            .map(|args| {
-                split_api_signature_parameters(&args)
-                    .into_iter()
-                    .flat_map(|parameter| {
-                        let (name, type_name) = parameter.split_once(':')?;
-                        Some(ApiParameter {
-                            name: name.trim().to_string(),
-                            location: "body".to_string(),
-                            required: type_name.trim().ends_with('!'),
-                            schema: api_contract_schema_ref_from_name(
-                                type_name,
-                                file,
-                                line_number,
-                                &excerpt,
-                                "schema-parser",
-                                generated_at,
-                            ),
-                            default_value: None,
-                            example: None,
-                            evidence: vec![api_evidence_payload(
-                                &file.path,
-                                line_number,
-                                &excerpt,
-                                "schema-parser",
-                                generated_at,
-                            )],
-                        })
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
-        candidates.push(ApiRouteCandidate {
-            protocol: "graphql".to_string(),
-            language: "unknown".to_string(),
-            framework: Some("GraphQL".to_string()),
-            method: Some(operation.clone()),
-            path: None,
-            operation_name: Some(field_name.clone()),
-            handler_symbol: None,
-            source_file: file.path.clone(),
-            line: line_number,
-            excerpt,
-            confidence: "spec".to_string(),
-            parser_source: "schema-parser".to_string(),
-            module_label: module_label(&file.path),
-            controller_label: operation,
-            parameter_overrides: parameters,
-            request_body_override: None,
-            response_overrides: vec![ApiResponse {
-                status_code: None,
-                content_type: Some("application/graphql-response+json".to_string()),
-                schema: response_schema.clone(),
-                examples: Vec::new(),
-                is_error: false,
-                evidence: vec![api_evidence_payload(
-                    &file.path,
-                    line_number,
-                    line,
-                    "schema-parser",
-                    generated_at,
-                )],
-            }],
-            request_schema_override: None,
-            response_schema_override: response_schema,
-            description: None,
-            usage_scenario: None,
-        });
-    }
-    candidates
-}
-
 fn api_trimmed_excerpt(line: &str) -> String {
     line.trim().chars().take(220).collect()
 }
@@ -1344,6 +989,28 @@ fn push_api_route_candidate(
     handler_symbol: Option<String>,
     controller_label: Option<String>,
 ) {
+    push_api_route_candidate_with_metadata(
+        candidates,
+        file,
+        annotation,
+        line,
+        excerpt,
+        handler_symbol,
+        controller_label,
+        JavaApiMethodMetadata::default(),
+    );
+}
+
+fn push_api_route_candidate_with_metadata(
+    candidates: &mut Vec<ApiRouteCandidate>,
+    file: &ScannedFile,
+    annotation: ApiRouteAnnotation,
+    line: usize,
+    excerpt: &str,
+    handler_symbol: Option<String>,
+    controller_label: Option<String>,
+    metadata: JavaApiMethodMetadata,
+) {
     let method = annotation.method.map(|value| value.to_ascii_uppercase());
     let path = normalize_api_path(annotation.path);
     let handler_symbol = handler_symbol.filter(|value| !value.trim().is_empty());
@@ -1366,14 +1033,210 @@ fn push_api_route_candidate(
         parser_source: annotation.parser_source,
         module_label: api_module_label(file),
         controller_label,
-        parameter_overrides: Vec::new(),
-        request_body_override: None,
-        response_overrides: Vec::new(),
+        parameter_overrides: java_signature_parameters(file, line, excerpt, &metadata),
+        request_body_override: java_request_body(file, line, excerpt),
+        response_overrides: java_annotation_responses(file, line, excerpt, &metadata),
         request_schema_override: None,
         response_schema_override: None,
-        description: None,
+        description: metadata.description,
         usage_scenario: None,
     });
+}
+
+fn quoted_value_after_key(value: &str, key: &str) -> Option<String> {
+    let key_index = value.find(key)?;
+    first_quoted_value(&value[key_index..])
+}
+
+fn java_swagger_summary(line: &str) -> Option<String> {
+    if line.contains("@Operation") {
+        quoted_value_after_key(line, "summary")
+            .or_else(|| quoted_value_after_key(line, "description"))
+            .or_else(|| first_quoted_value(line))
+    } else {
+        None
+    }
+}
+
+fn java_swagger_parameter_description(line: &str) -> Option<String> {
+    if line.contains("@Parameter") {
+        quoted_value_after_key(line, "description").or_else(|| first_quoted_value(line))
+    } else {
+        None
+    }
+}
+
+fn java_swagger_response(line: &str) -> Option<(String, String)> {
+    if !line.contains("@ApiResponse") {
+        return None;
+    }
+    let code = quoted_value_after_key(line, "responseCode")
+        .or_else(|| quoted_value_after_key(line, "code"))
+        .unwrap_or_else(|| "default".to_string());
+    let description = quoted_value_after_key(line, "description")?;
+    Some((code, description))
+}
+
+fn java_comment_text(line: &str) -> Option<String> {
+    let trimmed = line.trim();
+    let text = trimmed
+        .trim_start_matches("/**")
+        .trim_start_matches("/*")
+        .trim_start_matches("//")
+        .trim_start_matches('*')
+        .trim_end_matches("*/")
+        .trim();
+    if text.is_empty() || text.starts_with('@') {
+        None
+    } else {
+        Some(text.to_string())
+    }
+}
+
+fn java_metadata_from_lines(lines: &[String]) -> JavaApiMethodMetadata {
+    let mut metadata = JavaApiMethodMetadata::default();
+    let mut pending_parameter_description: Option<String> = None;
+    let mut comment_lines = Vec::new();
+    for line in lines {
+        if let Some(summary) = java_swagger_summary(line) {
+            metadata.description = Some(summary);
+        }
+        if let Some(response) = java_swagger_response(line) {
+            metadata.response_descriptions.push(response);
+        }
+        if let Some(description) = java_swagger_parameter_description(line) {
+            pending_parameter_description = Some(description);
+        }
+        if let Some(comment) = java_comment_text(line) {
+            comment_lines.push(comment);
+        }
+    }
+    if metadata.description.is_none() && !comment_lines.is_empty() {
+        metadata.description = Some(comment_lines.join(" "));
+    }
+    if let Some(description) = pending_parameter_description {
+        metadata
+            .parameter_descriptions
+            .insert("*".to_string(), description);
+    }
+    metadata
+}
+
+fn java_signature_parameters(
+    file: &ScannedFile,
+    line: usize,
+    excerpt: &str,
+    metadata: &JavaApiMethodMetadata,
+) -> Vec<ApiParameter> {
+    let Some(parameters_text) = api_signature_parameter_text(excerpt) else {
+        return Vec::new();
+    };
+    split_api_signature_parameters(&parameters_text)
+        .into_iter()
+        .flat_map(|parameter| {
+            let Some(location) = api_parameter_location_from_signature(&parameter) else {
+                return Vec::new();
+            };
+            let Some((name, type_name)) = api_parameter_name_and_type(&parameter) else {
+                return Vec::new();
+            };
+            let description = metadata
+                .parameter_descriptions
+                .get(&name)
+                .or_else(|| metadata.parameter_descriptions.get("*"))
+                .cloned()
+                .or_else(|| java_swagger_parameter_description(&parameter));
+            vec![ApiParameter {
+                name,
+                location: location.to_string(),
+                required: matches!(location, "path" | "body"),
+                schema: api_contract_schema_ref_from_name(
+                    &type_name,
+                    file,
+                    line,
+                    excerpt,
+                    "fallback-pattern",
+                    "",
+                ),
+                description,
+                default_value: None,
+                example: None,
+                structured_fields: Vec::new(),
+                evidence: vec![api_evidence_payload(&file.path, line, excerpt, "fallback-pattern", "")],
+            }]
+        })
+        .collect()
+}
+
+fn java_request_body(file: &ScannedFile, line: usize, excerpt: &str) -> Option<ApiRequestBody> {
+    let parameters_text = api_signature_parameter_text(excerpt)?;
+    split_api_signature_parameters(&parameters_text)
+        .into_iter()
+        .find(|parameter| parameter.contains("@RequestBody"))
+        .and_then(|parameter| {
+            api_parameter_name_and_type(&parameter).map(|(_, type_name)| type_name)
+        })
+        .map(|type_name| ApiRequestBody {
+            content_type: Some("application/json".to_string()),
+            required: true,
+            schema: api_contract_schema_ref_from_name(&type_name, file, line, excerpt, "fallback-pattern", ""),
+            structured_fields: Vec::new(),
+            examples: Vec::new(),
+            evidence: vec![api_evidence_payload(&file.path, line, excerpt, "fallback-pattern", "")],
+        })
+}
+
+fn java_return_type_from_excerpt(excerpt: &str) -> Option<String> {
+    let before_parenthesis = excerpt.split_once('(')?.0;
+    let tokens = before_parenthesis
+        .split_whitespace()
+        .filter(|token| {
+            !matches!(
+                *token,
+                "public" | "private" | "protected" | "static" | "final" | "async"
+            )
+        })
+        .collect::<Vec<_>>();
+    tokens
+        .iter()
+        .rev()
+        .skip(1)
+        .next()
+        .map(|value| (*value).to_string())
+        .filter(|value| !matches!(value.as_str(), "void" | "Void"))
+}
+
+fn java_annotation_responses(
+    file: &ScannedFile,
+    line: usize,
+    excerpt: &str,
+    metadata: &JavaApiMethodMetadata,
+) -> Vec<ApiResponse> {
+    let return_type = java_return_type_from_excerpt(excerpt).unwrap_or_else(|| "R".to_string());
+    metadata
+        .response_descriptions
+        .iter()
+        .map(|(status_code, description)| ApiResponse {
+            status_code: Some(status_code.clone()),
+            content_type: Some("application/json".to_string()),
+            schema: api_contract_schema_ref_from_name(&return_type, file, line, excerpt, "fallback-pattern", ""),
+            structured_fields: vec![ApiStructuredSchemaField {
+                name: "description".to_string(),
+                field_type: Some(description.clone()),
+                required: None,
+                default_value: None,
+                description: Some(description.clone()),
+                enum_values: Vec::new(),
+                range: None,
+                example: None,
+                children: Vec::new(),
+                evidence: vec![api_evidence_payload(&file.path, line, excerpt, "fallback-pattern", "")],
+            }],
+            examples: Vec::new(),
+            is_error: status_code.starts_with('4') || status_code.starts_with('5'),
+            evidence: vec![api_evidence_payload(&file.path, line, excerpt, "fallback-pattern", "")],
+        })
+        .collect()
 }
 
 fn spring_route_annotation(line: &str) -> Option<ApiRouteAnnotation> {
@@ -1485,6 +1348,7 @@ fn extract_java_api_candidates(file: &ScannedFile, content: &str) -> Vec<ApiRout
     let class_name = java_declared_type(content).unwrap_or_else(|| file_stem_label(&file.path));
     let mut class_prefix = "/".to_string();
     let mut pending_annotations = Vec::<ApiRouteAnnotation>::new();
+    let mut pending_metadata_lines = Vec::<String>::new();
 
     for (line_index, line) in content.lines().enumerate() {
         let line_number = line_index + 1;
@@ -1492,7 +1356,8 @@ fn extract_java_api_candidates(file: &ScannedFile, content: &str) -> Vec<ApiRout
             if let Some(method_name) = handler_name_before_parenthesis(line) {
                 let mut route = annotation;
                 route.path = join_api_paths(&class_prefix, route.path);
-                push_api_route_candidate(
+                let metadata = java_metadata_from_lines(&pending_metadata_lines);
+                push_api_route_candidate_with_metadata(
                     &mut candidates,
                     file,
                     route,
@@ -1500,7 +1365,9 @@ fn extract_java_api_candidates(file: &ScannedFile, content: &str) -> Vec<ApiRout
                     line,
                     Some(format!("{class_name}.{method_name}")),
                     Some(class_name.clone()),
+                    metadata,
                 );
+                pending_metadata_lines.clear();
             } else {
                 pending_annotations.push(annotation);
             }
@@ -1508,6 +1375,14 @@ fn extract_java_api_candidates(file: &ScannedFile, content: &str) -> Vec<ApiRout
         }
 
         let trimmed = line.trim();
+        if trimmed.starts_with('@')
+            || trimmed.starts_with("/**")
+            || trimmed.starts_with("/*")
+            || trimmed.starts_with('*')
+            || trimmed.starts_with("//")
+        {
+            pending_metadata_lines.push(line.to_string());
+        }
         if !pending_annotations.is_empty()
             && (trimmed.contains(" class ")
                 || trimmed.starts_with("class ")
@@ -1522,6 +1397,7 @@ fn extract_java_api_candidates(file: &ScannedFile, content: &str) -> Vec<ApiRout
                 class_prefix = prefix;
             }
             pending_annotations.clear();
+            pending_metadata_lines.clear();
             continue;
         }
 
@@ -1532,9 +1408,11 @@ fn extract_java_api_candidates(file: &ScannedFile, content: &str) -> Vec<ApiRout
             continue;
         };
         let annotations = merge_java_route_annotations(pending_annotations.drain(..).collect());
+        let metadata = java_metadata_from_lines(&pending_metadata_lines);
+        pending_metadata_lines.clear();
         for mut annotation in annotations {
             annotation.path = join_api_paths(&class_prefix, annotation.path);
-            push_api_route_candidate(
+            push_api_route_candidate_with_metadata(
                 &mut candidates,
                 file,
                 annotation,
@@ -1542,6 +1420,7 @@ fn extract_java_api_candidates(file: &ScannedFile, content: &str) -> Vec<ApiRout
                 line,
                 Some(format!("{class_name}.{method_name}")),
                 Some(class_name.clone()),
+                metadata.clone(),
             );
         }
     }
@@ -1955,8 +1834,10 @@ fn api_path_parameters(
             location: "path".to_string(),
             required: true,
             schema: None,
+            description: None,
             default_value: None,
             example: None,
+            structured_fields: Vec::new(),
             evidence: vec![api_evidence(candidate, generated_at)],
         });
     }
@@ -2058,6 +1939,8 @@ fn api_parameter_location_from_signature(parameter: &str) -> Option<&'static str
         Some("header")
     } else if parameter.contains("@CookieValue") {
         Some("cookie")
+    } else if parameter.contains("@RequestBody") {
+        Some("body")
     } else {
         None
     }
@@ -2096,7 +1979,15 @@ fn strip_java_annotations(value: &str) -> String {
 }
 
 fn api_parameter_name_and_type(parameter: &str) -> Option<(String, String)> {
-    let explicit_name = first_quoted_value(parameter);
+    let explicit_name = if parameter.contains("@RequestParam")
+        || parameter.contains("@PathVariable")
+        || parameter.contains("@RequestHeader")
+        || parameter.contains("@CookieValue")
+    {
+        first_quoted_value(parameter)
+    } else {
+        None
+    };
     let cleaned = strip_java_annotations(parameter)
         .replace("final ", " ")
         .replace("const ", " ")
@@ -2148,10 +2039,12 @@ fn api_signature_parameters(
             vec![ApiParameter {
                 name,
                 location: location.to_string(),
-                required: location == "path",
+                required: matches!(location, "path" | "body"),
                 schema: api_schema_ref_json(&type_name, candidate, generated_at),
+                description: None,
                 default_value: None,
                 example: None,
+                structured_fields: Vec::new(),
                 evidence: vec![api_evidence(candidate, generated_at)],
             }]
         })
@@ -2168,6 +2061,7 @@ fn api_request_body(candidate: &ApiRouteCandidate, generated_at: &str) -> Option
             content_type: Some("application/json".to_string()),
             required: true,
             schema: api_schema_ref_json(&type_name, candidate, generated_at),
+            structured_fields: Vec::new(),
             examples: Vec::new(),
             evidence: vec![api_evidence(candidate, generated_at)],
         })
@@ -2199,6 +2093,7 @@ fn api_signature_response(candidate: &ApiRouteCandidate, generated_at: &str) -> 
         status_code: Some("200".to_string()),
         content_type: Some("application/json".to_string()),
         schema: api_schema_ref_json(return_type, candidate, generated_at),
+        structured_fields: Vec::new(),
         examples: Vec::new(),
         is_error: false,
         evidence: vec![api_evidence(candidate, generated_at)],
@@ -2484,6 +2379,7 @@ pub(crate) fn build_api_contract_artifact(
         .iter()
         .map(|(file, content)| (file.path.clone(), content.as_str()))
         .collect::<BTreeMap<_, _>>();
+    let schema_field_index = build_java_schema_field_index(file_contents, generated_at);
     let mut skipped_by_reason = BTreeMap::<String, usize>::new();
     for item in ignored_paths {
         increment_skipped_reason(
@@ -2667,20 +2563,41 @@ pub(crate) fn build_api_contract_artifact(
         let mut fallback_parameters =
             api_path_parameters(candidate.path.as_deref(), &candidate, generated_at);
         fallback_parameters.extend(api_signature_parameters(&candidate, generated_at));
-        let parameters = if candidate.parameter_overrides.is_empty() {
+        let mut parameters = if candidate.parameter_overrides.is_empty() {
             fallback_parameters
         } else {
             candidate.parameter_overrides.clone()
         };
-        let request_body = candidate
+        for parameter in &mut parameters {
+            if parameter.structured_fields.is_empty() {
+                if let Some(schema_name) = parameter.schema.as_ref().map(|schema| schema.name.as_str()) {
+                    parameter.structured_fields = structured_fields_for_schema(schema_name, &schema_field_index);
+                }
+            }
+        }
+        let mut request_body = candidate
             .request_body_override
             .clone()
             .or_else(|| api_request_body(&candidate, generated_at));
-        let responses = if candidate.response_overrides.is_empty() {
+        if let Some(body) = request_body.as_mut() {
+            if body.structured_fields.is_empty() {
+                if let Some(schema_name) = body.schema.as_ref().map(|schema| schema.name.as_str()) {
+                    body.structured_fields = structured_fields_for_schema(schema_name, &schema_field_index);
+                }
+            }
+        }
+        let mut responses = if candidate.response_overrides.is_empty() {
             api_signature_response(&candidate, generated_at)
         } else {
             candidate.response_overrides.clone()
         };
+        for response in &mut responses {
+            if response.structured_fields.is_empty() {
+                if let Some(schema_name) = response.schema.as_ref().map(|schema| schema.name.as_str()) {
+                    response.structured_fields = structured_fields_for_schema(schema_name, &schema_field_index);
+                }
+            }
+        }
         for parameter in &parameters {
             if let Some(schema) = parameter.schema.clone() {
                 schemas.entry(schema.id.clone()).or_insert(schema);
@@ -2707,6 +2624,7 @@ pub(crate) fn build_api_contract_artifact(
             .iter()
             .map(|candidate| api_evidence(candidate, generated_at))
             .collect::<Vec<_>>();
+        let description_sources = api_description_sources(candidate, &evidence);
         let call_chain = file_content_index
             .get(&candidate.source_file)
             .and_then(|content| {
@@ -2740,6 +2658,7 @@ pub(crate) fn build_api_contract_artifact(
             request_schema,
             response_schema,
             description: candidate.description.clone(),
+            description_sources,
             usage_scenario: candidate.usage_scenario.clone(),
             group_ids,
             call_chain_ids,

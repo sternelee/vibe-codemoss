@@ -69,7 +69,38 @@ function buildLargeApiContractResponse() {
     path: `/api/orders/${index}`,
     handlerSymbol: `OrderController.create${index}`,
     sourceFile: "src/routes/orders.ts",
-    parameters: [],
+    parameters: index === 0 ? [{
+      name: "orderParam",
+      location: "body",
+      required: true,
+      description: "订单创建参数",
+      schema: {
+        id: "schema-order-param",
+        name: "OrderParam",
+      },
+      structuredFields: [{
+        name: "orderNo",
+        type: "string",
+        required: true,
+        description: "订单号",
+      }],
+      evidence: [],
+    }] : [],
+    requestBody: index === 0 ? {
+      contentType: "application/json",
+      required: true,
+      schema: {
+        id: "schema-order-param",
+        name: "OrderParam",
+      },
+      structuredFields: [{
+        name: "orderNo",
+        type: "string",
+        required: true,
+        description: "订单号",
+      }],
+      evidence: [],
+    } : undefined,
     responses: [{
       statusCode: "200",
       contentType: "application/json",
@@ -185,6 +216,9 @@ describe("ProjectMapRelationshipSection API tab smoke", () => {
     fireEvent.click(controllerButton);
 
     expect(screen.getAllByText("/api/orders/0").length).toBeGreaterThan(0);
+    expect(screen.getByText("projectMap.relationship.apiOverviewTitle")).toBeTruthy();
+    expect(screen.getByText("projectMap.relationship.apiInvocationTitle")).toBeTruthy();
+    expect(screen.getByText("orderParam.orderNo")).toBeTruthy();
     expect(screen.getByText("projectMap.relationship.apiMethodChainTitle")).toBeTruthy();
     expect(container.querySelector(".project-map-api-contract-method-chain-list")).toBeTruthy();
     expect(screen.getAllByText("OrderController.create0").length).toBeGreaterThan(0);

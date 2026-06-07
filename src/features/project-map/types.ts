@@ -757,7 +757,7 @@ export type ProjectMapApiParserSource =
   | "fallback-pattern"
   | "unknown";
 
-export type ProjectMapApiParameterLocation = "path" | "query" | "header" | "cookie";
+export type ProjectMapApiParameterLocation = "path" | "query" | "header" | "cookie" | "body";
 
 export type ProjectMapApiGroupLevel = "protocol" | "module" | "namespace" | "controller" | "endpoint";
 
@@ -779,13 +779,42 @@ export type ProjectMapApiSchemaRef = {
   evidence?: ProjectMapApiEvidence[];
 };
 
+export type ProjectMapApiDescriptionSourceKind =
+  | "doc-comment"
+  | "swagger-annotation"
+  | "schema-description"
+  | "route-name"
+  | "fallback";
+
+export type ProjectMapApiDescriptionSource = {
+  kind: ProjectMapApiDescriptionSourceKind;
+  text: string;
+  language?: string;
+  evidence: ProjectMapApiEvidence[];
+};
+
+export type ProjectMapApiStructuredSchemaField = {
+  name: string;
+  type?: string;
+  required?: boolean;
+  defaultValue?: string;
+  description?: string;
+  enumValues?: string[];
+  range?: string;
+  example?: string;
+  children?: ProjectMapApiStructuredSchemaField[];
+  evidence?: ProjectMapApiEvidence[];
+};
+
 export type ProjectMapApiParameter = {
   name: string;
   location: ProjectMapApiParameterLocation;
   required?: boolean;
   schema?: ProjectMapApiSchemaRef;
+  description?: string;
   defaultValue?: string;
   example?: string;
+  structuredFields?: ProjectMapApiStructuredSchemaField[];
   evidence: ProjectMapApiEvidence[];
 };
 
@@ -793,6 +822,7 @@ export type ProjectMapApiRequestBody = {
   contentType?: string;
   required?: boolean;
   schema?: ProjectMapApiSchemaRef;
+  structuredFields?: ProjectMapApiStructuredSchemaField[];
   examples?: string[];
   evidence: ProjectMapApiEvidence[];
 };
@@ -801,6 +831,7 @@ export type ProjectMapApiResponse = {
   statusCode?: string;
   contentType?: string;
   schema?: ProjectMapApiSchemaRef;
+  structuredFields?: ProjectMapApiStructuredSchemaField[];
   examples?: string[];
   isError?: boolean;
   evidence: ProjectMapApiEvidence[];
@@ -830,6 +861,7 @@ export type ProjectMapApiEndpoint = {
   requestSchema?: ProjectMapApiSchemaRef;
   responseSchema?: ProjectMapApiSchemaRef;
   description?: string;
+  descriptionSources?: ProjectMapApiDescriptionSource[];
   usageScenario?: string;
   groupIds: string[];
   callChainIds: string[];

@@ -176,6 +176,200 @@ function listUsers(req, res) {
 }
 
 #[test]
+fn java_spring_swagger_annotations_emit_detail_contract() {
+    let source = r#"
+package com.ftrd.odp.controller;
+
+@RestController
+@RequestMapping("/api/device-vehicle/od-pay/v1/fcs-order")
+public class VehicleFcsOrderController {
+    @Operation(summary = "取消订单")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "成功"),
+        @ApiResponse(responseCode = "500", description = "该订单已取消，不可再次操作")
+    })
+    @PostMapping("/cancel")
+    public R cancel(@Parameter(description = "订单号") @RequestBody FcsOrderCancelParam orderCancelParam) {
+        return R.ok();
+    }
+}
+
+public class FcsOrderCancelParam {
+    /** 订单号 */
+    @Schema(description = "订单号", example = "OD123")
+    @NotBlank
+    private String orderNo;
+}
+"#;
+    let artifact = build_api_contract_artifact(
+        &[(
+            scanned_file(
+                "src/main/java/com/ftrd/odp/controller/VehicleFcsOrderController.java",
+                "java",
+                "java",
+                source,
+            ),
+            source.to_string(),
+        )],
+        "mossx-java",
+        "scan-java",
+        "2026-06-07T00:00:00Z",
+        &[],
+    );
+    let endpoints = artifact.get("endpoints").and_then(Value::as_array).unwrap();
+    let endpoint = endpoints
+        .iter()
+        .find(|endpoint| endpoint.get("path").and_then(Value::as_str) == Some("/api/device-vehicle/od-pay/v1/fcs-order/cancel"))
+        .expect("expected cancel endpoint");
+    assert_eq!(endpoint.get("method").and_then(Value::as_str), Some("POST"));
+    assert_eq!(endpoint.get("description").and_then(Value::as_str), Some("取消订单"));
+    assert_eq!(
+        endpoint
+            .get("requestBody")
+            .and_then(|body| body.get("schema"))
+            .and_then(|schema| schema.get("name"))
+            .and_then(Value::as_str),
+        Some("FcsOrderCancelParam"),
+    );
+    assert!(
+        endpoint
+            .get("parameters")
+            .and_then(Value::as_array)
+            .map(|parameters| parameters.iter().any(|parameter| {
+                parameter.get("location").and_then(Value::as_str) == Some("body")
+                    && parameter.get("name").and_then(Value::as_str) == Some("orderCancelParam")
+                    && parameter
+                        .get("structuredFields")
+                        .and_then(Value::as_array)
+                        .map(|fields| fields.iter().any(|field| {
+                            field.get("name").and_then(Value::as_str) == Some("orderNo")
+                                && field.get("description").and_then(Value::as_str) == Some("订单号")
+                                && field.get("required").and_then(Value::as_bool) == Some(true)
+                        }))
+                        .unwrap_or(false)
+            }))
+            .unwrap_or(false)
+    );
+    assert!(
+        endpoint
+            .get("descriptionSources")
+            .and_then(Value::as_array)
+            .map(|sources| sources.iter().any(|source| {
+                source.get("text").and_then(Value::as_str) == Some("取消订单")
+            }))
+            .unwrap_or(false)
+    );
+    assert!(
+        endpoint
+            .get("responses")
+            .and_then(Value::as_array)
+            .map(|responses| responses.iter().any(|response| {
+                response.get("statusCode").and_then(Value::as_str) == Some("500")
+                    && response
+                        .get("structuredFields")
+                        .and_then(Value::as_array)
+                        .map(|fields| fields.iter().any(|field| {
+                            field
+                                .get("description")
+                                .and_then(Value::as_str)
+                                == Some("该订单已取消，不可再次操作")
+                        }))
+                        .unwrap_or(false)
+            }))
+            .unwrap_or(false)
+    );
+}
+
+#[test]
+fn java_request_body_parameter_expands_dto_fields() {
+    let source = r#"
+package com.ftrd.odp.controller;
+
+@RestController
+@RequestMapping("/api/device-vehicle/od-pay/v1/fcs-order")
+public class VehicleFcsOrderController {
+    /**
+     * 校验用户是否实名认证
+     *
+     * @param realNameCheckParam 实名认证参数
+     * @return 结果
+     */
+    @Operation(summary = "校验用户是否实名认证(23mm)")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "成功"),
+        @ApiResponse(responseCode = "500", description = "系统内部错误")
+    })
+    @PostMapping("/mm/check-real")
+    public R<Boolean> checkRealNameFor23MM(@RequestBody RealNameCheckParam realNameCheckParam) {
+        return R.ok(Boolean.TRUE);
+    }
+}
+
+public class RealNameCheckParam {
+    /** 车辆 VIN */
+    @Schema(description = "车辆 VIN", example = "L123456789")
+    @NotBlank
+    private String vin;
+}
+"#;
+    let artifact = build_api_contract_artifact(
+        &[(
+            scanned_file(
+                "src/main/java/com/ftrd/odp/controller/VehicleFcsOrderController.java",
+                "java",
+                "java",
+                source,
+            ),
+            source.to_string(),
+        )],
+        "mossx-java",
+        "scan-java",
+        "2026-06-07T00:00:00Z",
+        &[],
+    );
+    let endpoint = artifact
+        .get("endpoints")
+        .and_then(Value::as_array)
+        .unwrap()
+        .iter()
+        .find(|endpoint| endpoint.get("path").and_then(Value::as_str) == Some("/api/device-vehicle/od-pay/v1/fcs-order/mm/check-real"))
+        .expect("expected check-real endpoint");
+    assert_eq!(
+        endpoint.get("description").and_then(Value::as_str),
+        Some("校验用户是否实名认证(23mm)")
+    );
+    assert!(
+        endpoint
+            .get("parameters")
+            .and_then(Value::as_array)
+            .map(|parameters| parameters.iter().any(|parameter| {
+                parameter.get("location").and_then(Value::as_str) == Some("body")
+                    && parameter.get("schema").and_then(|schema| schema.get("name")).and_then(Value::as_str) == Some("RealNameCheckParam")
+                    && parameter
+                        .get("structuredFields")
+                        .and_then(Value::as_array)
+                        .map(|fields| fields.iter().any(|field| {
+                            field.get("name").and_then(Value::as_str) == Some("vin")
+                                && field.get("description").and_then(Value::as_str) == Some("车辆 VIN")
+                                && field.get("example").and_then(Value::as_str) == Some("L123456789")
+                        }))
+                        .unwrap_or(false)
+            }))
+            .unwrap_or(false)
+    );
+    assert!(
+        endpoint
+            .get("responses")
+            .and_then(Value::as_array)
+            .map(|responses| responses.iter().any(|response| {
+                response.get("statusCode").and_then(Value::as_str) == Some("200")
+                    && response.get("schema").and_then(|schema| schema.get("name")).and_then(Value::as_str) == Some("R<Boolean>")
+            }))
+            .unwrap_or(false)
+    );
+}
+
+#[test]
 fn large_endpoint_fixture_preserves_group_first_artifact_shape() {
     let routes = (0..64)
         .map(|index| {

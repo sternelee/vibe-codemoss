@@ -2777,7 +2777,7 @@ export function ProjectMapRelationshipSection({
                           setSelectedRelationshipRelationId={setSelectedRelationshipRelationId}
                         />
                       ) : null}
-                      {relationshipDashboardData.repairIssues.length || relationshipDashboardData.readErrors.length ? (
+                      {relationshipDashboardViewMode !== "api" && (relationshipDashboardData.repairIssues.length || relationshipDashboardData.readErrors.length) ? (
                         <div className="project-map-relationship-repair-strip">
                           <strong>{t("projectMap.relationship.repairTitle")}</strong>
                           {relationshipDashboardData.repairIssues.slice(0, 4).map((issue) => (

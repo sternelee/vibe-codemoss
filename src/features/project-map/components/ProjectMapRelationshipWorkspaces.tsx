@@ -1,13 +1,31 @@
-import type { CSSProperties, Dispatch, SetStateAction } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type Dispatch,
+  type PointerEvent as ReactPointerEvent,
+  type SetStateAction,
+} from "react";
 import { useTranslation } from "react-i18next";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 
 import { cn } from "../../../lib/utils";
 import {
+  buildProjectMapApiEndpointDetail,
+  buildProjectMapApiEndpointRow,
+} from "./projectMapRelationshipApiModel";
+import {
   getProjectMapRelationshipCallCandidate,
   getProjectMapRelationshipRoleColor,
   type ProjectMapRelationshipDashboardData,
 } from "../utils/relationshipDashboardModel";
+import {
+  buildProjectMapApiExportFile,
+  type ProjectMapApiExportFormat,
+} from "../utils/apiContractExport";
 import type {
   ProjectMapApiCallChain,
   ProjectMapApiEndpoint,
@@ -59,6 +77,28 @@ type ProjectMapRelationshipScanStatus = {
 };
 
 const PROJECT_MAP_RELATIONSHIP_EXPLORER_GROUP_LIMIT = 80;
+const API_LEFT_PANE_DEFAULT_WIDTH = 320;
+const API_RIGHT_PANE_DEFAULT_WIDTH = 440;
+const API_LEFT_PANE_MIN_WIDTH = 240;
+const API_LEFT_PANE_MAX_WIDTH = 520;
+const API_RIGHT_PANE_MIN_WIDTH = 320;
+const API_RIGHT_PANE_MAX_WIDTH = 720;
+
+function clampApiPaneWidth(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function downloadProjectMapApiExport(file: { filename: string; mimeType: string; content: string }) {
+  const blob = new Blob([file.content], { type: file.mimeType });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = file.filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
 
 type ProjectMapRelationshipApiWorkspaceProps = {
   activeWorkspaceId: string | null;
@@ -147,6 +187,68 @@ export function ProjectMapRelationshipApiWorkspace({
   setSelectedApiGroupId,
 }: ProjectMapRelationshipApiWorkspaceProps) {
   const { t } = useTranslation();
+  const [apiLeftPaneWidth, setApiLeftPaneWidth] = useState(API_LEFT_PANE_DEFAULT_WIDTH);
+  const [apiRightPaneWidth, setApiRightPaneWidth] = useState<number | null>(null);
+  const apiPaneResizeCleanupRef = useRef<(() => void) | null>(null);
+  const selectedApiEndpointDetail = useMemo(
+    () => selectedApiEndpoint ? buildProjectMapApiEndpointDetail(selectedApiEndpoint) : null,
+    [selectedApiEndpoint],
+  );
+  useEffect(() => {
+    return () => {
+      apiPaneResizeCleanupRef.current?.();
+      apiPaneResizeCleanupRef.current = null;
+    };
+  }, []);
+  const apiPaneStyle = {
+    "--relationship-graph-scale": relationshipGraphZoom,
+    "--api-left-pane-width": `${apiLeftPaneWidth}px`,
+    ...(apiRightPaneWidth === null ? {} : { "--api-right-pane-width": `${apiRightPaneWidth}px` }),
+  } as CSSProperties;
+  const beginApiPaneResize = useCallback((
+    pane: "left" | "right",
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) => {
+    event.preventDefault();
+    apiPaneResizeCleanupRef.current?.();
+    apiPaneResizeCleanupRef.current = null;
+    const startX = event.clientX;
+    const startLeftWidth = apiLeftPaneWidth;
+    const startRightWidth = apiRightPaneWidth ?? API_RIGHT_PANE_DEFAULT_WIDTH;
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      const delta = moveEvent.clientX - startX;
+      if (pane === "left") {
+        setApiLeftPaneWidth(clampApiPaneWidth(
+          startLeftWidth + delta,
+          API_LEFT_PANE_MIN_WIDTH,
+          API_LEFT_PANE_MAX_WIDTH,
+        ));
+        return;
+      }
+      setApiRightPaneWidth(clampApiPaneWidth(
+        startRightWidth - delta,
+        API_RIGHT_PANE_MIN_WIDTH,
+        API_RIGHT_PANE_MAX_WIDTH,
+      ));
+    };
+    const cleanupResize = () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      apiPaneResizeCleanupRef.current = null;
+    };
+    const handlePointerUp = () => {
+      cleanupResize();
+    };
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    apiPaneResizeCleanupRef.current = cleanupResize;
+  }, [apiLeftPaneWidth, apiRightPaneWidth]);
+  const handleApiExport = useCallback((format: ProjectMapApiExportFormat) => {
+    if (!relationshipDashboardData.apiContracts) {
+      return;
+    }
+    downloadProjectMapApiExport(buildProjectMapApiExportFile(relationshipDashboardData.apiContracts, format));
+  }, [relationshipDashboardData.apiContracts]);
 
   return (
     <div
@@ -154,7 +256,7 @@ export function ProjectMapRelationshipApiWorkspace({
         "project-map-api-contract-workspace",
         `is-layout-${relationshipDashboardLayoutPreset}`,
       )}
-      style={{ "--relationship-graph-scale": relationshipGraphZoom } as CSSProperties}
+      style={apiPaneStyle}
     >
       <header className="project-map-relationship-workspace-header project-map-api-contract-toolbar">
         <div className="project-map-api-contract-toolbar-copy">
@@ -177,6 +279,23 @@ export function ProjectMapRelationshipApiWorkspace({
               ? t("projectMap.relationship.scanning")
               : t("projectMap.relationship.apiScan")}
           </button>
+          <div className="project-map-api-contract-export-actions" aria-label={t("projectMap.relationship.apiExportLabel")}>
+            {([
+              ["markdown", t("projectMap.relationship.apiExportMarkdown")],
+              ["html", t("projectMap.relationship.apiExportHtml")],
+              ["openapi-json", t("projectMap.relationship.apiExportOpenApiJson")],
+            ] as const).map(([format, label]) => (
+              <button
+                key={format}
+                type="button"
+                className="project-map-toolbar-action project-map-api-contract-export-action"
+                disabled={!relationshipDashboardData.apiContracts || !apiEndpointCount}
+                onClick={() => handleApiExport(format)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <div className="project-map-api-contract-filters">
             {[
               {
@@ -305,6 +424,12 @@ export function ProjectMapRelationshipApiWorkspace({
               ))}
             </div>
           </section>
+          <div
+            className="project-map-api-contract-resizer"
+            role="separator"
+            aria-label={t("projectMap.relationship.apiResizeLeft")}
+            onPointerDown={(event) => beginApiPaneResize("left", event)}
+          />
           <section className="project-map-api-contract-stage">
             <div className="project-map-api-contract-breadcrumb">
               <span>{t("projectMap.relationship.apiBreadcrumbRoot")}</span>
@@ -334,10 +459,7 @@ export function ProjectMapRelationshipApiWorkspace({
                     </header>
                     <div className="project-map-api-contract-endpoint-grid">
                       {section.endpoints.slice(0, 36).map((endpoint) => {
-                        const endpointTitle = endpoint.path
-                          ?? endpoint.operationName
-                          ?? endpoint.handlerSymbol
-                          ?? endpoint.sourceFile;
+                        const endpointRow = buildProjectMapApiEndpointRow(endpoint);
                         return (
                           <button
                             key={`endpoint:${endpoint.id}`}
@@ -348,10 +470,9 @@ export function ProjectMapRelationshipApiWorkspace({
                             )}
                             onClick={() => setSelectedApiEndpointId(endpoint.id)}
                           >
-                            <span>{endpoint.method ?? endpoint.protocol}</span>
-                            <strong>{endpointTitle}</strong>
-                            <em>{endpoint.handlerSymbol ?? endpoint.operationName ?? endpoint.framework ?? endpoint.sourceFile}</em>
-                            <small>{endpoint.confidence} · {endpoint.language} · {endpoint.framework ?? "source"}</small>
+                            <span>{endpointRow.methodLabel}</span>
+                            <strong>{endpointRow.pathLabel}</strong>
+                            <em>{endpointRow.summary ?? endpointRow.handlerLabel ?? endpoint.sourceFile}</em>
                           </button>
                         );
                       })}
@@ -367,6 +488,12 @@ export function ProjectMapRelationshipApiWorkspace({
               </p>
             )}
           </section>
+          <div
+            className="project-map-api-contract-resizer"
+            role="separator"
+            aria-label={t("projectMap.relationship.apiResizeRight")}
+            onPointerDown={(event) => beginApiPaneResize("right", event)}
+          />
           <aside className="project-map-api-contract-inspector">
             <header>
               <span>{t("projectMap.relationship.apiInspectorTitle")}</span>
@@ -377,24 +504,14 @@ export function ProjectMapRelationshipApiWorkspace({
                   ?? t("projectMap.relationship.apiInspectorEmpty")}
               </strong>
             </header>
-            {selectedApiEndpoint ? (
+            {selectedApiEndpoint && selectedApiEndpointDetail ? (
               <>
                 <article className="project-map-api-contract-swagger-card">
                   <div className="project-map-api-contract-operation-line">
-                    <span>{selectedApiEndpoint.method ?? selectedApiEndpoint.protocol}</span>
-                    <strong>
-                      {selectedApiEndpoint.path
-                        ?? selectedApiEndpoint.operationName
-                        ?? selectedApiEndpoint.handlerSymbol
-                        ?? selectedApiEndpoint.sourceFile}
-                    </strong>
+                    <span>{selectedApiEndpointDetail.invocation.httpMethod}</span>
+                    <strong>{selectedApiEndpointDetail.invocation.url}</strong>
                   </div>
-                  <p>
-                    {selectedApiEndpoint.description
-                      ?? selectedApiEndpoint.usageScenario
-                      ?? selectedApiEndpoint.handlerSymbol
-                      ?? selectedApiEndpoint.sourceFile}
-                  </p>
+                  <p>{selectedApiEndpointDetail.overview.description ?? t("projectMap.relationship.apiDescriptionUnavailable")}</p>
                 </article>
                 <div className="project-map-api-contract-tags">
                   <span>{selectedApiEndpoint.protocol}</span>
@@ -402,74 +519,125 @@ export function ProjectMapRelationshipApiWorkspace({
                   <span>{selectedApiEndpoint.language}</span>
                   {selectedApiEndpoint.framework ? <span>{selectedApiEndpoint.framework}</span> : null}
                 </div>
-                <dl className="project-map-api-contract-detail-list">
-                  <div>
-                    <dt>{t("projectMap.relationship.apiEndpointHandler")}</dt>
-                    <dd>{selectedApiEndpoint.handlerSymbol ?? "-"}</dd>
-                  </div>
-                  <div>
-                    <dt>{t("projectMap.relationship.apiEndpointSource")}</dt>
-                    <dd>{selectedApiEndpoint.sourceFile}</dd>
-                  </div>
-                  <div>
-                    <dt>{t("projectMap.relationship.apiEndpointParams")}</dt>
-                    <dd>{selectedApiEndpoint.parameters.length}</dd>
-                  </div>
-                  <div>
-                    <dt>{t("projectMap.relationship.apiEndpointResponses")}</dt>
-                    <dd>{selectedApiEndpoint.responses.map((response) => response.statusCode ?? response.contentType ?? "response").join(", ") || "-"}</dd>
-                  </div>
-                </dl>
+                <section className="project-map-api-contract-inspector-section">
+                  <h5>{t("projectMap.relationship.apiOverviewTitle")}</h5>
+                  <dl className="project-map-api-contract-detail-list">
+                    <div>
+                      <dt>{t("projectMap.relationship.apiOverviewName")}</dt>
+                      <dd>{selectedApiEndpointDetail.overview.interfaceName}</dd>
+                    </div>
+                    <div>
+                      <dt>{t("projectMap.relationship.apiOverviewMethodName")}</dt>
+                      <dd>{selectedApiEndpointDetail.overview.methodName}</dd>
+                    </div>
+                    <div>
+                      <dt>{t("projectMap.relationship.apiOverviewChineseComment")}</dt>
+                      <dd>{selectedApiEndpointDetail.overview.chineseComment ?? t("projectMap.relationship.apiDescriptionUnavailable")}</dd>
+                    </div>
+                    <div>
+                      <dt>{t("projectMap.relationship.apiOverviewScenario")}</dt>
+                      <dd>{selectedApiEndpointDetail.overview.scenario ?? t("projectMap.relationship.apiDeclaredUnavailable")}</dd>
+                    </div>
+                    <div>
+                      <dt>{t("projectMap.relationship.apiOverviewVersion")}</dt>
+                      <dd>{selectedApiEndpointDetail.overview.version ?? t("projectMap.relationship.apiDeclaredUnavailable")}</dd>
+                    </div>
+                  </dl>
+                </section>
+                <section className="project-map-api-contract-inspector-section">
+                  <h5>{t("projectMap.relationship.apiInvocationTitle")}</h5>
+                  <dl className="project-map-api-contract-detail-list">
+                    <div>
+                      <dt>{t("projectMap.relationship.apiInvocationMethod")}</dt>
+                      <dd>{selectedApiEndpointDetail.invocation.httpMethod}</dd>
+                    </div>
+                    <div>
+                      <dt>{t("projectMap.relationship.apiInvocationUrl")}</dt>
+                      <dd>{selectedApiEndpointDetail.invocation.url}</dd>
+                    </div>
+                    <div>
+                      <dt>{t("projectMap.relationship.apiInvocationContentType")}</dt>
+                      <dd>{selectedApiEndpointDetail.invocation.contentType}</dd>
+                    </div>
+                    <div>
+                      <dt>{t("projectMap.relationship.apiInvocationHeaders")}</dt>
+                      <dd>
+                        {selectedApiEndpointDetail.invocation.headers.length
+                          ? selectedApiEndpointDetail.invocation.headers.map((header) => header.name).join(", ")
+                          : t("projectMap.relationship.apiNoHeaders")}
+                      </dd>
+                    </div>
+                  </dl>
+                  {selectedApiEndpointDetail.invocation.requestExample ? (
+                    <code className="project-map-api-contract-example">
+                      {selectedApiEndpointDetail.invocation.requestExample}
+                    </code>
+                  ) : null}
+                </section>
                 <section className="project-map-api-contract-inspector-section">
                   <h5>{t("projectMap.relationship.apiEndpointParams")}</h5>
-                  {selectedApiEndpoint.parameters.length ? (
-                    <div className="project-map-api-contract-schema-table">
-                      <span>{t("projectMap.relationship.apiParamColumnName")}</span>
-                      <span>{t("projectMap.relationship.apiParamColumnIn")}</span>
-                      <span>{t("projectMap.relationship.apiParamColumnRequired")}</span>
-                      <span>{t("projectMap.relationship.apiParamColumnSchema")}</span>
-                      {selectedApiEndpoint.parameters.slice(0, 12).flatMap((parameter) => [
-                        <strong key={`${parameter.location}:${parameter.name}:name`}>
-                          {parameter.name}
-                        </strong>,
-                        <em key={`${parameter.location}:${parameter.name}:location`}>
-                          {parameter.location}
-                        </em>,
-                        <em key={`${parameter.location}:${parameter.name}:required`}>
-                          {parameter.required ? "true" : "false"}
-                        </em>,
-                        <em key={`${parameter.location}:${parameter.name}:schema`}>
-                          {parameter.schema?.name ?? parameter.defaultValue ?? parameter.example ?? "-"}
-                        </em>,
-                      ])}
+                  {selectedApiEndpointDetail.inputParameters.length ? (
+                    <div className="project-map-api-contract-parameter-list">
+                      {selectedApiEndpointDetail.inputParameters.map((parameter) => (
+                        <article key={`${parameter.location}:${parameter.name}`} className="project-map-api-contract-parameter-card">
+                          <div>
+                            <span>{parameter.location}</span>
+                            <strong>{parameter.name}</strong>
+                            <em>{parameter.type}{parameter.required ? " · required" : ""}</em>
+                          </div>
+                          {parameter.description ? <p>{parameter.description}</p> : null}
+                          {parameter.defaultValue || parameter.example ? (
+                            <small>
+                              {parameter.defaultValue ? `default: ${parameter.defaultValue}` : ""}
+                              {parameter.defaultValue && parameter.example ? " · " : ""}
+                              {parameter.example ? `example: ${parameter.example}` : ""}
+                            </small>
+                          ) : null}
+                          {parameter.fields.length ? (
+                            <div className="project-map-api-contract-field-table">
+                              <span>{t("projectMap.relationship.apiParamColumnName")}</span>
+                              <span>{t("projectMap.relationship.apiParamColumnSchema")}</span>
+                              <span>{t("projectMap.relationship.apiParamColumnRequired")}</span>
+                              <span>{t("projectMap.relationship.apiParamColumnDescription")}</span>
+                              {parameter.fields.slice(0, 24).flatMap((field) => [
+                                <strong key={`${parameter.name}:${field.path}:name`} style={{ paddingLeft: `${6 + field.depth * 12}px` }}>
+                                  {field.path}
+                                </strong>,
+                                <em key={`${parameter.name}:${field.path}:type`}>{field.type ?? "-"}</em>,
+                                <em key={`${parameter.name}:${field.path}:required`}>{field.required ? "true" : "false"}</em>,
+                                <em key={`${parameter.name}:${field.path}:description`}>
+                                  {field.description ?? field.defaultValue ?? field.example ?? "-"}
+                                </em>,
+                              ])}
+                            </div>
+                          ) : (
+                            <p>{t("projectMap.relationship.apiParamFieldsUnavailable")}</p>
+                          )}
+                        </article>
+                      ))}
                     </div>
                   ) : (
                     <p>{t("projectMap.relationship.apiNoParameters")}</p>
                   )}
                 </section>
                 <section className="project-map-api-contract-inspector-section">
-                  <h5>{t("projectMap.relationship.apiRequestBody")}</h5>
-                  {selectedApiEndpoint.requestBody ? (
-                    <div className="project-map-api-contract-schema-card">
-                      <strong>{selectedApiEndpoint.requestBody.contentType ?? "body"}</strong>
-                      <span>{selectedApiEndpoint.requestBody.schema?.name ?? t("projectMap.relationship.apiSchemaUnknown")}</span>
-                      {selectedApiEndpoint.requestBody.examples?.slice(0, 2).map((example, index) => (
-                        <em key={`${example}:${index}`}>{example}</em>
-                      ))}
-                    </div>
-                  ) : (
-                    <p>{t("projectMap.relationship.apiNoRequestBody")}</p>
-                  )}
-                </section>
-                <section className="project-map-api-contract-inspector-section">
                   <h5>{t("projectMap.relationship.apiEndpointResponses")}</h5>
-                  {selectedApiEndpoint.responses.length ? (
+                  {selectedApiEndpointDetail.responses.length ? (
                     <div className="project-map-api-contract-response-list">
-                      {selectedApiEndpoint.responses.slice(0, 8).map((response, index) => (
-                        <article key={`${response.statusCode ?? "response"}:${response.contentType ?? index}`}>
-                          <strong>{response.statusCode ?? "response"}</strong>
-                          <span>{response.contentType ?? t("projectMap.relationship.apiContentTypeUnknown")}</span>
-                          <em>{response.schema?.name ?? (response.isError ? "error" : t("projectMap.relationship.apiSchemaUnknown"))}</em>
+                      {selectedApiEndpointDetail.responses.map((response, responseIndex) => (
+                        <article key={`${response.statusCode}:${response.rawType}:${responseIndex}`}>
+                          <strong>{response.statusCode}</strong>
+                          <span>{response.contentType}</span>
+                          <em>
+                            {response.rawType}
+                            {response.businessType !== response.rawType ? ` · data: ${response.businessType}` : ""}
+                            {response.description ? ` · ${response.description}` : ""}
+                          </em>
+                          {response.fields.slice(0, 16).map((field, fieldIndex) => (
+                            <small key={`${response.statusCode}:${field.path}:${fieldIndex}`}>
+                              {field.path}{field.type ? `: ${field.type}` : ""}{field.description ? ` · ${field.description}` : ""}
+                            </small>
+                          ))}
                         </article>
                       ))}
                     </div>
@@ -477,13 +645,32 @@ export function ProjectMapRelationshipApiWorkspace({
                     <p>{t("projectMap.relationship.apiNoResponses")}</p>
                   )}
                 </section>
-                {selectedApiEndpoint.description || selectedApiEndpoint.usageScenario ? (
-                  <section className="project-map-api-contract-inspector-section">
-                    <h5>{t("projectMap.relationship.apiEndpointDescription")}</h5>
-                    {selectedApiEndpoint.description ? <p>{selectedApiEndpoint.description}</p> : null}
-                    {selectedApiEndpoint.usageScenario ? <p>{selectedApiEndpoint.usageScenario}</p> : null}
-                  </section>
-                ) : null}
+                <section className="project-map-api-contract-inspector-section">
+                  <h5>{t("projectMap.relationship.apiErrorCodesTitle")}</h5>
+                  {selectedApiEndpointDetail.responses.some((response) => response.isError) ? (
+                    <div className="project-map-api-contract-response-list">
+                      {selectedApiEndpointDetail.responses.filter((response) => response.isError).map((response, responseIndex) => (
+                        <article key={`error:${response.statusCode}:${responseIndex}`}>
+                          <strong>{response.statusCode}</strong>
+                          <span>{response.description ?? t("projectMap.relationship.apiDeclaredUnavailable")}</span>
+                          <em>{t("projectMap.relationship.apiErrorHandlingHint")}</em>
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <p>{t("projectMap.relationship.apiNoErrorCodes")}</p>
+                  )}
+                </section>
+                <section className="project-map-api-contract-inspector-section">
+                  <h5>{t("projectMap.relationship.apiEndpointDescription")}</h5>
+                  {selectedApiEndpointDetail.descriptionBlocks.length ? (
+                    selectedApiEndpointDetail.descriptionBlocks.map((block) => (
+                      <p key={`${block.kind}:${block.text}`}>{block.kind} · {block.text}</p>
+                    ))
+                  ) : (
+                    <p>{t("projectMap.relationship.apiDescriptionUnavailable")}</p>
+                  )}
+                </section>
                 <section className="project-map-api-contract-evidence">
                   <h5>{t("projectMap.relationship.apiEvidenceTitle")}</h5>
                   {selectedApiEndpoint.evidence.slice(0, 4).map((evidence) => (

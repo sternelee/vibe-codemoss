@@ -16,9 +16,14 @@
 
 .project-map-api-contract-grid {
   display: grid;
-  grid-template-columns: minmax(300px, 0.24fr) minmax(720px, 1fr) minmax(380px, 0.32fr);
+  grid-template-columns:
+    minmax(240px, var(--api-left-pane-width, 320px))
+    8px
+    minmax(360px, 1fr)
+    8px
+    minmax(320px, var(--api-right-pane-width, 1fr));
   min-height: 590px;
-  gap: 10px;
+  gap: 0;
 }
 
 .project-map-relationship-workspace-header.project-map-api-contract-toolbar {
@@ -46,6 +51,18 @@
   flex: 0 0 auto;
   min-height: 30px;
   padding-block: 5px;
+}
+
+.project-map-api-contract-export-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+}
+
+.project-map-api-contract-export-action {
+  min-height: 30px;
+  padding: 5px 8px;
 }
 
 .project-map-relationship-workspace-header .project-map-api-contract-filters {
@@ -104,6 +121,30 @@
   max-height: 590px;
   overflow: auto;
   padding: 10px;
+}
+
+.project-map-api-contract-resizer {
+  width: 8px;
+  min-width: 8px;
+  border: 0;
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--project-map-border) 54%, transparent),
+      transparent
+    );
+  cursor: col-resize;
+}
+
+.project-map-api-contract-resizer:hover {
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--project-map-accent) 48%, transparent),
+      transparent
+    );
 }
 
 .project-map-api-contract-group-rail header,
@@ -321,27 +362,32 @@
 
 .project-map-api-contract-endpoint-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 10px;
+  grid-template-columns: 1fr;
+  gap: 8px;
 }
 
 .project-map-api-contract-endpoint-node {
-  min-height: 116px;
-  padding: 13px;
+  min-height: 68px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 10px;
+  padding: 10px 12px;
 }
 
 .project-map-api-contract-endpoint-node strong {
-  display: -webkit-box;
+  display: block;
+  min-width: 0;
   overflow: hidden;
   color: var(--project-map-text-strong);
   font-size: 13px;
   line-height: 1.28;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .project-map-api-contract-endpoint-node em {
-  white-space: normal;
+  grid-column: 2;
+  white-space: nowrap;
 }
 
 .project-map-api-contract-stage-empty {
@@ -372,6 +418,7 @@
 
 .project-map-api-contract-swagger-card,
 .project-map-api-contract-schema-card,
+.project-map-api-contract-parameter-card,
 .project-map-api-contract-response-list article {
   display: grid;
   gap: 6px;
@@ -408,7 +455,10 @@
 .project-map-api-contract-schema-card span,
 .project-map-api-contract-schema-card em,
 .project-map-api-contract-response-list article span,
-.project-map-api-contract-response-list article em {
+.project-map-api-contract-response-list article em,
+.project-map-api-contract-response-list article small,
+.project-map-api-contract-parameter-card p,
+.project-map-api-contract-parameter-card small {
   margin: 0;
   color: var(--project-map-text-muted);
   font-size: 10px;
@@ -469,6 +519,90 @@
   border: 1px solid color-mix(in srgb, var(--project-map-border) 60%, transparent);
   border-radius: 10px;
   background: color-mix(in srgb, var(--project-map-border) 42%, transparent);
+}
+
+.project-map-api-contract-parameter-list {
+  display: grid;
+  gap: 8px;
+}
+
+.project-map-api-contract-parameter-card > div:first-child {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 7px;
+}
+
+.project-map-api-contract-parameter-card > div:first-child span {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 2px 6px;
+  background: color-mix(in srgb, var(--project-map-accent) 14%, transparent);
+  color: var(--project-map-accent);
+  font-size: 9px;
+  font-weight: 820;
+  text-transform: uppercase;
+}
+
+.project-map-api-contract-parameter-card > div:first-child strong {
+  overflow: hidden;
+  color: var(--project-map-text-strong);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-map-api-contract-parameter-card > div:first-child em {
+  grid-column: 2;
+  color: var(--project-map-text-muted);
+  font-size: 10px;
+  font-style: normal;
+}
+
+.project-map-api-contract-field-table {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.35fr) minmax(70px, .8fr) 54px minmax(110px, 1fr);
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--project-map-border) 60%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--project-map-border) 42%, transparent);
+}
+
+.project-map-api-contract-field-table > span,
+.project-map-api-contract-field-table > strong,
+.project-map-api-contract-field-table > em {
+  min-width: 0;
+  padding: 6px;
+  background: color-mix(in srgb, var(--project-map-surface) 82%, transparent);
+  color: var(--project-map-text-muted);
+  font-size: 9px;
+  font-style: normal;
+  overflow-wrap: anywhere;
+}
+
+.project-map-api-contract-field-table > span {
+  color: var(--project-map-text-strong);
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.project-map-api-contract-field-table > strong {
+  color: var(--project-map-text-strong);
+}
+
+.project-map-api-contract-example {
+  display: block;
+  overflow: auto;
+  border: 1px solid color-mix(in srgb, var(--project-map-border) 48%, transparent);
+  border-radius: 10px;
+  padding: 8px;
+  background: color-mix(in srgb, #020617 48%, transparent);
+  color: color-mix(in srgb, var(--project-map-text-strong) 88%, var(--project-map-accent));
+  font-family: "SFMono-Regular", "Cascadia Code", "Menlo", monospace;
+  font-size: 10px;
+  line-height: 1.5;
+  white-space: pre-wrap;
 }
 
 .project-map-api-contract-schema-table > span,

@@ -1009,6 +1009,10 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
   const backgroundRenderGatingEnabled = isBackgroundRenderGatingEnabled();
   const deferredThreadItemsByThreadValue = useDeferredValue(options.threadItemsByThread);
   const deferredThreadStatusByIdValue = useDeferredValue(options.threadStatusById);
+  const deferredStatusPanelItemsValue = useDeferredValue(options.activeItems);
+  const statusPanelItems = options.isProcessing
+    ? deferredStatusPanelItemsValue
+    : options.activeItems;
   const deferredThreadItemsByThread = backgroundRenderGatingEnabled
     ? deferredThreadItemsByThreadValue
     : options.threadItemsByThread;
@@ -1804,7 +1808,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     subagentTotal,
     fileChanges,
     commandTotal,
-  } = useStatusPanelData(options.activeItems, {
+  } = useStatusPanelData(statusPanelItems, {
     isCodexEngine: isStatusPanelCodexEngine,
     activeThreadId: options.activeThreadId,
     itemsByThread: deferredThreadItemsByThread,
@@ -2826,7 +2830,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     <StatusPanel
       workspaceId={options.activeWorkspace?.id ?? null}
       workspacePath={options.activeWorkspace?.path ?? null}
-      items={options.activeItems}
+      items={statusPanelItems}
       isProcessing={options.isProcessing}
       expanded
       plan={options.plan}
