@@ -284,3 +284,54 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 743: Markdown 预览硬化收口
+
+**Date**: 2026-06-07
+**Task**: Markdown 预览硬化收口
+**Branch**: `feature/v0.5.7`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+完成 Markdown 预览硬化收口，拆分为 3 个原子提交：
+
+- 20feb6a2 docs(openspec): 收口 Markdown 预览硬化方案
+  - 回写 harden-file-markdown-preview-rendering proposal / design / tasks。
+  - 新增 phase-1 implementation evidence note，记录实现与验证依据。
+
+- 6b4e725a feat(markdown): 增加 fast preview 渲染链路
+  - 新增 fastMarkdownRenderer 编译、sanitize、outline、heavy block profile、worker fallback 与测试。
+  - 新增 FileMarkdownPreviewFast 和预览 outline/sidebar 样式能力。
+
+- f9dfe648 feat(files): 增加 Markdown 预览专用大文件读取
+  - 新增 Tauri/local 与 daemon remote 的 read_workspace_file_preview preview-only 读取通道。
+  - 前端 readWorkspaceFilePreview 接入 Markdown preview，编辑路径继续保持原 read limit 与截断保护。
+  - bounded renderer 行上限由 1800 调整到 2800。
+
+验证状态：
+- 本次提交收口未额外运行新的 typecheck / test。
+- 提交前历史验证曾通过 OpenSpec strict validate、npm typecheck，以及 fastMarkdownRenderer 目标 vitest。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f9dfe648` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
