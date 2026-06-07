@@ -431,3 +431,48 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 746: 同步 Markdown bounded preview 测试期望
+
+**Date**: 2026-06-07
+**Task**: 同步 Markdown bounded preview 测试期望
+**Branch**: `feature/v0.5.7`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+修复 CI 中 FileMarkdownPreview bounded projection 测试仍期待旧行数的问题。
+
+改动：
+- src/features/files/components/FileMarkdownPreview.test.tsx：将 data-markdown-visible-lines 期望从 1800 更新为 2800。
+
+背景：
+- 产品需求已将大 Markdown bounded projection 行数从 1800 调整为 2800。
+- 实现文件 FileMarkdownPreview.tsx 已更新 BOUNDED_RENDER_LINE_LIMIT = 2_800。
+- 测试仍断言旧值，导致 Vitest batch 52/155 失败。
+
+验证：
+- 本次只做测试断言同步，未额外运行测试。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `efc0022c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
