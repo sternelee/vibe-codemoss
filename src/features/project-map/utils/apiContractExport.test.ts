@@ -119,18 +119,18 @@ describe("apiContractExport", () => {
     expect(file.content).not.toContain("<img src=x onerror=alert(1)>");
   });
 
-  it("exports OpenAPI 3 JSON with mossx metadata", () => {
+  it("exports OpenAPI 3 JSON with project-map metadata", () => {
     const file = buildProjectMapApiExportFile(buildExportFixture(), "openapi-json");
     const document = JSON.parse(file.content);
 
     expect(file.filename).toBe("api-contracts.openapi.json");
     expect(document.openapi).toBe("3.0.3");
     expect(document.paths["/api/users/{id}"].get.operationId).toBe("getUser");
-    expect(document.paths["/api/users/{id}"].get["x-mossx-confidence"]).toBe("high");
+    expect(document.paths["/api/users/{id}"].get["x-project-map-confidence"]).toBe("high");
     expect(document.paths["/api/users/{id}"].get.parameters).toHaveLength(2);
     expect(document.paths["/api/users/{id}"].get.parameters[1].schema).toEqual({
       type: "object",
-      "x-mossx-schemaName": "UserFilter",
+      "x-project-map-schemaName": "UserFilter",
     });
     expect(document.paths["/api/users/{id}"].get.requestBody.content["application/json"].schema.properties.name.description).toBe("用户名");
   });
@@ -154,7 +154,7 @@ describe("apiContractExport", () => {
     const document = JSON.parse(file.content);
 
     expect(document.paths["/graphql-users"]).toBeUndefined();
-    expect(document["x-mossx-unsupportedEndpoints"]).toEqual([
+    expect(document["x-project-map-unsupportedEndpoints"]).toEqual([
       expect.objectContaining({
         id: "graphql-users",
         protocol: "graphql",

@@ -224,7 +224,7 @@ function renderHtml(document: ApiExportDocument): string {
 function primitiveSchemaOrContractName(typeName: string | undefined): Record<string, unknown> {
   const normalizedType = typeName?.trim();
   if (!normalizedType) {
-    return { type: "object", "x-mossx-unavailable": true };
+    return { type: "object", "x-project-map-unavailable": true };
   }
   const lowerType = normalizedType.toLowerCase();
   if (OPENAPI_PRIMITIVE_TYPES.has(lowerType)) {
@@ -232,7 +232,7 @@ function primitiveSchemaOrContractName(typeName: string | undefined): Record<str
   }
   return {
     type: "object",
-    "x-mossx-schemaName": normalizedType,
+    "x-project-map-schemaName": normalizedType,
   };
 }
 
@@ -326,11 +326,11 @@ function renderOpenApiJson(document: ApiExportDocument): string {
                 },
               }
             : undefined,
-          "x-mossx-unavailable": !response.schema && !response.structuredFields?.length,
+          "x-project-map-unavailable": !response.schema && !response.structuredFields?.length,
         },
       ])),
-      "x-mossx-confidence": endpoint.confidence,
-      "x-mossx-evidence": endpoint.evidence.map((entry) => ({
+      "x-project-map-confidence": endpoint.confidence,
+      "x-project-map-evidence": endpoint.evidence.map((entry) => ({
         path: entry.path,
         line: entry.line,
         parserSource: entry.parserSource,
@@ -356,8 +356,8 @@ function renderOpenApiJson(document: ApiExportDocument): string {
       version: "0.0.0",
     },
     paths,
-    ...(unsupportedEndpoints.length ? { "x-mossx-unsupportedEndpoints": unsupportedEndpoints } : {}),
-    ...(duplicateEndpoints.length ? { "x-mossx-duplicateEndpoints": duplicateEndpoints } : {}),
+    ...(unsupportedEndpoints.length ? { "x-project-map-unsupportedEndpoints": unsupportedEndpoints } : {}),
+    ...(duplicateEndpoints.length ? { "x-project-map-duplicateEndpoints": duplicateEndpoints } : {}),
   }, null, 2);
 }
 
