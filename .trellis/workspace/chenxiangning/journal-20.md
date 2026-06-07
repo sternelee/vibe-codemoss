@@ -655,3 +655,42 @@ Codex app-server 对话链路切换为 codex-tui 兼容身份，补 terminal env
 ### Next Steps
 
 - None - task complete
+
+
+## Session 751: 收口接口契约边界与大文件门禁
+
+**Date**: 2026-06-07
+**Task**: 收口接口契约边界与大文件门禁
+**Branch**: `feature/v0.5.7`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| 项目 | 内容 |
+|------|------|
+| 代码提交 | 6e9c6afb |
+| 主要改动 | 拆分 project_map_api_contracts 大文件中的 schema source 逻辑，修复 OpenAPI export 对无效协议/缺失 path 的边界处理，补齐 API pane resize listener cleanup，降低 duplicate key 噪声风险。 |
+| 验证 | git diff --check；npm run check:large-files:gate；npm run typecheck；npx vitest run src/features/project-map/utils/apiContractExport.test.ts src/features/project-map/components/ProjectMapRelationshipSection.api-smoke.test.tsx；cargo test --manifest-path src-tauri/Cargo.toml project_map_api_contracts；npm run check:heavy-test-noise。 |
+| 备注 | npm 输出 electron_mirror 环境 warning，非代码阻塞项。 |
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6e9c6afb` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
