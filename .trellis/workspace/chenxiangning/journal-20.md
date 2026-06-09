@@ -1705,3 +1705,42 @@ Codex app-server 对话链路切换为 codex-tui 兼容身份，补 terminal env
 ### Next Steps
 
 - None - task complete
+
+
+## Session 776: 拆分会话管理大文件测试
+
+**Date**: 2026-06-09
+**Task**: 拆分会话管理大文件测试
+**Branch**: `feature/v0.5.8`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| 项目 | 内容 |
+|------|------|
+| Summary | 拆分 `src-tauri/src/session_management_tests.rs`，将共享 fixture/helper 与 catalog、metadata/provider-home、folder、archive/delete、workspace scope、projection 等测试按主题迁移到多个 Rust test include 文件。 |
+| Validation | `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check`; `git diff --cached --check`; `cargo test --manifest-path src-tauri/Cargo.toml session_management`; `npm run check:large-files:gate`。 |
+| Result | large-file gate 从 `found=1` 恢复为 `found=0`；session_management 聚焦测试在 lib 与 daemon test binary 均为 78 passed。 |
+| Notes | 仅提交 Rust 后端测试拆分；保留既有前端 `Sidebar.test.tsx` 与 `sidebarInternals.ts` 未提交改动。 |
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ef677161` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

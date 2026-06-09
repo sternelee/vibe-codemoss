@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-20.md`
-- **Total Sessions**: 775
+- **Total Sessions**: 776
 - **Last Active**: 2026-06-09
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-20.md` | ~1707 | Active |
+| `journal-20.md` | ~1746 | Active |
 | `journal-19.md` | ~1989 | Archived |
 | `journal-18.md` | ~1966 | Archived |
 | `journal-17.md` | ~1971 | Archived |
@@ -48,6 +48,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 776 | 2026-06-09 | 拆分会话管理大文件测试 | `ef677161` | `feature/v0.5.8` |
 | 775 | 2026-06-09 | 收口 provider home 会话恢复提案 | `8cd0c751` | `feature/v0.5.8` |
 | 774 | 2026-06-09 | 保留 provider home 会话侧栏连续性 | `d88fb69d` | `feature/v0.5.8` |
 | 773 | 2026-06-09 | 恢复 Codex provider home 会话目录扫描 | `27a43778` | `feature/v0.5.8` |
