@@ -233,8 +233,8 @@ describe("PinnedThreadList", () => {
     expect(badge?.classList.contains("proxy-status-badge--animated")).toBe(false);
   });
 
-  it("does not render codex source badge in pinned rows when metadata exists", () => {
-    render(
+  it("renders codex provider metadata in pinned rows without empty badges", () => {
+    const { container, rerender } = render(
       <PinnedThreadList
         {...baseProps}
         rows={[
@@ -251,6 +251,50 @@ describe("PinnedThreadList", () => {
       />,
     );
 
-    expect(screen.queryByText("project/openai")).toBeNull();
+    expect(screen.getByText("project/openai")).toBeTruthy();
+
+    rerender(
+      <PinnedThreadList
+        {...baseProps}
+        rows={[
+          {
+            thread: {
+              ...thread,
+              engineSource: "codex",
+              providerProfileId: "provider-a",
+              providerProfileName: " ",
+              sourceLabel: " ",
+            },
+            depth: 0,
+            workspaceId: "ws-1",
+            workspacePath: "/tmp/ws-1",
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("provider-a")).toBeTruthy();
+
+    rerender(
+      <PinnedThreadList
+        {...baseProps}
+        rows={[
+          {
+            thread: {
+              ...thread,
+              engineSource: "codex",
+              providerProfileId: "   ",
+              providerProfileName: " ",
+              sourceLabel: " ",
+            },
+            depth: 0,
+            workspaceId: "ws-1",
+            workspacePath: "/tmp/ws-1",
+          },
+        ]}
+      />,
+    );
+
+    expect(container.querySelector(".thread-provider-label")).toBeNull();
   });
 });

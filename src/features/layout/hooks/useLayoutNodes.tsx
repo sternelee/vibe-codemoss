@@ -5,6 +5,11 @@ import { HomeChat } from "../../home/components/HomeChat";
 import { MainHeader } from "../../app/components/MainHeader";
 import { Messages } from "../../messages/components/Messages";
 import { MessageForkConfirmDialog } from "../../messages/components/MessageForkConfirmDialog";
+import {
+  CODEX_DISK_PROVIDER_PROFILE_ID,
+  type CodexProviderProfileSelection,
+  type CodexProviderProfileOption,
+} from "../../threads/constants/codexProviderProfiles";
 import { UpdateToast } from "../../update/components/UpdateToast";
 import { ErrorToasts } from "../../notifications/components/ErrorToasts";
 import { GlobalRuntimeNoticeDock } from "../../notifications/components/GlobalRuntimeNoticeDock";
@@ -73,6 +78,7 @@ import type {
   ThreadSummary,
 } from "../../../types";
 import { getClientStoreSync } from "../../../services/clientStorage";
+import { getCodexProviders } from "../../../services/tauri";
 import { normalizeSpecRootInput } from "../../spec/pathUtils";
 import type {
   CodeAnnotationBridgeProps,
@@ -186,6 +192,9 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     useState<ComposerRewindDialogRequest | null>(null);
   const [forkConfirmUserMessageId, setForkConfirmUserMessageId] =
     useState<string | null>(null);
+  const [codexProviderProfiles, setCodexProviderProfiles] = useState<
+    CodexProviderProfileOption[]
+  >([]);
   const rewindDialogRequestSerialRef = useRef(0);
   const activeThreadStatus = options.activeThreadId
     ? options.threadStatusById[options.activeThreadId] ?? null
@@ -196,6 +205,30 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
           (thread) => thread.id === options.activeThreadId,
         ) ?? null
       : null;
+  useEffect(() => {
+    let cancelled = false;
+    getCodexProviders()
+      .then((providers) => {
+        if (cancelled) {
+          return;
+        }
+        setCodexProviderProfiles(
+          providers.map((provider) => ({
+            id: provider.id,
+            name: provider.name,
+            source: "managed",
+          })),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCodexProviderProfiles([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const historyRestoredAtMsByThread = options.historyRestoredAtMsByThread ?? {};
   const activeHistoryRestoredAtMs = options.activeThreadId
     ? historyRestoredAtMsByThread[options.activeThreadId] ?? null
@@ -586,11 +619,44 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     setForkConfirmUserMessageId(null);
   }, []);
   const handleConfirmForkFromMessage = useCallback(
-    async (messageId: string) => {
-      await onForkFromMessage?.(messageId);
+    async (
+      messageId: string,
+      options?: CodexProviderProfileSelection,
+    ) => {
+      await onForkFromMessage?.(messageId, options);
     },
     [onForkFromMessage],
   );
+  const codexForkProviderProfiles = useMemo<CodexProviderProfileOption[]>(() => {
+    const profilesById = new Map<string, CodexProviderProfileOption>();
+    for (const profile of codexProviderProfiles) {
+      profilesById.set(profile.id, profile);
+    }
+    const activeProviderId =
+      activeThreadSummary?.providerProfileId?.trim() ||
+      CODEX_DISK_PROVIDER_PROFILE_ID;
+    if (
+      activeProviderId !== CODEX_DISK_PROVIDER_PROFILE_ID &&
+      !profilesById.has(activeProviderId)
+    ) {
+      profilesById.set(activeProviderId, {
+        id: activeProviderId,
+        name:
+          activeThreadSummary?.providerProfileName?.trim() ||
+          activeProviderId,
+        source:
+          activeThreadSummary?.providerProfileSource === "managed"
+            ? "managed"
+            : "disk",
+      });
+    }
+    return Array.from(profilesById.values());
+  }, [
+    activeThreadSummary?.providerProfileId,
+    activeThreadSummary?.providerProfileName,
+    activeThreadSummary?.providerProfileSource,
+    codexProviderProfiles,
+  ]);
   const handleOpenRewindDialogFromMessage = useCallback((messageId: string) => {
     const normalizedMessageId = messageId.trim();
     if (!normalizedMessageId) {
@@ -665,6 +731,11 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         userMessageId={forkConfirmUserMessageId}
         onCancel={handleCancelForkConfirm}
         onConfirm={handleConfirmForkFromMessage}
+        showProviderSelector={conversationEngine === "codex"}
+        defaultProviderProfileId={
+          activeThreadSummary?.providerProfileId ?? CODEX_DISK_PROVIDER_PROFILE_ID
+        }
+        providerProfiles={codexForkProviderProfiles}
       />
     </>
   ), [
@@ -692,6 +763,8 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     forkConfirmUserMessageId,
     handleCancelForkConfirm,
     handleConfirmForkFromMessage,
+    activeThreadSummary?.providerProfileId,
+    codexForkProviderProfiles,
     options.onRewind,
     handleOpenRewindDialogFromMessage,
     options.handleApprovalDecision,

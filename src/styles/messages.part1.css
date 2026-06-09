@@ -152,6 +152,29 @@
   margin: 0;
 }
 
+.message-fork-provider-field {
+  display: grid;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.message-fork-provider-label {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.message-fork-provider-select {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 6px;
+  background: var(--surface-primary, #ffffff);
+  color: var(--text-primary, #111827);
+  font: inherit;
+  padding: 6px 8px;
+}
+
 .message-fork-confirm-error {
   margin-top: 10px;
   color: var(--danger, #ef4444);

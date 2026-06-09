@@ -675,7 +675,6 @@ export function VendorSettingsPanel({
               onAdd={codex.handleAddCodexProvider}
               onEdit={codex.handleEditCodexProvider}
               onDelete={codex.handleDeleteCodexProvider}
-              onSwitch={codex.handleSwitchCodexProvider}
             />
             <CodexProviderDialog
               isOpen={codex.codexProviderDialog.isOpen}

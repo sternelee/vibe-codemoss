@@ -213,6 +213,10 @@ export type ThreadSummary = {
   source?: string;
   provider?: string;
   sourceLabel?: string;
+  providerProfileId?: string;
+  providerProfileSource?: "disk" | "managed" | string;
+  providerProfileName?: string;
+  providerAvailability?: "available" | "unavailable" | string;
   partialSource?: string;
   isDegraded?: boolean;
   degradedReason?: string;

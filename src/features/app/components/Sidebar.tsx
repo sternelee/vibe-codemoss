@@ -88,7 +88,12 @@ import {
   listWorkspaceSessionFolders,
   renameWorkspaceSessionFolder,
   type WorkspaceSessionFolder,
+  getCodexProviders,
 } from "../../../services/tauri";
+import type {
+  CodexProviderProfileOption,
+  CodexProviderProfileSelection,
+} from "../../threads/constants/codexProviderProfiles";
 import {
   runWithLoadingProgress,
   type LoadingProgressController,
@@ -134,7 +139,7 @@ type SidebarProps = {
   onAddAgent: (
     workspace: WorkspaceInfo,
     engine?: EngineType,
-    options?: { folderId?: string | null },
+    options?: { folderId?: string | null } & CodexProviderProfileSelection,
   ) => Promise<string | null> | string | null | void;
   engineOptions?: EngineDisplayInfo[];
   enabledEngines?: Partial<Record<EngineType, boolean>>;
@@ -321,6 +326,9 @@ export function Sidebar({
     pendingSessionFolderIntentByWorkspaceId,
     setPendingSessionFolderIntentByWorkspaceId,
   ] = useState<Record<string, Record<string, string>>>(() => ({}));
+  const [codexProviderProfiles, setCodexProviderProfiles] = useState<
+    CodexProviderProfileOption[]
+  >([]);
   const [rootSessionFolderDraftRequestByWorkspaceId, setRootSessionFolderDraftRequestByWorkspaceId] = useState<
     Record<string, number>
   >(() => ({}));
@@ -624,6 +632,49 @@ export function Sidebar({
   );
 
   useEffect(() => {
+    let cancelled = false;
+    getCodexProviders()
+      .then((providers) => {
+        if (cancelled) {
+          return;
+        }
+        const nextProfiles = providers
+            .map((provider) => ({
+              id: provider.id.trim(),
+              name: provider.name.trim() || provider.id.trim(),
+              source: "managed" as const,
+            }))
+            .filter((provider) => provider.id.length > 0);
+        setCodexProviderProfiles((currentProfiles) => {
+          if (
+            currentProfiles.length === nextProfiles.length &&
+            currentProfiles.every((currentProfile, index) => {
+              const nextProfile = nextProfiles[index];
+              return (
+                currentProfile.id === nextProfile?.id &&
+                currentProfile.name === nextProfile.name &&
+                currentProfile.source === nextProfile.source
+              );
+            })
+          ) {
+            return currentProfiles;
+          }
+          return nextProfiles;
+        });
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCodexProviderProfiles((currentProfiles) =>
+            currentProfiles.length === 0 ? currentProfiles : [],
+          );
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     Object.entries(pendingSessionFolderIntentByWorkspaceId).forEach(
       ([workspaceId, intents]) => {
         const workspaceThreads = threadsByWorkspace[workspaceId] ?? [];
@@ -691,6 +742,7 @@ export function Sidebar({
   } =
     useSidebarMenus({
       onAddAgent,
+      codexProviderProfiles,
       engineOptions,
       enabledEngines,
       onRefreshEngineOptions,

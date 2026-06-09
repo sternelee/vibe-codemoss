@@ -17,6 +17,7 @@ import { ProxyStatusBadge } from "../../../components/ProxyStatusBadge";
 import { EngineIcon } from "../../engine/components/EngineIcon";
 import { SharedSessionIcon } from "../../shared-session/components/SharedSessionIcon";
 import { ThreadDeleteConfirmBubble } from "../../threads/components/ThreadDeleteConfirmBubble";
+import { resolveCodexProviderLabel } from "../utils/codexProviderLabel";
 
 type ThreadStatusMap = Record<
   string,
@@ -122,6 +123,8 @@ export function PinnedThreadList({
           isSharedThread
             ? `Shared Session · ${baseEngineTitle}`
             : baseEngineTitle;
+        const providerLabel = resolveCodexProviderLabel(thread);
+        const isProviderUnavailable = thread.providerAvailability === "unavailable";
         const isDeleteConfirmOpen =
           deleteConfirmWorkspaceId === workspaceId && deleteConfirmThreadId === thread.id;
 
@@ -213,6 +216,16 @@ export function PinnedThreadList({
                     {isAutoNaming && (
                       <span className="thread-auto-naming">{t("threads.autoNaming")}</span>
                     )}
+                    {providerLabel ? (
+                      <span
+                        className={`thread-provider-label${
+                          isProviderUnavailable ? " is-unavailable" : ""
+                        }`}
+                        title={providerLabel}
+                      >
+                        {providerLabel}
+                      </span>
+                    ) : null}
                     {relativeTime ? <span className="thread-time">{relativeTime}</span> : null}
                   </div>
                 </TooltipTrigger>

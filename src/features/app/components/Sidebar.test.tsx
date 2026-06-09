@@ -137,7 +137,7 @@ describe("Sidebar", () => {
     expect(screen.getByRole("button", { name: "Search" }).getAttribute("title")).toContain("Not set");
   });
 
-  it("hides chat/automation/open-home entries in settings dropdown", () => {
+  it("hides chat/automation/open-home entries in settings dropdown", async () => {
     const onToggleTerminal = vi.fn();
     const { container } = render(
       <Sidebar
@@ -150,7 +150,9 @@ describe("Sidebar", () => {
 
     const settingsToggle = container.querySelector(".sidebar-primary-nav-item-bottom");
     expect(settingsToggle).toBeTruthy();
-    fireEvent.click(settingsToggle as Element);
+    await act(async () => {
+      fireEvent.click(settingsToggle as Element);
+    });
 
     const dropdown = container.querySelector(".sidebar-settings-dropdown");
     expect(dropdown).toBeTruthy();
@@ -1123,7 +1125,7 @@ describe("Sidebar", () => {
     expect(screen.queryByRole("button", { name: "Refresh incomplete thread list" })).toBeNull();
   });
 
-  it("keeps group collapse on double click only", () => {
+  it("keeps group collapse on double click only", async () => {
     const workspace = {
       id: "ws-1",
       name: "codemoss",
@@ -1157,10 +1159,14 @@ describe("Sidebar", () => {
     }
     expect(screen.getByText("codemoss")).toBeTruthy();
 
-    fireEvent.click(groupHeader);
+    await act(async () => {
+      fireEvent.click(groupHeader);
+    });
     expect(screen.getByText("codemoss")).toBeTruthy();
 
-    fireEvent.doubleClick(groupHeader);
+    await act(async () => {
+      fireEvent.doubleClick(groupHeader);
+    });
     expect(screen.queryByText("codemoss")).toBeNull();
   });
 
@@ -1736,13 +1742,21 @@ describe("Sidebar", () => {
     );
     expect(screen.getByRole("menuitem", { name: "Claude Code" })).toBeTruthy();
     expect(screen.queryByRole("menuitem", { name: /Claude Code.*CLI not installed/ })).toBeNull();
+    const codexItem = screen.getByRole("menuitem", { name: /Codex/ });
+    fireEvent.mouseEnter(codexItem);
     await act(async () => {
-      fireEvent.click(screen.getByRole("menuitem", { name: /Codex/ }));
+      fireEvent.click(screen.getByRole("menuitem", { name: /磁盘 \.codex 配置/ }));
     });
 
     await vi.waitFor(() => {
       expect(onAddAgent).toHaveBeenCalledWith(workspace, "codex", {
         folderId: "folder-parent",
+        providerProfileId: "__disk__",
+        providerProfile: {
+          id: "__disk__",
+          name: "磁盘 .codex 配置",
+          source: "disk",
+        },
       });
       expect(assignWorkspaceSessionFolder).toHaveBeenCalledWith(
         "ws-1",
@@ -2366,13 +2380,21 @@ describe("Sidebar", () => {
     fireEvent.click(
       within(folderRow).getByRole("button", { name: "New session in project" }),
     );
+    const codexItem = screen.getByRole("menuitem", { name: "Codex" });
+    fireEvent.mouseEnter(codexItem);
     await act(async () => {
-      fireEvent.click(screen.getByRole("menuitem", { name: "Codex" }));
+      fireEvent.click(screen.getByRole("menuitem", { name: /磁盘 \.codex 配置/ }));
     });
 
     await vi.waitFor(() => {
       expect(onAddAgent).toHaveBeenCalledWith(workspace, "codex", {
         folderId: "folder-parent",
+        providerProfileId: "__disk__",
+        providerProfile: {
+          id: "__disk__",
+          name: "磁盘 .codex 配置",
+          source: "disk",
+        },
       });
     });
     expect(assignWorkspaceSessionFolder).not.toHaveBeenCalled();

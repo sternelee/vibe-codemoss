@@ -62,6 +62,7 @@ import type { CodeAnnotationBridgeProps } from "../../code-annotations/types";
 import type { RuntimeReconnectRecoveryCallbackResult } from "../../messages/components/runtimeReconnect";
 import type { QueuedHandoffBubble } from "../../threads/utils/queuedHandoffBubble";
 import type { SessionRadarEntry } from "../../session-activity/hooks/useSessionRadarFeed";
+import type { CodexProviderProfileSelection } from "../../threads/constants/codexProviderProfiles";
 
 export type ThreadActivityStatus = {
   isProcessing: boolean;
@@ -195,7 +196,7 @@ export type LayoutNodesOptions = {
   onAddAgent: (
     workspace: WorkspaceInfo,
     engine?: EngineType,
-    options?: { folderId?: string | null },
+    options?: { folderId?: string | null } & CodexProviderProfileSelection,
   ) => Promise<string | null>;
   engineOptions?: EngineDisplayInfo[];
   enabledEngines?: Partial<Record<EngineType, boolean>>;
@@ -496,7 +497,10 @@ export type LayoutNodesOptions = {
     userMessageId: string,
     options?: { mode?: "messages-and-files" | "messages-only" | "files-only" },
   ) => void | Promise<void>;
-  onForkFromMessage?: (userMessageId: string) => void | Promise<void>;
+  onForkFromMessage?: (
+    userMessageId: string,
+    options?: CodexProviderProfileSelection,
+  ) => void | Promise<void>;
   canStop: boolean;
   isReviewing: boolean;
   isProcessing: boolean;
@@ -688,4 +692,3 @@ export type LayoutNodesResult = {
 };
 
 export type RightPanelTabSelection = LayoutNodesOptions["filePanelMode"] | "projectMap" | "intentCanvas";
-

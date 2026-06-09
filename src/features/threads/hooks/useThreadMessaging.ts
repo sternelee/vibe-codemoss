@@ -295,7 +295,7 @@ type UseThreadMessagingOptions = {
   forkThreadForWorkspace: (
     workspaceId: string,
     threadId: string,
-    options?: { activate?: boolean },
+    options?: { activate?: boolean; providerProfileId?: string | null },
   ) => Promise<string | null>;
   updateThreadParent: (parentId: string, childIds: string[]) => void;
   startThreadForWorkspace: (

@@ -18,6 +18,7 @@ import { ProxyStatusBadge } from "../../../components/ProxyStatusBadge";
 import { EngineIcon } from "../../engine/components/EngineIcon";
 import { SharedSessionIcon } from "../../shared-session/components/SharedSessionIcon";
 import { ThreadDeleteConfirmBubble } from "../../threads/components/ThreadDeleteConfirmBubble";
+import { resolveCodexProviderLabel } from "../utils/codexProviderLabel";
 import { getExitedSessionRowVisibility } from "../utils/exitedSessionRows";
 
 type ThreadStatusMap = Record<
@@ -159,6 +160,8 @@ const ThreadRowItem = memo(function ThreadRowItem({
       ? ({ "--thread-indent": `${indentPx}px` } as CSSProperties)
       : undefined;
   const engineIconType = engineSource as EngineType;
+  const providerLabel = resolveCodexProviderLabel(thread);
+  const isProviderUnavailable = thread.providerAvailability === "unavailable";
   return (
     <Popover
       open={isDeleteConfirmOpen}
@@ -277,6 +280,16 @@ const ThreadRowItem = memo(function ThreadRowItem({
               {isAutoNaming && (
                 <span className="thread-auto-naming">{t("threads.autoNaming")}</span>
               )}
+              {providerLabel ? (
+                <span
+                  className={`thread-provider-label${
+                    isProviderUnavailable ? " is-unavailable" : ""
+                  }`}
+                  title={providerLabel}
+                >
+                  {providerLabel}
+                </span>
+              ) : null}
               {relativeTime ? <span className="thread-time">{relativeTime}</span> : null}
             </div>
           </TooltipTrigger>
