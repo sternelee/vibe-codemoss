@@ -1606,3 +1606,36 @@ Codex app-server 对话链路切换为 codex-tui 兼容身份，补 terminal env
 ### Next Steps
 
 - None - task complete
+
+
+## Session 773: 恢复 Codex provider home 会话目录扫描
+
+**Date**: 2026-06-09
+**Task**: 恢复 Codex provider home 会话目录扫描
+**Branch**: `feature/v0.5.8`
+
+### Summary
+
+实现 Codex managed provider home 的 sessions/archived_sessions 扫描、provider metadata 投影、sourceKind 后端状态和 provider-home mutation 回归测试。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `27a43778` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
