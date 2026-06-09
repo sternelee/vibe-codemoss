@@ -9,6 +9,23 @@ mod thread_title_generation;
 const DELETE_ARCHIVE_TIMEOUT_MS: u64 = 2_000;
 const LIST_THREADS_LIVE_TIMEOUT_MS: u64 = 1_500;
 const CLAUDE_POST_COMPLETION_USAGE_GRACE_MS: u64 = 35_000;
+
+fn normalize_daemon_disk_provider_profile(
+    provider_profile_id: Option<String>,
+) -> Result<Option<String>, String> {
+    let Some(provider_profile_id) = provider_profile_id
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+    else {
+        return Ok(None);
+    };
+    if provider_profile_id == codex::provider_profile::CODEX_DISK_PROVIDER_PROFILE_ID {
+        return Ok(Some(provider_profile_id));
+    }
+    Err(format!(
+        "Codex provider-scoped runtime is unavailable in daemon mode for provider {provider_profile_id}; use desktop runtime or select disk .codex provider."
+    ))
+}
 mod codex_local_threads;
 use codex_local_threads::{
     build_codex_daemon_empty_thread_response, build_codex_daemon_local_thread_response,
@@ -1855,7 +1872,9 @@ impl DaemonState {
         &self,
         workspace_id: String,
         auto_session: Option<session_management::AutoSessionMetadata>,
+        provider_profile_id: Option<String>,
     ) -> Result<Value, String> {
+        let _provider_profile_id = normalize_daemon_disk_provider_profile(provider_profile_id)?;
         self.ensure_codex_session_for_workspace(&workspace_id)
             .await?;
         let first_attempt =
@@ -1916,7 +1935,9 @@ impl DaemonState {
         workspace_id: String,
         thread_id: String,
         message_id: Option<String>,
+        provider_profile_id: Option<String>,
     ) -> Result<Value, String> {
+        let _provider_profile_id = normalize_daemon_disk_provider_profile(provider_profile_id)?;
         codex_core::fork_thread_core(&self.sessions, workspace_id, None, thread_id, message_id)
             .await
     }

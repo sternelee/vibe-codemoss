@@ -318,6 +318,50 @@ fn is_collaboration_mode_capability_error(value: &Value) -> bool {
         && message.contains("capability")
 }
 
+fn is_thread_not_found_error_message(message: &str) -> bool {
+    let normalized = message.to_ascii_lowercase();
+    normalized.contains("thread not found") || normalized.contains("thread_not_found")
+}
+
+fn is_thread_not_found_response(value: &Value) -> bool {
+    extract_error_message_from_response(value)
+        .as_deref()
+        .is_some_and(is_thread_not_found_error_message)
+}
+
+async fn retry_turn_start_after_thread_resume(
+    session: &Arc<WorkspaceSession>,
+    workspace_id: &str,
+    thread_id: &str,
+    params: &Map<String, Value>,
+    timeout_duration: Duration,
+    reason: &str,
+) -> Result<Value, String> {
+    log::warn!(
+        "[turn/start][thread_resume_retry] workspace_id={} thread_id={} action=resume_before_retry reason={}",
+        workspace_id,
+        thread_id,
+        reason
+    );
+    session
+        .send_request_with_timeout(
+            "thread/resume",
+            json!({ "threadId": thread_id }),
+            timeout_duration,
+        )
+        .await?;
+    session
+        .note_codex_turn_start_pending(thread_id, timeout_duration)
+        .await;
+    session
+        .send_request_with_timeout(
+            "turn/start",
+            Value::Object(params.clone()),
+            timeout_duration,
+        )
+        .await
+}
+
 const CODE_MODE_FALLBACK_DIRECTIVE: &str = "Execution policy (default mode): do not ask the user follow-up questions. If details are missing, make minimal reasonable assumptions, proceed autonomously, and report assumptions briefly.";
 const PLAN_MODE_FALLBACK_DIRECTIVE: &str = "Execution policy (plan mode fallback): planning-only. Experimental ask-user-input APIs are not available in this session. If a blocker appears (missing path/context, ambiguous scope, permission gap, or prerequisite failure), ask a concise multiple-choice question in plain assistant text, stop, and WAIT for user input before continuing.";
 
@@ -632,7 +676,7 @@ pub(crate) async fn send_user_message_core(
         );
     }
     let mut params = Map::new();
-    params.insert("threadId".to_string(), json!(thread_id));
+    params.insert("threadId".to_string(), json!(thread_id.clone()));
     params.insert("cwd".to_string(), json!(session.entry.path));
     params.insert("approvalPolicy".to_string(), json!(approval_policy));
     params.insert("sandboxPolicy".to_string(), json!(sandbox_policy));
@@ -693,11 +737,64 @@ pub(crate) async fn send_user_message_core(
         )
         .await
     {
+        Ok(response) if is_thread_not_found_response(&response) => {
+            session
+                .clear_codex_foreground_work(Some(&thread_id), None)
+                .await;
+            let retry_reason = extract_error_message_from_response(&response)
+                .unwrap_or_else(|| "thread not found".to_string());
+            match retry_turn_start_after_thread_resume(
+                &session,
+                &workspace_id,
+                &thread_id,
+                &params,
+                timeout_duration,
+                &retry_reason,
+            )
+            .await
+            {
+                Ok(retry_response) => retry_response,
+                Err(retry_error) => {
+                    log::warn!(
+                        "[turn/start][thread_resume_retry] workspace_id={} thread_id={} outcome=failed error={}",
+                        workspace_id,
+                        thread_id,
+                        retry_error
+                    );
+                    response
+                }
+            }
+        }
         Ok(response) => response,
         Err(error) => {
             session
                 .clear_codex_foreground_work(Some(&thread_id), None)
                 .await;
+            if is_thread_not_found_error_message(&error) {
+                match retry_turn_start_after_thread_resume(
+                    &session,
+                    &workspace_id,
+                    &thread_id,
+                    &params,
+                    timeout_duration,
+                    &error,
+                )
+                .await
+                {
+                    Ok(retry_response) => return Ok(retry_response),
+                    Err(retry_error) => {
+                        log::warn!(
+                            "[turn/start][thread_resume_retry] workspace_id={} thread_id={} outcome=failed error={}",
+                            workspace_id,
+                            thread_id,
+                            retry_error
+                        );
+                        session
+                            .clear_codex_foreground_work(Some(&thread_id), None)
+                            .await;
+                    }
+                }
+            }
             return Err(if error == "request timed out" {
                 build_first_packet_timeout_error(timeout_duration)
             } else {
@@ -740,8 +837,9 @@ mod tests {
         build_reasoning_config, build_writable_roots, ensure_collaboration_mode_defaults,
         extract_parent_thread_id_from_response, extract_thread_id_from_response,
         inject_code_mode_fallback_prompt, inject_plan_mode_fallback_prompt,
-        is_collaboration_mode_capability_error, normalize_custom_spec_root,
-        normalize_preferred_language, resolve_execution_policy, validate_thread_start_response,
+        is_collaboration_mode_capability_error, is_thread_not_found_error_message,
+        is_thread_not_found_response, normalize_custom_spec_root, normalize_preferred_language,
+        resolve_execution_policy, validate_thread_start_response,
         INVALID_THREAD_START_RESPONSE_ERROR_PREFIX,
     };
     use serde_json::{json, Value};
@@ -759,6 +857,34 @@ mod tests {
         assert_eq!(normalize_preferred_language(Some("ja")), None);
         assert_eq!(normalize_preferred_language(Some("")), None);
         assert_eq!(normalize_preferred_language(None), None);
+    }
+
+    #[test]
+    fn thread_not_found_classifier_matches_rpc_error_shapes() {
+        assert!(is_thread_not_found_error_message(
+            "thread not found: 019eaae1-51d8"
+        ));
+        assert!(is_thread_not_found_error_message(
+            "THREAD_NOT_FOUND: 019eaae1-51d8"
+        ));
+        assert!(is_thread_not_found_response(&json!({
+            "error": { "message": "thread not found: 019eaae1-51d8" }
+        })));
+        assert!(is_thread_not_found_response(&json!({
+            "result": {
+                "error": { "message": "thread_not_found: 019eaae1-51d8" }
+            }
+        })));
+    }
+
+    #[test]
+    fn thread_not_found_classifier_rejects_unrelated_errors() {
+        assert!(!is_thread_not_found_error_message(
+            "workspace not connected"
+        ));
+        assert!(!is_thread_not_found_response(&json!({
+            "error": { "message": "model not found" }
+        })));
     }
 
     #[test]

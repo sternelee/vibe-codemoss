@@ -162,6 +162,15 @@ The system MUST isolate Codex runtime sessions by workspace and provider profile
 - **THEN** the backend MUST resolve the target thread's provider binding from metadata
 - **AND** it MUST route the operation to the runtime for that workspace and provider profile
 
+#### Scenario: stale app-server thread recovery stays within the bound provider runtime
+
+- **WHEN** a thread-bound `turn/start` is routed to the thread's persisted provider runtime
+- **AND** Codex app-server returns a `thread not found` or `thread_not_found` error for that thread id
+- **THEN** the backend MAY send `thread/resume` for the same thread id to the same provider runtime and retry `turn/start` once
+- **AND** the retry MUST use the original turn payload and the same provider runtime key
+- **AND** the retry MUST use bounded request timeouts and clear foreground work if recovery fails
+- **AND** it MUST NOT silently route the turn through the disk `.codex` provider profile
+
 #### Scenario: fork is routed as a thread-derived launch
 
 - **WHEN** the user forks a Codex thread
@@ -181,6 +190,14 @@ The system MUST isolate Codex runtime sessions by workspace and provider profile
 - **WHEN** a Codex command is not classified as thread-bound, provider-selected, disk-default, or provider-agnostic
 - **THEN** the provider-scoped implementation MUST treat the command as unsupported until routing is defined
 - **AND** it MUST NOT reuse the old workspace-only runtime lookup by default
+
+#### Scenario: adapters without managed provider runtimes fail visibly
+
+- **WHEN** a remote or daemon adapter receives a Codex creation or fork command with a managed `providerProfileId`
+- **AND** that adapter has not implemented provider-scoped Codex runtime launch
+- **THEN** the adapter MUST return a user-visible unsupported-provider-runtime error
+- **AND** it MUST NOT drop `providerProfileId`
+- **AND** it MUST NOT create, fork, or send the command through the disk `.codex` provider profile
 
 ### Requirement: Codex Supplier Management MUST Not Expose Misleading Global Enablement
 

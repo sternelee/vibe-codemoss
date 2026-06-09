@@ -113,6 +113,10 @@ Codex commands are classified before implementation:
 
 Any Codex command not in this matrix is treated as blocked for provider-scoped work until it is classified. This prevents accidental fallback to the old workspace-only runtime.
 
+Thread-bound stale recovery is still thread-bound routing. If `turn/start` returns `thread not found` / `thread_not_found`, the backend may repair stale app-server state by sending `thread/resume` to the same provider-scoped runtime and retrying the original `turn/start` once. The repair must use bounded timeouts, must clear foreground work on failure, and must never reinterpret the missing thread as permission to fall back to the disk profile.
+
+Remote/daemon adapters are part of the routing boundary. If an adapter accepts `providerProfileId` in the frontend command contract but cannot launch provider-scoped managed runtimes, it must reject managed provider ids explicitly. Dropping the field and continuing through the workspace-only disk runtime is a silent fallback and violates the provider binding contract.
+
 ### Decision 6: Historical catalog aggregates all provider homes
 
 At app startup and Codex session catalog refresh, the backend reads:
@@ -212,6 +216,8 @@ User clicks Fork on Codex thread
 - Provider deleted after thread creation: existing thread shows “provider unavailable”; sending a new turn is blocked until user chooses an explicit migration/rebind action in a future change.
 - Provider deleted before fork: inherit option is disabled/unavailable if the parent provider no longer exists; the user may fork to another available provider only if parent history is readable.
 - Cross-provider fork: keep native Codex fork semantics by forking in the parent provider runtime first, then rebind the child to the selected provider. The backend must not create a new selected-provider thread by sending a transcript seed as a user message.
+- Stale `turn/start` thread id: retry only as `thread/resume` + one original `turn/start` in the same provider runtime; use bounded timeouts and clear foreground work if recovery fails.
+- Unsupported managed provider in daemon/remote adapter: fail visibly with provider id and unsupported runtime diagnostic; do not create/fork via disk.
 - Fork anchor drift: provider-selected native fork is non-destructive and may tolerate frontend/local history being ahead of Codex runtime-native user message anchors. The backend should resolve exact id/text/ordinal first, then tail-fallback to the last runtime-visible user message, or omit the anchor for a full-thread native fork when no native user message is visible.
 - Destructive rewind anchor drift: hard truncation remains strict fail-closed. Missing target anchors must continue to return a user-visible target-not-found error and must not reuse the fork-only tail fallback.
 - Provider-rebind fork depends on child native history being visible to the selected provider home. If the child history cannot be found or copied, the fork fails visibly before the child is recorded as selected-provider bound.

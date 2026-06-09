@@ -1586,12 +1586,15 @@ async fn handle_rpc_request(
         }
         "start_thread" => {
             let workspace_id = parse_string(&params, "workspaceId")?;
+            let provider_profile_id = parse_optional_string(&params, "providerProfileId");
             let auto_session =
                 serde_json::from_value::<Option<session_management::AutoSessionMetadata>>(
                     params.get("autoSession").cloned().unwrap_or(Value::Null),
                 )
                 .map_err(|err| err.to_string())?;
-            state.start_thread(workspace_id, auto_session).await
+            state
+                .start_thread(workspace_id, auto_session, provider_profile_id)
+                .await
         }
         "list_claude_sessions" => {
             let workspace_path = parse_string(&params, "workspacePath")?;
@@ -1840,7 +1843,10 @@ async fn handle_rpc_request(
             let workspace_id = parse_string(&params, "workspaceId")?;
             let thread_id = parse_string(&params, "threadId")?;
             let message_id = parse_optional_string(&params, "messageId");
-            state.fork_thread(workspace_id, thread_id, message_id).await
+            let provider_profile_id = parse_optional_string(&params, "providerProfileId");
+            state
+                .fork_thread(workspace_id, thread_id, message_id, provider_profile_id)
+                .await
         }
         "rewind_codex_thread" => {
             let workspace_id = parse_string(&params, "workspaceId")?;

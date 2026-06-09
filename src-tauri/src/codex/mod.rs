@@ -39,10 +39,10 @@ use self::mcp_config::{
     list_global_mcp_servers as list_global_mcp_servers_impl, GlobalMcpServerEntry,
 };
 use self::model_selection::{normalize_model_id, pick_model_from_model_list_response};
-use self::provider_profile::{resolve_codex_provider_profile, CODEX_DISK_PROVIDER_PROFILE_ID};
 use self::provider_fork::{
     copy_native_fork_history_to_selected_provider, enrich_native_provider_fork_response,
 };
+use self::provider_profile::{resolve_codex_provider_profile, CODEX_DISK_PROVIDER_PROFILE_ID};
 use self::run_metadata::{extract_json_value, sanitize_run_worktree_name};
 use self::thread_listing::{build_unified_codex_thread_page, resolve_workspace_fallback_model};
 use crate::backend::app_server::{
