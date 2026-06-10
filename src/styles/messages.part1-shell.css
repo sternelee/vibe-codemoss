@@ -1,4 +1,8 @@
 .messages-shell {
+  --message-caption-font-size: var(--client-caption-font-size, 10px);
+  --message-meta-font-size: var(--client-meta-font-size, 12px);
+  --message-content-font-size: var(--client-content-font-size, 13px);
+  --message-title-font-size: var(--client-title-font-size, 14px);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -66,7 +70,7 @@
   padding: 8px 20px;
   text-align: center;
   color: var(--text-faint, #888);
-  font-size: 13px;
+  font-size: var(--message-content-font-size);
   cursor: pointer;
   opacity: 0.8;
   transition: opacity 0.15s ease;
@@ -90,7 +94,7 @@
   text-align: center;
   color: var(--text-strong);
   color: color-mix(in srgb, var(--text-strong) 84%, var(--text-muted));
-  font-size: 12px;
+  font-size: var(--message-meta-font-size);
   letter-spacing: 0.03em;
   flex-wrap: nowrap;
 }
@@ -163,7 +167,7 @@
   background: var(--surface-messages);
   letter-spacing: 0.01em;
   text-transform: none;
-  font-size: 12px;
+  font-size: var(--message-meta-font-size);
   line-height: 1.2;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -201,7 +205,7 @@
   border: 1px solid color-mix(in srgb, var(--border-strong) 45%, transparent);
   background: color-mix(in srgb, var(--surface-card) 88%, transparent);
   color: color-mix(in srgb, var(--text-strong) 80%, var(--text-muted));
-  font-size: 11px;
+  font-size: var(--message-caption-font-size);
   font-weight: 600;
   letter-spacing: 0.02em;
   line-height: 1.2;

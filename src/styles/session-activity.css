@@ -1,4 +1,8 @@
 .session-activity-panel {
+  --session-activity-caption-font-size: var(--client-caption-font-size, 10px);
+  --session-activity-meta-font-size: var(--client-meta-font-size, 11px);
+  --session-activity-content-font-size: var(--client-content-font-size, 12px);
+  --session-activity-title-font-size: var(--client-title-font-size, 13px);
   --session-activity-expanded-card-max-height: min(60vh, 320px);
   --session-activity-command-output-bg: transparent;
   --session-activity-command-output-border: color-mix(in srgb, var(--border-subtle) 46%, transparent);
@@ -177,7 +181,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--session-activity-title-font-size);
   font-weight: 600;
   color: var(--text-strong);
 }
@@ -248,7 +252,7 @@
   flex: 0 1 auto;
   min-width: 0;
   max-width: 100%;
-  font-size: 11px;
+  font-size: var(--session-activity-meta-font-size);
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -333,21 +337,21 @@
 }
 
 .session-activity-follow-bubble-title {
-  font-size: 12px;
+  font-size: var(--session-activity-content-font-size);
   font-weight: 700;
   color: var(--text-strong);
 }
 
 .session-activity-follow-bubble-copy {
   margin: 0;
-  font-size: 11px;
+  font-size: var(--session-activity-meta-font-size);
   line-height: 1.42;
   color: var(--text-muted);
 }
 
 .session-activity-follow-bubble-inline-copy {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--session-activity-content-font-size);
   flex: 1 1 auto;
   min-width: 0;
   white-space: nowrap;
@@ -373,7 +377,7 @@
   border: 1px solid var(--border-subtle);
   background: color-mix(in srgb, var(--surface-control) 70%, transparent);
   color: var(--text-strong);
-  font-size: 11px;
+  font-size: var(--session-activity-meta-font-size);
   font-weight: 600;
 }
 
@@ -453,14 +457,14 @@
 }
 
 .session-activity-session-name {
-  font-size: 11px;
+  font-size: var(--session-activity-meta-font-size);
   font-weight: 600;
   line-height: 1;
   white-space: nowrap;
 }
 
 .session-activity-session-meta {
-  font-size: 10px;
+  font-size: var(--session-activity-caption-font-size);
   color: var(--text-muted);
   white-space: nowrap;
 }
@@ -476,7 +480,7 @@
 
 .session-activity-related-toolbar-label {
   flex: 0 0 auto;
-  font-size: 11px;
+  font-size: var(--session-activity-meta-font-size);
   font-weight: 700;
   color: var(--text-muted);
   white-space: nowrap;
@@ -522,7 +526,7 @@
   border-radius: 6px;
   background: transparent;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--session-activity-meta-font-size);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -542,7 +546,7 @@
   border: none;
   background: transparent;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--session-activity-content-font-size);
   font-weight: 600;
   white-space: nowrap;
   border-radius: 0;
@@ -568,14 +572,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: var(--session-activity-meta-font-size);
   font-weight: 700;
   color: var(--text-muted);
   letter-spacing: 0.015em;
 }
 
 .session-activity-radar-empty {
-  font-size: 12px;
+  font-size: var(--session-activity-content-font-size);
   color: var(--text-faint);
   padding: 8px 2px;
 }
@@ -773,7 +777,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: var(--session-activity-meta-font-size);
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0.01em;
@@ -828,7 +832,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 10px;
+  font-size: var(--session-activity-caption-font-size);
   color: var(--text-muted);
 }
 
@@ -874,7 +878,7 @@
 }
 
 .session-activity-radar-row-preview {
-  font-size: 11px;
+  font-size: var(--session-activity-meta-font-size);
   color: var(--text-faint);
   padding-left: 22px;
   white-space: pre-wrap;
@@ -905,7 +909,7 @@
 
 .session-activity-radar-workspace {
   font-weight: 760;
-  font-size: 12px;
+  font-size: var(--session-activity-content-font-size);
   line-height: 1.2;
 }
 
@@ -1095,7 +1099,7 @@
   background: var(--surface-control);
   background: color-mix(in srgb, var(--surface-control) 72%, transparent);
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: var(--session-activity-caption-font-size);
   font-weight: 700;
   letter-spacing: 0.02em;
   white-space: nowrap;
@@ -1117,7 +1121,7 @@
 
 .session-activity-turn-group-meta {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: var(--session-activity-caption-font-size);
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -1287,7 +1291,7 @@
   gap: 8px;
   flex: 1 1 auto;
   min-width: 0;
-  font-size: 12px;
+  font-size: var(--session-activity-content-font-size);
   line-height: 1.35;
   color: var(--text-strong);
   white-space: nowrap;
@@ -1407,7 +1411,7 @@
   gap: 4px;
   flex: 0 0 auto;
   align-self: center;
-  font-size: 11px;
+  font-size: var(--session-activity-meta-font-size);
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-variant-numeric: tabular-nums;
 }
@@ -1446,7 +1450,7 @@
 
 .session-activity-turn-artifacts-kicker {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: var(--session-activity-caption-font-size);
   font-weight: 700;
 }
 
@@ -1465,7 +1469,7 @@
 
 .session-activity-turn-artifacts h4 {
   color: var(--text-strong);
-  font-size: 13px;
+  font-size: var(--session-activity-title-font-size);
   font-weight: 700;
 }
 
@@ -1475,7 +1479,7 @@
   flex: 0 0 auto;
   gap: 6px;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--session-activity-meta-font-size);
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-variant-numeric: tabular-nums;
 }
@@ -1508,7 +1512,7 @@
   border: none;
   border-radius: 0;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--session-activity-meta-font-size);
   font-weight: 700;
   background: transparent;
   box-shadow: none;
@@ -1596,7 +1600,7 @@
   position: relative;
   padding-left: 10px;
   color: color-mix(in srgb, var(--text-strong) 76%, var(--session-activity-semantic-accent));
-  font-size: 11px;
+  font-size: var(--session-activity-meta-font-size);
   font-weight: 700;
 }
 
@@ -1615,7 +1619,7 @@
 .session-activity-turn-semantic-text {
   margin: 0;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--session-activity-meta-font-size);
   line-height: 1.45;
 }
 
@@ -1632,7 +1636,7 @@
 .session-activity-semantic-list li {
   min-width: 0;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--session-activity-meta-font-size);
   line-height: 1.45;
 }
 
@@ -1759,7 +1763,7 @@
 }
 
 .session-activity-file-row-name {
-  font-size: 11px;
+  font-size: var(--session-activity-meta-font-size);
   font-weight: 600;
   color: var(--session-activity-file-row-name-color);
 }
@@ -1772,7 +1776,7 @@
   margin-left: auto;
   padding-left: 6px;
   align-self: center;
-  font-size: 10px;
+  font-size: var(--session-activity-caption-font-size);
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-variant-numeric: tabular-nums;
 }
@@ -1853,14 +1857,14 @@
 
 .session-activity-command-label {
   padding-top: 2px;
-  font-size: 10px;
+  font-size: var(--session-activity-caption-font-size);
   color: var(--text-muted);
   white-space: nowrap;
 }
 
 .session-activity-command-copy {
   min-width: 0;
-  font-size: 11px;
+  font-size: var(--session-activity-meta-font-size);
   line-height: 1.45;
   color: var(--text-secondary);
 }
@@ -1872,7 +1876,7 @@
   border: none;
   background: transparent;
   color: var(--text-stronger);
-  font-size: 11px;
+  font-size: var(--code-font-size, 11px);
   line-height: 1.4;
   white-space: pre-wrap;
   word-break: break-word;
@@ -2033,7 +2037,7 @@
 
 .session-activity-preview-markdown {
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--session-activity-meta-font-size);
   line-height: 1.4;
 }
 
@@ -2073,7 +2077,7 @@
   padding: 24px 16px;
   color: var(--text-muted);
   text-align: center;
-  font-size: 12px;
+  font-size: var(--session-activity-content-font-size);
   line-height: 1.6;
 }
 
