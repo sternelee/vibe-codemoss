@@ -52,7 +52,7 @@ import type {
   CodeAnnotationSelection,
 } from "../../code-annotations/types";
 import { isSameCodeAnnotationPath } from "../../code-annotations/utils/codeAnnotations";
-import { codeMirrorExtensionsForEditorLanguage } from "../utils/codemirrorLanguageExtensions";
+import { loadCodeMirrorExtensionsForEditorLanguage } from "../utils/codemirrorLanguageExtensions";
 import {
   parseLineMarkersFromDiff,
   type GitLineMarkers,
@@ -71,6 +71,11 @@ import {
   resolveFileRenderProfile,
 } from "../utils/fileRenderProfile";
 import { getFileDocumentSnapshotMetrics } from "../utils/fileDocumentSnapshot";
+import {
+  createFileEditorTypingDiagnosticsSession,
+  type FileEditorTypingDiagnosticsSession,
+} from "../utils/fileEditorTypingDiagnostics";
+import { loadFileViewStyles } from "../../../styles/featureStyleLoaders";
 import {
   resolveDefaultFileViewMode,
   resolveFileViewSurface,
@@ -230,6 +235,9 @@ export function FileViewPanel({
   onDirtyChange,
 }: FileViewPanelProps) {
   const { t } = useTranslation();
+  useEffect(() => {
+    void loadFileViewStyles();
+  }, []);
   const renderProfile = useMemo(() => resolveFileRenderProfile(filePath), [filePath]);
   const defaultMode = useMemo(
     () => resolveDefaultFileViewMode(renderProfile, initialMode),
@@ -503,6 +511,56 @@ export function FileViewPanel({
     skipTextRead,
     externalAbsoluteReadOnlyMessage: t("files.externalAbsoluteReadOnly"),
   });
+  const editorDraftContentRef = useRef(content);
+  const [editorDraftDirty, setEditorDraftDirty] = useState(false);
+  const effectiveIsDirty = isDirty || editorDraftDirty;
+  latestIsDirtyRef.current = effectiveIsDirty;
+  const typingDiagnosticsRef = useRef<FileEditorTypingDiagnosticsSession>(
+    createFileEditorTypingDiagnosticsSession({
+      workspaceId,
+      filePath,
+      fileKind: renderProfile.kind,
+      byteLength: null,
+      lineCount: null,
+    }),
+  );
+
+  useEffect(() => {
+    typingDiagnosticsRef.current = createFileEditorTypingDiagnosticsSession({
+      workspaceId,
+      filePath,
+      fileKind: renderProfile.kind,
+      byteLength: null,
+      lineCount: null,
+    });
+  }, [filePath, renderProfile.kind, workspaceId]);
+
+  useEffect(() => {
+    editorDraftContentRef.current = content;
+    setEditorDraftDirty(false);
+  }, [content]);
+
+  const handleEditorContentDraftChange = useCallback(
+    (nextContent: string) => {
+      editorDraftContentRef.current = nextContent;
+      const nextIsDirty = nextContent !== savedContentRef.current;
+      latestIsDirtyRef.current = nextIsDirty;
+      setEditorDraftDirty((current) => (current === nextIsDirty ? current : nextIsDirty));
+    },
+    [latestIsDirtyRef, savedContentRef],
+  );
+
+  const flushEditorDraftToDocument = useCallback(() => {
+    setContent(editorDraftContentRef.current);
+  }, [setContent]);
+
+  const handleEditorContentPublished = useCallback(() => {
+    typingDiagnosticsRef.current.recordPublishedUpdate();
+  }, []);
+
+  const handleEditorTypingInput = useCallback((durationMs: number) => {
+    typingDiagnosticsRef.current.recordInput(durationMs);
+  }, []);
 
   const activeDeclarationCodeAnchor = useMemo(
     () => resolveDeclarationCodeSelectionAnchor({
@@ -564,7 +622,7 @@ export function FileViewPanel({
     externalChangeApplyMode,
     externalChangeAutoApplyDebounceMs,
     isBinary: skipTextRead,
-    isDirty,
+    isDirty: effectiveIsDirty,
     isLoading,
     caseInsensitivePathCompare,
     replaceDocumentSnapshot,
@@ -576,10 +634,13 @@ export function FileViewPanel({
     autoSyncedMessage: t("files.externalChangeAutoSynced"),
   });
   const handleSave = useCallback(async () => {
+    flushEditorDraftToDocument();
     const saved = await handleDocumentSave();
     if (!saved) {
       return;
     }
+    typingDiagnosticsRef.current.recordTauriFileWrite();
+    setEditorDraftDirty(false);
     setExternalChangeSyncState((current) =>
       reduceExternalChangeSyncState(current, { type: "file-loaded" }),
     );
@@ -589,6 +650,7 @@ export function FileViewPanel({
     setExternalAutoSyncAt(null);
     onSaveSuccess?.();
   }, [
+    flushEditorDraftToDocument,
     handleDocumentSave,
     onSaveSuccess,
     setExternalChangeConflict,
@@ -841,8 +903,8 @@ export function FileViewPanel({
   }, []);
 
   useEffect(() => {
-    onDirtyChange?.(isDirty);
-  }, [isDirty, onDirtyChange]);
+    onDirtyChange?.(effectiveIsDirty);
+  }, [effectiveIsDirty, onDirtyChange]);
 
   // Auto-focus CodeMirror when entering edit mode
   useEffect(() => {
@@ -853,11 +915,34 @@ export function FileViewPanel({
     }
   }, [mode, isLoading, truncated]);
 
+  const languageExtensionRequestRef = useRef(0);
+  const [languageExtensions, setLanguageExtensions] = useState<ReactCodeMirrorProps["extensions"]>([]);
+
+  useEffect(() => {
+    const requestId = languageExtensionRequestRef.current + 1;
+    languageExtensionRequestRef.current = requestId;
+    if (mode !== "edit" || !renderProfile.editorLanguage) {
+      setLanguageExtensions([]);
+      return;
+    }
+    loadCodeMirrorExtensionsForEditorLanguage(renderProfile.editorLanguage)
+      .then((extensions) => {
+        if (languageExtensionRequestRef.current === requestId) {
+          setLanguageExtensions(extensions);
+        }
+      })
+      .catch((error) => {
+        console.error("[file-view] failed to load CodeMirror language extension:", error);
+        if (languageExtensionRequestRef.current === requestId) {
+          setLanguageExtensions([]);
+        }
+      });
+  }, [mode, renderProfile.editorLanguage]);
+
   // CodeMirror extensions (Mod-s handled inside CM; window-level handles preview mode)
   const cmExtensions = useMemo(() => {
-    const langExt = codeMirrorExtensionsForEditorLanguage(renderProfile.editorLanguage);
-    return [...langExt, gitLineMarkersExtension()];
-  }, [renderProfile.editorLanguage]);
+    return [...(languageExtensions ?? []), gitLineMarkersExtension()];
+  }, [languageExtensions]);
 
   useEffect(() => {
     const view = cmRef.current?.view;
@@ -867,7 +952,7 @@ export function FileViewPanel({
     view.dispatch({
       effects: setGitLineMarkersEffect.of(effectiveGitLineMarkers),
     });
-  }, [effectiveGitLineMarkers, mode, filePath, content]);
+  }, [effectiveGitLineMarkers, mode, filePath]);
 
   // Use ref to always have latest handleSave for CodeMirror keymap
   const handleSaveRef = useRef(handleSave);
@@ -916,12 +1001,12 @@ export function FileViewPanel({
 
   // Handle close with unsaved changes
   const handleClose = useCallback(() => {
-    if (isDirty) {
+    if (effectiveIsDirty) {
       const confirmed = window.confirm(t("files.discardChangesMessage"));
       if (!confirmed) return;
     }
     onClose();
-  }, [isDirty, onClose, t]);
+  }, [effectiveIsDirty, onClose, t]);
 
   // Switch to edit mode
   const handleEnterEdit = useCallback(() => {
@@ -934,6 +1019,7 @@ export function FileViewPanel({
 
   // Switch to preview mode
   const handleEnterPreview = useCallback(() => {
+    flushEditorDraftToDocument();
     setMode("preview");
     clearPendingEditorLineRangeSync();
     editorLocalLineRangeRef.current = null;
@@ -942,7 +1028,11 @@ export function FileViewPanel({
     setEditorLocalLineRange(null);
     onActiveFileLineRangeChange?.(null);
     lastReportedLineRangeRef.current = "";
-  }, [clearPendingEditorLineRangeSync, onActiveFileLineRangeChange]);
+  }, [
+    clearPendingEditorLineRangeSync,
+    flushEditorDraftToDocument,
+    onActiveFileLineRangeChange,
+  ]);
 
   const handleOpenFindPanel = useCallback(() => {
     if (skipTextRead || truncated) {
@@ -1473,12 +1563,12 @@ export function FileViewPanel({
               </button>
               <button
                 type="button"
-                className={`primary fvp-action-btn fvp-save-btn ${isDirty ? "" : "is-saved"}`}
+                className={`primary fvp-action-btn fvp-save-btn ${effectiveIsDirty ? "" : "is-saved"}`}
                 onClick={handleSave}
-                disabled={!isDirty || isSaving}
+                disabled={!effectiveIsDirty || isSaving}
               >
                 <Save size={14} aria-hidden />
-                <span>{isSaving ? t("files.saving") : isDirty ? t("files.save") : t("files.saved")}</span>
+                <span>{isSaving ? t("files.saving") : effectiveIsDirty ? t("files.save") : t("files.saved")}</span>
               </button>
             </div>
           )}
@@ -1505,7 +1595,7 @@ export function FileViewPanel({
         >
           {filePath}
         </span>
-        {isDirty && <span className="fvp-dirty-dot" aria-label={t("files.unsavedChanges")} />}
+        {effectiveIsDirty && <span className="fvp-dirty-dot" aria-label={t("files.unsavedChanges")} />}
         {truncated && <span className="fvp-truncated">{t("files.truncated")}</span>}
       </div>
       {renderTopbarActions()}
@@ -1597,17 +1687,20 @@ export function FileViewPanel({
     );
     };
 
-    const renderExternalComparePanel = () => {
-      const diskSnapshot = externalChangeConflict ?? externalPendingRefresh;
-      if (!externalCompareOpen || !diskSnapshot) {
-        return null;
-      }
+  const renderExternalComparePanel = () => {
+    const diskSnapshot = externalChangeConflict ?? externalPendingRefresh;
+    if (!externalCompareOpen || !diskSnapshot) {
+      return null;
+    }
+    const latestLocalContent = editorDraftContentRef.current;
     const localPreview =
-      content.length > 6_000 ? `${content.slice(0, 6_000)}\n\n...` : content;
+      latestLocalContent.length > 6_000
+        ? `${latestLocalContent.slice(0, 6_000)}\n\n...`
+        : latestLocalContent;
     const diskPreview =
-        diskSnapshot.diskContent.length > 6_000
-          ? `${diskSnapshot.diskContent.slice(0, 6_000)}\n\n...`
-          : diskSnapshot.diskContent;
+      diskSnapshot.diskContent.length > 6_000
+        ? `${diskSnapshot.diskContent.slice(0, 6_000)}\n\n...`
+        : diskSnapshot.diskContent;
     return (
       <div className="fvp-external-compare">
         <div className="fvp-external-compare-column">
@@ -1708,7 +1801,7 @@ export function FileViewPanel({
         {renderTabs("fvp-tabs-inline")}
       </div>
       <div className="fvp-header-row-right">
-        {isDirty ? <span className="fvp-dirty-dot" aria-label={t("files.unsavedChanges")} /> : null}
+        {effectiveIsDirty ? <span className="fvp-dirty-dot" aria-label={t("files.unsavedChanges")} /> : null}
         {truncated ? <span className="fvp-truncated">{t("files.truncated")}</span> : null}
         {renderTopbarActions("fvp-header-actions")}
       </div>
@@ -1734,6 +1827,9 @@ export function FileViewPanel({
         documentSnapshot={documentSnapshot}
         content={content}
         setContent={setContent}
+        onEditorContentDraftChange={handleEditorContentDraftChange}
+        onEditorContentPublished={handleEditorContentPublished}
+        onEditorTypingInput={handleEditorTypingInput}
         fileRenderPressure={fileRenderPressure}
         markdownPreviewSnapshotMode={markdownPreviewSnapshotMode}
         markdownPreviewRefreshKey={externalAutoSyncAt}
@@ -1778,14 +1874,14 @@ export function FileViewPanel({
       title={t("layout.resizePlanPanel")}
     >
       <div className="fvp-footer-left">
-        {canEditDocument && mode === "edit" && isDirty && (
+        {canEditDocument && mode === "edit" && effectiveIsDirty && (
           <span className="fvp-footer-hint">
             <span className="fvp-dirty-dot" />
             {t("files.unsavedChanges")}
             <span className="fvp-footer-shortcut">{t("files.saveShortcut")}</span>
           </span>
         )}
-        {canEditDocument && mode === "edit" && !isDirty && (
+        {canEditDocument && mode === "edit" && !effectiveIsDirty && (
           <span className="fvp-footer-hint fvp-footer-saved">{t("files.saved")}</span>
         )}
         {(mode === "preview" && (truncated || !canEditDocument)) && (

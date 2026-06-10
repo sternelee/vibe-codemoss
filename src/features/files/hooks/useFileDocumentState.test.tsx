@@ -164,4 +164,44 @@ describe("useFileDocumentState", () => {
     expect(vi.mocked(readExternalAbsoluteFile)).not.toHaveBeenCalled();
     expect(vi.mocked(writeExternalSpecFile)).not.toHaveBeenCalled();
   });
+
+  it("saves latest content when a draft is flushed immediately before save", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "const value = 1;",
+      truncated: false,
+    });
+    vi.mocked(writeWorkspaceFile).mockResolvedValue();
+
+    const { result } = renderHook(
+      (props: HookProps) => useFileDocumentState(props),
+      {
+        initialProps: {
+          workspaceId: "ws-immediate-save",
+          customSpecRoot: null,
+          workspaceRelativeFilePath: "src/value.ts",
+          fileReadTarget: makeWorkspaceTarget("src/value.ts"),
+          skipTextRead: false,
+          externalAbsoluteReadOnlyMessage: "read only",
+        },
+      },
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.content).toBe("const value = 1;");
+    });
+
+    let saved = false;
+    await act(async () => {
+      result.current.setContent("const value = 2;");
+      saved = await result.current.handleSave();
+    });
+
+    expect(saved).toBe(true);
+    expect(writeWorkspaceFile).toHaveBeenCalledWith(
+      "ws-immediate-save",
+      "src/value.ts",
+      "const value = 2;",
+    );
+  });
 });

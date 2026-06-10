@@ -163,6 +163,7 @@ function buildPerfEvidence(fragments) {
         value: metric.value,
         unit: metric.unit,
         evidenceClass,
+        budget: metric.budget ?? null,
         reason: metricReason(metric, evidenceClass),
         nextAction: metricNextAction(metric, evidenceClass),
       };
@@ -314,11 +315,11 @@ function createPerfMarkdown(report) {
     "",
     "## Performance Evidence",
     "",
-    "| Source | Scenario | Metric | Value | Unit | Class | Reason | Next Action |",
-    "|---|---|---|---:|---|---|---|---|",
+    "| Source | Scenario | Metric | Value | Unit | Class | Target | Hard Fail | Reason | Next Action |",
+    "|---|---|---|---:|---|---|---:|---:|---|---|",
   ];
   for (const entry of report.performanceEvidence) {
-    lines.push(`| ${markdownCell(entry.source)} | ${markdownCell(entry.scenario)} | ${markdownCell(entry.metric)} | ${markdownCell(entry.value ?? "unsupported")} | ${markdownCell(entry.unit)} | ${entry.evidenceClass} | ${markdownCell(entry.reason)} | ${markdownCell(entry.nextAction)} |`);
+    lines.push(`| ${markdownCell(entry.source)} | ${markdownCell(entry.scenario)} | ${markdownCell(entry.metric)} | ${markdownCell(entry.value ?? "unsupported")} | ${markdownCell(entry.unit)} | ${entry.evidenceClass} | ${markdownCell(entry.budget?.target ?? "")} | ${markdownCell(entry.budget?.hardFail ?? "")} | ${markdownCell(entry.reason)} | ${markdownCell(entry.nextAction)} |`);
   }
   lines.push("", "## Realtime Correlation", "");
   lines.push(`- First token latency: ${report.realtimeSummary.firstTokenLatencyMs ?? "unsupported"} ms`);

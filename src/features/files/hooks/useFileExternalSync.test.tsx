@@ -404,4 +404,55 @@ describe("useFileExternalSync", () => {
       expect(result.current.externalChangeConflict).toBeNull();
       expect(result.current.externalPendingRefresh).toBeNull();
     });
+
+    it("suppresses self-save watcher feedback when disk snapshot matches saved content", async () => {
+      vi.useFakeTimers();
+      vi.mocked(readWorkspaceFile).mockReset();
+      vi.mocked(readWorkspaceFile).mockResolvedValue({
+        content: "saved content",
+        truncated: false,
+      });
+      const replaceDocumentSnapshot = vi.fn();
+
+      const { result } = renderHook(() => {
+        const savedContentRef = useRef("saved content");
+        const latestIsDirtyRef = useRef(false);
+        const externalDiskSnapshotRef = useRef<{ content: string; truncated: boolean } | null>({
+          content: "saved content",
+          truncated: false,
+        });
+
+        return useFileExternalSync({
+          filePath: "src/self-save.ts",
+          workspaceId: "ws-sync",
+          workspaceRelativeFilePath: "src/self-save.ts",
+          fileReadTargetDomain: "workspace",
+          externalChangeMonitoringEnabled: true,
+          externalChangeTransportMode: "polling",
+          externalChangePollIntervalMs: 20,
+          externalChangeApplyMode: "auto",
+          isBinary: false,
+          isDirty: false,
+          isLoading: false,
+          caseInsensitivePathCompare: false,
+          replaceDocumentSnapshot,
+          previewSnapshotVersion: 1,
+          savedContentRef,
+          latestIsDirtyRef,
+          externalDiskSnapshotRef,
+          autoSyncedMessage: "auto synced",
+        });
+      });
+
+      await act(async () => {
+        vi.advanceTimersByTime(25);
+        await Promise.resolve();
+      });
+
+      expect(readWorkspaceFile).toHaveBeenCalledWith("ws-sync", "src/self-save.ts");
+      expect(replaceDocumentSnapshot).not.toHaveBeenCalled();
+      expect(result.current.externalChangeConflict).toBeNull();
+      expect(result.current.externalPendingRefresh).toBeNull();
+      expect(result.current.externalChangeSyncState).toBe("in-sync");
+    });
   });

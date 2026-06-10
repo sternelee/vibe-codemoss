@@ -64,9 +64,9 @@ export function useFileDocumentState({
     null,
   );
 
+  latestContentRef.current = content;
   const isDirty = useMemo(() => content !== savedContentRef.current, [content]);
   latestIsDirtyRef.current = isDirty;
-  latestContentRef.current = content;
 
   const replaceDocumentSnapshot = useCallback((nextContent: string, nextTruncated: boolean) => {
     setDocumentSnapshot((current) => {
@@ -82,6 +82,8 @@ export function useFileDocumentState({
   }, []);
 
   const setContent = useCallback((nextContent: string) => {
+    latestContentRef.current = nextContent;
+    latestIsDirtyRef.current = nextContent !== savedContentRef.current;
     setDocumentSnapshot((current) => {
       if (current.content === nextContent) {
         return current;
@@ -199,12 +201,13 @@ export function useFileDocumentState({
   ]);
 
   const handleSave = useCallback(async () => {
-    if (!isDirty || isSaving || truncated || saveInFlightRef.current) {
+    const contentToSave = latestContentRef.current;
+    const latestIsDirty = contentToSave !== savedContentRef.current;
+    if (!latestIsDirty || isSaving || truncated || saveInFlightRef.current) {
       return false;
     }
     const saveRequestId = saveRequestIdRef.current + 1;
     saveRequestIdRef.current = saveRequestId;
-    const contentToSave = latestContentRef.current;
     saveInFlightRef.current = true;
     setIsSaving(true);
     try {
@@ -230,6 +233,7 @@ export function useFileDocumentState({
         return false;
       }
       savedContentRef.current = contentToSave;
+      latestIsDirtyRef.current = false;
       externalDiskSnapshotRef.current = {
         content: contentToSave,
         truncated,
@@ -255,7 +259,6 @@ export function useFileDocumentState({
     externalAbsoluteReadOnlyMessage,
     fileReadExternalSpecLogicalPath,
     fileReadTargetDomain,
-    isDirty,
     isSaving,
     truncated,
     workspaceId,

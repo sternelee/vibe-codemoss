@@ -485,6 +485,7 @@ describe("FileViewPanel external change awareness in detached mode", () => {
   it("shows conflict actions for dirty buffer and can keep local edits", async () => {
     vi.mocked(readWorkspaceFile)
       .mockResolvedValueOnce({ content: "console.log('v1');", truncated: false })
+      .mockResolvedValueOnce({ content: "console.log('v1');", truncated: false })
       .mockResolvedValue({ content: "console.log('v2');", truncated: false });
 
     render(
@@ -520,6 +521,7 @@ describe("FileViewPanel external change awareness in detached mode", () => {
 
   it("reloads disk content when user chooses reload action", async () => {
     vi.mocked(readWorkspaceFile)
+      .mockResolvedValueOnce({ content: "line-a", truncated: false })
       .mockResolvedValueOnce({ content: "line-a", truncated: false })
       .mockResolvedValue({ content: "line-b", truncated: false });
 

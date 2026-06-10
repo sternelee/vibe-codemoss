@@ -19,6 +19,7 @@ import {
   saveOrchestrationTaskStore,
   upsertOrchestrationTask,
 } from "../../agent-orchestration";
+import { loadProjectMapStyles } from "../../../styles/featureStyleLoaders";
 import { useProjectMapDataset } from "../hooks/useProjectMapDataset";
 import type { ProjectMapDatasetController } from "../hooks/useProjectMapDataset";
 import { useProjectMapGraphInteractionHandlers } from "../hooks/useProjectMapGraphInteractionHandlers";
@@ -162,6 +163,9 @@ export function ProjectMapPanel({
   onOpenOrchestrationTask,
   onOpenIntentCanvas,
 }: ProjectMapPanelProps) {
+  useEffect(() => {
+    void loadProjectMapStyles();
+  }, []);
   const { t, i18n } = useTranslation();
   const preferredLanguage = resolveProjectMapPreferredLanguage(
     i18n.resolvedLanguage ?? i18n.language,

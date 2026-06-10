@@ -112,15 +112,15 @@ File rendering MUST treat active engine processing in editor split as foreground
 
 ### Requirement: Editor line-range tracking MUST not block cursor interaction
 
-Editor cursor and selection changes MUST keep the file editor responsive and MUST NOT synchronously force cross-surface recomputation for every line click.
+Editor cursor, selection, and typing changes MUST keep the file editor responsive and MUST NOT synchronously force cross-surface recomputation for every line click, cursor move, selection change, or keystroke.
 
 #### Scenario: editor line affordance updates locally first
-- **WHEN** the user clicks or selects a different line in editor mode
+- **WHEN** the user clicks, types on, or selects a different line in editor mode
 - **THEN** the file panel MAY update its local line label and annotation affordance immediately
 - **AND** that local update MUST NOT require app-shell or Composer active-file reference state to round-trip first
 
 #### Scenario: composer file reference publication is delayed and coalesced
-- **WHEN** editor line range changes repeatedly through clicks, cursor movement, or drag selection
+- **WHEN** editor line range changes repeatedly through typing, clicks, cursor movement, or drag selection
 - **THEN** the global active-file line reference consumed by Composer/context ledger MUST be published through a delayed, coalesced, or low-priority path
 - **AND** intermediate line ranges MAY be dropped as long as the latest range is available before send/context injection
 

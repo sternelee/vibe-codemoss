@@ -1,7 +1,7 @@
 # Project Context
 
 - Type: OpenSpec Workspace
-- Updated At: 2026-06-10T21:19:34+08:00
+- Updated At: 2026-06-11T00:44:00+08:00
 - Scope: governance snapshot for the current `mossx` repository workspace
 - Product version fact: `ccgui@0.5.9` from `package.json` and `src-tauri/tauri.conf.json`
 
@@ -20,7 +20,7 @@ The product in this repository is `ccgui`: a Tauri 2 desktop AI engineering work
 - Change workflow artifacts: `openspec/changes/<change-id>/{proposal,design,tasks,verification}.md`
 - Archive: `openspec/changes/archive/*`
 - Implementation rules: `.trellis/spec/**`
-- Current workspace state: tracked active changes = `8`, archive changes = `459`, main specs = `325`
+- Current workspace state: tracked active changes = `3`, archive changes = `469`, main specs = `328`
 
 ## Entry Surfaces
 
@@ -54,61 +54,37 @@ The product in this repository is `ccgui`: a Tauri 2 desktop AI engineering work
 
 ## Current Inventory
 
-- Active changes: `8`
-- Archive changes: `459`
-- Main specs: `325`
+- Active changes: `3`
+- Archive changes: `469`
+- Main specs: `328`
 - Completed task sets still active: `0`
-- In-progress task sets: `7`
+- In-progress task sets: `3`
 
 ## Active Changes
 
-### `add-custom-theme-palette-presets`
+### `lazy-file-preview-dependencies`
 
-- Task state: in progress (`10/11`).
-- Current artifact fact: custom theme palette preset work is mostly complete and pending its final closure item.
-- Action: keep active until final verification and archive decision.
+- Task state: in progress (`11/17`).
+- Current artifact fact: file preview dependency inventory is complete; CodeMirror language packages now load through async per-language cache with stale request guards, and PDF preview is behind a React lazy boundary with focused tests. Production build emits a `FilePdfPreview-*.js` chunk, while `vendor-codemirror` remains grouped by current chunk strategy and `@codemirror/search` is still eager.
+- Action: keep active until CodeMirror runtime/search activation and chunk strategy evidence are resolved.
 
-### `add-intent-change-review-workflow`
+### `search-index-and-bounded-hydration`
 
-- Task state: no `tasks.md`.
-- Current artifact fact: active directory exists but `openspec validate add-intent-change-review-workflow --strict --no-interactive` currently reports `Unknown item`, so this is not an archive candidate.
-- Action: either complete the OpenSpec artifact set or remove the stray active directory after confirming intent.
+- Task state: in progress (`9/16`).
+- Current artifact fact: unified search providers and hydration path are inventoried; recency map is cached outside query compute, global workspace file hydration is active-workspace-first with bounded concurrency, and `reportSearchMetrics` records provider-level timing/candidate/result metadata. Normalized indexes and incremental rebuild are still open.
+- Action: keep active until normalized indexes, invalidation rules, stale async provider guard, and representative query evidence are complete.
 
-### `enforce-bundle-budget-gate`
+### `realtime-trace-correlation-gate`
 
-- Task state: not started (`0/9`).
-- Current artifact fact: proposal/design/spec/tasks artifacts validate strictly, but implementation tasks have not started.
-- Action: keep active as planning/execution work.
+- Task state: in progress (`0/15`).
+- Current artifact fact: proposal/design/spec/tasks exist, but current code evidence does not yet show correlated realtime trace propagation from ingress to visible render.
+- Action: keep active as P0 implementation backlog.
 
-### `harden-codex-tui-compatible-user-agent`
+## P0 Performance Reconciliation Order
 
-- Task state: in progress (`15/18`).
-- Current artifact fact: Codex TUI-compatible user-agent hardening remains active with remaining validation/closure items.
-- Action: keep active as planning/execution work.
+1. Continue implementation backlog: `lazy-file-preview-dependencies`, `search-index-and-bounded-hydration`, `realtime-trace-correlation-gate`.
 
-### `harden-realtime-composer-status-panel-performance`
-
-- Task state: in progress (`3/7`).
-- Current artifact fact: active performance hardening proposal currently lacks spec deltas, so `openspec validate --all --strict --no-interactive` reports this change as invalid until deltas are added or the change is explicitly scoped as no-spec.
-- Action: keep active and resolve the no-delta validation blocker before archive.
-
-### `parallelize-bootstrap-locale-loading`
-
-- Task state: not started (`0/17`).
-- Current artifact fact: startup parallelization artifacts validate strictly, but implementation tasks have not started.
-- Action: keep active as planning/execution work.
-
-### `refresh-v059-performance-baseline`
-
-- Task state: not started (`0/12`).
-- Current artifact fact: performance baseline refresh artifacts validate strictly, but generated evidence and baseline artifacts have not been produced.
-- Action: keep active until baseline capture, generated docs, and validation are complete.
-
-### `split-startup-css-loading`
-
-- Task state: not started (`0/17`).
-- Current artifact fact: startup CSS loading split artifacts validate strictly, but implementation tasks have not started.
-- Action: keep active as planning/execution work.
+Detailed attribution note: `openspec/docs/p0-performance-workspace-reconciliation-2026-06-10.md`.
 
 ## Recent Archive / Sync Snapshot
 
@@ -141,6 +117,20 @@ Archived 15 verified changes across two closure passes and synced their delta sp
 - `unify-client-workflow-runtime-model`
 
 Validation: `openspec validate --specs --strict --no-interactive` passed for all 325 main specs. Full `openspec validate --all --strict --no-interactive` is currently blocked by the pre-existing active change `harden-realtime-composer-status-panel-performance`, which has no spec delta.
+
+### 2026-06-10 P0 Performance Closure Batch
+
+Archived 5 verified P0 performance changes and synced their delta specs into main specs:
+
+- `refresh-v059-performance-baseline`
+- `enforce-bundle-budget-gate`
+- `harden-file-editor-typing-latency`
+- `parallelize-bootstrap-locale-loading`
+- `split-startup-css-loading`
+- `split-app-shell-performance-boundaries`
+- `lazy-markdown-runtime`
+
+Validation: each change passed `openspec validate <change> --strict --no-interactive` before archive. After archive, `openspec validate --specs --strict --no-interactive` passed for all 328 main specs.
 
 ## Code Fact Snapshot
 
@@ -204,6 +194,11 @@ npm run check:large-files
 
 ## Update History
 
+- 2026-06-11: Archived `lazy-markdown-runtime` after moving full Markdown parser dependencies behind `FullMarkdownRuntime`, preserving focused Markdown behavior tests, and syncing message markdown streaming compatibility deltas. Current tracked counts are active=3, archive=469, specs=328. Spec-only strict validation passed.
+- 2026-06-11: Archived `split-app-shell-performance-boundaries` after removing AppShell `@ts-nocheck`, deferring release notes changelog data into a lazy chunk, and syncing app-shell runtime boundary deltas. Current tracked counts are active=4, archive=468, specs=328. Spec-only strict validation passed.
+- 2026-06-10: Archived 2 additional startup P0 performance changes after user-run manual QA and synced their deltas into main specs. Current tracked counts are active=5, archive=467, specs=328. Spec-only strict validation passed.
+- 2026-06-10: Archived 3 verified P0 performance changes and synced their deltas into main specs. Current tracked counts were active=7, archive=465, specs=327. Spec-only strict validation passed.
+- 2026-06-10: Reconciled the active P0 performance workspace against dirty code evidence. Active changes were tracked as 10 total before archiving: 3 closure candidates, 3 near-complete or partially implemented changes, and 4 implementation backlog changes. Added an explicit closure order and attribution note.
 - 2026-06-10: Archived 8 additional verified changes and synced their deltas into main specs. Current tracked counts are active=8, archive=459, specs=325. Spec-only strict validation passed; full strict validation remains blocked by active change `harden-realtime-composer-status-panel-performance` missing deltas.
 - 2026-06-10: Archived 7 verified changes and synced their deltas into main specs. Current tracked counts are active=5, archive=451, specs=320. Spec-only strict validation passed; full strict validation remains blocked by active change `harden-realtime-composer-status-panel-performance` missing deltas.
 - 2026-06-06: Stage-writeback refresh. Active change list corrected to the current seven active directories. `add-project-map-api-contract-view` and `add-intent-canvas-workspace-files` proposal/design artifacts received stage assessment and implementation calibration notes. Archive/main spec counts were intentionally not refreshed in this pass.

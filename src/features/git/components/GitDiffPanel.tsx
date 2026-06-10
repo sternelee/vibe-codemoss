@@ -7,6 +7,7 @@ import type {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { loadDiffStyles } from "../../../styles/featureStyleLoaders";
 import ArrowLeftRight from "lucide-react/dist/esm/icons/arrow-left-right";
 import Check from "lucide-react/dist/esm/icons/check";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
@@ -853,6 +854,9 @@ export function GitDiffPanel({
   onRemoveCodeAnnotation,
   codeAnnotations = [],
 }: GitDiffPanelProps) {
+  useEffect(() => {
+    void loadDiffStyles();
+  }, []);
   const { t } = useTranslation();
   // Multi-select state for file list
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());

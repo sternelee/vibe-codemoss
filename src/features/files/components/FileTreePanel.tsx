@@ -39,6 +39,7 @@ import {
   DETACHED_FILE_TREE_DRAG_BRIDGE_EVENT,
   type DetachedFileTreeDragBridgePayload,
 } from "../detachedFileTreeDragBridge";
+import { loadFileTreeStyles } from "../../../styles/featureStyleLoaders";
 import {
   CROSS_WINDOW_TREE_DRAG_REBROADCAST_THROTTLE_MS,
 } from "../utils/fileTreeDragBridge";
@@ -165,6 +166,9 @@ export function FileTreePanel({
   gitignoredDirectories,
   onRefreshFiles,
 }: FileTreePanelProps) {
+  useEffect(() => {
+    void loadFileTreeStyles();
+  }, []);
   const directoryEntries = directories ?? EMPTY_DIRECTORIES;
   const ignoredFileEntries = gitignoredFiles ?? EMPTY_SET;
   const ignoredDirectoryEntries = gitignoredDirectories ?? EMPTY_SET;

@@ -15,7 +15,7 @@ type WorkspaceRefreshOptions = {
       recoverySource?: "focus-refresh";
       allowRuntimeReconnect?: boolean;
     },
-  ) => Promise<void>;
+  ) => Promise<unknown>;
 };
 
 export function useWorkspaceRefreshOnFocus({

@@ -43,6 +43,35 @@ test("buildPerfEvidence emits unsupported evidence when baseline source is missi
   assert.equal(evidence[0]?.evidenceClass, "unsupported");
 });
 
+test("buildPerfEvidence preserves structured budget metadata", () => {
+  const evidence = buildPerfEvidence([
+    {
+      path: "docs/perf/baseline.json",
+      fragment: {
+        metrics: [
+          {
+            scenario: "S-CS-COLD",
+            metric: "bundleSizeMain",
+            value: 1200,
+            unit: "bytes",
+            budget: {
+              observed: 1200,
+              target: 1000,
+              hardFail: 1500,
+              unit: "bytes-gzip",
+              evidenceClass: "measured",
+              source: "docs/perf/baseline.json",
+            },
+          },
+        ],
+      },
+    },
+  ]);
+
+  assert.equal(evidence[0]?.budget?.target, 1000);
+  assert.equal(evidence[0]?.budget?.hardFail, 1500);
+});
+
 test("buildRealtimeSummary keeps malformed proxy values from looking bounded", () => {
   const summary = buildRealtimeSummary([
     {

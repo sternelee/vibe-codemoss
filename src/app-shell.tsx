@@ -1,29 +1,17 @@
-// @ts-nocheck
 import {
-  cloneElement,
-  isValidElement,
-  Suspense,
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { AppLayout } from "./features/app/components/AppLayout";
-import { AppModals } from "./features/app/components/AppModals";
-import { LockScreenOverlay } from "./features/app/components/LockScreenOverlay";
-import { MainHeaderActions } from "./features/app/components/MainHeaderActions";
-import { RuntimeConsoleDock } from "./features/app/components/RuntimeConsoleDock";
-import { useLayoutNodes } from "./features/layout/hooks/useLayoutNodes";
 import { useWorkspaceDropZone } from "./features/workspaces/hooks/useWorkspaceDropZone";
 import { useThreads } from "./features/threads/hooks/useThreads";
 import { useWindowDrag } from "./features/layout/hooks/useWindowDrag";
 import { useGitPanelController } from "./features/app/hooks/useGitPanelController";
 import { useGitRemote } from "./features/git/hooks/useGitRemote";
 import { useGitRepoScan } from "./features/git/hooks/useGitRepoScan";
-import { usePullRequestComposer } from "./features/git/hooks/usePullRequestComposer";
 import { useGitActions } from "./features/git/hooks/useGitActions";
 import { useAutoExitEmptyDiff } from "./features/git/hooks/useAutoExitEmptyDiff";
 import { useModels } from "./features/models/hooks/useModels";
@@ -39,13 +27,7 @@ import { useWorkspaceRestore } from "./features/workspaces/hooks/useWorkspaceRes
 import { useOpenPaths } from "./features/workspaces/hooks/useOpenPaths";
 import { useLayoutController } from "./features/app/hooks/useLayoutController";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { homeDir } from "@tauri-apps/api/path";
 import { isMacPlatform, isWindowsPlatform } from "./utils/platform";
-import { ask } from "@tauri-apps/plugin-dialog";
-import {
-  SidebarCollapseButton,
-  TitlebarExpandControls,
-} from "./features/layout/components/SidebarToggleControls";
 import { useAppSettingsController } from "./features/app/hooks/useAppSettingsController";
 import { useUpdaterController } from "./features/app/hooks/useUpdaterController";
 import { useGitHistoryPanelResize } from "./features/app/hooks/useGitHistoryPanelResize";
@@ -59,45 +41,20 @@ import { resolveClaudePendingThreadModelRefreshKey } from "./features/engine/uti
 import { useRenameThreadPrompt } from "./features/threads/hooks/useRenameThreadPrompt";
 import { useDeleteThreadPrompt } from "./features/threads/hooks/useDeleteThreadPrompt";
 import { useWorktreePrompt } from "./features/workspaces/hooks/useWorktreePrompt";
-import { useClonePrompt } from "./features/workspaces/hooks/useClonePrompt";
 import { useWorkspaceController } from "./features/app/hooks/useWorkspaceController";
 import { useWorkspaceSelection } from "./features/workspaces/hooks/useWorkspaceSelection";
-import { useLiveEditPreview } from "./features/live-edit-preview/hooks/useLiveEditPreview";
 import { useGitHubPanelController } from "./features/app/hooks/useGitHubPanelController";
 import { useSettingsModalState } from "./features/app/hooks/useSettingsModalState";
 import { useLoadingProgressDialogState } from "./features/app/hooks/useLoadingProgressDialogState";
 import { useSyncSelectedDiffPath } from "./features/app/hooks/useSyncSelectedDiffPath";
-import { useMenuAcceleratorController } from "./features/app/hooks/useMenuAcceleratorController";
-import { useAppMenuEvents } from "./features/app/hooks/useAppMenuEvents";
 import { useWorkspaceActions } from "./features/app/hooks/useWorkspaceActions";
-import { useWorkspaceCycling } from "./features/app/hooks/useWorkspaceCycling";
 import { useThreadRows } from "./features/app/hooks/useThreadRows";
-import { useInterruptShortcut } from "./features/app/hooks/useInterruptShortcut";
-import { useArchiveShortcut } from "./features/app/hooks/useArchiveShortcut";
-import { useGlobalSearchShortcut } from "./features/app/hooks/useGlobalSearchShortcut";
 import { useLiquidGlassEffect } from "./features/app/hooks/useLiquidGlassEffect";
 import { useCopyThread } from "./features/threads/hooks/useCopyThread";
 import { useKanbanStore } from "./features/kanban/hooks/useKanbanStore";
-import { KanbanView } from "./features/kanban/components/KanbanView";
-import { GitHistoryPanel } from "./features/git-history/components/GitHistoryPanel";
-import type { KanbanTask } from "./features/kanban/types";
-import {
-  resolveKanbanThreadCreationStrategy,
-  type KanbanContextMode,
-} from "./features/kanban/utils/contextMode";
-import { deriveKanbanTaskTitle } from "./features/kanban/utils/taskTitle";
 import { useGitCommitController } from "./features/app/hooks/useGitCommitController";
-import { useSoloMode } from "./features/layout/hooks/useSoloMode";
-import {
-  WorkspaceHome,
-} from "./features/workspaces/components/WorkspaceHome";
-import { SpecHub } from "./features/spec/components/SpecHub";
-import { SearchPalette } from "./features/search/components/SearchPalette";
 import { forceRefreshAgents } from "./features/composer/components/ChatInputBox/providers";
-import { recordSearchResultOpen } from "./features/search/ranking/recencyStore";
-import type { SearchContentFilter, SearchResult, SearchScope } from "./features/search/types";
-import { toggleSearchContentFilters } from "./features/search/utils/contentFilters";
-import { resolveSearchScopeOnOpen } from "./features/search/utils/scope";
+import type { SearchContentFilter, SearchScope } from "./features/search/types";
 import {
   normalizeFsPath,
   resolveWorkspaceRelativePath,
@@ -107,23 +64,18 @@ import {
   openOrFocusDetachedFileExplorer,
 } from "./features/files/detachedFileExplorer";
 import {
-  ensureWorkspacePathDir,
   pickWorkspacePath,
 } from "./services/tauri";
 import type {
   AccessMode,
   AppMode,
   ComposerEditorSettings,
-  MessageSendOptions,
 } from "./types";
 import { useCodeCssVars } from "./features/app/hooks/useCodeCssVars";
 import { useAccountSwitching } from "./features/app/hooks/useAccountSwitching";
-import { useMenuLocalization } from "./features/app/hooks/useMenuLocalization";
 import { pushErrorToast } from "./services/toasts";
-import { ReleaseNotesModal } from "./features/update/components/ReleaseNotesModal";
 import { requestVendorModelManager } from "./features/vendors/modelManagerRequest";
 import {
-  OPENCODE_VARIANT_OPTIONS,
   extractPlanFromTimelineItems,
   resolveThreadScopedCollaborationModeSync,
 } from "./app-shell-parts/utils";
@@ -877,7 +829,6 @@ export function AppShell() {
     forkThreadForWorkspace,
     forkSessionFromMessageForWorkspace,
     forkClaudeSessionFromMessageForWorkspace,
-    updateThreadParent,
     listThreadsForWorkspace,
     loadOlderThreadsForWorkspace,
     resetWorkspaceThreads,
@@ -925,7 +876,6 @@ export function AppShell() {
     handleApprovalDecision,
     handleApprovalRemember,
     handleUserInputSubmit,
-    handleUserInputDismiss,
     refreshAccountInfo,
     refreshAccountRateLimits,
   } = useThreads({
@@ -1299,6 +1249,7 @@ export function AppShell() {
     activePlan,
     activeTab,
     activeThreadId,
+    activeEditorFilePath,
     activeWorkspace,
     activeWorkspaceId,
     appMode,
@@ -1501,6 +1452,7 @@ export function AppShell() {
     handleArchiveActiveThread,
   } = useAppShellWorkspaceFlowsSection({
     activeThreadId,
+    activeEditorFilePath,
     activeWorkspace,
     activeWorkspaceId,
     addCloneAgent,
@@ -1511,12 +1463,17 @@ export function AppShell() {
     closeTerminalPanel,
     collapseRightPanel,
     connectWorkspace,
+    centerMode,
     exitDiffView,
     handleToggleTerminal,
     isCompact,
     listThreadsForWorkspaceTracked,
     openTerminal,
-    queueSaveSettings,
+    queueSaveSettings: (nextSettings) =>
+      queueSaveSettings({
+        ...appSettings,
+        ...nextSettings,
+      }),
     refreshThread,
     removeImagesForThread,
     removeThread,
@@ -1529,7 +1486,16 @@ export function AppShell() {
     setActiveThreadId,
     setAgentTaskScrollRequest,
     setAppMode,
-    setAppSettings,
+    setAppSettings: (updater) => {
+      setAppSettings((current) => {
+        const nextSettings =
+          typeof updater === "function" ? updater(current) : updater;
+        return {
+          ...current,
+          ...nextSettings,
+        };
+      });
+    },
     setCenterMode,
     setHomeOpen,
     setSelectedKanbanTaskId,
@@ -1739,7 +1705,6 @@ export function AppShell() {
   useWorkspaceRestore({
     workspaces,
     hasLoaded,
-    connectWorkspace,
     activeWorkspaceId,
     restoreThreadsOnlyOnLaunch:
       appSettings.runtimeRestoreThreadsOnlyOnLaunch !== false,
@@ -1941,7 +1906,7 @@ export function AppShell() {
     terminalTabs, textareaHeight, threadAccessMode, threadItemsByThread, threadListCursorByWorkspace, threadListLoadingByWorkspace,
     threadListPagingByWorkspace, threadParentById, threadStatusById, historyLoadingByThreadId, historyRestoredAtMsByThread, threadsByWorkspace, timelinePlan,
     tokenUsageByThread, toggleCompletionEmailIntent, triggerAutoThreadTitle, ungroupedLabel, unpinThread,
-    updateCloneCopyName, updateCustomInstructions, updatePrompt, updateSharedSessionEngineSelection, updateThreadParent, updateWorkspaceCodexBin, updateWorkspaceSettings, updateWorktreeBaseRef, updateWorktreeBranch, updateWorktreePublishToOrigin,
+    updateCloneCopyName, updateCustomInstructions, updatePrompt, updateSharedSessionEngineSelection, updateWorkspaceCodexBin, updateWorkspaceSettings, updateWorktreeBaseRef, updateWorktreeBranch, updateWorktreePublishToOrigin,
     updateWorktreeSetupScript, updaterState, useSuggestedCloneCopiesFolder, userInputRequests,
     workspaceActivity, workspaceDropTargetRef, workspaceFilesPollingEnabled, workspaceGroups, workspaceHomeWorkspaceId, workspaceNameByPath,
     homeWorkspaceDefaultId,

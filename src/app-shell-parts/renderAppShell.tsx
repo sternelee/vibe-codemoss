@@ -5,17 +5,19 @@ import { AppModals } from "../features/app/components/AppModals";
 import { LockScreenOverlay } from "../features/app/components/LockScreenOverlay";
 import { RuntimeConsoleDock } from "../features/app/components/RuntimeConsoleDock";
 import { SidebarCollapseButton, TitlebarExpandControls } from "../features/layout/components/SidebarToggleControls";
-import { KanbanView } from "../features/kanban/components/KanbanView";
-import { GitHistoryPanel } from "../features/git-history/components/GitHistoryPanel";
 import {
   shouldShowFloatingTitlebarSidebarToggle,
   shouldShowMainTopbarSidebarToggle,
   shouldShowSidebarTopbarSidebarToggle,
 } from "../features/layout/utils/sidebarTogglePlacement";
-import { WorkspaceHome } from "../features/workspaces/components/WorkspaceHome";
-import { SpecHub } from "../features/spec/components/SpecHub";
-import { SearchPalette } from "../features/search/components/SearchPalette";
-import { ReleaseNotesModal } from "../features/update/components/ReleaseNotesModal";
+import {
+  GitHistoryPanel,
+  KanbanView,
+  ReleaseNotesModal,
+  SearchPalette,
+  SpecHub,
+  WorkspaceHome,
+} from "./lazyViews";
 import type { RenderAppShellContext } from "./renderAppShellTypes";
 
 export function renderAppShell(ctx: RenderAppShellContext) {
@@ -232,34 +234,38 @@ export function renderAppShell(ctx: RenderAppShellContext) {
   } = ctx;
 
   const specHubNode = shouldMountSpecHub ? (
-    <SpecHub
-      workspaceId={activeWorkspace?.id ?? null}
-      workspaceName={activeWorkspace?.name ?? null}
-      files={files}
-      directories={directories}
-      onBackToChat={() => setActiveTab("codex")}
-    />
+    <Suspense fallback={null}>
+      <SpecHub
+        workspaceId={activeWorkspace?.id ?? null}
+        workspaceName={activeWorkspace?.name ?? null}
+        files={files}
+        directories={directories}
+        onBackToChat={() => setActiveTab("codex")}
+      />
+    </Suspense>
   ) : null;
 
-  const workspaceHomeNode = activeWorkspace ? (
-    <WorkspaceHome
-      workspace={activeWorkspace}
-      engines={installedEngines}
-      currentBranch={gitStatus.branchName || null}
-      recentThreads={recentThreads}
-      onSelectConversation={handleSelectWorkspaceInstance}
-      onStartConversation={handleStartWorkspaceConversation}
-      onStartSharedConversation={handleStartSharedConversation}
-      onContinueLatestConversation={handleContinueLatestConversation}
-      onStartGuidedConversation={handleStartGuidedConversation}
-      onOpenSpecHub={handleOpenSpecHub}
-      onRevealWorkspace={handleRevealActiveWorkspace}
-      onDeleteConversations={handleDeleteWorkspaceConversations}
-      onRetryTaskRun={handleRetryTaskRun}
-      onResumeTaskRun={handleResumeTaskRun}
-      onCancelTaskRun={handleCancelTaskRun}
-      onForkTaskRun={handleForkTaskRun}
-    />
+  const workspaceHomeNode = showWorkspaceHome && activeWorkspace ? (
+    <Suspense fallback={null}>
+      <WorkspaceHome
+        workspace={activeWorkspace}
+        engines={installedEngines}
+        currentBranch={gitStatus.branchName || null}
+        recentThreads={recentThreads}
+        onSelectConversation={handleSelectWorkspaceInstance}
+        onStartConversation={handleStartWorkspaceConversation}
+        onStartSharedConversation={handleStartSharedConversation}
+        onContinueLatestConversation={handleContinueLatestConversation}
+        onStartGuidedConversation={handleStartGuidedConversation}
+        onOpenSpecHub={handleOpenSpecHub}
+        onRevealWorkspace={handleRevealActiveWorkspace}
+        onDeleteConversations={handleDeleteWorkspaceConversations}
+        onRetryTaskRun={handleRetryTaskRun}
+        onResumeTaskRun={handleResumeTaskRun}
+        onCancelTaskRun={handleCancelTaskRun}
+        onForkTaskRun={handleForkTaskRun}
+      />
+    </Suspense>
   ) : null;
 
   const workspacePrimaryNode = showWorkspaceHome ? workspaceHomeNode : messagesNode;
@@ -284,18 +290,20 @@ export function renderAppShell(ctx: RenderAppShellContext) {
     </div>
   ) : null;
 
-  const gitHistoryNode = (
-    <GitHistoryPanel
-      workspace={activeWorkspace}
-      workspaces={workspaces}
-      groupedWorkspaces={groupedWorkspaces}
-      onSelectWorkspace={setActiveWorkspaceId}
-      onSelectWorkspacePath={handleSelectWorkspacePathForGitHistory}
-      onOpenDiffPath={handleSelectDiffForPanel}
-      onRequestClose={handleCloseGitHistoryPanel}
-      {...codeAnnotationBridgeProps}
-    />
-  );
+  const gitHistoryNode = showGitHistory ? (
+    <Suspense fallback={null}>
+      <GitHistoryPanel
+        workspace={activeWorkspace}
+        workspaces={workspaces}
+        groupedWorkspaces={groupedWorkspaces}
+        onSelectWorkspace={setActiveWorkspaceId}
+        onSelectWorkspacePath={handleSelectWorkspacePathForGitHistory}
+        onOpenDiffPath={handleSelectDiffForPanel}
+        onRequestClose={handleCloseGitHistoryPanel}
+        {...codeAnnotationBridgeProps}
+      />
+    </Suspense>
+  ) : null;
 
   const showSidebarTopbarSidebarToggle = shouldShowSidebarTopbarSidebarToggle({
     isCompact,
@@ -423,37 +431,39 @@ export function renderAppShell(ctx: RenderAppShellContext) {
         isSoloMode={isSoloMode}
         kanbanNode={
           showKanban ? (
-            <KanbanView
-              viewState={kanbanViewState}
-              onViewStateChange={setKanbanViewState}
-              workspaces={workspaces}
-              panels={kanbanPanels}
-              tasks={kanbanTasks}
-              onCreateTask={handleKanbanCreateTask}
-              onUpdateTask={kanbanUpdateTask}
-              onDeleteTask={kanbanDeleteTask}
-              onReorderTask={kanbanReorderTask}
-              onCreatePanel={kanbanCreatePanel}
-              onUpdatePanel={kanbanUpdatePanel}
-              onDeletePanel={kanbanDeletePanel}
-              onAddWorkspace={handleAddWorkspace}
-              onAppModeChange={handleAppModeChange}
-              engineStatuses={engineStatuses}
-              conversationNode={kanbanConversationNode}
-              selectedTaskId={selectedKanbanTaskId}
-              taskProcessingMap={taskProcessingMap}
-              onOpenTaskConversation={handleOpenTaskConversation}
-              onCloseTaskConversation={handleCloseTaskConversation}
-              onDragToInProgress={handleDragToInProgress}
-              kanbanConversationWidth={kanbanConversationWidth}
-              onKanbanConversationResizeStart={onKanbanConversationResizeStart}
-              gitPanelNode={gitDiffPanelNode}
-              terminalOpen={terminalOpen}
-              onToggleTerminal={handleToggleTerminalPanel}
-            />
+            <Suspense fallback={null}>
+              <KanbanView
+                viewState={kanbanViewState}
+                onViewStateChange={setKanbanViewState}
+                workspaces={workspaces}
+                panels={kanbanPanels}
+                tasks={kanbanTasks}
+                onCreateTask={handleKanbanCreateTask}
+                onUpdateTask={kanbanUpdateTask}
+                onDeleteTask={kanbanDeleteTask}
+                onReorderTask={kanbanReorderTask}
+                onCreatePanel={kanbanCreatePanel}
+                onUpdatePanel={kanbanUpdatePanel}
+                onDeletePanel={kanbanDeletePanel}
+                onAddWorkspace={handleAddWorkspace}
+                onAppModeChange={handleAppModeChange}
+                engineStatuses={engineStatuses}
+                conversationNode={kanbanConversationNode}
+                selectedTaskId={selectedKanbanTaskId}
+                taskProcessingMap={taskProcessingMap}
+                onOpenTaskConversation={handleOpenTaskConversation}
+                onCloseTaskConversation={handleCloseTaskConversation}
+                onDragToInProgress={handleDragToInProgress}
+                kanbanConversationWidth={kanbanConversationWidth}
+                onKanbanConversationResizeStart={onKanbanConversationResizeStart}
+                gitPanelNode={gitDiffPanelNode}
+                terminalOpen={terminalOpen}
+                onToggleTerminal={handleToggleTerminalPanel}
+              />
+            </Suspense>
           ) : null
         }
-        gitHistoryNode={showGitHistory ? gitHistoryNode : null}
+        gitHistoryNode={gitHistoryNode}
         showGitDetail={showGitDetail}
         activeTab={activeTab}
         tabletTab={tabletTab}
@@ -562,37 +572,45 @@ export function renderAppShell(ctx: RenderAppShellContext) {
         onUnlock={handleUnlockPanel}
         liveSessions={lockLiveSessions}
       />
-      <SearchPalette
-        isOpen={isSearchPaletteOpen}
-        scope={searchScope}
-        contentFilters={searchContentFilters}
-        workspaceName={activeWorkspace?.name ?? null}
-        query={searchPaletteQuery}
-        results={searchResults}
-        selectedIndex={searchPaletteSelectedIndex}
-        onQueryChange={setSearchPaletteQuery}
-        onMoveSelection={handleSearchPaletteMoveSelection}
-        onSelect={(result) => {
-          void handleSelectSearchResult(result);
-        }}
-        onScopeChange={(nextScope) => {
-          setSearchScope(nextScope);
-          setSearchPaletteSelectedIndex(0);
-        }}
-        onContentFilterToggle={handleToggleSearchContentFilter}
-        onClose={closeSearchPalette}
-      />
-      <ReleaseNotesModal
-        isOpen={releaseNotesOpen}
-        entries={releaseNotesEntries}
-        activeIndex={releaseNotesActiveIndex}
-        loading={releaseNotesLoading}
-        error={releaseNotesError}
-        onClose={closeReleaseNotes}
-        onPrev={showPreviousReleaseNotes}
-        onNext={showNextReleaseNotes}
-        onRetry={retryReleaseNotesLoad}
-      />
+      {isSearchPaletteOpen ? (
+        <Suspense fallback={null}>
+          <SearchPalette
+            isOpen={isSearchPaletteOpen}
+            scope={searchScope}
+            contentFilters={searchContentFilters}
+            workspaceName={activeWorkspace?.name ?? null}
+            query={searchPaletteQuery}
+            results={searchResults}
+            selectedIndex={searchPaletteSelectedIndex}
+            onQueryChange={setSearchPaletteQuery}
+            onMoveSelection={handleSearchPaletteMoveSelection}
+            onSelect={(result) => {
+              void handleSelectSearchResult(result);
+            }}
+            onScopeChange={(nextScope) => {
+              setSearchScope(nextScope);
+              setSearchPaletteSelectedIndex(0);
+            }}
+            onContentFilterToggle={handleToggleSearchContentFilter}
+            onClose={closeSearchPalette}
+          />
+        </Suspense>
+      ) : null}
+      {releaseNotesOpen ? (
+        <Suspense fallback={null}>
+          <ReleaseNotesModal
+            isOpen={releaseNotesOpen}
+            entries={releaseNotesEntries}
+            activeIndex={releaseNotesActiveIndex}
+            loading={releaseNotesLoading}
+            error={releaseNotesError}
+            onClose={closeReleaseNotes}
+            onPrev={showPreviousReleaseNotes}
+            onNext={showNextReleaseNotes}
+            onRetry={retryReleaseNotesLoad}
+          />
+        </Suspense>
+      ) : null}
       {workspaceAliasPromptNode}
       <AppModals
         loadingProgressDialog={loadingProgressDialog}

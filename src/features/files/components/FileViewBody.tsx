@@ -8,7 +8,7 @@ import type {
   RefObject,
   SyntheticEvent,
 } from "react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import CodeMirror, {
   type ReactCodeMirrorProps,
@@ -16,7 +16,6 @@ import CodeMirror, {
 } from "@uiw/react-codemirror";
 import { FileDocumentPreview } from "./FileDocumentPreview";
 import { FileMarkdownPreviewFast } from "./FileMarkdownPreviewFast";
-import { FilePdfPreview } from "./FilePdfPreview";
 import { FileStructuredPreview } from "./FileStructuredPreview";
 import { FileTabularPreview } from "./FileTabularPreview";
 import type { FilePreviewPayload } from "../hooks/useFilePreviewPayload";
@@ -32,6 +31,14 @@ import type {
   CodeAnnotationLineRange,
   CodeAnnotationSelection,
 } from "../../code-annotations/types";
+
+const EDITOR_CONTENT_PUBLISH_DELAY_MS = 120;
+
+const FilePdfPreview = lazy(() =>
+  import("./FilePdfPreview").then((module) => ({
+    default: module.FilePdfPreview,
+  })),
+);
 
 type FileViewBodyProps = {
   filePath: string;
@@ -50,6 +57,9 @@ type FileViewBodyProps = {
     documentSnapshot: FileDocumentSnapshot;
     content: string;
     setContent: (value: string) => void;
+    onEditorContentDraftChange?: (value: string) => void;
+    onEditorContentPublished?: () => void;
+    onEditorTypingInput?: (durationMs: number) => void;
     fileRenderPressure: FileRenderPressure;
     markdownPreviewSnapshotMode: "stable" | "live";
     markdownPreviewRefreshKey?: number | null;
@@ -529,6 +539,9 @@ export function FileViewBody({
     documentSnapshot,
     content,
     setContent,
+    onEditorContentDraftChange,
+    onEditorContentPublished,
+    onEditorTypingInput,
     fileRenderPressure,
     markdownPreviewSnapshotMode,
     markdownPreviewRefreshKey,
@@ -569,11 +582,85 @@ export function FileViewBody({
   const previewDraft =
     annotationDraft?.source === "file-preview-mode" ? annotationDraft : null;
   const previousViewSurfaceKindRef = useRef(viewSurface.kind);
+  const [editorContent, setEditorContent] = useState(content);
+  const latestEditorContentRef = useRef(content);
+  const lastPublishedEditorContentRef = useRef(content);
+  const editorContentPublishTimerRef = useRef<number | null>(null);
   const [stableMarkdownPreviewSnapshot, setStableMarkdownPreviewSnapshot] =
     useState(() => ({
       documentKey,
       content,
     }));
+
+  const clearEditorContentPublishTimer = useCallback(() => {
+    if (editorContentPublishTimerRef.current === null) {
+      return;
+    }
+    window.clearTimeout(editorContentPublishTimerRef.current);
+    editorContentPublishTimerRef.current = null;
+  }, []);
+
+  const publishEditorContent = useCallback(() => {
+    clearEditorContentPublishTimer();
+    const nextContent = latestEditorContentRef.current;
+    if (lastPublishedEditorContentRef.current === nextContent) {
+      return;
+    }
+    lastPublishedEditorContentRef.current = nextContent;
+    setContent(nextContent);
+    onEditorContentPublished?.();
+  }, [clearEditorContentPublishTimer, onEditorContentPublished, setContent]);
+
+  const scheduleEditorContentPublish = useCallback(() => {
+    clearEditorContentPublishTimer();
+    editorContentPublishTimerRef.current = window.setTimeout(() => {
+      editorContentPublishTimerRef.current = null;
+      publishEditorContent();
+    }, EDITOR_CONTENT_PUBLISH_DELAY_MS);
+  }, [clearEditorContentPublishTimer, publishEditorContent]);
+
+  const handleEditorContentChange = useCallback(
+    (nextContent: string) => {
+      const startedAt =
+        typeof performance !== "undefined" && typeof performance.now === "function"
+          ? performance.now()
+          : Date.now();
+      latestEditorContentRef.current = nextContent;
+      onEditorContentDraftChange?.(nextContent);
+      setEditorContent(nextContent);
+      scheduleEditorContentPublish();
+      const endedAt =
+        typeof performance !== "undefined" && typeof performance.now === "function"
+          ? performance.now()
+          : Date.now();
+      onEditorTypingInput?.(Math.max(0, endedAt - startedAt));
+    },
+    [
+      onEditorContentDraftChange,
+      onEditorTypingInput,
+      scheduleEditorContentPublish,
+    ],
+  );
+
+  useLayoutEffect(() => {
+    clearEditorContentPublishTimer();
+    latestEditorContentRef.current = content;
+    lastPublishedEditorContentRef.current = content;
+    setEditorContent(content);
+    onEditorContentDraftChange?.(content);
+  }, [
+    clearEditorContentPublishTimer,
+    content,
+    documentKey,
+    onEditorContentDraftChange,
+  ]);
+
+  useEffect(
+    () => () => {
+      publishEditorContent();
+    },
+    [publishEditorContent],
+  );
 
   useEffect(() => {
     const previousKind = previousViewSurfaceKindRef.current;
@@ -746,16 +833,18 @@ export function FileViewBody({
 
   if (viewSurface.kind === "pdf-preview") {
     return (
-      <FilePdfPreview
-        assetUrl={
-          previewPayload?.kind === "file-handle" || previewPayload?.kind === "asset-url"
-            ? previewPayload.assetUrl
-            : null
-        }
-        isLoading={previewPayloadLoading}
-        error={previewPayloadError}
-        t={t}
-      />
+      <Suspense fallback={<div className="fvp-status">{t("files.loadingFile")}</div>}>
+        <FilePdfPreview
+          assetUrl={
+            previewPayload?.kind === "file-handle" || previewPayload?.kind === "asset-url"
+              ? previewPayload.assetUrl
+              : null
+          }
+          isLoading={previewPayloadLoading}
+          error={previewPayloadError}
+          t={t}
+        />
+      </Suspense>
     );
   }
 
@@ -787,8 +876,8 @@ export function FileViewBody({
         <CodeMirror
           key={filePath}
           ref={cmRef}
-          value={content}
-          onChange={setContent}
+          value={editorContent}
+          onChange={handleEditorContentChange}
           onCreateEditor={handleCodeMirrorCreate}
           onUpdate={(update) => {
             if (!update.selectionSet) {

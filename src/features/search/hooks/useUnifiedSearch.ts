@@ -92,6 +92,7 @@ export function useUnifiedSearch({
   workspaceNameByPath,
 }: UseUnifiedSearchOptions) {
   const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [recencyMap] = useState(() => loadSearchRecencyMap());
 
   useEffect(() => {
     if (!query.trim()) {
@@ -116,7 +117,7 @@ export function useUnifiedSearch({
       commands,
       activeWorkspaceId,
       maxResults,
-      recencyMap: loadSearchRecencyMap(),
+      recencyMap,
       reportMetrics: true,
       workspaceNameByPath,
     });
@@ -132,6 +133,7 @@ export function useUnifiedSearch({
     threadItemsByThread,
     workspaceSources,
     workspaceNameByPath,
+    recencyMap,
   ]);
 
   return computedResults;
@@ -159,65 +161,101 @@ export function computeUnifiedSearchResults({
 
   const startedAt = performance.now();
   const recentOpenMap = recencyMap ?? loadSearchRecencyMap();
+  const providerTimings: Array<{
+    provider: string;
+    elapsedMs: number;
+    candidateCount: number;
+    resultCount: number;
+  }> = [];
   const workspaceNameById = new Map(
     workspaceSources.map((source) => [source.workspaceId, source.workspaceName]),
   );
 
   const merged: SearchResult[] = [];
+  const collectProviderResults = (
+    provider: string,
+    candidateCount: number,
+    limit: number,
+    searchProvider: () => SearchResult[],
+  ) => {
+    const providerStartedAt = performance.now();
+    const results = takeLimited(searchProvider(), limit);
+    providerTimings.push({
+      provider,
+      elapsedMs: Math.round(performance.now() - providerStartedAt),
+      candidateCount,
+      resultCount: results.length,
+    });
+    merged.push(...results);
+  };
 
   for (const source of workspaceSources) {
     if (shouldIncludeSection(contentFilters, "files")) {
-      merged.push(
-        ...takeLimited(
-          searchFiles(normalizedQuery, source.files, source.workspaceId),
-          Math.max(8, Math.floor(SEARCH_PROVIDER_LIMITS.files / Math.max(workspaceSources.length, 1))),
-        ),
+      collectProviderResults(
+        "files",
+        source.files.length,
+        Math.max(8, Math.floor(SEARCH_PROVIDER_LIMITS.files / Math.max(workspaceSources.length, 1))),
+        () => searchFiles(normalizedQuery, source.files, source.workspaceId),
       );
     }
     if (shouldIncludeSection(contentFilters, "threads")) {
-      merged.push(
-        ...takeLimited(
-          searchThreads(normalizedQuery, source.threads, source.workspaceId),
-          Math.max(8, Math.floor(SEARCH_PROVIDER_LIMITS.threads / Math.max(workspaceSources.length, 1))),
-        ),
+      collectProviderResults(
+        "threads",
+        source.threads.length,
+        Math.max(8, Math.floor(SEARCH_PROVIDER_LIMITS.threads / Math.max(workspaceSources.length, 1))),
+        () => searchThreads(normalizedQuery, source.threads, source.workspaceId),
       );
     }
     if (shouldIncludeSection(contentFilters, "messages")) {
-      merged.push(
-        ...takeLimited(
+      const messageCandidateCount = source.threads.reduce(
+        (count, thread) => count + (threadItemsByThread[thread.id]?.length ?? 0),
+        0,
+      );
+      collectProviderResults(
+        "messages",
+        messageCandidateCount,
+        Math.max(8, Math.floor(SEARCH_PROVIDER_LIMITS.messages / Math.max(workspaceSources.length, 1))),
+        () =>
           searchMessages({
             query: normalizedQuery,
             workspaceId: source.workspaceId,
             threads: source.threads,
             threadItemsByThread,
           }),
-          Math.max(8, Math.floor(SEARCH_PROVIDER_LIMITS.messages / Math.max(workspaceSources.length, 1))),
-        ),
       );
     }
   }
 
   if (shouldIncludeSection(contentFilters, "kanban")) {
-    merged.push(
-      ...takeLimited(searchKanbanTasks(normalizedQuery, kanbanTasks), SEARCH_PROVIDER_LIMITS.kanban),
+    collectProviderResults(
+      "kanban",
+      kanbanTasks.length,
+      SEARCH_PROVIDER_LIMITS.kanban,
+      () => searchKanbanTasks(normalizedQuery, kanbanTasks),
     );
   }
   if (shouldIncludeSection(contentFilters, "history")) {
-    merged.push(
-      ...takeLimited(searchHistory(normalizedQuery, historyItems), SEARCH_PROVIDER_LIMITS.history),
+    collectProviderResults(
+      "history",
+      historyItems.length,
+      SEARCH_PROVIDER_LIMITS.history,
+      () => searchHistory(normalizedQuery, historyItems),
     );
   }
   if (shouldIncludeSection(contentFilters, "skills")) {
-    merged.push(
-      ...takeLimited(
-        searchSkills(normalizedQuery, skills, activeWorkspaceId),
-        SEARCH_PROVIDER_LIMITS.skills,
-      ),
+    collectProviderResults(
+      "skills",
+      skills.length,
+      SEARCH_PROVIDER_LIMITS.skills,
+      () => searchSkills(normalizedQuery, skills, activeWorkspaceId),
     );
   }
   if (shouldIncludeSection(contentFilters, "commands")) {
-    merged.push(
-      ...takeLimited(searchCommands(normalizedQuery, commands), SEARCH_PROVIDER_LIMITS.commands),
+    collectProviderResults(
+      "commands",
+      commands.length,
+      SEARCH_PROVIDER_LIMITS.commands,
+      () => searchCommands(normalizedQuery, commands),
     );
   }
 
@@ -230,6 +268,9 @@ export function computeUnifiedSearchResults({
       query: normalizedQuery,
       elapsedMs: Math.round(performance.now() - startedAt),
       resultCount: sliced.length,
+      providerTimings,
+      hydrationState: workspaceSources.length <= 1 ? "active-only" : "partial-global",
+      staleDropCount: 0,
     });
   }
 

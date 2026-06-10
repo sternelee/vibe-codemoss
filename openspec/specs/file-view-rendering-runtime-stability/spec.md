@@ -113,7 +113,7 @@ Markdown preview interactive blocks MUST preserve user-selected view state acros
 
 ### Requirement: Main File Preview MUST Separate External Change Awareness From Forced Refresh
 
-The main window file preview MUST detect external changes for the active file without forcing a reading snapshot refresh unless the user explicitly requests refresh or an explicit live preview mode is active.
+The main window file preview and editor MUST detect external changes for the active file without forcing a reading snapshot refresh or editor content replacement unless the user explicitly requests refresh, resolves a conflict, or an explicit live preview mode is active.
 
 #### Scenario: clean stable preview reports external change without replacing content
 
@@ -137,6 +137,13 @@ The main window file preview MUST detect external changes for the active file wi
 - **AND** the same file changes on disk
 - **THEN** the file view MUST keep the local dirty buffer intact
 - **AND** it MUST expose the existing conflict handling path instead of applying disk content automatically
+
+#### Scenario: self-save watcher feedback does not force editor reload
+
+- **WHEN** the app saves the active editor buffer to disk
+- **AND** the file watcher reports the same saved snapshot
+- **THEN** the file view MUST suppress redundant full-content reload or high-cost reparse
+- **AND** the editor MUST keep the saved buffer visible without treating that event as an external conflict
 
 ### Requirement: Main File Preview MUST Avoid Refresh-Induced IPC Churn
 

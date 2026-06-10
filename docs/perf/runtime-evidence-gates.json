@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0",
-  "generatedAt": "2026-06-04T15:35:39.998Z",
+  "generatedAt": "2026-06-10T13:39:04.093Z",
   "sources": {
     "perfBaseline": "docs/perf/baseline.json",
     "browserScroll": "docs/perf/long-list-browser-scroll.json",
@@ -12,9 +12,10 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-200",
       "metric": "commitDurationP50",
-      "value": 17.6,
+      "value": 9.99,
       "unit": "ms",
       "evidenceClass": "proxy",
+      "budget": null,
       "reason": "Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof.",
       "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
     },
@@ -22,9 +23,10 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-200",
       "metric": "commitDurationP95",
-      "value": 17.6,
+      "value": 9.99,
       "unit": "ms",
       "evidenceClass": "proxy",
+      "budget": null,
       "reason": "Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof.",
       "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
     },
@@ -32,9 +34,10 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-200",
       "metric": "firstPaintAfterMount",
-      "value": 54.54,
+      "value": 35.78,
       "unit": "ms",
       "evidenceClass": "proxy",
+      "budget": null,
       "reason": "Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof.",
       "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
     },
@@ -42,9 +45,10 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-500",
       "metric": "commitDurationP50",
-      "value": 170.66,
+      "value": 16.91,
       "unit": "ms",
       "evidenceClass": "proxy",
+      "budget": null,
       "reason": "Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof.",
       "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
     },
@@ -52,9 +56,10 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-500",
       "metric": "commitDurationP95",
-      "value": 170.66,
+      "value": 16.91,
       "unit": "ms",
       "evidenceClass": "proxy",
+      "budget": null,
       "reason": "Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof.",
       "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
     },
@@ -62,9 +67,10 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-500",
       "metric": "firstPaintAfterMount",
-      "value": 195.04,
+      "value": 35.87,
       "unit": "ms",
       "evidenceClass": "proxy",
+      "budget": null,
       "reason": "Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof.",
       "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
     },
@@ -72,9 +78,10 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-1000",
       "metric": "commitDurationP50",
-      "value": 34.47,
+      "value": 33.22,
       "unit": "ms",
       "evidenceClass": "proxy",
+      "budget": null,
       "reason": "Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof.",
       "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
     },
@@ -82,9 +89,10 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-1000",
       "metric": "commitDurationP95",
-      "value": 34.47,
+      "value": 33.22,
       "unit": "ms",
       "evidenceClass": "proxy",
+      "budget": null,
       "reason": "Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof.",
       "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
     },
@@ -92,9 +100,10 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-1000",
       "metric": "firstPaintAfterMount",
-      "value": 58.43,
+      "value": 54.51,
       "unit": "ms",
       "evidenceClass": "proxy",
+      "budget": null,
       "reason": "Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof.",
       "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
     },
@@ -105,6 +114,15 @@
       "value": 0,
       "unit": "%",
       "evidenceClass": "proxy",
+      "budget": {
+        "observed": 0,
+        "target": 1,
+        "hardFail": 5,
+        "unit": "%",
+        "evidenceClass": "proxy",
+        "source": "docs/perf/baseline.json",
+        "rollout": "proxy-advisory"
+      },
       "reason": "jsdom proxy; browser scroll gate is follow-up",
       "nextAction": "Add browser-level scroll gate for the 1000-row scenario."
     },
@@ -112,9 +130,18 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-CI-50",
       "metric": "keystrokeToCommitP95",
-      "value": 0.08,
+      "value": 0.15,
       "unit": "ms",
       "evidenceClass": "proxy",
+      "budget": {
+        "observed": 0.15,
+        "target": 16,
+        "hardFail": 32,
+        "unit": "ms",
+        "evidenceClass": "proxy",
+        "source": "docs/perf/baseline.json",
+        "rollout": "fail-ready"
+      },
       "reason": "Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof.",
       "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
     },
@@ -125,6 +152,7 @@
       "value": 0,
       "unit": "count",
       "evidenceClass": "proxy",
+      "budget": null,
       "reason": "Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof.",
       "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
     },
@@ -135,6 +163,7 @@
       "value": 0,
       "unit": "ms",
       "evidenceClass": "proxy",
+      "budget": null,
       "reason": "Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof.",
       "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
     },
@@ -142,9 +171,18 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-CI-100-IME",
       "metric": "keystrokeToCommitP95",
-      "value": 0.03,
+      "value": 0.04,
       "unit": "ms",
       "evidenceClass": "proxy",
+      "budget": {
+        "observed": 0.04,
+        "target": 16,
+        "hardFail": 32,
+        "unit": "ms",
+        "evidenceClass": "proxy",
+        "source": "docs/perf/baseline.json",
+        "rollout": "fail-ready"
+      },
       "reason": "Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof.",
       "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
     },
@@ -155,6 +193,7 @@
       "value": 0,
       "unit": "count",
       "evidenceClass": "proxy",
+      "budget": null,
       "reason": "Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof.",
       "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
     },
@@ -165,6 +204,7 @@
       "value": 0.11,
       "unit": "ms",
       "evidenceClass": "proxy",
+      "budget": null,
       "reason": "Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof.",
       "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
     },
@@ -175,6 +215,15 @@
       "value": 5000,
       "unit": "ms",
       "evidenceClass": "proxy",
+      "budget": {
+        "observed": 5000,
+        "target": 2000,
+        "hardFail": 5000,
+        "unit": "ms",
+        "evidenceClass": "proxy",
+        "source": "docs/perf/baseline.json",
+        "rollout": "advisory-until-runtime-trace"
+      },
       "reason": "turn start to first assistant delta",
       "nextAction": "Correlate replay metrics with runtime visible-lag and terminal-pressure traces."
     },
@@ -185,6 +234,15 @@
       "value": 920,
       "unit": "ms",
       "evidenceClass": "proxy",
+      "budget": {
+        "observed": 920,
+        "target": 500,
+        "hardFail": 920,
+        "unit": "ms",
+        "evidenceClass": "proxy",
+        "source": "docs/perf/baseline.json",
+        "rollout": "advisory-until-runtime-trace"
+      },
       "reason": "Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof.",
       "nextAction": "Correlate replay metrics with runtime visible-lag and terminal-pressure traces."
     },
@@ -195,6 +253,7 @@
       "value": 0.25,
       "unit": "ratio",
       "evidenceClass": "proxy",
+      "budget": null,
       "reason": "Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof.",
       "nextAction": "Correlate replay metrics with runtime visible-lag and terminal-pressure traces."
     },
@@ -202,9 +261,10 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-RS-PE",
       "metric": "assemblerLatency",
-      "value": 5.73,
+      "value": 4.16,
       "unit": "ms",
       "evidenceClass": "proxy",
+      "budget": null,
       "reason": "replay reducer-path proxy latency",
       "nextAction": "Correlate replay metrics with runtime visible-lag and terminal-pressure traces."
     },
@@ -212,20 +272,38 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-CS-COLD",
       "metric": "bundleSizeMain",
-      "value": 1284244,
+      "value": 1366201,
       "unit": "bytes",
       "evidenceClass": "measured",
-      "reason": "App-CiaJ8_Ht.js",
+      "budget": {
+        "observed": 1366201,
+        "target": 950000,
+        "hardFail": 1100000,
+        "unit": "bytes-gzip",
+        "evidenceClass": "measured",
+        "source": "docs/perf/baseline.json",
+        "rollout": "advisory-until-bundle-optimization"
+      },
+      "reason": "App-C808ExI3.js",
       "nextAction": "Track for regression."
     },
     {
       "source": "docs/perf/baseline.json",
       "scenario": "S-CS-COLD",
       "metric": "bundleSizeVendor",
-      "value": 672901,
+      "value": 741566,
       "unit": "bytes",
       "evidenceClass": "measured",
-      "reason": "vendor-mermaid-BczYtMM2.js",
+      "budget": {
+        "observed": 741566,
+        "target": 680000,
+        "hardFail": 760000,
+        "unit": "bytes-gzip",
+        "evidenceClass": "measured",
+        "source": "docs/perf/baseline.json",
+        "rollout": "advisory"
+      },
+      "reason": "subset-shared.chunk-CvxDN6kq.js",
       "nextAction": "Track for regression."
     },
     {
@@ -235,6 +313,7 @@
       "value": null,
       "unit": "ms",
       "evidenceClass": "unsupported",
+      "budget": null,
       "reason": "Tauri webview headless cold-start timing is not available in this script; bundle baseline is recorded.",
       "nextAction": "Collect real Tauri webview cold-start timing on a supported runner."
     },
@@ -245,6 +324,7 @@
       "value": null,
       "unit": "ms",
       "evidenceClass": "unsupported",
+      "budget": null,
       "reason": "Tauri webview headless cold-start timing is not available in this script; bundle baseline is recorded.",
       "nextAction": "Collect real Tauri webview cold-start timing on a supported runner."
     },
@@ -255,6 +335,7 @@
       "value": 0,
       "unit": "%",
       "evidenceClass": "measured",
+      "budget": null,
       "reason": "browser=/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
       "nextAction": "Track for regression."
     }
@@ -262,7 +343,7 @@
   "realtimeSummary": {
     "firstTokenLatencyMs": 5000,
     "interTokenJitterP95Ms": 920,
-    "assemblerLatencyMs": 5.73,
+    "assemblerLatencyMs": 4.16,
     "evidenceClass": "proxy",
     "visibleLagRisk": "high",
     "terminalPressure": "not-directly-measured",
@@ -276,36 +357,26 @@
   },
   "archiveReadiness": {
     "source": "openspec list --json",
-    "completed": [
-      {
-        "name": "fix-claude-argv-prompt-shell-escaping",
-        "tasks": "7/7",
-        "recommendation": "archive-candidate-after-qualifier-review",
-        "qualifier": "Review validation and platform qualifiers before archive."
-      },
-      {
-        "name": "fix-client-runtime-interaction-jank",
-        "tasks": "43/43",
-        "recommendation": "archive-candidate-after-qualifier-review",
-        "qualifier": "Review validation and platform qualifiers before archive."
-      },
-      {
-        "name": "add-session-attribution-mode-setting",
-        "tasks": "31/31",
-        "recommendation": "archive-candidate-after-qualifier-review",
-        "qualifier": "Keep local manual QA and Windows/Claude-manual qualifiers explicit before archive."
-      },
-      {
-        "name": "deepen-project-map-query-and-association-workbench",
-        "tasks": "52/52",
-        "recommendation": "archive-candidate-after-qualifier-review",
-        "qualifier": "Review validation and platform qualifiers before archive."
-      }
-    ],
+    "completed": [],
     "inProgress": [
       {
-        "name": "refactor-project-map-view-information-architecture",
-        "tasks": "23/25",
+        "name": "parallelize-bootstrap-locale-loading",
+        "tasks": "0/17",
+        "recommendation": "not-archive-ready"
+      },
+      {
+        "name": "split-startup-css-loading",
+        "tasks": "0/17",
+        "recommendation": "not-archive-ready"
+      },
+      {
+        "name": "enforce-bundle-budget-gate",
+        "tasks": "0/9",
+        "recommendation": "not-archive-ready"
+      },
+      {
+        "name": "refresh-v059-performance-baseline",
+        "tasks": "0/12",
         "recommendation": "not-archive-ready"
       }
     ],
@@ -339,7 +410,7 @@
   ],
   "largeFileSummary": {
     "source": ".artifacts/large-files-near-threshold.json",
-    "generatedAt": "2026-06-04T13:11:37.864Z",
+    "generatedAt": "2026-06-10T08:01:25.608Z",
     "status": "warn",
     "candidates": [
       {
@@ -352,18 +423,26 @@
       },
       {
         "path": "src/services/tauri.ts",
-        "lines": 2395,
+        "lines": 2490,
         "priority": "P0",
         "policyId": "bridge-runtime-critical",
-        "headroom": 205,
+        "headroom": 110,
         "facade": "Preserve service exports, payload mapping, and web/Tauri fallback semantics."
       },
       {
-        "path": "src-tauri/src/runtime/mod.rs",
-        "lines": 2336,
+        "path": "src-tauri/src/codex/mod.rs",
+        "lines": 2484,
         "priority": "P0",
         "policyId": "bridge-runtime-critical",
-        "headroom": 264,
+        "headroom": 116,
+        "facade": "Preserve command registration, Rust module facade, payload shape, and cross-platform paths."
+      },
+      {
+        "path": "src-tauri/src/runtime/mod.rs",
+        "lines": 2371,
+        "priority": "P0",
+        "policyId": "bridge-runtime-critical",
+        "headroom": 229,
         "facade": "Preserve command registration, Rust module facade, payload shape, and cross-platform paths."
       },
       {
@@ -376,51 +455,43 @@
       },
       {
         "path": "src-tauri/src/engine/commands.rs",
-        "lines": 2285,
+        "lines": 2286,
         "priority": "P0",
         "policyId": "bridge-runtime-critical",
-        "headroom": 315,
+        "headroom": 314,
         "facade": "Preserve command registration, Rust module facade, payload shape, and cross-platform paths."
       },
       {
-        "path": "src-tauri/src/codex/mod.rs",
-        "lines": 2259,
+        "path": "src-tauri/src/engine/claude.rs",
+        "lines": 2272,
         "priority": "P0",
         "policyId": "bridge-runtime-critical",
-        "headroom": 341,
+        "headroom": 328,
         "facade": "Preserve command registration, Rust module facade, payload shape, and cross-platform paths."
       },
       {
-        "path": "src/app-shell.tsx",
-        "lines": 2256,
-        "priority": "P0",
-        "policyId": "bridge-runtime-critical",
-        "headroom": 344,
-        "facade": "Declare public facade before splitting."
-      },
-      {
-        "path": "src/styles/project-map.css",
-        "lines": 2790,
-        "priority": "P1",
-        "policyId": "styles",
-        "headroom": 10,
-        "facade": "Preserve selector names, import order, and cascade compatibility."
-      },
-      {
-        "path": "src/features/layout/hooks/useLayoutNodes.tsx",
-        "lines": 2940,
+        "path": "src-tauri/src/session_management.rs",
+        "lines": 2976,
         "priority": "P1",
         "policyId": "default-source",
-        "headroom": 60,
-        "facade": "Preserve hook input/output shape and async cleanup semantics."
+        "headroom": 24,
+        "facade": "Preserve command registration, Rust module facade, payload shape, and cross-platform paths."
       },
       {
         "path": "src/features/threads/hooks/useThreadEventHandlers.ts",
-        "lines": 2739,
+        "lines": 2747,
         "priority": "P1",
         "policyId": "feature-hotpath",
-        "headroom": 61,
+        "headroom": 53,
         "facade": "Preserve hook input/output shape and async cleanup semantics."
+      },
+      {
+        "path": "src-tauri/src/bin/cc_gui_daemon/daemon_state.rs",
+        "lines": 2936,
+        "priority": "P1",
+        "policyId": "default-source",
+        "headroom": 64,
+        "facade": "Preserve command registration, Rust module facade, payload shape, and cross-platform paths."
       }
     ],
     "nextAction": "Pick one coherent runtime boundary; do not batch unrelated hot paths together."

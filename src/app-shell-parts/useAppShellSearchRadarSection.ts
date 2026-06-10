@@ -62,6 +62,7 @@ type FilePanelMode =
   | "git"
   | "files"
   | "search"
+  | "notes"
   | "prompts"
   | "memory"
   | "activity"
@@ -93,7 +94,7 @@ type ListThreadsForWorkspace = (
     includeOpenCodeSessions?: boolean;
     deletedThreadIds?: string[];
   },
-) => Promise<void>;
+) => Promise<void | { applied?: boolean; stale?: boolean }>;
 
 type UseAppShellSearchRadarSectionOptions = {
   activeDraft: string;
@@ -404,20 +405,35 @@ export function useAppShellSearchRadarSection({
     if (uncachedWorkspaceIds.length === 0) {
       return;
     }
+    const prioritizedWorkspaceIds = activeWorkspaceId && uncachedWorkspaceIds.includes(activeWorkspaceId)
+      ? [
+          activeWorkspaceId,
+          ...uncachedWorkspaceIds.filter((workspaceId) => workspaceId !== activeWorkspaceId),
+        ]
+      : uncachedWorkspaceIds;
     let cancelled = false;
-    void Promise.all(
-      uncachedWorkspaceIds.map(async (workspaceId) => {
+    const hydrateWorkspaceFiles = async () => {
+      const entries: Array<readonly [string, string[]]> = [];
+      const queue = [...prioritizedWorkspaceIds];
+      const hydrateNext = async (): Promise<void> => {
+        const workspaceId = queue.shift();
+        if (!workspaceId || cancelled) {
+          return;
+        }
         try {
           const response = await getWorkspaceFiles(workspaceId);
-          return [
+          entries.push([
             workspaceId,
             Array.isArray(response.files) ? response.files : ([] as string[]),
-          ] as const;
+          ] as const);
         } catch {
-          return [workspaceId, [] as string[]] as const;
+          entries.push([workspaceId, [] as string[]] as const);
         }
-      }),
-    ).then((entries) => {
+        await hydrateNext();
+      };
+      await Promise.all(
+        Array.from({ length: Math.min(2, queue.length) }, () => hydrateNext()),
+      );
       if (cancelled || entries.length === 0) {
         return;
       }
@@ -428,12 +444,14 @@ export function useAppShellSearchRadarSection({
         }
         return next;
       });
-    });
+    };
+    void hydrateWorkspaceFiles();
 
     return () => {
       cancelled = true;
     };
   }, [
+    activeWorkspaceId,
     globalSearchFilesByWorkspace,
     isSearchPaletteOpen,
     searchScope,
