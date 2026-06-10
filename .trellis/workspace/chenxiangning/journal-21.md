@@ -236,3 +236,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 788: 修复追加上下文用户气泡列宽
+
+**Date**: 2026-06-10
+**Task**: 修复追加上下文用户气泡列宽
+**Branch**: `feature/v0.5.8`
+
+### Summary
+
+修复消息幕布中用户消息带便签、记忆、浏览器等追加上下文时的气泡列宽参照不一致问题。普通用户气泡与 context stack 共用同一右侧列宽变量，追加卡片限制在共享列内，并补充 CSS contract test。验证通过目标 Vitest、typecheck、lint、large-file gate。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `11eb5b27` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
