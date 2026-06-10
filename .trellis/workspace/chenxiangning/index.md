@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-21.md`
-- **Total Sessions**: 791
+- **Total Sessions**: 792
 - **Last Active**: 2026-06-10
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-21.md` | ~395 | Active |
+| `journal-21.md` | ~447 | Active |
 | `journal-20.md` | ~1997 | Archived |
 | `journal-19.md` | ~1989 | Archived |
 | `journal-18.md` | ~1966 | Archived |
@@ -49,6 +49,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 792 | 2026-06-10 | Fix Windows titlebar controls overlap | `997596d4` | `feature/v0.5.8` |
 | 791 | 2026-06-10 | Review 两日提交并修复跨平台边界 | `011247f7` | `feature/v0.5.8` |
 | 790 | 2026-06-10 | 添加 v0.5.8 changelog | `1bd88ff5` | `feature/v0.5.8` |
 | 789 | 2026-06-10 | 拆分 AppShell 运行态编排边界 | `6837f5a5`, `09126ce7` | `feature/v0.5.8` |

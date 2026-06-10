@@ -393,3 +393,55 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 792: Fix Windows titlebar controls overlap
+
+**Date**: 2026-06-10
+**Task**: Fix Windows titlebar controls overlap
+**Branch**: `feature/v0.5.8`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| Area | Summary |
+|------|---------|
+| OpenSpec | Added `fix-windows-titlebar-controls-overlap` proposal/design/tasks/spec delta/verification for Windows titlebar safe-zone behavior. |
+| Frontend CSS | Added shared titlebar window-control width and gap variables, then offset Windows layout-swapped floating sidebar restore control away from the window controls. |
+| Tests | Added CSS contract coverage and Windows `TitlebarExpandControls` rendering coverage for distinct window controls and floating sidebar restore groups. |
+| Validation | Passed focused Vitest, OpenSpec strict validation, typecheck, lint, and large-file gate. |
+
+**Code Commit**: `997596d4 fix(titlebar): 避让 Windows 窗口控制区`
+
+**Validation Commands**:
+- `npx vitest run src/styles/layout-swapped-platform-guard.test.ts src/features/layout/components/SidebarToggleControls.test.tsx`
+- `openspec validate fix-windows-titlebar-controls-overlap --strict --no-interactive`
+- `npm run typecheck`
+- `npm run lint`
+- `npm run check:large-files`
+
+**Notes**:
+- Left unrelated `src/styles/project-map.api-contract.css` change unstaged.
+- Windows visual confirmation is still recommended on an actual Windows runtime.
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `997596d4` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
