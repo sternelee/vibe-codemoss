@@ -5,7 +5,6 @@ import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
 import Crosshair from "lucide-react/dist/esm/icons/crosshair";
 import Lightbulb from "lucide-react/dist/esm/icons/lightbulb";
-import ListChecks from "lucide-react/dist/esm/icons/list-checks";
 import ListFilter from "lucide-react/dist/esm/icons/list-filter";
 import Network from "lucide-react/dist/esm/icons/network";
 import RadioTower from "lucide-react/dist/esm/icons/radio-tower";
@@ -43,8 +42,6 @@ import {
 } from "../utils/interactiveLayout";
 import {
   formatProjectMapDateTime,
-  getProjectMapGenerationQueue,
-  getProjectMapRecentRuns,
 } from "../utils/display";
 import { buildProjectMapExplainPack } from "../utils/contextBuilder";
 import { buildProjectMapImpactAnalysis } from "../utils/impactAnalysis";
@@ -76,7 +73,6 @@ import {
   ProjectMapRelationshipSection,
   type ProjectMapRelationshipSummaryState,
 } from "./ProjectMapRelationshipSection";
-import { ProjectMapGenerationTaskDrawer } from "./ProjectMapTaskDrawer";
 import { ProjectMapStorageSwitch } from "./ProjectMapStorageSwitch";
 import {
   ProjectMapAdvisorHintsPanel,
@@ -224,7 +220,6 @@ export function ProjectMapPanel({
     readCanvasControlsCollapsedPreference,
   );
   const [isDetailCollapsed, setIsDetailCollapsed] = useState(false);
-  const [isTaskDrawerOpen, setIsTaskDrawerOpen] = useState(false);
   const [candidateBatchMessage, setCandidateBatchMessage] = useState<string | null>(null);
   const [orchestrationDraftState, setOrchestrationDraftState] =
     useState<ProjectMapOrchestrationDraftState>({ status: "idle" });
@@ -651,11 +646,6 @@ export function ProjectMapPanel({
     return entries;
   }, [dataset.candidates]);
   const staleCount = dataset.nodes.filter((node) => node.stale).length;
-  const generationQueue = useMemo(() => getProjectMapGenerationQueue(dataset.runs), [dataset.runs]);
-  const recentRuns = useMemo(() => getProjectMapRecentRuns(dataset.runs), [dataset.runs]);
-  const activeGenerationRun = generationQueue[0] ?? null;
-  const queuedGenerationRuns = generationQueue.slice(1);
-  const previousGenerationQueueCountRef = useRef(generationQueue.length);
   const hubNodes = rootNode ? getSortedProjectMapChildren(rootNode, nodeIndex) : [];
   const detectedLensCount = visibleLenses.filter((lens) => lens.status === "detected").length;
   const candidateLensCount = visibleLenses.filter((lens) => lens.status === "candidate").length;
@@ -834,13 +824,6 @@ export function ProjectMapPanel({
     },
     [clearGraphInteractionDraft, dataset, focusNodeId, persistGraphPositions, visibleNodes],
   );
-
-  useEffect(() => {
-    if (generationQueue.length > previousGenerationQueueCountRef.current) {
-      setIsTaskDrawerOpen(true);
-    }
-    previousGenerationQueueCountRef.current = generationQueue.length;
-  }, [generationQueue.length]);
 
   useEffect(() => {
     if (!graphLayout.rootNodeId || !graphLayout.bounds) {
@@ -1445,19 +1428,6 @@ export function ProjectMapPanel({
                   : t("projectMap.relationship.scan")}
               </button>
               <button
-                className={cn(
-                  "project-map-toolbar-action project-map-task-button",
-                  generationQueue.length > 0 && "has-active-task",
-                )}
-                type="button"
-                aria-expanded={isTaskDrawerOpen}
-                onClick={() => setIsTaskDrawerOpen((current) => !current)}
-              >
-                <ListChecks aria-hidden />
-                {t("projectMap.tasks.button")}
-                <span>{generationQueue.length}</span>
-              </button>
-              <button
                 className="project-map-toolbar-action project-map-profile-action"
                 type="button"
                 onClick={datasetController.openGlobalCollection}
@@ -1981,17 +1951,6 @@ export function ProjectMapPanel({
           void handleConfirmDeleteNode();
         }}
       />
-      {isTaskDrawerOpen ? (
-        <ProjectMapGenerationTaskDrawer
-          activeRun={activeGenerationRun}
-          queuedRuns={queuedGenerationRuns}
-          recentRuns={recentRuns}
-          nodeIndex={nodeIndex}
-          onCancelRun={datasetController.cancelGenerationRun}
-          onClearFinished={datasetController.clearFinishedRuns}
-          onClose={() => setIsTaskDrawerOpen(false)}
-        />
-      ) : null}
     </section>
   );
 }

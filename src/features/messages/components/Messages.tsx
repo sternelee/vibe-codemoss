@@ -68,6 +68,11 @@ import { parseAgentTaskNotification } from "../utils/agentTaskNotification";
 import { dedupeExitPlanItemsKeepFirst } from "./messagesExitPlan";
 import { buildSuppressedUserMemoryContextMessageIdSet } from "./messagesMemoryContext";
 import { buildSuppressedUserNoteCardContextMessageIdSet } from "./messagesNoteCardContext";
+import { dispatchOpenTaskRunEvent } from "../../agent-orchestration/utils/navigationEvents";
+import {
+  compareTaskRunSurfacePriority,
+  describeTaskRunSurface,
+} from "../../tasks/utils/taskRunSurface";
 import {
   countRenderableCollapsedEntries,
   findLastAssistantMessageIndex,
@@ -122,6 +127,8 @@ import type {
   MessagesProps,
 } from "./messagesTypes";
 
+const EMPTY_TASK_RUNS: NonNullable<MessagesProps["taskRuns"]> = [];
+
 export const Messages = memo(function Messages({
   items: legacyItems,
   threadId: legacyThreadId,
@@ -166,6 +173,7 @@ export const Messages = memo(function Messages({
   onThreadRecoveryFork,
   onForkFromMessage,
   onRewindFromMessage,
+  taskRuns = EMPTY_TASK_RUNS,
 }: MessagesProps) {
   const { t } = useTranslation();
   const isWindowsDesktop = useMemo(() => isWindowsPlatform(), []);
@@ -545,6 +553,7 @@ export const Messages = memo(function Messages({
     const currentFirstId = effectiveItems[0]?.id ?? null;
     if (currentFirstId !== firstItemIdRef.current) {
       setShowAllHistoryItems(false);
+      setPendingJumpMessageId(null);
       pendingHistoryExpansionScrollSnapshotRef.current = null;
     }
     firstItemIdRef.current = currentFirstId;
@@ -1841,12 +1850,26 @@ export const Messages = memo(function Messages({
     shouldRenderUserInputNode &&
     Boolean(legacyOnUserInputSubmit) &&
     activeUserInputRequestId !== null;
+  const linkedConversationRun = useMemo(() => {
+    if (!threadId) {
+      return null;
+    }
+    return taskRuns
+      .filter((run) =>
+        run.linkedThreadId === threadId &&
+        (!workspaceId || run.task.workspaceId === workspaceId),
+      )
+      .sort(compareTaskRunSurfacePriority)[0] ?? null;
+  }, [taskRuns, threadId, workspaceId]);
+  const linkedConversationRunSurface = linkedConversationRun
+    ? describeTaskRunSurface(linkedConversationRun)
+    : null;
 
   const scrollToAnchor = useCallback((messageId: string) => {
     const node = messageNodeByIdRef.current.get(messageId);
     const container = containerRef.current;
     if (!node || !container) {
-      return;
+      return false;
     }
     const containerRect = container.getBoundingClientRect();
     const nodeRect = node.getBoundingClientRect();
@@ -1858,18 +1881,36 @@ export const Messages = memo(function Messages({
       behavior: "smooth",
     });
     setActiveAnchorId((previous) => (previous === messageId ? previous : messageId));
+    return true;
   }, []);
+
+  const requestScrollToAnchor = useCallback((messageId: string) => {
+    if (scrollToAnchor(messageId)) {
+      setPendingJumpMessageId(null);
+      return;
+    }
+    setPendingJumpMessageId((previous) => (previous === messageId ? previous : messageId));
+    if (!showAllHistoryItems) {
+      handleShowAllHistoryItems();
+    }
+  }, [handleShowAllHistoryItems, scrollToAnchor, showAllHistoryItems]);
+
+  const handlePendingJumpTargetReady = useCallback((messageId: string) => {
+    if (pendingJumpMessageId !== messageId) {
+      return;
+    }
+    if (scrollToAnchor(messageId)) {
+      setPendingJumpMessageId(null);
+    }
+  }, [pendingJumpMessageId, scrollToAnchor]);
 
   useEffect(() => {
     if (!pendingJumpMessageId) {
       return;
     }
-    const targetNode = messageNodeByIdRef.current.get(pendingJumpMessageId);
-    if (!targetNode) {
-      return;
+    if (scrollToAnchor(pendingJumpMessageId)) {
+      setPendingJumpMessageId(null);
     }
-    scrollToAnchor(pendingJumpMessageId);
-    setPendingJumpMessageId(null);
   }, [pendingJumpMessageId, timelinePresentationItems, scrollToAnchor]);
 
   useEffect(() => {
@@ -1882,18 +1923,13 @@ export const Messages = memo(function Messages({
       if (!messageId) {
         return;
       }
-      if (!messageNodeByIdRef.current.get(messageId) && !showAllHistoryItems) {
-        setPendingJumpMessageId(messageId);
-        handleShowAllHistoryItems();
-        return;
-      }
-      scrollToAnchor(messageId);
+      requestScrollToAnchor(messageId);
     };
     document.addEventListener(MESSAGE_JUMP_EVENT_NAME, handleJumpToMessage);
     return () => {
       document.removeEventListener(MESSAGE_JUMP_EVENT_NAME, handleJumpToMessage);
     };
-  }, [handleShowAllHistoryItems, scrollToAnchor, showAllHistoryItems]);
+  }, [requestScrollToAnchor]);
 
   return (
     <div
@@ -1905,13 +1941,35 @@ export const Messages = memo(function Messages({
         anchorNavigationLabel={t("messages.anchorNavigation")}
         getJumpLabel={(index) => t("messages.anchorJumpToUser", { index: index + 1 })}
         getTitle={(index) => t("messages.anchorUserTitle", { index: index + 1 })}
-        onScrollToAnchor={scrollToAnchor}
+        onScrollToAnchor={requestScrollToAnchor}
       />
       <div
         className="messages"
         ref={containerRef}
         onScroll={updateAutoScroll}
       >
+        {linkedConversationRun && linkedConversationRunSurface ? (
+          <div className={`messages-linked-run messages-linked-run--${linkedConversationRunSurface.severity}`}>
+            <div>
+              <span className="messages-linked-run-eyebrow">
+                {t("messages.linkedRunEyebrow", "Linked run")}
+              </span>
+              <strong>{linkedConversationRun.task.title || linkedConversationRun.task.taskId}</strong>
+              <span>
+                {t(`taskCenter.status.${linkedConversationRun.status}`, linkedConversationRun.status)}
+                {" · "}
+                {linkedConversationRunSurface.summary ||
+                  t("taskCenter.unavailable", "Unavailable")}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => dispatchOpenTaskRunEvent(linkedConversationRun.runId)}
+            >
+              {t("messages.openLinkedRun", "Open run detail")}
+            </button>
+          </div>
+        ) : null}
         <MessagesTimeline
           activeCollaborationModeId={activeCollaborationModeId}
           activeEngine={activeEngine}
@@ -1939,6 +1997,8 @@ export const Messages = memo(function Messages({
           messageActionTargetByAssistantId={messageActionTargets.targetByAssistantId}
           messageCopyTextByAssistantId={messageActionTargets.copyTextByAssistantId}
           latestFinalAssistantMessageId={messageActionTargets.latestFinalAssistantMessageId}
+          pendingJumpMessageId={pendingJumpMessageId}
+          onPendingJumpTargetReady={handlePendingJumpTargetReady}
           onForkFromMessage={onForkFromMessage}
           onRewindFromMessage={onRewindFromMessage}
           handleExitPlanModeExecuteForItem={handleExitPlanModeExecuteForItem}

@@ -13,6 +13,7 @@ import type { ConversationState } from "../../threads/contracts/conversationCurt
 import type { PresentationProfile } from "../presentation/presentationProfile";
 import type { RuntimeReconnectRecoveryCallbackResult } from "./runtimeReconnect";
 import type { AgentTaskScrollRequest } from "../types";
+import type { TaskRunRecord } from "../../tasks/types";
 
 export type LastVisibleTextReport = {
   itemId: string | null;
@@ -90,4 +91,5 @@ export type MessagesProps = {
   onThreadRecoveryFork?: () => Promise<void> | void;
   onForkFromMessage?: (messageId: string) => void;
   onRewindFromMessage?: (messageId: string) => void;
+  taskRuns?: TaskRunRecord[];
 };

@@ -1285,3 +1285,713 @@ Codex app-server 对话链路切换为 codex-tui 兼容身份，补 terminal env
 ### Next Steps
 
 - None - task complete
+
+
+## Session 766: 提交 Codex provider 作用域会话启动变更
+
+**Date**: 2026-06-09
+**Task**: 提交 Codex provider 作用域会话启动变更
+**Branch**: `feature/v0.5.8`
+
+### Summary
+
+按模块提交 Codex provider-scoped session launch：OpenSpec 规范、Rust provider runtime/session 绑定、前端 provider 选择展示，以及 Project Map 测试格式整理。
+
+### Main Changes
+
+本次会话按模块完成工作区整体提交：
+
+- docs(openspec): 新增 add-codex-provider-scoped-session-launch change artifacts，覆盖 proposal/design/tasks/spec deltas。
+- feat(codex): 后端支持 provider-scoped CODEX_HOME、runtime key、thread provider binding、catalog projection、fork provider rebind 与 thread-bound routing。
+- feat(sidebar): 前端支持 Codex 新会话 provider selector、sidebar provider badge/fallback label、fork dialog provider 选择、thread reducer metadata 保留、tauri service payload 与相关测试/i18n/styles。
+- refactor(project-map): 整理 API contract relation 相关 Rust 测试和轻量格式化变更。
+
+已执行：
+- npm run typecheck
+- npm run lint
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d1b8c648` | (see git log) |
+| `1b572f99` | (see git log) |
+| `6e1c97b6` | (see git log) |
+| `319293be` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 767: 修复用户输入提交与取消收口
+
+**Date**: 2026-06-09
+**Task**: 修复用户输入提交与取消收口
+**Branch**: `feature/v0.5.8`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| Area | Summary |
+|------|---------|
+| Thread user input | Distinguished submit vs dismiss settlement for AskUserQuestion/requestUserInput handling. |
+| Regression coverage | Updated stale timeout test to use dismiss path and added retryable empty-submit/malformed-empty-submit cases. |
+| Verification | Passed `npm run lint`, `npm run typecheck`, full `npm run test`, targeted `npx vitest run src/features/threads/hooks/useThreadUserInput.test.tsx`, and `git diff --check`. |
+
+**Updated Files**:
+- `src/features/threads/hooks/useThreadUserInput.ts`
+- `src/features/threads/hooks/useThreadUserInput.test.tsx`
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9b074c8f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 768: Composer provider 标签显示
+
+**Date**: 2026-06-09
+**Task**: Composer provider 标签显示
+**Branch**: `feature/v0.5.8`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+本次完成 composer 底部右侧 Codex provider/source 标签显示。
+
+主要改动：
+- 复用 sidebar 的 Codex provider label 解析逻辑，在 layout 层从 active thread 解析当前 provider label。
+- 将 providerProfileLabel 贯穿 Composer、ChatInputBoxAdapter、ChatInputBox、ChatInputBoxFooter 到 ButtonArea。
+- 在 ButtonArea 右侧 send/stop 按钮前渲染 compact provider tag，并增加局部 toolbar CSS。
+- 增加 ButtonArea 单测，锁定 provider tag 出现在 send control 前。
+
+验证：
+- npx vitest run src/features/composer/components/ChatInputBox/ButtonArea.test.tsx
+- npm run typecheck
+- npm run check:large-files
+- npm run lint
+
+注意：提交时刻工作区仍有非本次任务的 Rust 文件未提交，已排除在本次 code commit 外。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1d2797bc` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 769: 修复 Codex 磁盘会话 stale thread 重试
+
+**Date**: 2026-06-09
+**Task**: 修复 Codex 磁盘会话 stale thread 重试
+**Branch**: `feature/v0.5.8`
+
+### Summary
+
+修复磁盘 .codex 模式创建/发送时 app-server 返回 thread not found 的恢复路径：同 provider runtime 内先 thread/resume 再 bounded retry turn/start；补齐 daemon providerProfileId 解析和 managed provider unsupported guard；同步回写 provider-scoped session launch OpenSpec，并通过 openspec validate、Rust focused tests、cargo no-run 和 runtime contract 检查。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `24b92415` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 770: 同步 Codex 供应商契约文档
+
+**Date**: 2026-06-09
+**Task**: 同步 Codex 供应商契约文档
+**Branch**: `feature/v0.5.8`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+## Goal
+提交当前工作区中的 Codex provider / codex-tui 相关 OpenSpec 与 Trellis code-spec 文档变更。
+
+## Changes
+- 新增 `.trellis/spec/backend/codex-provider-scoped-runtime.md`，固化 Codex provider-scoped runtime、thread binding、fork、stale retry 与 codex-tui launch identity 的 executable contract。
+- 新增 `.trellis/spec/frontend/codex-provider-session-ui.md`，固化 provider selector、start/fork payload、thread metadata merge、sidebar/pinned/composer label contract。
+- 更新 `.trellis/spec/backend/index.md` 与 `.trellis/spec/frontend/index.md`，将新 code-spec 纳入 Pre-Development Checklist。
+- 校准 `add-codex-provider-scoped-session-launch` proposal/design/tasks/spec，明确 disk legacy runtime key、managed provider runtime key、frontend in-flight identity 和 provider metadata preservation。
+- 为 `harden-codex-tui-compatible-user-agent` 新增 behavior spec，并在 proposal/tasks 中同步 codex-tui compatible launch identity 与 control-plane filtering contract。
+
+## Validation
+- `openspec validate add-codex-provider-scoped-session-launch --strict --no-interactive` passed。
+- `openspec validate harden-codex-tui-compatible-user-agent --strict --no-interactive` passed。
+- `git diff --check` passed。
+- 未运行 `npm`/`cargo` gates：本次仅提交文档与 spec artifact，无源码改动。
+
+## Follow-ups
+- `add-codex-provider-scoped-session-launch` 仍有 manual verification evidence task 未完成。
+- `harden-codex-tui-compatible-user-agent` 仍需 relay-side request-log evidence。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e6dc2157` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 771: 会话列表供应商标签显示开关
+
+**Date**: 2026-06-09
+**Task**: 会话列表供应商标签显示开关
+**Branch**: `feature/v0.5.8`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| Area | Summary |
+|------|---------|
+| Settings | Added `showSidebarProviderLabels` app setting with TS/Rust defaults normalized to false. |
+| UI | Moved the provider-label visibility switch into Settings -> Vendor Management -> Codex, instead of Basic Appearance. |
+| Sidebar | ThreadList, PinnedThreadList, Sidebar, WorktreeSection, folder-tree thread list props now hide Codex provider labels by default and show them only when the setting is enabled. |
+| Tests | Added/updated focused coverage for default-hidden labels, explicit opt-in rendering, settings normalization, Rust defaults, and VendorSettingsPanel switch persistence. |
+
+**Validation**:
+- `npx vitest run src/features/vendors/components/VendorSettingsPanel.test.tsx src/features/settings/components/SettingsView.test.tsx src/features/app/components/ThreadList.test.tsx src/features/app/components/PinnedThreadList.test.tsx src/features/app/components/Sidebar.test.tsx`
+- `npm run typecheck`
+- `npm run lint`
+- `cargo test --manifest-path src-tauri/Cargo.toml app_settings_defaults --quiet`
+- `cargo fmt --manifest-path src-tauri/Cargo.toml --check`
+- `openspec validate add-codex-provider-scoped-session-launch --strict --no-interactive`
+
+**Notes**:
+- Default behavior remains hidden to reduce sidebar noise.
+- The setting controls display only; it does not change Codex provider binding or launch semantics.
+- Untracked `openspec/changes/harden-codex-provider-session-catalog-recovery/` was detected and intentionally left out of this commit/session record.
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `3b4a975a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 772: 校准 Codex provider home catalog recovery 提案
+
+**Date**: 2026-06-09
+**Task**: 校准 Codex provider home catalog recovery 提案
+**Branch**: `feature/v0.5.8`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| 项目 | 内容 |
+|------|------|
+| OpenSpec change | `harden-codex-provider-session-catalog-recovery` |
+| 本次动作 | 将未跟踪的 OpenSpec 提案独立提交，避免后续实现代码与提案文档混在同一个 commit。 |
+| 状态 | Planning complete / Implementation not started。 |
+| 关键结论 | 该 change 用于修复 managed Codex provider sessions 存在 `codex-provider-homes/<providerId>` 后，workspace catalog 刷新/重启无法恢复 provider-home-only sessions 的缺口。 |
+| 验证 | `openspec validate harden-codex-provider-session-catalog-recovery --strict --no-interactive` 通过。 |
+
+**Updated Files**:
+- `openspec/changes/harden-codex-provider-session-catalog-recovery/.openspec.yaml`
+- `openspec/changes/harden-codex-provider-session-catalog-recovery/proposal.md`
+- `openspec/changes/harden-codex-provider-session-catalog-recovery/design.md`
+- `openspec/changes/harden-codex-provider-session-catalog-recovery/tasks.md`
+- `openspec/changes/harden-codex-provider-session-catalog-recovery/specs/codex-session-sidebar-state-parity/spec.md`
+- `openspec/changes/harden-codex-provider-session-catalog-recovery/specs/workspace-session-catalog-projection/spec.md`
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ebf75dff` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 773: 恢复 Codex provider home 会话目录扫描
+
+**Date**: 2026-06-09
+**Task**: 恢复 Codex provider home 会话目录扫描
+**Branch**: `feature/v0.5.8`
+
+### Summary
+
+实现 Codex managed provider home 的 sessions/archived_sessions 扫描、provider metadata 投影、sourceKind 后端状态和 provider-home mutation 回归测试。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `27a43778` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 774: 保留 provider home 会话侧栏连续性
+
+**Date**: 2026-06-09
+**Task**: 保留 provider home 会话侧栏连续性
+**Branch**: `feature/v0.5.8`
+
+### Summary
+
+前端按 engine/sourceKind 合并 catalog source status，provider-backed Codex rows 在 degraded refresh 中继续保留，并补齐 provider metadata 类型与回归测试。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d88fb69d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 775: 收口 provider home 会话恢复提案
+
+**Date**: 2026-06-09
+**Task**: 收口 provider home 会话恢复提案
+**Branch**: `feature/v0.5.8`
+
+### Summary
+
+更新 OpenSpec proposal/tasks 与 Trellis workspace session catalog contract，明确 provider-home sourceKind 合同、自动化验证状态和剩余真实 app 手工验证项。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8cd0c751` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 776: 拆分会话管理大文件测试
+
+**Date**: 2026-06-09
+**Task**: 拆分会话管理大文件测试
+**Branch**: `feature/v0.5.8`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| 项目 | 内容 |
+|------|------|
+| Summary | 拆分 `src-tauri/src/session_management_tests.rs`，将共享 fixture/helper 与 catalog、metadata/provider-home、folder、archive/delete、workspace scope、projection 等测试按主题迁移到多个 Rust test include 文件。 |
+| Validation | `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check`; `git diff --cached --check`; `cargo test --manifest-path src-tauri/Cargo.toml session_management`; `npm run check:large-files:gate`。 |
+| Result | large-file gate 从 `found=1` 恢复为 `found=0`；session_management 聚焦测试在 lib 与 daemon test binary 均为 78 passed。 |
+| Notes | 仅提交 Rust 后端测试拆分；保留既有前端 `Sidebar.test.tsx` 与 `sidebarInternals.ts` 未提交改动。 |
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ef677161` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 777: 兼容 Codex provider-home 会话归属恢复错误
+
+**Date**: 2026-06-09
+**Task**: 兼容 Codex provider-home 会话归属恢复错误
+**Branch**: `feature/v0.5.8`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| 项目 | 内容 |
+|------|------|
+| Summary | 将 Sidebar 的 `isSessionCatalogNotReadyError` 扩展为同时识别 legacy `session does not belong to target workspace` 与新的 `Codex session target could not be resolved safely` 错误。 |
+| Tests | 在 `Sidebar.test.tsx` 中覆盖 legacy 与 Codex provider-home unresolved 错误都被判定为 retryable。 |
+| Validation | `npm exec vitest run src/features/app/components/Sidebar.test.tsx`; `npm run typecheck`; `npm run lint -- --quiet src/features/app/components/Sidebar.test.tsx src/features/app/components/sidebarInternals.ts`; `git diff --check`。 |
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f464ef6c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 778: 修复 Sidebar 子会话移动测试等待
+
+**Date**: 2026-06-09
+**Task**: 修复 Sidebar 子会话移动测试等待
+**Branch**: `feature/v0.5.8`
+
+### Summary
+
+修复 Sidebar subagent tree 测试在 CI 慢环境中的 act warning 和 timeout 风险。
+
+### Main Changes
+
+- `Sidebar.subagent-tree.test.tsx` 将 Move to folder submenu hover 纳入 async act。
+- 点击目标 folder 后用 `waitFor` 等待 batch assignment 调用和 Target folder DOM 渲染收敛。
+- 验证：`npx vitest run --maxWorkers 1 --minWorkers 1 src/features/app/components/Sidebar.subagent-tree.test.tsx`。
+- 验证：`npx vitest run --maxWorkers 1 --minWorkers 1 src/features/app/components/Sidebar.subagent-tree.test.tsx src/features/app/components/Sidebar.test.tsx src/features/app/components/sidebarCodexIconTone.test.ts src/features/app/components/SidebarWorkspaceMenuOverlay.test.tsx`。
+- 验证：`npx eslint src/features/app/components/Sidebar.subagent-tree.test.tsx`。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d4a7ed63` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 779: Session Activity 轮次产物语义 diff 第一版
+
+**Date**: 2026-06-10
+**Task**: Session Activity 轮次产物语义 diff 第一版
+**Branch**: `feature/v0.5.8`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| Area | Summary |
+|------|---------|
+| Product | 将 Session Activity 的文件视图改为轮次级“产物”视图，按对话轮次展示 AI 改动了哪些文件。 |
+| UI | 合并 file-change card 与文件列表，产物模块内提供“产物 / 语义 diff” tabs，header 压缩为单行，语义 diff 使用单列布局。 |
+| Semantics | 新增基于 diff evidence 的确定性语义摘要，覆盖 intent、behavior、risk、validation，并展示本轮语义。 |
+| Turn Context | `turnSemantic` 来自用户消息，并支持 child session 继承父轮次用户请求；文本由 React 转义展示。 |
+| Reliability | 产物 tab 计数按去重文件数显示，不再按底层 file-change event 数显示。 |
+| Governance | 新增 OpenSpec change `add-semantic-diff-review` 和 Trellis task PRD，并已归档 task。 |
+
+**Validation**:
+- `npx vitest run src/features/session-activity/components/WorkspaceSessionActivityPanel.test.tsx src/features/session-activity/adapters/buildWorkspaceSessionActivity.test.ts src/features/git/utils/semanticDiffSummary.test.ts` -> 98 passed
+- `npm run typecheck` -> passed
+- `npm run lint` -> passed
+- `npm run check:large-files` -> passed
+- `openspec validate add-semantic-diff-review --strict --no-interactive` -> valid
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1c5e6a6e` | (see git log) |
+| `0192308a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 780: 深化 Session Activity 语义 Diff 证据审查
+
+**Date**: 2026-06-10
+**Task**: 深化 Session Activity 语义 Diff 证据审查
+**Branch**: `feature/v0.5.8`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| Area | Summary |
+|------|---------|
+| Semantic Diff Model | 扩展 `SemanticDiffSummaryItem`，支持 `source` 与 structured `evidenceRefs`，保留数组输入兼容性并新增 object input。 |
+| Evidence Collection | 接入同 turn validation command evidence，区分 test-file hint 与真实验证命令结果。 |
+| Extractors | 增加 TypeScript/React/test/config deterministic facts，包括 hooks、component、state、handler、test case、assertion、config key。 |
+| AI Review Contract | 新增 bounded AI review fact contract；无 evidence refs 的 AI fact 会被丢弃，不自动调用模型。 |
+| UI | 语义 diff 保持平铺极简；为章节加入主题适配色彩；证据合并为单行，长路径自适应换行，文件证据可点击打开到对应行号。 |
+| Proposal Sync | 新增并回写 OpenSpec change `deepen-semantic-diff-review` 与 Trellis task/PRD，记录 evidence UI 单行与 file-line navigation contract。 |
+| Validation | 通过 OpenSpec strict、focused Vitest、lint、typecheck、large-file check。 |
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9daa596c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 781: 扩展自定义主题配色
+
+**Date**: 2026-06-10
+**Task**: 扩展自定义主题配色
+**Branch**: `feature/v0.5.8`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+本次完成自定义主题配色扩展并修复新增 preset 保存后回弹问题。
+
+主要变更：
+- 新增 OpenSpec change `add-custom-theme-palette-presets`，记录自定义主题新增 10 套配色的 proposal、tasks 与 `settings-custom-theme-presets` spec delta。
+- 前端新增 5 套 light preset 与 5 套 dark preset，更新 `ThemePresetId` 类型、`vscodeThemePresets` catalog、SettingsView 下拉顺序测试和中英文 i18n label。
+- 修复新增主题切换后瞬间回退问题：同步 `src-tauri/src/shared/settings_core.rs` 的 Rust settings sanitize 白名单和 custom window appearance 解析，避免后端把新增 `customThemePresetId` 当非法值回退到默认 preset。
+- 补充 Rust regression coverage，确认新增 preset 可通过后端 sanitize 并解析正确 light/dark appearance。
+
+验证：
+- `npx vitest run src/features/theme/utils/themePreset.test.ts src/features/settings/components/SettingsView.test.tsx` 通过。
+- `npm run typecheck` 通过。
+- 相关文件 ESLint 通过。
+- `npm run check:large-files` 通过。
+- `cargo test --manifest-path src-tauri/Cargo.toml shared::settings_core::tests` 通过。
+- `openspec validate add-custom-theme-palette-presets --strict --no-interactive` 通过。
+
+备注：
+- 未纳入无关未跟踪目录 `.trellis/tasks/06-10-client-module-integration-plan/` 与 `openspec/changes/extend-client-font-size-coverage/`。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f79e269e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 782: 扩展客户端字号覆盖范围
+
+**Date**: 2026-06-10
+**Task**: 扩展客户端字号覆盖范围
+**Branch**: `feature/v0.5.8`
+
+### Summary
+
+将客户端字号设置扩展到主窗口和 detached/client windows 的可读文本区域，覆盖文件树、Git worktree、diff metadata、sidebar、message canvas、tool block、session activity 与 mobile tabbar；保留图标、命中区、行高和布局密度不随内容字号隐式缩放。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `fc2a2a1f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

@@ -88,7 +88,12 @@ import {
   listWorkspaceSessionFolders,
   renameWorkspaceSessionFolder,
   type WorkspaceSessionFolder,
+  getCodexProviders,
 } from "../../../services/tauri";
+import type {
+  CodexProviderProfileOption,
+  CodexProviderProfileSelection,
+} from "../../threads/constants/codexProviderProfiles";
 import {
   runWithLoadingProgress,
   type LoadingProgressController,
@@ -117,6 +122,7 @@ type SidebarProps = {
   systemProxyUrl?: string | null;
   accountRateLimits: RateLimitSnapshot | null;
   usageShowRemaining: boolean;
+  showProviderLabels?: boolean;
   accountInfo: AccountSnapshot | null;
   onSwitchAccount: () => void;
   onCancelSwitchAccount: () => void;
@@ -134,7 +140,7 @@ type SidebarProps = {
   onAddAgent: (
     workspace: WorkspaceInfo,
     engine?: EngineType,
-    options?: { folderId?: string | null },
+    options?: { folderId?: string | null } & CodexProviderProfileSelection,
   ) => Promise<string | null> | string | null | void;
   engineOptions?: EngineDisplayInfo[];
   enabledEngines?: Partial<Record<EngineType, boolean>>;
@@ -217,6 +223,7 @@ export function Sidebar({
   activeThreadId,
   systemProxyEnabled = false,
   systemProxyUrl = null,
+  showProviderLabels = false,
   accountInfo: _accountInfo,
   onSwitchAccount: _onSwitchAccount,
   onCancelSwitchAccount: _onCancelSwitchAccount,
@@ -321,6 +328,9 @@ export function Sidebar({
     pendingSessionFolderIntentByWorkspaceId,
     setPendingSessionFolderIntentByWorkspaceId,
   ] = useState<Record<string, Record<string, string>>>(() => ({}));
+  const [codexProviderProfiles, setCodexProviderProfiles] = useState<
+    CodexProviderProfileOption[]
+  >([]);
   const [rootSessionFolderDraftRequestByWorkspaceId, setRootSessionFolderDraftRequestByWorkspaceId] = useState<
     Record<string, number>
   >(() => ({}));
@@ -624,6 +634,49 @@ export function Sidebar({
   );
 
   useEffect(() => {
+    let cancelled = false;
+    getCodexProviders()
+      .then((providers) => {
+        if (cancelled) {
+          return;
+        }
+        const nextProfiles = providers
+            .map((provider) => ({
+              id: provider.id.trim(),
+              name: provider.name.trim() || provider.id.trim(),
+              source: "managed" as const,
+            }))
+            .filter((provider) => provider.id.length > 0);
+        setCodexProviderProfiles((currentProfiles) => {
+          if (
+            currentProfiles.length === nextProfiles.length &&
+            currentProfiles.every((currentProfile, index) => {
+              const nextProfile = nextProfiles[index];
+              return (
+                currentProfile.id === nextProfile?.id &&
+                currentProfile.name === nextProfile.name &&
+                currentProfile.source === nextProfile.source
+              );
+            })
+          ) {
+            return currentProfiles;
+          }
+          return nextProfiles;
+        });
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCodexProviderProfiles((currentProfiles) =>
+            currentProfiles.length === 0 ? currentProfiles : [],
+          );
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     Object.entries(pendingSessionFolderIntentByWorkspaceId).forEach(
       ([workspaceId, intents]) => {
         const workspaceThreads = threadsByWorkspace[workspaceId] ?? [];
@@ -691,6 +744,7 @@ export function Sidebar({
   } =
     useSidebarMenus({
       onAddAgent,
+      codexProviderProfiles,
       engineOptions,
       enabledEngines,
       onRefreshEngineOptions,
@@ -1607,6 +1661,7 @@ export function Sidebar({
             activeThreadId={activeThreadId}
             systemProxyEnabled={systemProxyEnabled}
             systemProxyUrl={systemProxyUrl}
+            showProviderLabels={showProviderLabels}
             moveFolderTargetsByWorkspaceId={moveFolderTargetsByWorkspaceId}
             getThreadRows={getThreadRows}
             getThreadTime={getThreadTime}
@@ -1656,6 +1711,7 @@ export function Sidebar({
               activeThreadId,
               systemProxyEnabled,
               systemProxyUrl,
+              showProviderLabels,
               threadStatusById,
               getThreadTime,
               isThreadPinned,
@@ -1693,6 +1749,7 @@ export function Sidebar({
             activeThreadId={activeThreadId}
             systemProxyEnabled={systemProxyEnabled}
             systemProxyUrl={systemProxyUrl}
+            showProviderLabels={showProviderLabels}
             threadStatusById={threadStatusById}
             getThreadTime={getThreadTime}
             isThreadPinned={isThreadPinned}
@@ -1757,6 +1814,7 @@ export function Sidebar({
     showWorktreeMenu,
     systemProxyEnabled,
     systemProxyUrl,
+    showProviderLabels,
     onToggleWorkspaceCollapse,
     renderHighlightedName,
     hydratedThreadListWorkspaceIds,
@@ -1863,6 +1921,7 @@ export function Sidebar({
                   activeThreadId={activeThreadId}
                   systemProxyEnabled={systemProxyEnabled}
                   systemProxyUrl={systemProxyUrl}
+                  showProviderLabels={showProviderLabels}
                   threadStatusById={threadStatusById}
                   moveFolderTargetsByWorkspaceId={moveFolderTargetsByWorkspaceId}
                   getThreadTime={getThreadTime}

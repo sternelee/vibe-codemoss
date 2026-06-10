@@ -5,6 +5,11 @@ import { HomeChat } from "../../home/components/HomeChat";
 import { MainHeader } from "../../app/components/MainHeader";
 import { Messages } from "../../messages/components/Messages";
 import { MessageForkConfirmDialog } from "../../messages/components/MessageForkConfirmDialog";
+import {
+  CODEX_DISK_PROVIDER_PROFILE_ID,
+  type CodexProviderProfileSelection,
+  type CodexProviderProfileOption,
+} from "../../threads/constants/codexProviderProfiles";
 import { UpdateToast } from "../../update/components/UpdateToast";
 import { ErrorToasts } from "../../notifications/components/ErrorToasts";
 import { GlobalRuntimeNoticeDock } from "../../notifications/components/GlobalRuntimeNoticeDock";
@@ -12,6 +17,7 @@ import {
   Composer,
   type ComposerRewindDialogRequest,
 } from "../../composer/components/Composer";
+import { resolveCodexProviderLabel } from "../../app/utils/codexProviderLabel";
 import { GitDiffViewer } from "../../git/components/GitDiffViewer";
 import { buildCanonicalGitChanges } from "../../git/utils/gitChangeModel";
 import { FileTreePanel } from "../../files/components/FileTreePanel";
@@ -73,6 +79,7 @@ import type {
   ThreadSummary,
 } from "../../../types";
 import { getClientStoreSync } from "../../../services/clientStorage";
+import { getCodexProviders } from "../../../services/tauri";
 import { normalizeSpecRootInput } from "../../spec/pathUtils";
 import type {
   CodeAnnotationBridgeProps,
@@ -130,6 +137,28 @@ import type {
   RightPanelTabSelection,
 } from "./layoutNodesTypes";
 const EMPTY_COMMANDS: CustomCommandOption[] = [];
+let lastOrchestrationProjectionSignature: string | null = null;
+
+function buildOrchestrationProjectionSignature(
+  orchestrationTaskStore: ReturnType<typeof useOrchestrationTaskStore>,
+  taskRuns: ReturnType<typeof useTaskRunStore>["runs"],
+): string {
+  return JSON.stringify({
+    tasks: orchestrationTaskStore.tasks.map((task) => ({
+      taskId: task.taskId,
+      status: task.status,
+      reviewState: task.reviewState,
+      linkedRunIds: task.linkedRunIds,
+    })),
+    runs: taskRuns.map((run) => ({
+      runId: run.runId,
+      taskId: run.task.taskId,
+      orchestrationTaskId: run.task.orchestrationTaskId,
+      status: run.status,
+      updatedAt: run.updatedAt,
+    })),
+  });
+}
 
 function toConversationEngine(engine: EngineType | undefined): ConversationEngine {
   if (engine === "claude" || engine === "gemini" || engine === "opencode") {
@@ -186,6 +215,9 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     useState<ComposerRewindDialogRequest | null>(null);
   const [forkConfirmUserMessageId, setForkConfirmUserMessageId] =
     useState<string | null>(null);
+  const [codexProviderProfiles, setCodexProviderProfiles] = useState<
+    CodexProviderProfileOption[]
+  >([]);
   const rewindDialogRequestSerialRef = useRef(0);
   const activeThreadStatus = options.activeThreadId
     ? options.threadStatusById[options.activeThreadId] ?? null
@@ -196,6 +228,33 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
           (thread) => thread.id === options.activeThreadId,
         ) ?? null
       : null;
+  const activeProviderProfileLabel = activeThreadSummary
+    ? resolveCodexProviderLabel(activeThreadSummary)
+    : null;
+  useEffect(() => {
+    let cancelled = false;
+    getCodexProviders()
+      .then((providers) => {
+        if (cancelled) {
+          return;
+        }
+        setCodexProviderProfiles(
+          providers.map((provider) => ({
+            id: provider.id,
+            name: provider.name,
+            source: "managed",
+          })),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCodexProviderProfiles([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const historyRestoredAtMsByThread = options.historyRestoredAtMsByThread ?? {};
   const activeHistoryRestoredAtMs = options.activeThreadId
     ? historyRestoredAtMsByThread[options.activeThreadId] ?? null
@@ -450,6 +509,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       systemProxyUrl={options.systemProxyUrl}
       accountRateLimits={options.activeRateLimits}
       usageShowRemaining={options.usageShowRemaining}
+      showProviderLabels={options.showSidebarProviderLabels}
       accountInfo={options.accountInfo}
       onSwitchAccount={options.onSwitchAccount}
       onCancelSwitchAccount={options.onCancelSwitchAccount}
@@ -586,11 +646,44 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     setForkConfirmUserMessageId(null);
   }, []);
   const handleConfirmForkFromMessage = useCallback(
-    async (messageId: string) => {
-      await onForkFromMessage?.(messageId);
+    async (
+      messageId: string,
+      options?: CodexProviderProfileSelection,
+    ) => {
+      await onForkFromMessage?.(messageId, options);
     },
     [onForkFromMessage],
   );
+  const codexForkProviderProfiles = useMemo<CodexProviderProfileOption[]>(() => {
+    const profilesById = new Map<string, CodexProviderProfileOption>();
+    for (const profile of codexProviderProfiles) {
+      profilesById.set(profile.id, profile);
+    }
+    const activeProviderId =
+      activeThreadSummary?.providerProfileId?.trim() ||
+      CODEX_DISK_PROVIDER_PROFILE_ID;
+    if (
+      activeProviderId !== CODEX_DISK_PROVIDER_PROFILE_ID &&
+      !profilesById.has(activeProviderId)
+    ) {
+      profilesById.set(activeProviderId, {
+        id: activeProviderId,
+        name:
+          activeThreadSummary?.providerProfileName?.trim() ||
+          activeProviderId,
+        source:
+          activeThreadSummary?.providerProfileSource === "managed"
+            ? "managed"
+            : "disk",
+      });
+    }
+    return Array.from(profilesById.values());
+  }, [
+    activeThreadSummary?.providerProfileId,
+    activeThreadSummary?.providerProfileName,
+    activeThreadSummary?.providerProfileSource,
+    codexProviderProfiles,
+  ]);
   const handleOpenRewindDialogFromMessage = useCallback((messageId: string) => {
     const normalizedMessageId = messageId.trim();
     if (!normalizedMessageId) {
@@ -608,6 +701,8 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       current?.requestId === requestId ? null : current,
     );
   }, []);
+
+  const taskRunStore = useTaskRunStore();
 
   const messagesNode = useMemo(() => (
     <>
@@ -660,11 +755,17 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         lastDurationMs={activeThreadStatus?.lastDurationMs ?? null}
         heartbeatPulse={heartbeatPulseRef.current ?? 0}
         codexSilentSuspectedAt={activeThreadStatus?.codexSilentSuspectedAt ?? null}
+        taskRuns={taskRunStore.runs}
       />
       <MessageForkConfirmDialog
         userMessageId={forkConfirmUserMessageId}
         onCancel={handleCancelForkConfirm}
         onConfirm={handleConfirmForkFromMessage}
+        showProviderSelector={conversationEngine === "codex"}
+        defaultProviderProfileId={
+          activeThreadSummary?.providerProfileId ?? CODEX_DISK_PROVIDER_PROFILE_ID
+        }
+        providerProfiles={codexForkProviderProfiles}
       />
     </>
   ), [
@@ -692,6 +793,8 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     forkConfirmUserMessageId,
     handleCancelForkConfirm,
     handleConfirmForkFromMessage,
+    activeThreadSummary?.providerProfileId,
+    codexForkProviderProfiles,
     options.onRewind,
     handleOpenRewindDialogFromMessage,
     options.handleApprovalDecision,
@@ -716,6 +819,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     activeThreadStatus?.processingStartedAt,
     activeThreadStatus?.lastDurationMs,
     activeThreadStatus?.codexSilentSuspectedAt,
+    taskRunStore.runs,
     // heartbeatPulse removed from deps — uses ref to avoid
     // recreating messagesNode on every heartbeat tick
   ]
@@ -884,6 +988,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         isSharedSession={isSharedSession}
         engines={options.engines}
         selectedEngine={options.selectedEngine}
+        providerProfileLabel={activeProviderProfileLabel}
         onSelectEngine={options.onSelectEngine}
         models={options.models}
         selectedModelId={options.selectedModelId}
@@ -1498,7 +1603,6 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     [options.gitStatus.files],
   );
   const orchestrationTaskStore = useOrchestrationTaskStore();
-  const taskRunStore = useTaskRunStore();
   const [isOrchestrationCenterOpen, setIsOrchestrationCenterOpen] = useState(false);
   const [selectedOrchestrationTaskId, setSelectedOrchestrationTaskId] = useState<string | null>(null);
   const [projectMapSourceFocusNodeId, setProjectMapSourceFocusNodeId] = useState<string | null>(null);
@@ -1580,6 +1684,15 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     if (orchestrationTaskStore.tasks.length === 0 || taskRunStore.runs.length === 0) {
       return;
     }
+
+    const projectionSignature = buildOrchestrationProjectionSignature(
+      orchestrationTaskStore,
+      taskRunStore.runs,
+    );
+    if (lastOrchestrationProjectionSignature === projectionSignature) {
+      return;
+    }
+    lastOrchestrationProjectionSignature = projectionSignature;
 
     const projectedStore = projectLinkedTaskRunsToOrchestrationStore({
       orchestrationStore: orchestrationTaskStore,

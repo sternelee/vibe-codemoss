@@ -149,6 +149,7 @@ import { useAppShellWorkspaceHomeState } from "./app-shell-parts/useAppShellWork
 import { useModelConfigRefresh } from "./app-shell-parts/useModelConfigRefresh";
 import { useAppShellComposerModelSection } from "./app-shell-parts/useAppShellComposerModelSection";
 import { useAppShellViewStateSection } from "./app-shell-parts/useAppShellViewStateSection";
+import { defineAppShellRuntimeActions } from "./app-shell-parts/appShellActionBoundaries";
 
 export function AppShell() {
   const { t } = useTranslation();
@@ -876,6 +877,7 @@ export function AppShell() {
     forkThreadForWorkspace,
     forkSessionFromMessageForWorkspace,
     forkClaudeSessionFromMessageForWorkspace,
+    updateThreadParent,
     listThreadsForWorkspace,
     loadOlderThreadsForWorkspace,
     resetWorkspaceThreads,
@@ -1848,10 +1850,15 @@ export function AppShell() {
     toggleCompletionEmailIntent,
     updateSharedSessionEngineSelection,
   });
+  const runtimeActions = defineAppShellRuntimeActions({
+    handleToggleRuntimeConsole,
+    handleToggleTerminalPanel,
+  });
 
   const agent = selectedAgent;
   const appShellContext = {
     ...APP_SHELL_LEGACY_CONTEXT_DEFAULTS,
+    ...runtimeActions,
     runtimeThreadBoundary,
     GitHubPanelData, RECENT_THREAD_LIMIT, SettingsView, accessMode, accountByWorkspace, accountSwitching, activeAccount, activeDiffError,
     activeDiffLoading, activeDiffs, activeDraft, activeEditorFilePath, activeEditorLineRange, activeEngine, activeGitRoot, activeImages,
@@ -1934,7 +1941,7 @@ export function AppShell() {
     terminalTabs, textareaHeight, threadAccessMode, threadItemsByThread, threadListCursorByWorkspace, threadListLoadingByWorkspace,
     threadListPagingByWorkspace, threadParentById, threadStatusById, historyLoadingByThreadId, historyRestoredAtMsByThread, threadsByWorkspace, timelinePlan,
     tokenUsageByThread, toggleCompletionEmailIntent, triggerAutoThreadTitle, ungroupedLabel, unpinThread,
-    updateCloneCopyName, updateCustomInstructions, updatePrompt, updateSharedSessionEngineSelection, updateWorkspaceCodexBin, updateWorkspaceSettings, updateWorktreeBaseRef, updateWorktreeBranch, updateWorktreePublishToOrigin,
+    updateCloneCopyName, updateCustomInstructions, updatePrompt, updateSharedSessionEngineSelection, updateThreadParent, updateWorkspaceCodexBin, updateWorkspaceSettings, updateWorktreeBaseRef, updateWorktreeBranch, updateWorktreePublishToOrigin,
     updateWorktreeSetupScript, updaterState, useSuggestedCloneCopiesFolder, userInputRequests,
     workspaceActivity, workspaceDropTargetRef, workspaceFilesPollingEnabled, workspaceGroups, workspaceHomeWorkspaceId, workspaceNameByPath,
     homeWorkspaceDefaultId,

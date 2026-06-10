@@ -3,7 +3,6 @@ import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left";
 import ChevronLeft from "lucide-react/dist/esm/icons/chevron-left";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import Folder from "lucide-react/dist/esm/icons/folder";
-import ListChecks from "lucide-react/dist/esm/icons/list-checks";
 import Network from "lucide-react/dist/esm/icons/network";
 import Search from "lucide-react/dist/esm/icons/search";
 import Trash2 from "lucide-react/dist/esm/icons/trash-2";
@@ -101,7 +100,7 @@ export function DetailPanel({
   graphIntegrityIssues,
   graphRepairSummary,
   isGraphHealthExpanded,
-  orchestrationDraftState,
+  orchestrationDraftState: _orchestrationDraftState,
   staleCount,
   unassignedDiscoveryCount,
   pendingReviewCandidateCount,
@@ -114,7 +113,7 @@ export function DetailPanel({
   onDrill,
   onCompleteNode,
   onCalibrateNode,
-  onCreateOrchestrationTask,
+  onCreateOrchestrationTask: _onCreateOrchestrationTask,
   onOrganizeUnassigned,
   onConfirmCandidate,
   onRejectCandidate,
@@ -189,10 +188,6 @@ export function DetailPanel({
         ? "affected"
         : null
     : null;
-  const activeDraftState =
-    node && orchestrationDraftState.status !== "idle" && orchestrationDraftState.nodeId === node.id
-      ? orchestrationDraftState
-      : null;
   const graphRepairActionSummary = summarizeGraphRepairActions(graphRepairSummary);
   const repairIssueCount = graphIntegrityIssues.length;
   const canRunGraphRepair = repairIssueCount > 0;
@@ -717,41 +712,6 @@ export function DetailPanel({
                   ) : null}
                 </section>
               ) : null}
-              <section className="project-map-orchestration-bridge">
-                <h4>{t("projectMap.orchestration.title")}</h4>
-                <p>{t("projectMap.orchestration.description")}</p>
-                <div className="project-map-orchestration-summary">
-                  <span>{t("projectMap.orchestration.sourceNode", { nodeId: node.id })}</span>
-                  <span>
-                    {t("projectMap.orchestration.evidenceCount", {
-                      count:
-                        node.sources.length +
-                        node.detail.relatedArtifacts.length +
-                        (node.detail.diagramArtifacts ?? []).length,
-                    })}
-                  </span>
-                  {node.stale || node.candidate || node.confidence === "low" || node.confidence === "unknown" ? (
-                    <span className="is-warning">{t("projectMap.orchestration.reviewRequired")}</span>
-                  ) : (
-                    <span>{t("projectMap.orchestration.readyForDraft")}</span>
-                  )}
-                </div>
-                {activeDraftState?.status === "created" ? (
-                  <p className="project-map-orchestration-status" role="status">
-                    {t("projectMap.orchestration.created", {
-                      taskId: activeDraftState.taskId,
-                      status: activeDraftState.taskStatus,
-                      evidence: activeDraftState.evidenceCount,
-                      risks: activeDraftState.riskCount,
-                    })}
-                  </p>
-                ) : null}
-                {activeDraftState?.status === "failed" ? (
-                  <p className="project-map-orchestration-status is-error" role="status">
-                    {t(`projectMap.orchestration.failure.${activeDraftState.reason}`)}
-                  </p>
-                ) : null}
-              </section>
               <div className="project-map-node-actions">
                 {canDrill ? (
                   <button type="button" onClick={onDrill}>
@@ -776,10 +736,6 @@ export function DetailPanel({
                     {t("projectMap.openIntentCanvasForFile")}
                   </button>
                 ) : null}
-                <button className="is-primary" type="button" onClick={onCreateOrchestrationTask}>
-                  <ListChecks aria-hidden />
-                  {t("projectMap.orchestration.createTask")}
-                </button>
                 <button type="button" onClick={onCompleteNode}>{t("projectMap.completeNode")}</button>
                 <button type="button" onClick={onCalibrateNode}>{t("projectMap.calibrateNode")}</button>
                 {onDeleteNode ? (
