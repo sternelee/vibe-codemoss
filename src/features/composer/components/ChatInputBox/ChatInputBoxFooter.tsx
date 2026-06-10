@@ -345,9 +345,21 @@ export function ChatInputBoxFooter({
     isOpen: boolean;
     isLoading: boolean;
     loadingEngine: EngineType;
+    selectedEngine: EngineType;
+    selectedModel: string;
+    modelOptions: ModelInfo[];
+    timeoutSeconds: number;
+    timeoutLimits: {
+      minSeconds: number;
+      maxSeconds: number;
+    };
     originalPrompt: string;
     enhancedPrompt: string;
     canUseEnhanced: boolean;
+    onEngineChange: (engine: EngineType) => void;
+    onModelChange: (modelId: string) => void;
+    onTimeoutChange: (timeoutSeconds: number) => void;
+    onRunEnhancement: () => void;
     onUseEnhanced: () => void;
     onKeepOriginal: () => void;
     onClose: () => void;
@@ -1010,9 +1022,18 @@ export function ChatInputBoxFooter({
         isOpen={promptEnhancer.isOpen}
         isLoading={promptEnhancer.isLoading}
         loadingEngine={promptEnhancer.loadingEngine}
+        selectedEngine={promptEnhancer.selectedEngine}
+        selectedModel={promptEnhancer.selectedModel}
+        modelOptions={promptEnhancer.modelOptions}
+        timeoutSeconds={promptEnhancer.timeoutSeconds}
+        timeoutLimits={promptEnhancer.timeoutLimits}
         originalPrompt={promptEnhancer.originalPrompt}
         enhancedPrompt={promptEnhancer.enhancedPrompt}
         canUseEnhanced={promptEnhancer.canUseEnhanced}
+        onEngineChange={promptEnhancer.onEngineChange}
+        onModelChange={promptEnhancer.onModelChange}
+        onTimeoutChange={promptEnhancer.onTimeoutChange}
+        onRunEnhancement={promptEnhancer.onRunEnhancement}
         onUseEnhanced={promptEnhancer.onUseEnhanced}
         onKeepOriginal={promptEnhancer.onKeepOriginal}
         onClose={promptEnhancer.onClose}
