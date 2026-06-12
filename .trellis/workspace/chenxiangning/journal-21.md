@@ -1487,3 +1487,36 @@ During verification, `TaskCreateModal.test.tsx` exposed an async state assertion
 ### Next Steps
 
 - None - task complete
+
+
+## Session 816: 同步性能证据归档状态
+
+**Date**: 2026-06-13
+**Task**: 同步性能证据归档状态
+**Branch**: `feature/v0.5.9`
+
+### Summary
+
+提交 frontend-prop-chain-stability-2026-06 手动 QA 完成标记，并同步 runtime evidence gate 文档，将相关 completed/in-progress 状态刷新为归档候选。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d5c96d7d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
