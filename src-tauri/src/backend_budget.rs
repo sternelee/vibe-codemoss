@@ -94,8 +94,11 @@ where
     where
         F: FnOnce() -> V,
     {
-        let mut entries = self.lock_entries();
-        if let Some(entry) = entries.get(&key) {
+        let existing_entry = {
+            let entries = self.lock_entries();
+            entries.get(&key).cloned()
+        };
+        if let Some(entry) = existing_entry.as_ref() {
             if entry.signature == signature {
                 return (
                     entry.value.clone(),
@@ -107,8 +110,8 @@ where
                 );
             }
         }
-        let invalidation_reason = entries
-            .get(&key)
+        let invalidation_reason = existing_entry
+            .as_ref()
             .map(|_| "source-signature-changed".to_string());
         let cache_state = if invalidation_reason.is_some() {
             ScanCacheState::Invalidated
@@ -116,6 +119,64 @@ where
             ScanCacheState::Miss
         };
         let value = compute();
+        let mut entries = self.lock_entries();
+        entries.insert(
+            key,
+            ScanCacheEntry {
+                signature: signature.clone(),
+                value: value.clone(),
+            },
+        );
+        (
+            value,
+            ScanCacheEvidence {
+                cache_state,
+                invalidation_reason,
+                key: signature,
+            },
+        )
+    }
+
+    pub(crate) fn get_or_compute_with_signatures<FCurrent, FStored, FCompute>(
+        &self,
+        key: K,
+        current_signature: FCurrent,
+        stored_signature: FStored,
+        compute: FCompute,
+    ) -> (V, ScanCacheEvidence)
+    where
+        FCurrent: FnOnce(&V) -> ScanCacheKeySignature,
+        FStored: FnOnce(&V) -> ScanCacheKeySignature,
+        FCompute: FnOnce() -> V,
+    {
+        let existing_entry = {
+            let entries = self.lock_entries();
+            entries.get(&key).cloned()
+        };
+        if let Some(entry) = existing_entry.as_ref() {
+            let signature = current_signature(&entry.value);
+            if entry.signature == signature {
+                return (
+                    entry.value.clone(),
+                    ScanCacheEvidence {
+                        cache_state: ScanCacheState::Hit,
+                        invalidation_reason: None,
+                        key: signature,
+                    },
+                );
+            }
+        }
+        let invalidation_reason = existing_entry
+            .as_ref()
+            .map(|_| "source-signature-changed".to_string());
+        let cache_state = if invalidation_reason.is_some() {
+            ScanCacheState::Invalidated
+        } else {
+            ScanCacheState::Miss
+        };
+        let value = compute();
+        let signature = stored_signature(&value);
+        let mut entries = self.lock_entries();
         entries.insert(
             key,
             ScanCacheEntry {

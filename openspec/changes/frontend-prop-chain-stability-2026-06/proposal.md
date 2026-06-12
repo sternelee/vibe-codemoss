@@ -89,7 +89,7 @@
 - `layout_nodes_recompute_count_per_1000_delta` < 50
 - 1000-delta burst fixture: `prepareThreadItems_calls_per_1000_delta` 严格 0（fast path 完整覆盖）
 - `npm run typecheck` / `lint` / `test` / `cargo check` / `cargo test --lib` 全部通过
-- 手动：开 2 个 codex session 跑 5 分钟无可见卡顿；切换 session 视觉无 stall；打开 10MB 文件不卡
+- 手动 QA calibration：开 2 个 codex session 观察 5 分钟；当前结论为 jank 减轻但仍存在，因此本 change 只可标记 task-complete，不可直接标记 archive-ready；后续由 `calibrate-performance-iteration-debt` 收口证据与残余技术债。
 
 ## Serial Position
 

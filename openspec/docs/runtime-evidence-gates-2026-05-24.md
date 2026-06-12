@@ -7,9 +7,9 @@ Generated at: 2026-06-12T16:51:24.241Z
 | Change | Tasks | Recommendation | Qualifier |
 |---|---:|---|---|
 | realtime-input-and-io-isolation-2026-06 | 68/68 | archive-candidate-after-qualifier-review | Review validation and platform qualifiers before archive. |
-| frontend-prop-chain-stability-2026-06 | 45/45 | archive-candidate-after-qualifier-review | Review validation and platform qualifiers before archive. |
+| frontend-prop-chain-stability-2026-06 | 45/45 | task-complete-not-archive-ready | Manual QA says jank improved but still exists; follow-up `calibrate-performance-iteration-debt` must reconcile profiler/evidence qualifiers before archive. |
 | file-editor-io-render-isolation-2026-06 | 24/24 | archive-candidate-after-qualifier-review | Review validation and platform qualifiers before archive. |
-| workspace-tree-and-large-file-listing-budget | 26/26 | archive-candidate-after-qualifier-review | Review validation and platform qualifiers before archive. |
+| workspace-tree-and-large-file-listing-budget | 26/26 | task-complete-cache-substrate-verified | Follow-up `calibrate-performance-iteration-debt` wires desktop and daemon workspace listing to `ScanCache`, removes recursive pre-walk cache validation, and verifies miss/hit/invalidated behavior with focused Rust tests. |
 | markdown-off-main-thread-pipeline | 27/27 | archive-candidate-after-qualifier-review | Review validation and platform qualifiers before archive. |
 | backend-io-cache-and-bridge-payload-budget | 27/27 | archive-candidate-after-qualifier-review | Review validation and platform qualifiers before archive. |
 | renderer-resource-backpressure | 33/33 | archive-candidate-after-qualifier-review | Review validation and platform qualifiers before archive. |
