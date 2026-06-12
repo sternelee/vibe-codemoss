@@ -20,6 +20,7 @@ export function loadFileViewStyles() {
 export function loadDiffStyles() {
   return loadStyles([
     () => import("./review-inline.css"),
+    () => import("./git-diff-modal.css"),
     () => import("./diff.css"),
     () => import("./diff-viewer.css"),
   ]);

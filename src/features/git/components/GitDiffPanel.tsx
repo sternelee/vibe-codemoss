@@ -1068,7 +1068,8 @@ export function GitDiffPanel({
     });
 
     onRefreshGitStatus?.();
-  }, [onRefreshGitStatus]);
+    onRefreshGitDiffs?.();
+  }, [onRefreshGitDiffs, onRefreshGitStatus]);
 
   const handleFileClick = useCallback(
     (

@@ -211,13 +211,15 @@ describe("GitDiffPanel", () => {
     ).toBeTruthy();
   });
 
-  it("invokes manual git status refresh from the repository summary action", () => {
+  it("invokes manual git status and diff refresh from the repository summary action", () => {
     const onRefreshGitStatus = vi.fn();
+    const onRefreshGitDiffs = vi.fn();
     render(
       <GitDiffPanel
         {...baseProps}
         workspacePath="/tmp/ccgui"
         onRefreshGitStatus={onRefreshGitStatus}
+        onRefreshGitDiffs={onRefreshGitDiffs}
         unstagedFiles={[
           { path: "src/App.tsx", status: "M", additions: 2, deletions: 1 },
         ]}
@@ -235,6 +237,7 @@ describe("GitDiffPanel", () => {
     fireEvent.click(refreshButton);
 
     expect(onRefreshGitStatus).toHaveBeenCalledTimes(1);
+    expect(onRefreshGitDiffs).toHaveBeenCalledTimes(1);
   });
 
   it("spins the manual git status refresh icon when clicked", () => {
