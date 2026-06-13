@@ -37,4 +37,11 @@ Do not encode the `budgeted-next` rows until the implementation has either:
 1. owner confirmation in this change, or
 2. a measured runtime artifact and a documented source line in `runtime-performance-evidence-gates`.
 
-Until then, readiness output should keep them visible as residual `budget-missing` records.
+Current implementation encodes the four realtime runtime rows after measured runtime evidence exists:
+
+- `S-RS-VL/visibleTextLagP95`
+- `S-RS-RA/reducerAmplificationMedian`
+- `S-RS-FD/batchFlushDurationP95`
+- `S-RS-TS/terminalSettlementP95`
+
+All other rows without owner-approved source remain visible as residual `budget-missing` records.

@@ -1,44 +1,44 @@
 {
   "schemaVersion": "1.0",
-  "generatedAt": "2026-06-12T20:47:44.691Z",
+  "generatedAt": "2026-06-13T05:50:20.808Z",
   "source": "realtime-runtime",
   "metrics": [
     {
       "scenario": "S-RS-VL",
       "metric": "visibleTextLagP95",
-      "value": null,
+      "value": 35,
       "unit": "ms",
-      "evidenceClass": "unsupported",
-      "unsupportedReason": "No measured realtime.turnTrace.summary diagnostics were found. Enable turn trace in a Tauri/webview session and export renderer diagnostics."
+      "evidenceClass": "measured",
+      "notes": "measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json"
     },
     {
       "scenario": "S-RS-RA",
       "metric": "reducerAmplificationMedian",
-      "value": null,
+      "value": 3,
       "unit": "ratio",
-      "evidenceClass": "unsupported",
-      "unsupportedReason": "No measured realtime.turnTrace.summary diagnostics were found. Enable turn trace in a Tauri/webview session and export renderer diagnostics."
+      "evidenceClass": "measured",
+      "notes": "measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json"
     },
     {
       "scenario": "S-RS-FD",
       "metric": "batchFlushDurationP95",
-      "value": null,
+      "value": 14,
       "unit": "ms",
-      "evidenceClass": "unsupported",
-      "unsupportedReason": "No measured realtime.turnTrace.summary diagnostics were found. Enable turn trace in a Tauri/webview session and export renderer diagnostics."
+      "evidenceClass": "measured",
+      "notes": "measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json"
     },
     {
       "scenario": "S-RS-TS",
       "metric": "terminalSettlementP95",
-      "value": null,
+      "value": 70,
       "unit": "ms",
-      "evidenceClass": "unsupported",
-      "unsupportedReason": "No measured realtime.turnTrace.summary diagnostics were found. Enable turn trace in a Tauri/webview session and export renderer diagnostics."
+      "evidenceClass": "measured",
+      "notes": "measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json"
     }
   ],
   "notes": [
     "input=.artifacts/realtime-runtime-diagnostics.json",
-    "measuredSummaryCount=0",
+    "measuredSummaryCount=2",
     "contentSafety=ids, durations, counters, and dimensions only; no prompt, assistant text, tool output, or file content"
   ]
 }

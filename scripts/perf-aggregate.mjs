@@ -9,6 +9,7 @@ const fragmentPaths = [
   "docs/perf/long-list-baseline.json",
   "docs/perf/composer-baseline.json",
   "docs/perf/realtime-extended-baseline.json",
+  "docs/perf/realtime-runtime-evidence.json",
   "docs/perf/cold-start-baseline.json",
 ];
 
@@ -39,6 +40,14 @@ function escapeMarkdownCell(value) {
 }
 
 function classifyMetric(metric) {
+  if (
+    metric.evidenceClass === "measured"
+    || metric.evidenceClass === "proxy"
+    || metric.evidenceClass === "manual-only"
+    || metric.evidenceClass === "unsupported"
+  ) {
+    return metric.evidenceClass;
+  }
   const note = `${metric.notes ?? ""} ${metric.unsupportedReason ?? ""}`.toLowerCase();
   if (metric.value == null || metric.unsupportedReason) {
     return "unsupported";
@@ -101,6 +110,42 @@ function budgetForMetric(metric) {
       unit: "%",
       rollout: "proxy-advisory",
     },
+    "S-RS-VL/visibleTextLagP95": {
+      target: 2_000,
+      hardFail: 5_000,
+      unit: "ms",
+      rollout: "approved-pending-runtime-trace",
+      source: "openspec/changes/collect-release-grade-performance-evidence/budget-decision-table.md",
+      owner: "realtime-runtime-evidence",
+      status: "approved-runtime-measured",
+    },
+    "S-RS-RA/reducerAmplificationMedian": {
+      target: 2,
+      hardFail: 4,
+      unit: "ratio",
+      rollout: "approved-pending-runtime-trace",
+      source: "openspec/changes/collect-release-grade-performance-evidence/budget-decision-table.md",
+      owner: "realtime-runtime-evidence",
+      status: "approved-runtime-measured",
+    },
+    "S-RS-FD/batchFlushDurationP95": {
+      target: 8,
+      hardFail: 16,
+      unit: "ms",
+      rollout: "approved-pending-runtime-trace",
+      source: "openspec/changes/collect-release-grade-performance-evidence/budget-decision-table.md",
+      owner: "realtime-runtime-evidence",
+      status: "approved-runtime-measured",
+    },
+    "S-RS-TS/terminalSettlementP95": {
+      target: 100,
+      hardFail: 250,
+      unit: "ms",
+      rollout: "approved-pending-runtime-trace",
+      source: "openspec/changes/collect-release-grade-performance-evidence/budget-decision-table.md",
+      owner: "realtime-runtime-evidence",
+      status: "approved-runtime-measured",
+    },
   };
   return budgets[id] ?? null;
 }
@@ -119,7 +164,9 @@ function enrichMetric(metric) {
             hardFail: budget.hardFail,
             unit: budget.unit,
             evidenceClass,
-            source: "docs/perf/baseline.json",
+            source: budget.source ?? "docs/perf/baseline.json",
+            ...(budget.owner ? { owner: budget.owner } : {}),
+            ...(budget.status ? { status: budget.status } : {}),
             rollout: budget.rollout,
           },
         }
@@ -129,6 +176,31 @@ function enrichMetric(metric) {
 
 function metricKey(metric) {
   return `${metric.scenario}\u0000${metric.metric}\u0000${metric.unit}`;
+}
+
+function metricEvidenceRank(metric) {
+  if (metric.evidenceClass === "measured" && metric.value != null) {
+    return 3;
+  }
+  if (metric.evidenceClass === "proxy" && metric.value != null) {
+    return 2;
+  }
+  if (metric.value != null) {
+    return 1;
+  }
+  return 0;
+}
+
+function dedupeMetrics(metrics) {
+  const byKey = new Map();
+  for (const metric of metrics) {
+    const key = metricKey(metric);
+    const existing = byKey.get(key);
+    if (!existing || metricEvidenceRank(metric) > metricEvidenceRank(existing)) {
+      byKey.set(key, metric);
+    }
+  }
+  return Array.from(byKey.values());
 }
 
 function buildComparison(previousBaseline, currentReport) {
@@ -275,7 +347,7 @@ async function main() {
       branch: getGitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown"),
       commit: getGitValue(["rev-parse", "HEAD"], "unknown"),
     },
-    metrics: fragments.flatMap((fragment) => fragment.metrics).map(enrichMetric),
+    metrics: dedupeMetrics(fragments.flatMap((fragment) => fragment.metrics).map(enrichMetric)),
     sources: fragments.map((fragment) => ({ source: fragment.source, generatedAt: fragment.generatedAt })),
     residualRisks: fragments.flatMap((fragment) => fragment.residualRisks ?? []),
   };

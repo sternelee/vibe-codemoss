@@ -22,21 +22,21 @@
 
 - [x] 4.1 [P0][depends:1.3][input:`scripts/realtime-perf-report.ts`, realtime trace utilities][output: runtime measurement plan for S-RS-VL/S-RS-RA/S-RS-FD/S-RS-TS][validation: metric source map lists exact runtime milestones and content-safety fields] Define realtime runtime source map.
 - [x] 4.2 [P0][depends:4.1][input: renderer/reducer/batcher diagnostics][output: runtime counters/timing probes for visible lag, reducer amplification, batch flush, terminal settlement][validation: focused tests prove diagnostics are bounded and content-safe] Add runtime measurement probes.
-- [ ] 4.3 [P0][depends:4.2][input: deterministic streaming fixture][output: measured realtime evidence artifact][validation:`npm run perf:realtime:report` or equivalent writes measured runtime fields, not only replay proxy fields] Collect realtime runtime evidence.
+- [x] 4.3 [P0][depends:4.2][input: deterministic streaming fixture][output: measured realtime evidence artifact][validation:`npm run perf:realtime:report` or equivalent writes measured runtime fields, not only replay proxy fields] Collect realtime runtime evidence.
 - [x] 4.4 [P1][depends:4.3][input:`generate-runtime-evidence-report.mjs`][output: runtime evidence report uses measured fields where available][validation:`docs/perf/runtime-evidence-gates.json` classifies realtime runtime metrics accurately] Update normalized report generation.
 
 ## 5. Budget Ownership And Residuals
 
 - [x] 5.1 [P0][depends:1.2][input: 21 `budget-missing` metrics][output: owner-approved budget decision table][validation: each metric is marked `budgeted` with source/owner or `residual` with owner/followUp] Classify missing budgets without inventing thresholds.
-- [ ] 5.2 [P1][depends:5.1][input:`docs/perf/baseline.json`][output: budget metadata for approved metrics][validation: readiness output no longer reports approved metrics as `budget-missing`] Encode approved budgets.
+- [x] 5.2 [P1][depends:5.1][input:`docs/perf/baseline.json`][output: budget metadata for approved metrics][validation: readiness output no longer reports approved metrics as `budget-missing`] Encode approved budgets.
 - [x] 5.3 [P1][depends:5.1][input:`docs/perf/runtime-evidence-gates.json`][output: residual budget list with owner/followUp][validation: residual budget-missing warnings include owner and next action] Keep unapproved budgets explicit.
 
 ## 6. Bundle Hard Breach Remediation
 
 - [x] 6.1 [P0][depends:1.3][input:`npm run build`, bundle budget/chunking outputs][output: main bundle culprit list][validation: report identifies first-viewport vs non-startup candidates from actual build output] Analyze `bundleSizeMain` breach using current build artifacts.
 - [x] 6.2 [P0][depends:6.1][input: culprit list][output: narrow lazy-boundary remediation plan][validation: plan names files/imports and proves they are outside startup hot path] Select minimal bundle remediation target.
-- [ ] 6.3 [P0][depends:6.2][input: selected startup-lazy candidate][output: narrow code change lowering main bundle][validation:`bundleSizeMain <= 1100000 bytes-gzip` after build/aggregate] Implement bundle hard breach fix.
-- [ ] 6.4 [P1][depends:6.3][input: touched feature/runtime surface][output: focused regression coverage][validation: focused Vitest or contract test proves lazy-loaded behavior still works] Add or update focused tests.
+- [x] 6.3 [P0][depends:6.2][input: selected startup-lazy candidate][output: narrow code change lowering main bundle][validation:`bundleSizeMain <= 1100000 bytes-gzip` after build/aggregate] Implement bundle hard breach fix.
+- [x] 6.4 [P1][depends:6.3][input: touched feature/runtime surface][output: focused Vitest or contract test proves lazy-loaded behavior still works] Add or update focused tests.
 
 ## 7. Report Regeneration And Validation
 

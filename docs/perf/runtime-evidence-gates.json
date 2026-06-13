@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0",
-  "generatedAt": "2026-06-13T04:01:35.576Z",
+  "generatedAt": "2026-06-13T05:53:58.534Z",
   "sources": {
     "perfBaseline": "docs/perf/baseline.json",
     "composerBaseline": "docs/perf/composer-baseline.json",
@@ -273,74 +273,90 @@
       "nextAction": "Correlate replay metrics with runtime visible-lag and terminal-pressure traces."
     },
     {
-      "source": "docs/perf/realtime-extended-baseline.json",
+      "source": "docs/perf/baseline.json",
       "scenario": "S-RS-VL",
       "metric": "visibleTextLagP95",
-      "value": 24,
+      "value": 35,
       "unit": "ms",
-      "evidenceClass": "proxy",
+      "evidenceClass": "measured",
       "budget": {
         "target": 2000,
         "hardFail": 5000,
-        "rollout": "advisory-until-runtime-trace"
+        "unit": "ms",
+        "rollout": "advisory-until-runtime-trace",
+        "source": "openspec/changes/collect-release-grade-performance-evidence/budget-decision-table.md",
+        "owner": "realtime-runtime-evidence",
+        "status": "approved-runtime-measured"
       },
-      "reason": "Replay-derived first-delta -> first-visible-text P95; jsdom/PerformanceObserver path is the follow-up.",
-      "nextAction": "Wire PerformanceObserver in Tauri webview to record first visible text growth and bring this to measured."
+      "reason": "measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json",
+      "nextAction": "Correlate replay metrics with runtime visible-lag and terminal-pressure traces."
     },
     {
-      "source": "docs/perf/realtime-extended-baseline.json",
+      "source": "docs/perf/baseline.json",
       "scenario": "S-RS-RA",
       "metric": "reducerAmplificationMedian",
-      "value": 4,
+      "value": 3,
       "unit": "ratio",
-      "evidenceClass": "proxy",
+      "evidenceClass": "measured",
       "budget": {
         "target": 2,
         "hardFail": 4,
-        "rollout": "advisory-until-runtime-trace"
+        "unit": "ratio",
+        "rollout": "advisory-until-runtime-trace",
+        "source": "openspec/changes/collect-release-grade-performance-evidence/budget-decision-table.md",
+        "owner": "realtime-runtime-evidence",
+        "status": "approved-runtime-measured"
       },
-      "reason": "Replay-derived reducer amplification median; reflects fixture batch grouping.",
-      "nextAction": "Cross-check with renderer-side reducer commit count under live Tauri session."
+      "reason": "measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json",
+      "nextAction": "Correlate replay metrics with runtime visible-lag and terminal-pressure traces."
     },
     {
-      "source": "docs/perf/realtime-extended-baseline.json",
+      "source": "docs/perf/baseline.json",
       "scenario": "S-RS-FD",
       "metric": "batchFlushDurationP95",
-      "value": 13.33,
+      "value": 14,
       "unit": "ms",
-      "evidenceClass": "proxy",
+      "evidenceClass": "measured",
       "budget": {
         "target": 8,
         "hardFail": 16,
-        "rollout": "advisory-until-runtime-trace"
+        "unit": "ms",
+        "rollout": "advisory-until-runtime-trace",
+        "source": "openspec/changes/collect-release-grade-performance-evidence/budget-decision-table.md",
+        "owner": "realtime-runtime-evidence",
+        "status": "approved-runtime-measured"
       },
-      "reason": "Replay-derived batch flush duration P95; replay group window is the surrogate.",
-      "nextAction": "Replace with measured wall-clock gap between batcher flush-start and flush-end in the renderer hot path."
+      "reason": "measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json",
+      "nextAction": "Correlate replay metrics with runtime visible-lag and terminal-pressure traces."
     },
     {
-      "source": "docs/perf/realtime-extended-baseline.json",
+      "source": "docs/perf/baseline.json",
       "scenario": "S-RS-TS",
       "metric": "terminalSettlementP95",
-      "value": 60,
+      "value": 70,
       "unit": "ms",
-      "evidenceClass": "proxy",
+      "evidenceClass": "measured",
       "budget": {
         "target": 100,
         "hardFail": 250,
-        "rollout": "advisory-until-runtime-trace"
+        "unit": "ms",
+        "rollout": "advisory-until-runtime-trace",
+        "source": "openspec/changes/collect-release-grade-performance-evidence/budget-decision-table.md",
+        "owner": "realtime-runtime-evidence",
+        "status": "approved-runtime-measured"
       },
-      "reason": "Replay-derived terminal settlement P95 (last reducer commit -> agentCompleted).",
-      "nextAction": "Wire real Tauri/webview terminal signal (provider final + reducer final) and reclassify to measured."
+      "reason": "measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json",
+      "nextAction": "Correlate replay metrics with runtime visible-lag and terminal-pressure traces."
     },
     {
       "source": "docs/perf/baseline.json",
       "scenario": "S-CS-COLD",
       "metric": "bundleSizeMain",
-      "value": 1132559,
+      "value": 1052527,
       "unit": "bytes-gzip",
       "evidenceClass": "measured",
       "budget": {
-        "observed": 1132559,
+        "observed": 1052527,
         "target": 950000,
         "hardFail": 1100000,
         "unit": "bytes-gzip",
@@ -348,18 +364,18 @@
         "source": "docs/perf/baseline.json",
         "rollout": "advisory-until-bundle-optimization"
       },
-      "reason": "App-JqN3Gseo.js",
+      "reason": "App-DQ2N5_ml.js",
       "nextAction": "Track for regression."
     },
     {
       "source": "docs/perf/baseline.json",
       "scenario": "S-CS-COLD",
       "metric": "bundleSizeVendor",
-      "value": 741552,
+      "value": 741554,
       "unit": "bytes-gzip",
       "evidenceClass": "measured",
       "budget": {
-        "observed": 741552,
+        "observed": 741554,
         "target": 680000,
         "hardFail": 760000,
         "unit": "bytes-gzip",
@@ -367,7 +383,7 @@
         "source": "docs/perf/baseline.json",
         "rollout": "advisory"
       },
-      "reason": "subset-shared.chunk-CKdmgRUl.js",
+      "reason": "subset-shared.chunk-BqJAHzmS.js",
       "nextAction": "Track for regression."
     },
     {
@@ -473,60 +489,76 @@
       "source": "docs/perf/realtime-runtime-evidence.json",
       "scenario": "S-RS-VL",
       "metric": "visibleTextLagP95",
-      "value": null,
+      "value": 35,
       "unit": "ms",
-      "evidenceClass": "unsupported",
+      "evidenceClass": "measured",
       "budget": {
         "target": 2000,
         "hardFail": 5000,
-        "rollout": "advisory-until-runtime-trace"
+        "unit": "ms",
+        "rollout": "advisory-until-runtime-trace",
+        "source": "openspec/changes/collect-release-grade-performance-evidence/budget-decision-table.md",
+        "owner": "realtime-runtime-evidence",
+        "status": "approved-runtime-measured"
       },
-      "reason": "No measured realtime.turnTrace.summary diagnostics were found. Enable turn trace in a Tauri/webview session and export renderer diagnostics.",
+      "reason": "measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json",
       "nextAction": "Correlate replay metrics with runtime visible-lag and terminal-pressure traces."
     },
     {
       "source": "docs/perf/realtime-runtime-evidence.json",
       "scenario": "S-RS-RA",
       "metric": "reducerAmplificationMedian",
-      "value": null,
+      "value": 3,
       "unit": "ratio",
-      "evidenceClass": "unsupported",
+      "evidenceClass": "measured",
       "budget": {
         "target": 2,
         "hardFail": 4,
-        "rollout": "advisory-until-runtime-trace"
+        "unit": "ratio",
+        "rollout": "advisory-until-runtime-trace",
+        "source": "openspec/changes/collect-release-grade-performance-evidence/budget-decision-table.md",
+        "owner": "realtime-runtime-evidence",
+        "status": "approved-runtime-measured"
       },
-      "reason": "No measured realtime.turnTrace.summary diagnostics were found. Enable turn trace in a Tauri/webview session and export renderer diagnostics.",
+      "reason": "measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json",
       "nextAction": "Correlate replay metrics with runtime visible-lag and terminal-pressure traces."
     },
     {
       "source": "docs/perf/realtime-runtime-evidence.json",
       "scenario": "S-RS-FD",
       "metric": "batchFlushDurationP95",
-      "value": null,
+      "value": 14,
       "unit": "ms",
-      "evidenceClass": "unsupported",
+      "evidenceClass": "measured",
       "budget": {
         "target": 8,
         "hardFail": 16,
-        "rollout": "advisory-until-runtime-trace"
+        "unit": "ms",
+        "rollout": "advisory-until-runtime-trace",
+        "source": "openspec/changes/collect-release-grade-performance-evidence/budget-decision-table.md",
+        "owner": "realtime-runtime-evidence",
+        "status": "approved-runtime-measured"
       },
-      "reason": "No measured realtime.turnTrace.summary diagnostics were found. Enable turn trace in a Tauri/webview session and export renderer diagnostics.",
+      "reason": "measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json",
       "nextAction": "Correlate replay metrics with runtime visible-lag and terminal-pressure traces."
     },
     {
       "source": "docs/perf/realtime-runtime-evidence.json",
       "scenario": "S-RS-TS",
       "metric": "terminalSettlementP95",
-      "value": null,
+      "value": 70,
       "unit": "ms",
-      "evidenceClass": "unsupported",
+      "evidenceClass": "measured",
       "budget": {
         "target": 100,
         "hardFail": 250,
-        "rollout": "advisory-until-runtime-trace"
+        "unit": "ms",
+        "rollout": "advisory-until-runtime-trace",
+        "source": "openspec/changes/collect-release-grade-performance-evidence/budget-decision-table.md",
+        "owner": "realtime-runtime-evidence",
+        "status": "approved-runtime-measured"
       },
-      "reason": "No measured realtime.turnTrace.summary diagnostics were found. Enable turn trace in a Tauri/webview session and export renderer diagnostics.",
+      "reason": "measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json",
       "nextAction": "Correlate replay metrics with runtime visible-lag and terminal-pressure traces."
     }
   ],
@@ -534,10 +566,10 @@
     "firstTokenLatencyMs": 5000,
     "interTokenJitterP95Ms": 920,
     "assemblerLatencyMs": 4.77,
-    "visibleTextLagP95Ms": 24,
-    "reducerAmplificationMedian": 4,
-    "batchFlushDurationP95Ms": 13.33,
-    "terminalSettlementP95Ms": 60,
+    "visibleTextLagP95Ms": 35,
+    "reducerAmplificationMedian": 3,
+    "batchFlushDurationP95Ms": 14,
+    "terminalSettlementP95Ms": 70,
     "evidenceClass": "proxy",
     "visibleLagRisk": "high",
     "terminalPressure": "not-directly-measured",
@@ -547,14 +579,14 @@
   },
   "rendererResourceSummary": {
     "backpressure": {
-      "source": "docs/perf/realtime-extended-baseline.json",
+      "source": "docs/perf/baseline.json",
       "eventFlushCap": 200,
       "byteFlushCap": 131072,
-      "evidenceClass": "proxy",
+      "evidenceClass": "measured",
       "queueDepth": null,
       "droppedCount": null,
       "coalescedCount": null,
-      "reason": "Replay-derived batch flush duration P95; replay group window is the surrogate."
+      "reason": "measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json"
     },
     "listenerOwners": {
       "ownerTaxonomy": [
@@ -585,8 +617,8 @@
       "unsupportedReason": "Retained bytes are reported when Blob sizes are available in renderer diagnostics."
     },
     "criticalPath": {
-      "terminalSettlementP95Ms": 60,
-      "evidenceClass": "proxy"
+      "terminalSettlementP95Ms": 70,
+      "evidenceClass": "measured"
     }
   },
   "backendBridgeSummary": {
@@ -1117,74 +1149,90 @@
       "nextAction": "Correlate replay metrics with runtime visible-lag and terminal-pressure traces."
     },
     {
-      "source": "docs/perf/realtime-extended-baseline.json",
+      "source": "docs/perf/baseline.json",
       "scenario": "S-RS-VL",
       "metric": "visibleTextLagP95",
-      "value": 24,
+      "value": 35,
       "unit": "ms",
-      "evidenceClass": "proxy",
+      "evidenceClass": "measured",
       "budget": {
         "target": 2000,
         "hardFail": 5000,
-        "rollout": "advisory-until-runtime-trace"
+        "unit": "ms",
+        "rollout": "advisory-until-runtime-trace",
+        "source": "openspec/changes/collect-release-grade-performance-evidence/budget-decision-table.md",
+        "owner": "realtime-runtime-evidence",
+        "status": "approved-runtime-measured"
       },
-      "reason": "Replay-derived first-delta -> first-visible-text P95; jsdom/PerformanceObserver path is the follow-up.",
-      "nextAction": "Wire PerformanceObserver in Tauri webview to record first visible text growth and bring this to measured."
+      "reason": "measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json",
+      "nextAction": "Correlate replay metrics with runtime visible-lag and terminal-pressure traces."
     },
     {
-      "source": "docs/perf/realtime-extended-baseline.json",
+      "source": "docs/perf/baseline.json",
       "scenario": "S-RS-RA",
       "metric": "reducerAmplificationMedian",
-      "value": 4,
+      "value": 3,
       "unit": "ratio",
-      "evidenceClass": "proxy",
+      "evidenceClass": "measured",
       "budget": {
         "target": 2,
         "hardFail": 4,
-        "rollout": "advisory-until-runtime-trace"
+        "unit": "ratio",
+        "rollout": "advisory-until-runtime-trace",
+        "source": "openspec/changes/collect-release-grade-performance-evidence/budget-decision-table.md",
+        "owner": "realtime-runtime-evidence",
+        "status": "approved-runtime-measured"
       },
-      "reason": "Replay-derived reducer amplification median; reflects fixture batch grouping.",
-      "nextAction": "Cross-check with renderer-side reducer commit count under live Tauri session."
+      "reason": "measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json",
+      "nextAction": "Correlate replay metrics with runtime visible-lag and terminal-pressure traces."
     },
     {
-      "source": "docs/perf/realtime-extended-baseline.json",
+      "source": "docs/perf/baseline.json",
       "scenario": "S-RS-FD",
       "metric": "batchFlushDurationP95",
-      "value": 13.33,
+      "value": 14,
       "unit": "ms",
-      "evidenceClass": "proxy",
+      "evidenceClass": "measured",
       "budget": {
         "target": 8,
         "hardFail": 16,
-        "rollout": "advisory-until-runtime-trace"
+        "unit": "ms",
+        "rollout": "advisory-until-runtime-trace",
+        "source": "openspec/changes/collect-release-grade-performance-evidence/budget-decision-table.md",
+        "owner": "realtime-runtime-evidence",
+        "status": "approved-runtime-measured"
       },
-      "reason": "Replay-derived batch flush duration P95; replay group window is the surrogate.",
-      "nextAction": "Replace with measured wall-clock gap between batcher flush-start and flush-end in the renderer hot path."
+      "reason": "measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json",
+      "nextAction": "Correlate replay metrics with runtime visible-lag and terminal-pressure traces."
     },
     {
-      "source": "docs/perf/realtime-extended-baseline.json",
+      "source": "docs/perf/baseline.json",
       "scenario": "S-RS-TS",
       "metric": "terminalSettlementP95",
-      "value": 60,
+      "value": 70,
       "unit": "ms",
-      "evidenceClass": "proxy",
+      "evidenceClass": "measured",
       "budget": {
         "target": 100,
         "hardFail": 250,
-        "rollout": "advisory-until-runtime-trace"
+        "unit": "ms",
+        "rollout": "advisory-until-runtime-trace",
+        "source": "openspec/changes/collect-release-grade-performance-evidence/budget-decision-table.md",
+        "owner": "realtime-runtime-evidence",
+        "status": "approved-runtime-measured"
       },
-      "reason": "Replay-derived terminal settlement P95 (last reducer commit -> agentCompleted).",
-      "nextAction": "Wire real Tauri/webview terminal signal (provider final + reducer final) and reclassify to measured."
+      "reason": "measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json",
+      "nextAction": "Correlate replay metrics with runtime visible-lag and terminal-pressure traces."
     },
     {
       "source": "docs/perf/baseline.json",
       "scenario": "S-CS-COLD",
       "metric": "bundleSizeMain",
-      "value": 1132559,
+      "value": 1052527,
       "unit": "bytes-gzip",
       "evidenceClass": "measured",
       "budget": {
-        "observed": 1132559,
+        "observed": 1052527,
         "target": 950000,
         "hardFail": 1100000,
         "unit": "bytes-gzip",
@@ -1192,18 +1240,18 @@
         "source": "docs/perf/baseline.json",
         "rollout": "advisory-until-bundle-optimization"
       },
-      "reason": "App-JqN3Gseo.js",
+      "reason": "App-DQ2N5_ml.js",
       "nextAction": "Track for regression."
     },
     {
       "source": "docs/perf/baseline.json",
       "scenario": "S-CS-COLD",
       "metric": "bundleSizeVendor",
-      "value": 741552,
+      "value": 741554,
       "unit": "bytes-gzip",
       "evidenceClass": "measured",
       "budget": {
-        "observed": 741552,
+        "observed": 741554,
         "target": 680000,
         "hardFail": 760000,
         "unit": "bytes-gzip",
@@ -1211,7 +1259,7 @@
         "source": "docs/perf/baseline.json",
         "rollout": "advisory"
       },
-      "reason": "subset-shared.chunk-CKdmgRUl.js",
+      "reason": "subset-shared.chunk-BqJAHzmS.js",
       "nextAction": "Track for regression."
     },
     {
@@ -1317,60 +1365,76 @@
       "source": "docs/perf/realtime-runtime-evidence.json",
       "scenario": "S-RS-VL",
       "metric": "visibleTextLagP95",
-      "value": null,
+      "value": 35,
       "unit": "ms",
-      "evidenceClass": "unsupported",
+      "evidenceClass": "measured",
       "budget": {
         "target": 2000,
         "hardFail": 5000,
-        "rollout": "advisory-until-runtime-trace"
+        "unit": "ms",
+        "rollout": "advisory-until-runtime-trace",
+        "source": "openspec/changes/collect-release-grade-performance-evidence/budget-decision-table.md",
+        "owner": "realtime-runtime-evidence",
+        "status": "approved-runtime-measured"
       },
-      "reason": "No measured realtime.turnTrace.summary diagnostics were found. Enable turn trace in a Tauri/webview session and export renderer diagnostics.",
+      "reason": "measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json",
       "nextAction": "Correlate replay metrics with runtime visible-lag and terminal-pressure traces."
     },
     {
       "source": "docs/perf/realtime-runtime-evidence.json",
       "scenario": "S-RS-RA",
       "metric": "reducerAmplificationMedian",
-      "value": null,
+      "value": 3,
       "unit": "ratio",
-      "evidenceClass": "unsupported",
+      "evidenceClass": "measured",
       "budget": {
         "target": 2,
         "hardFail": 4,
-        "rollout": "advisory-until-runtime-trace"
+        "unit": "ratio",
+        "rollout": "advisory-until-runtime-trace",
+        "source": "openspec/changes/collect-release-grade-performance-evidence/budget-decision-table.md",
+        "owner": "realtime-runtime-evidence",
+        "status": "approved-runtime-measured"
       },
-      "reason": "No measured realtime.turnTrace.summary diagnostics were found. Enable turn trace in a Tauri/webview session and export renderer diagnostics.",
+      "reason": "measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json",
       "nextAction": "Correlate replay metrics with runtime visible-lag and terminal-pressure traces."
     },
     {
       "source": "docs/perf/realtime-runtime-evidence.json",
       "scenario": "S-RS-FD",
       "metric": "batchFlushDurationP95",
-      "value": null,
+      "value": 14,
       "unit": "ms",
-      "evidenceClass": "unsupported",
+      "evidenceClass": "measured",
       "budget": {
         "target": 8,
         "hardFail": 16,
-        "rollout": "advisory-until-runtime-trace"
+        "unit": "ms",
+        "rollout": "advisory-until-runtime-trace",
+        "source": "openspec/changes/collect-release-grade-performance-evidence/budget-decision-table.md",
+        "owner": "realtime-runtime-evidence",
+        "status": "approved-runtime-measured"
       },
-      "reason": "No measured realtime.turnTrace.summary diagnostics were found. Enable turn trace in a Tauri/webview session and export renderer diagnostics.",
+      "reason": "measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json",
       "nextAction": "Correlate replay metrics with runtime visible-lag and terminal-pressure traces."
     },
     {
       "source": "docs/perf/realtime-runtime-evidence.json",
       "scenario": "S-RS-TS",
       "metric": "terminalSettlementP95",
-      "value": null,
+      "value": 70,
       "unit": "ms",
-      "evidenceClass": "unsupported",
+      "evidenceClass": "measured",
       "budget": {
         "target": 100,
         "hardFail": 250,
-        "rollout": "advisory-until-runtime-trace"
+        "unit": "ms",
+        "rollout": "advisory-until-runtime-trace",
+        "source": "openspec/changes/collect-release-grade-performance-evidence/budget-decision-table.md",
+        "owner": "realtime-runtime-evidence",
+        "status": "approved-runtime-measured"
       },
-      "reason": "No measured realtime.turnTrace.summary diagnostics were found. Enable turn trace in a Tauri/webview session and export renderer diagnostics.",
+      "reason": "measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json",
       "nextAction": "Correlate replay metrics with runtime visible-lag and terminal-pressure traces."
     }
   ],
@@ -1393,8 +1457,13 @@
     ],
     "inProgress": [
       {
+        "name": "close-client-performance-residual-2026-06",
+        "tasks": "0/30",
+        "recommendation": "not-archive-ready"
+      },
+      {
         "name": "collect-release-grade-performance-evidence",
-        "tasks": "26/28",
+        "tasks": "28/32",
         "recommendation": "not-archive-ready"
       }
     ],
@@ -1428,9 +1497,19 @@
   ],
   "largeFileSummary": {
     "source": ".artifacts/large-files-near-threshold.json",
-    "generatedAt": "2026-06-12T11:58:18.940Z",
+    "generatedAt": "2026-06-13T04:17:57.746Z",
     "status": "warn",
     "candidates": [
+      {
+        "path": "src/app-shell.tsx",
+        "lines": 2547,
+        "priority": "P0",
+        "policyId": "bridge-runtime-critical",
+        "headroom": 53,
+        "owner": "code-health",
+        "followUp": "Declare public facade before splitting. Next split must be scoped to bridge-runtime-critical (53 lines headroom).",
+        "facade": "Declare public facade before splitting."
+      },
       {
         "path": "src/services/tauri.ts",
         "lines": 2514,
@@ -1520,16 +1599,6 @@
         "owner": "frontend-thread-runtime",
         "followUp": "Preserve hook input/output shape and async cleanup semantics. Next split must be scoped to feature-hotpath (53 lines headroom).",
         "facade": "Preserve hook input/output shape and async cleanup semantics."
-      },
-      {
-        "path": "src-tauri/src/bin/cc_gui_daemon/daemon_state.rs",
-        "lines": 2936,
-        "priority": "P1",
-        "policyId": "default-source",
-        "headroom": 64,
-        "owner": "daemon-runtime",
-        "followUp": "Preserve command registration, Rust module facade, payload shape, and cross-platform paths. Next split must be scoped to default-source (64 lines headroom).",
-        "facade": "Preserve command registration, Rust module facade, payload shape, and cross-platform paths."
       }
     ],
     "nextAction": "Pick one coherent runtime boundary; do not batch unrelated hot paths together."

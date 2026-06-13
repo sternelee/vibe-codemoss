@@ -13,11 +13,15 @@ const lazyFeatureImports = [
   "../features/spec/components/SpecHub",
   "../features/search/components/SearchPalette",
   "../features/update/components/ReleaseNotesModal",
+  "../../project-map/components/ProjectMapPanel",
+  "../../intent-canvas/components/IntentCanvasManager",
 ] as const;
 
 const shellStaticImportFiles = [
   join(srcDir, "app-shell.tsx"),
   join(currentDir, "renderAppShell.tsx"),
+  join(currentDir, "useAppShellLayoutNodesSection.tsx"),
+  join(srcDir, "features/layout/hooks/useLayoutNodes.tsx"),
 ] as const;
 
 const releaseNotesControllerPath = join(
@@ -42,10 +46,14 @@ describe("AppShell lazy feature boundaries", () => {
   });
 
   it("loads inactive feature views through statically analyzable dynamic imports", () => {
-    const source = readSource(join(currentDir, "lazyViews.tsx"));
+    const lazyViewsSource = readSource(join(currentDir, "lazyViews.tsx"));
+    const layoutNodesSource = readSource(join(srcDir, "features/layout/hooks/useLayoutNodes.tsx"));
 
-    for (const importPath of lazyFeatureImports) {
-      expect(source).toContain(`import("${importPath}")`);
+    for (const importPath of lazyFeatureImports.slice(0, 6)) {
+      expect(lazyViewsSource).toContain(`import("${importPath}")`);
+    }
+    for (const importPath of lazyFeatureImports.slice(6)) {
+      expect(layoutNodesSource).toContain(`import("${importPath}")`);
     }
   });
 

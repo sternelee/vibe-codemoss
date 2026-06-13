@@ -457,28 +457,44 @@ const REALTIME_TRACE_BUDGETS = {
   "S-RS-VL": {
     target: 2000,
     hardFail: 5000,
+    unit: "ms",
     rollout: "advisory-until-runtime-trace",
+    source: "openspec/changes/collect-release-grade-performance-evidence/budget-decision-table.md",
+    owner: "realtime-runtime-evidence",
+    status: "approved-runtime-measured",
     reason: "Replay-derived first-delta -> first-visible-text P95; jsdom/PerformanceObserver path is the follow-up.",
     nextAction: "Wire PerformanceObserver in Tauri webview to record first visible text growth and bring this to measured.",
   },
   "S-RS-RA": {
     target: 2,
     hardFail: 4,
+    unit: "ratio",
     rollout: "advisory-until-runtime-trace",
+    source: "openspec/changes/collect-release-grade-performance-evidence/budget-decision-table.md",
+    owner: "realtime-runtime-evidence",
+    status: "approved-runtime-measured",
     reason: "Replay-derived reducer amplification median; reflects fixture batch grouping.",
     nextAction: "Cross-check with renderer-side reducer commit count under live Tauri session.",
   },
   "S-RS-FD": {
     target: 8,
     hardFail: 16,
+    unit: "ms",
     rollout: "advisory-until-runtime-trace",
+    source: "openspec/changes/collect-release-grade-performance-evidence/budget-decision-table.md",
+    owner: "realtime-runtime-evidence",
+    status: "approved-runtime-measured",
     reason: "Replay-derived batch flush duration P95; replay group window is the surrogate.",
     nextAction: "Replace with measured wall-clock gap between batcher flush-start and flush-end in the renderer hot path.",
   },
   "S-RS-TS": {
     target: 100,
     hardFail: 250,
+    unit: "ms",
     rollout: "advisory-until-runtime-trace",
+    source: "openspec/changes/collect-release-grade-performance-evidence/budget-decision-table.md",
+    owner: "realtime-runtime-evidence",
+    status: "approved-runtime-measured",
     reason: "Replay-derived terminal settlement P95 (last reducer commit -> agentCompleted).",
     nextAction: "Wire real Tauri/webview terminal signal (provider final + reducer final) and reclassify to measured.",
   },
@@ -496,7 +512,15 @@ function buildRealtimeTraceBudgets(perfEvidence) {
         : entry.scenario === "S-RS-TS" ? "terminalSettlementP95"
         : null
     )) {
-      entry.budget = { target: budget.target, hardFail: budget.hardFail, rollout: budget.rollout };
+      entry.budget = {
+        target: budget.target,
+        hardFail: budget.hardFail,
+        unit: budget.unit,
+        rollout: budget.rollout,
+        source: budget.source,
+        owner: budget.owner,
+        status: budget.status,
+      };
       if (entry.source === REALTIME_RUNTIME_EVIDENCE_PATH) {
         entry.nextAction = entry.nextAction ?? budget.nextAction;
       } else if (entry.evidenceClass !== "measured") {

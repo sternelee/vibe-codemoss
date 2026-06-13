@@ -27,10 +27,10 @@ Forbidden fields:
 
 | Record | Runtime Source | Start | End | Current State |
 |---|---|---|---|---|
-| `S-RS-VL/visibleTextLagP95` | renderer visible text milestone | first assistant text ingress | first visible text growth | proxy from `docs/perf/realtime-turn-trace.json` |
-| `S-RS-RA/reducerAmplificationMedian` | reducer action / commit counters | first streaming delta for turn | provider completion for turn | proxy from replay reducer grouping |
-| `S-RS-FD/batchFlushDurationP95` | app-server batch route timing | batch flush start | batch flush end / route completion | proxy from replay batch window |
-| `S-RS-TS/terminalSettlementP95` | runtime terminal settlement milestone | last reducer commit for turn | terminal/provider settled event | proxy from replay terminal settlement |
+| `S-RS-VL/visibleTextLagP95` | renderer visible text milestone | first assistant text ingress | first visible text growth | measured from `docs/perf/realtime-runtime-evidence.json` |
+| `S-RS-RA/reducerAmplificationMedian` | reducer action / commit counters | first streaming delta for turn | provider completion for turn | measured from `docs/perf/realtime-runtime-evidence.json` |
+| `S-RS-FD/batchFlushDurationP95` | app-server batch route timing | batch flush start | batch flush end / route completion | measured from `docs/perf/realtime-runtime-evidence.json` |
+| `S-RS-TS/terminalSettlementP95` | runtime terminal settlement milestone | last reducer commit for turn | terminal/provider settled event | measured from `docs/perf/realtime-runtime-evidence.json` |
 
 ## Candidate Instrumentation Points
 

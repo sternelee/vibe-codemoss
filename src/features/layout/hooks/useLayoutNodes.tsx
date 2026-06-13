@@ -36,8 +36,6 @@ import { FileTreePanel } from "../../files/components/FileTreePanel";
 import { WorkspaceSearchPanel } from "../../search/components/WorkspaceSearchPanel";
 import { PromptPanel } from "../../prompts/components/PromptPanel";
 import { ProjectMemoryPanel } from "../../project-memory/components/ProjectMemoryPanel";
-import { ProjectMapPanel } from "../../project-map";
-import { IntentCanvasManager } from "../../intent-canvas/components/IntentCanvasManager";
 import type {
   CanvasSemanticGraph,
   IntentCanvasCodeSelectionAnchor,
@@ -144,6 +142,16 @@ const GitDiffPanel = lazy(() =>
 const FileViewPanel = lazy(() =>
   import("../../files/components/FileViewPanel").then((m) => ({
     default: m.FileViewPanel,
+  })),
+);
+const ProjectMapPanel = lazy(() =>
+  import("../../project-map/components/ProjectMapPanel").then((m) => ({
+    default: m.ProjectMapPanel,
+  })),
+);
+const IntentCanvasManager = lazy(() =>
+  import("../../intent-canvas/components/IntentCanvasManager").then((m) => ({
+    default: m.IntentCanvasManager,
   })),
 );
 
@@ -2000,35 +2008,39 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
       onBackToProjectMap={handleBackToProjectMapFromOrchestration}
     />
   ) : (
-    <ProjectMapPanel
-      key={options.activeWorkspace?.id ?? "no-workspace"}
-      activeWorkspace={options.activeWorkspace ?? null}
-      workspaceName={options.activeWorkspace?.name ?? null}
-      selectedEngine={options.selectedEngine ?? null}
-      selectedModelId={options.selectedModelId}
-      models={options.models}
-      datasetController={options.projectMapDatasetController}
-      changedFilePaths={projectMapImpactInput.filePaths}
-      changedFileSource={projectMapImpactInput.source}
-      sourceFocusNodeId={projectMapSourceFocusNodeId}
-      activeCodeSelectionAnchor={options.activeCodeSelectionAnchor}
-      onOpenEvidenceFile={handleOpenProjectMapEvidenceFile}
-      onOpenOrchestrationTask={handleOpenOrchestrationTask}
-      onOpenIntentCanvas={options.onOpenIntentCanvas}
-      onOpenIntentCanvasFromRelationship={options.onOpenIntentCanvas}
-    />
+    <Suspense fallback={<HeavyPanelFallback />}>
+      <ProjectMapPanel
+        key={options.activeWorkspace?.id ?? "no-workspace"}
+        activeWorkspace={options.activeWorkspace ?? null}
+        workspaceName={options.activeWorkspace?.name ?? null}
+        selectedEngine={options.selectedEngine ?? null}
+        selectedModelId={options.selectedModelId}
+        models={options.models}
+        datasetController={options.projectMapDatasetController}
+        changedFilePaths={projectMapImpactInput.filePaths}
+        changedFileSource={projectMapImpactInput.source}
+        sourceFocusNodeId={projectMapSourceFocusNodeId}
+        activeCodeSelectionAnchor={options.activeCodeSelectionAnchor}
+        onOpenEvidenceFile={handleOpenProjectMapEvidenceFile}
+        onOpenOrchestrationTask={handleOpenOrchestrationTask}
+        onOpenIntentCanvas={options.onOpenIntentCanvas}
+        onOpenIntentCanvasFromRelationship={options.onOpenIntentCanvas}
+      />
+    </Suspense>
   );
 
   const intentCanvasPanelNode = (
-    <IntentCanvasManager
-      activeWorkspace={options.activeWorkspace ?? null}
-      activeThreadId={options.activeThreadId ?? null}
-      openRequest={options.intentCanvasOpenRequest ?? null}
-      onOpenRequestConsumed={options.onIntentCanvasOpenRequestConsumed}
-      onAttachToThread={options.onAttachIntentCanvasToThread}
-      onOpenProjectMap={options.onOpenProjectMap}
-      onOpenSourceFile={handleOpenProjectMapEvidenceFile}
-    />
+    <Suspense fallback={<HeavyPanelFallback />}>
+      <IntentCanvasManager
+        activeWorkspace={options.activeWorkspace ?? null}
+        activeThreadId={options.activeThreadId ?? null}
+        openRequest={options.intentCanvasOpenRequest ?? null}
+        onOpenRequestConsumed={options.onIntentCanvasOpenRequestConsumed}
+        onAttachToThread={options.onAttachIntentCanvasToThread}
+        onOpenProjectMap={options.onOpenProjectMap}
+        onOpenSourceFile={handleOpenProjectMapEvidenceFile}
+      />
+    </Suspense>
   );
 
   const planPanelNode = shouldMountBottomStatusPanel ? (

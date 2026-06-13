@@ -4,14 +4,16 @@ import { useLayoutNodes } from "../features/layout/hooks/useLayoutNodes";
 import { MainHeaderActions } from "../features/app/components/MainHeaderActions";
 import { WorkspaceAliasPrompt } from "../features/workspaces/components/WorkspaceAliasPrompt";
 import { useClientUiVisibility } from "../features/client-ui-visibility/hooks/useClientUiVisibility";
-import { useProjectMapDataset } from "../features/project-map";
+import { useProjectMapDataset } from "../features/project-map/hooks/useProjectMapDataset";
 import {
   buildIntentCanvasContextAttachment,
   formatIntentCanvasThreadContext,
-  type IntentCanvasDocument,
-  type IntentCanvasOpenRequest,
-} from "../features/intent-canvas";
-import type { IntentCanvasCodeSelectionAnchor } from "../features/intent-canvas/types";
+} from "../features/intent-canvas/utils/context";
+import type {
+  IntentCanvasCodeSelectionAnchor,
+  IntentCanvasDocument,
+  IntentCanvasOpenRequest,
+} from "../features/intent-canvas/types";
 import { normalizeSharedSessionEngine } from "../features/shared-session/utils/sharedSessionEngines";
 import {
   recoverThreadBindingAndResendForManualRecovery,

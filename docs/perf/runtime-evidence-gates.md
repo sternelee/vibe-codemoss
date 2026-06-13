@@ -1,6 +1,6 @@
 # Runtime Evidence Gates
 
-Generated at: 2026-06-13T04:01:35.576Z
+Generated at: 2026-06-13T05:53:58.534Z
 
 ## Performance Evidence
 
@@ -26,12 +26,12 @@ Generated at: 2026-06-13T04:01:35.576Z
 | docs/perf/baseline.json | S-RS-FT | interTokenJitterP95 | 920 | ms | proxy | 500 | 920 | Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof. | Correlate replay metrics with runtime visible-lag and terminal-pressure traces. |
 | docs/perf/baseline.json | S-RS-PE | dedupHitRatio | 0.25 | ratio | proxy |  |  | Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof. | Correlate replay metrics with runtime visible-lag and terminal-pressure traces. |
 | docs/perf/baseline.json | S-RS-PE | assemblerLatency | 4.77 | ms | proxy |  |  | replay reducer-path proxy latency | Correlate replay metrics with runtime visible-lag and terminal-pressure traces. |
-| docs/perf/realtime-extended-baseline.json | S-RS-VL | visibleTextLagP95 | 24 | ms | proxy | 2000 | 5000 | Replay-derived first-delta -> first-visible-text P95; jsdom/PerformanceObserver path is the follow-up. | Wire PerformanceObserver in Tauri webview to record first visible text growth and bring this to measured. |
-| docs/perf/realtime-extended-baseline.json | S-RS-RA | reducerAmplificationMedian | 4 | ratio | proxy | 2 | 4 | Replay-derived reducer amplification median; reflects fixture batch grouping. | Cross-check with renderer-side reducer commit count under live Tauri session. |
-| docs/perf/realtime-extended-baseline.json | S-RS-FD | batchFlushDurationP95 | 13.33 | ms | proxy | 8 | 16 | Replay-derived batch flush duration P95; replay group window is the surrogate. | Replace with measured wall-clock gap between batcher flush-start and flush-end in the renderer hot path. |
-| docs/perf/realtime-extended-baseline.json | S-RS-TS | terminalSettlementP95 | 60 | ms | proxy | 100 | 250 | Replay-derived terminal settlement P95 (last reducer commit -> agentCompleted). | Wire real Tauri/webview terminal signal (provider final + reducer final) and reclassify to measured. |
-| docs/perf/baseline.json | S-CS-COLD | bundleSizeMain | 1132559 | bytes-gzip | measured | 950000 | 1100000 | App-JqN3Gseo.js | Track for regression. |
-| docs/perf/baseline.json | S-CS-COLD | bundleSizeVendor | 741552 | bytes-gzip | measured | 680000 | 760000 | subset-shared.chunk-CKdmgRUl.js | Track for regression. |
+| docs/perf/baseline.json | S-RS-VL | visibleTextLagP95 | 35 | ms | measured | 2000 | 5000 | measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json | Correlate replay metrics with runtime visible-lag and terminal-pressure traces. |
+| docs/perf/baseline.json | S-RS-RA | reducerAmplificationMedian | 3 | ratio | measured | 2 | 4 | measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json | Correlate replay metrics with runtime visible-lag and terminal-pressure traces. |
+| docs/perf/baseline.json | S-RS-FD | batchFlushDurationP95 | 14 | ms | measured | 8 | 16 | measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json | Correlate replay metrics with runtime visible-lag and terminal-pressure traces. |
+| docs/perf/baseline.json | S-RS-TS | terminalSettlementP95 | 70 | ms | measured | 100 | 250 | measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json | Correlate replay metrics with runtime visible-lag and terminal-pressure traces. |
+| docs/perf/baseline.json | S-CS-COLD | bundleSizeMain | 1052527 | bytes-gzip | measured | 950000 | 1100000 | App-DQ2N5_ml.js | Track for regression. |
+| docs/perf/baseline.json | S-CS-COLD | bundleSizeVendor | 741554 | bytes-gzip | measured | 680000 | 760000 | subset-shared.chunk-BqJAHzmS.js | Track for regression. |
 | docs/perf/baseline.json | S-CS-COLD | firstPaintMs | unsupported | ms | unsupported |  |  | Tauri/webview startup marker snapshot was not provided; bundle baseline is recorded. | Collect real Tauri webview cold-start timing on a supported runner. |
 | docs/perf/baseline.json | S-CS-COLD | firstInteractiveMs | unsupported | ms | unsupported |  |  | Tauri/webview startup marker snapshot was not provided; bundle baseline is recorded. | Collect real Tauri webview cold-start timing on a supported runner. |
 | docs/perf/composer-baseline.json | S-CI-50 | keystrokeToCommitP95 | 0.08 | ms | proxy |  |  | Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof. | Keep as regression baseline and add runtime/browser evidence before release-grade closure. |
@@ -41,19 +41,19 @@ Generated at: 2026-06-13T04:01:35.576Z
 | docs/perf/composer-baseline.json | S-CI-100-IME | inputEventLossCount | 0 | count | proxy |  |  | Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof. | Keep as regression baseline and add runtime/browser evidence before release-grade closure. |
 | docs/perf/composer-baseline.json | S-CI-100-IME | compositionToCommit | 0.12 | ms | proxy |  |  | Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof. | Keep as regression baseline and add runtime/browser evidence before release-grade closure. |
 | docs/perf/long-list-browser-scroll.json | S-LL-1000 | browserScrollFrameDropPct | 0 | % | measured |  |  | browser=/Applications/Google Chrome.app/Contents/MacOS/Google Chrome | Track for regression. |
-| docs/perf/realtime-runtime-evidence.json | S-RS-VL | visibleTextLagP95 | unsupported | ms | unsupported | 2000 | 5000 | No measured realtime.turnTrace.summary diagnostics were found. Enable turn trace in a Tauri/webview session and export renderer diagnostics. | Correlate replay metrics with runtime visible-lag and terminal-pressure traces. |
-| docs/perf/realtime-runtime-evidence.json | S-RS-RA | reducerAmplificationMedian | unsupported | ratio | unsupported | 2 | 4 | No measured realtime.turnTrace.summary diagnostics were found. Enable turn trace in a Tauri/webview session and export renderer diagnostics. | Correlate replay metrics with runtime visible-lag and terminal-pressure traces. |
-| docs/perf/realtime-runtime-evidence.json | S-RS-FD | batchFlushDurationP95 | unsupported | ms | unsupported | 8 | 16 | No measured realtime.turnTrace.summary diagnostics were found. Enable turn trace in a Tauri/webview session and export renderer diagnostics. | Correlate replay metrics with runtime visible-lag and terminal-pressure traces. |
-| docs/perf/realtime-runtime-evidence.json | S-RS-TS | terminalSettlementP95 | unsupported | ms | unsupported | 100 | 250 | No measured realtime.turnTrace.summary diagnostics were found. Enable turn trace in a Tauri/webview session and export renderer diagnostics. | Correlate replay metrics with runtime visible-lag and terminal-pressure traces. |
+| docs/perf/realtime-runtime-evidence.json | S-RS-VL | visibleTextLagP95 | 35 | ms | measured | 2000 | 5000 | measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json | Correlate replay metrics with runtime visible-lag and terminal-pressure traces. |
+| docs/perf/realtime-runtime-evidence.json | S-RS-RA | reducerAmplificationMedian | 3 | ratio | measured | 2 | 4 | measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json | Correlate replay metrics with runtime visible-lag and terminal-pressure traces. |
+| docs/perf/realtime-runtime-evidence.json | S-RS-FD | batchFlushDurationP95 | 14 | ms | measured | 8 | 16 | measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json | Correlate replay metrics with runtime visible-lag and terminal-pressure traces. |
+| docs/perf/realtime-runtime-evidence.json | S-RS-TS | terminalSettlementP95 | 70 | ms | measured | 100 | 250 | measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json | Correlate replay metrics with runtime visible-lag and terminal-pressure traces. |
 
 ## Realtime Correlation
 
 - First token latency: 5000 ms
 - Inter-token jitter P95: 920 ms
-- Visible text lag P95: 24 ms (turn-trace correlation gate)
-- Reducer amplification median: 4 ratio
-- Batch flush duration P95: 13.33 ms
-- Terminal settlement P95: 60 ms
+- Visible text lag P95: 35 ms (turn-trace correlation gate)
+- Reducer amplification median: 3 ratio
+- Batch flush duration P95: 14 ms
+- Terminal settlement P95: 70 ms
 - Visible lag risk: high
 - Terminal pressure: not-directly-measured
 - Turn trace evidence class: proxy (source: docs/perf/realtime-turn-trace.json)
@@ -62,7 +62,7 @@ Generated at: 2026-06-13T04:01:35.576Z
 ## Renderer Resource Pressure
 
 - Backpressure flush cap: 200 events / 131072 bytes
-- Backpressure evidence: proxy
+- Backpressure evidence: measured
 - Listener owner pilot surfaces: events.terminal-output, events.runtime-log-line, events.runtime-log-status, focus-refresh-wave
 - Media owner pilot surfaces: message-image-grid, message-deferred-image
 - Residual listener risk: Full-app listener inventory remains manual; pilot surfaces are tracked first.
