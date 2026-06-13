@@ -2214,6 +2214,26 @@ export async function getEngineStatus(engineType: EngineType): Promise<EngineSta
   }
 }
 
+export type EngineWorkspaceActiveProcessDiagnostics = {
+  workspaceId: string;
+  engine: EngineType;
+  activeProcessIds: number[];
+};
+
+export type EngineActiveProcessDiagnostics = {
+  measured: boolean;
+  sampledAtMs: number;
+  totalActiveProcessCount: number;
+  workspaces: EngineWorkspaceActiveProcessDiagnostics[];
+  unsupportedReason: string | null;
+};
+
+export async function getEngineActiveProcessDiagnostics(): Promise<EngineActiveProcessDiagnostics> {
+  return invoke<EngineActiveProcessDiagnostics>(
+    "get_engine_active_process_diagnostics",
+  );
+}
+
 /**
  * Get available models for a specific engine
  */
