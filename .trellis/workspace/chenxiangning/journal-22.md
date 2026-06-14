@@ -365,3 +365,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 836: 修复 CI WebService 超时与 Suspense 噪声
+
+**Date**: 2026-06-14
+**Task**: 修复 CI WebService 超时与 Suspense 噪声
+**Branch**: `feature/v0.5.9`
+
+### Summary
+
+修复 WebServiceSettings generate token 测试在 CI 初始 refresh 未完成时点击 disabled 按钮导致的 5s timeout；预热 AppRouter lazy route imports，降低 Suspense lazy promise 在测试边界外 settle 引发 act warning 的风险；验证 npx vitest run WebServiceSettings/router、npm run typecheck、npm run check:heavy-test-noise 通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `50c2a169` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
