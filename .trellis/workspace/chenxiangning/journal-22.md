@@ -464,3 +464,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 839: 修复 fork provider 选择测试时序
+
+**Date**: 2026-06-14
+**Task**: 修复 fork provider 选择测试时序
+**Branch**: `feature/v0.5.9`
+
+### Summary
+
+修复 Windows CI 第 73 批 useLayoutNodes.client-ui-visibility 测试偶发使用旧 provider 的失败：在 fork provider 测试中先等待 async getCodexProviders 注入 Provider B option，再用 act 收口 select change，并在确认前等待 controlled select value 更新为 provider-b。验证通过 focused useLayoutNodes 测试、CI 对应第 73 批组合、npm run typecheck、完整 npm run check:heavy-test-noise（670 test files，act warnings 0，breachCount 0）。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8c3bc5fe` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
