@@ -182,3 +182,62 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 832: 归档已验证 OpenSpec 提案
+
+**Date**: 2026-06-14
+**Task**: 归档已验证 OpenSpec 提案
+**Branch**: `feature/v0.5.9`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+本次会话按 OpenSpec archive 流程归档 5 个已验证且 tasks 全完成的 change，并同步 delta specs 到主 specs。
+
+归档的 changes：
+- `fix-progressive-reveal-runtime-residual-2026-06`
+- `fix-parallel-conversation-runtime-residuals-2026-06`
+- `fix-app-server-event-channel-compat`
+- `close-client-performance-residual-2026-06`
+- `close-performance-iteration-2026-06`
+
+同步的主 specs：
+- `openspec/specs/app-server-event-batching/spec.md`
+- `openspec/specs/bundle-chunking-performance/spec.md`
+- `openspec/specs/claude-code-realtime-stream-visibility/spec.md`
+- `openspec/specs/claude-code-stream-forwarding-latency/spec.md`
+- `openspec/specs/parallel-conversation-runtime-residuals/spec.md`
+- `openspec/specs/realtime-input-render-budget/spec.md`
+- `openspec/specs/runtime-performance-evidence-gates/spec.md`
+
+关键修正：
+- `close-client-performance-residual-2026-06` 中两个 delta 原本把新增 Requirement 写成 `MODIFIED Requirements`，导致 CLI 找不到主线标题；已修正为 `ADDED Requirements` 后归档。
+- Review 发现 `parallel-conversation-runtime-residuals` 主 spec 被 CLI 整段替换时丢失 3 个既有场景；已补回 localStorage unrelated key 保护、ClaudeSession Drop 非阻塞保护、Progressive Reveal profiling evidence 场景。
+
+验证：
+- `openspec validate --specs --strict --no-interactive` passed: 345 passed, 0 failed
+- `openspec validate --all --strict --no-interactive` passed: 346 passed, 0 failed
+- `openspec list --json` 归档后只剩 `investigate-parallel-conversation-jank-2026-06` 一个 in-progress change
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c9dd8cb1` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
