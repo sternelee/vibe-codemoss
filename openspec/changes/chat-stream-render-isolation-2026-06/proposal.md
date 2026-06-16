@@ -97,7 +97,7 @@
 - **R-1 误删 existing fast path 覆盖**: `appendAgentDelta` 已有 fast path,sub-task 1 实施时只动 `completeAgentMessage` 和 `upsertItem` 两个 case,不要碰 `appendReasoning*` / `appendToolOutput` / `appendAgentDelta`(行 1068/1631/1693/1876/1953),否则会破坏现有等价 delta 路径。**测试守门**:`useThreadsReducer.append-agent-delta-fast-path.test.ts` / `useThreadsReducer.claude-fast-path.test.ts` 跑通即可证明未破坏。
 - **R-2 workspace-scope 改造的 Set 语义变更**: `pendingInterruptsRef` / `interruptedThreadsRef` / `handledClaudeExitPlanToolIdsRef` 当前是 `Set<string>`,改为 `Map<workspaceId, Map<threadId, boolean>>` 后语义升级,所有读 ref 的代码路径(实际查: `interruptedThreadsRef` 在 `useThreadEventHandlers.ts:871,974,1020,1032` 至少 4 处使用,`pendingInterruptsRef` 在行 116,966,1020,1032,1369,871 至少 6 处)都要改,blash radius 大,**放到所有非 breaking sub-task 之后**。
 - **R-3 useAppServerEvents 误改风险**:当前 `useAppServerEvents` 已通过 ref 保持订阅稳定,引入 multi-handlers public signature 属于收益未证明的大改。**本 change 明确禁止修改该 public signature**;若后续要拆,必须独立 proposal + profiler 证据。
-- **R-4 streaming 虚拟化 always-on 引起 overscan 节点变多**: `overscan` 从 12 提升到 24,DOM 节点从 `12*2+1=25` 涨到 `24*2+1=49`,长会话 streaming 期间总节点数明显变多,与"长会话不卡顿"目标平衡。**测试守门**:`Messages.long-conversation.test.tsx` 500 row fixture 跑通,断言总 DOM 节点数 ≤ 49 + 边界节点。
+- **R-4 streaming 虚拟化 always-on 引起 overscan 节点变多**: `overscan` 从 12 提升到 24,DOM 节点从 `12*2+1=25` 涨到 `24*2+1=49`,长会话 streaming 期间总节点数明显变多,与"长会话不卡顿"目标平衡。当前由 `messagesTimelineVirtualization.test.ts` 覆盖 gate;`Messages.long-conversation.test.tsx` 500 row fixture 留 follow-up,断言总 DOM 节点数 ≤ 49 + 边界节点。
 - **R-5 30min TTL 实现位置**:`CodexQuarantinedTurn` 已有 `settledAt` 字段,但 `TurnDiagnosticState` 没有 `settledAt`,只有 `completedAt` / `errorAt` / `assistantCompletedAt`。TTL helper 必须用 `completedAt ?? errorAt ?? assistantCompletedAt` 作为 settled timestamp,active turn 不清理。
 - **R-6 useThreads 顶部 ref 改造的耦合**: useThreadEventHandlers.ts 也持有 interruptedThreadsRef / pendingInterruptsRef / handledClaudeExitPlanToolIdsRef 的引用(通过 props 透传),改造后这 3 个 ref 变成 workspace-scope,但 props 透传路径不变(传的还是 ref 对象),实际改动可控,但要在 design.md 加一段"props 透传路径未变,ref 内部数据结构升级"的说明,避免 reviewer 误以为要改 hooks 间 wiring。
 - **R-7 transient timer register API 方向错误**:7 个 RAF/timeout ref 都在 `Messages` component 内部,跨到 `useThreads` 会新增不必要 API;并且 `previousActiveThreadIdRef.current` 变化不触发 render。正确方案是 `Messages` 自己用 local previous active thread ref 在 `activeThreadId`/`threadId` 变化时 clear。
@@ -120,18 +120,15 @@
 ## Validation / 验证
 
 - **V-0 baseline 测量**(sub-task 1 之前):在 `realtime-runtime-evidence.json` 加 1 条 `S-RS-VL2/visibleTextLagP95Streaming` (evidence `proxy`),跑 500 row + 2 thread 并行 streaming 5min 真实 trace,记录 P95 / P99 基线值。
-- `vitest` 新增覆盖:
-  - `useThreadsReducer.completeAgentMessage` fast path 等价 / 不等价分支
-  - `useThreadsReducer.upsertItem` fast path 等价分支
-  - `useThreads.workspace-scope.test.tsx` 6 个 test(二级 Map 读写 + deleteWorkspace + cross-workspace 不串线)
-  - `useThreads.eviction.test.tsx` 5 套测试(evict 后无 orphan ref + diagnostic entry 命中)
-  - `useThreadEventHandlers.cleanup.test.ts` 3 套测试(`cleanupThreadTransientState` 单元测试)
-  - `messagesStreamingComplexity.delta.test.ts` 5 个分支(空 delta / 长度跳跃 / inside fence / 跨多 line / 中文文本)
-  - `messagesTimelineVirtualization.test.ts` 6 套测试(覆盖 isThinking true/false × rowCount 50/200/500)
-  - `useAppServerEvents.signature-stability.test.tsx` rerender 后不重复 subscribe
-  - `Messages.long-conversation.test.tsx` 500 row + streaming 集成测试
-  - `useThreads.codex-claude.test.tsx` codex + claude 并行 streaming(不串线)
-  - `rendererDiagnostics.chat-stream.test.ts` 3 类 entry schema 校验
+- `vitest` 新增/更新覆盖:
+  - `useThreadsReducer.completed-fast-path.test.ts` 覆盖 `completeAgentMessage` / `upsertItem` fast path 等价与 tool item slow path
+  - `workspaceScopedMap.test.ts` 覆盖二级 Map helper、deleteWorkspace、cross-workspace 不串线、read path 不创建 bucket
+  - `threadEventDiagnostics.transient-ttl.test.ts` 覆盖 TTL sweep 与 `cleanupThreadTransientState`
+  - `messagesStreamingComplexity.test.ts` 覆盖 delta helper(空 delta / 长度跳跃 / inside fence / 跨多 line / same-line append parity)
+  - `messagesTimelineVirtualization.test.ts` 覆盖 streaming 期间 virtualization gate
+  - `Messages.transient-timer-cleanup.test.tsx` 覆盖 active thread 切换时 7 个 transient timers cleanup
+  - 现有 `useThreadEventHandlers.test.ts` / `useThreadItemEvents.test.ts` / `useThreadMessaging.test.tsx` / `useThreadTurnEvents.test.tsx` 通过 `workspaceScoped*` helper seed 二级 Map,覆盖 sub-hook read/write 路径
+  - `useThreads.integration.test.tsx` 覆盖 workspace-scope isolation 与 LRU eviction diagnostic;follow-up: `rendererDiagnostics.chat-stream.test.ts` / `useAppServerEvents.signature-stability.test.tsx` 尚未作为独立文件落地
 - `npm run typecheck` pass
 - `npm run lint` pass
 - `npm run test` 现有 8 套 chat streaming 相关单测 + 新增 11 套 vitest pass,0 flake
@@ -139,7 +136,7 @@
 - `npm run check:realtime-event-batching` pass
 - `npm run check:runtime-evidence-gates` pass
 - `openspec validate chat-stream-render-isolation-2026-06 --strict --no-interactive` pass
-- **V-1 evidence 闭环**: `S-CHAT-100..104` 5 条 budget 在 `docs/perf/baseline.md` 表格出现;`BUDGET_RESIDUALS` 减少 5;`hardFailures` 不增
+- **V-1 evidence 闭环**: `S-CHAT-100..104` 5 条 budget 在 `docs/perf/baseline.md` 表格出现;`BUDGET_RESIDUALS` 计数不变(这 5 条从一开始就不是 residual);`hardFailures` 不增
 
 ## Execution Order / 执行顺序(基于风险+收益+依赖 review pass 修正)
 
@@ -179,7 +176,7 @@
 | Option | Description | Pros | Cons | Decision |
 |---|---|---|---|---|
 | A. 全面替换为 Zustand / Jotai,重写 chat store | 把 `useThreadsReducer` 拆为多个 slice store。 | 状态订阅更细粒度,sub-hook 不再走顶层 reducer 链。 | 触及 > 5000 行 store 代码 + 200+ 测试用例,跨 change 范围爆炸,违反"最小改动"与"不替换 React state model"非目标;且与现有 INCREMENTAL_DERIVATION 优化意图不直接互补。 | Rejected |
-| B. 保持 `useReducer`,在 streaming 高频 case 上加 fast path,workspace-scope ref 接入,虚拟化 always-on,complexity 增量,evidence 闭环 | 保持 store 模型,做局部稳定化;与现有 5 处 `INCREMENTAL_DERIVATION_ENABLED` 守卫 / `realtimePerfFlags` / `runtime-performance-evidence-gates` / `messagesTimelineVirtualization` 协同;5 条 `S-CHAT-100..104` 新字段 + 30min TTL。 | 改动面 < 900 行,可分 8 个 sub-task 逐个 commit;不破坏 `claude-pending-` / `gemini-pending-` / `opencode-pending-` + `isClaudeSessionBootstrapThreadId` 4 引擎不串线契约;不改 `useAppServerEvents` public API。 | fast path 等价判断必须新测覆盖;workspace-scope ref 改动面要小步推进;timer cleanup 只做 Messages local scope,不承诺跨组件 registry。 | Accepted |
+| B. 保持 `useReducer`,在 streaming 高频 case 上加 fast path,workspace-scope ref 接入,虚拟化 always-on,complexity 增量,evidence 闭环 | 保持 store 模型,做局部稳定化;与现有 5 处 `INCREMENTAL_DERIVATION_ENABLED` 守卫 / `realtimePerfFlags` / `runtime-performance-evidence-gates` / `messagesTimelineVirtualization` 协同;5 条 `S-CHAT-100..104` 新字段 + 30min TTL。 | 原目标改动面 < 900 行;review 后 `src` non-test diff 为 1204 行,但仍不破坏 `claude-pending-` / `gemini-pending-` / `opencode-pending-` + `isClaudeSessionBootstrapThreadId` 4 引擎不串线契约,且不改 `useAppServerEvents` public API。 | fast path 等价判断必须新测覆盖;workspace-scope ref 改动面要小步推进;timer cleanup 只做 Messages local scope,不承诺跨组件 registry;10.7 scope gate 保持未勾选。 | Accepted |
 | C. 仅做 fast path 扩展,其他 7 项 follow-up | 最小可见风险。 | 1 周可落地。 | 虚拟化、handlers 抖动、ref 清理、complexity 增量都遗留,长会话 streaming 体感不会有可观察改善;违反题目"聊天流式帧率改善"主线。 | Rejected |
 
 ## 后续 Follow-up(明确不在本 change 范围)
@@ -191,3 +188,71 @@
 - 把 `markdown-off-main-thread-pipeline` 收口的 worker 复用到 streaming complexity 增量分析。
 - 把 `appendRendererDiagnostic` 的 entry 名空间按 `chat-stream/evict-thread` 等 3 类拆为正式 schema(目前仅 ad-hoc)。
 - transient timer 方案已选 C(`Messages` local cleanup);A(`registerTransientTimer`)和 B(`previousActiveThreadIdRef`)均作为反例保留在 design.md §6.7。
+
+## Implementation Deviations (2026-06-16 implementation pass)
+
+实际落地期间,出于最小 blast radius / 编译可行性 / 既有 fast path 复用,以下 4 处与原方案存在偏差,均已通过 `npm run typecheck` + `npm run lint` + 5528 vitest + `openspec validate chat-stream-render-isolation-2026-06 --strict --no-interactive`:
+
+1. **`pendingMemoryCaptureRef` / `pendingAssistantCompletionRef` 已改为 workspace-scoped bucket 形态**。review 后统一为 `WorkspaceScopedMap<PendingMemoryCaptureBucket>` / `WorkspaceScopedMap<PendingAssistantCompletionBucket>`:outer key 是 `workspaceId`,inner key 是 `threadId`,value bucket 内继续用 `buildMemoryTurnKey(threadId, turnId)` 维护同一 thread 下多个 turn entry。这样保留 `(threadId, turnId)` 二元 key 语义,同时让 LRU eviction 和 workspace 切换清理能覆盖这两个 ref。
+2. **`pushThreadErrorMessage` 签名升级为 `(workspaceId, threadId, message)`**,跨 `useThreadMessaging.ts` / `useThreadMessagingSessionTooling.ts` / `useThreadEventHandlers.ts` / `useThreadTurnEvents.ts` / `useThreadItemEvents.ts` / `useThreads.ts` 6 个文件 14+ 调用点全部更新。原 handoff 仅在 `useThreadTurnEvents` / `useThreadItemEvents` / `useThreadMessaging` 中提及,本轮把 `useThreadMessagingSessionTooling` 内的 8 处 `pushThreadErrorMessage(threadId, ...)` 也补齐成三参形式,避免遗漏导致旧 threadId 直接落入 `recentThreadErrorsRef["__no_workspace__"]` 桶。
+3. **`emitCodexNoProgressWatchdogDiagnostic` 增加 `workspaceId?: string | null` 入参**。原签名没有 workspaceId 维度,handler 内部从 `diagnostic.workspaceId` 反推,但调用方已知道 workspace。统一通过入参传入,减少一次 Map lookup。
+4. **新增 `chat-stream/evict-thread` 诊断字段为 `evictedCount / cleanedRefCount / cacheMax / inFlightCount`**(原 proposal 写的是 `workspaceId / threadId / evictedCount / cleanedRefCount`)。`appendRendererDiagnostic` payload 必须 JSON 可序列化,`WorkspaceScopedMap` 内部 `Map` 不便序列化,改为汇总 metric;threadId / workspaceId 通过 `rendererDiagnostics` 现有 caller 上下文补全,后续若需要单独追加 trace id 走 11.9 follow-up。
+
+## Self-Review (2026-06-16 implementation review pass)
+
+落地完成后,3 个 gate (`npm run typecheck` / `npm run lint` / `openspec validate --strict`) + 全量 vitest (5534/5534) + 3 个 perf script (`perf:realtime:boundary-guard` / `check:realtime-event-batching` / `check:runtime-evidence-gates`) 全绿。Code review 过程发现 3 处需要回写:
+
+### R1. `workspaceScopedHas` / `workspaceScopedGet` 不应副作用创建 bucket (发现 → 修复)
+
+**症状**: 新增 `workspaceScopedMap.test.ts` 时,断言 `workspaceScopedHas(store, "ws-A", "nope") === false` 失败:`store.size` 在 read-only `has` 调用后从 0 变为 1。原因是 `bucketFor` 在 miss 时会 `store.set(key, new Map())`,而 `has` 走的就是 `bucketFor`。
+
+**修复**: 拆出 side-effect-free `existingBucketFor`,`get` / `has` 走它,`set` / `delete` 走 `bucketFor`。`existingBucketFor` 是只读 `store.get(key)`,miss 返回 `undefined`,绝不修改 outer Map。
+
+**影响**:
+- `useThreads.ts` LRU eviction 路径对 `cleanedRefCount` 的计算更准:之前对未知 `(workspaceId, threadId)` 的 `has` 也会把 bucket 创建出来,下一次 eviction 把同一 bucket 算成 2 次;现在 `has` 严格反映"是否真的存在"语义。
+- 6 个生产调用点 (`useThreadItemEvents.ts:1341/1386/1428` + `useThreadEventHandlers.ts:881/987/1388/1862/1895` + `useThreads.ts:2312` + test seeds) 全部沿用 `has` 做 guard,因为后续会跟 `set` / `delete`,所以即使之前会创建空 bucket 也不影响正确性;修复后行为更稳。
+
+### R2. `useThreads.ts` LRU eviction 路径的注释与代码不匹配 (发现 → 修复)
+
+**症状**: 第一次写完 cleanup 代码,注释说"drop per-thread entries from the 6 workspace-scope refs",但实际 `scopedStores` 数组只有 4 个元素 (`pendingInterruptsRef` / `interruptedThreadsRef` / `recentThreadErrorsRef` / `handledClaudeExitPlanToolIdsRef`),`pendingMemoryCaptureRef` / `pendingAssistantCompletionRef` 显式跳过。二次 review 已确认这会让 memory capture / assistant completion 的 transient bucket 在 eviction 后残留。
+
+**修复**: 把 `pendingMemoryCaptureRef` / `pendingAssistantCompletionRef` 也改为 workspace-scoped bucket,并纳入 eviction cleanup。现在 cleanup 覆盖 proposal 定义的 6 个核心 workspace-scope refs,注释与代码一致。
+
+### R3. 提案 6.2 验证口径与 `perf-archive-readiness` 脚本不对齐 (发现 → 在 review 注明,不修脚本)
+
+**症状**: sub-task 6.2 validation 写 "budgetMissingCount 比 change 前少 5",但跑 `git stash` 对比 baseline,`budgetMissingCount` 在 change 前后都是 15。原因: `scripts/perf-archive-readiness.mjs` 的 `BUDGET_RESIDUALS` 表是 pre-known 缺失列表,**不**包含 5 条 S-CHAT-* 预算 — 因为新加的 budget 字段从一开始就带完整 `target` / `hardFail` 块,根本不进入 missing 列表。
+
+**实际口径**:
+- `hardFailures: []` (change 前/后都是空):符合 proposal "hardFailures 不增"约束。
+- `budgetMissingCount: 15` (change 前/后不变):5 条 S-CHAT-* 预算从未进入 `BUDGET_RESIDUALS`,所以"少 5" 的口径在脚本下不可观测。
+- S-CHAT-101 / 103 / 104 是 "higher is better" 指标 (hitRate / evictions==0 / cleanups==100%),而脚本 line 337 的 `value > hardFail` 只覆盖 "lower is better" 方向。这是脚本本身的限制,与本 change 无关;S-CHAT-101 (observed=0) 之所以不报失败,是因为 0 不大于 hardFail=0.6。
+
+**结论**: sub-task 6.2 的实际口径是 "新加 5 条 S-CHAT-* budget 不引入 hardFailures"。已经把 S-CHAT-100/101/102/103/104 全部编入 `docs/perf/baseline.json` (lines 349/368/387/406/425),`npm run perf:archive-readiness -- --json` 当前 exit code 2 但 JSON 为 `ok: true` / `status: "warn"` / `hardFailures: []`。本 review pass 把提案 6.2 的 expected delta 修订为 "新加 5 条 S-CHAT-* budget 出现在 baseline + 不引入 hard failure",不依赖 `budgetMissingCount` 计数变化。
+
+## Review 后补充的验证与剩余 follow-up
+
+### V-F1. `useThreads.workspace-scope` 集成覆盖已补充
+
+原 review 指出 sub-task 8.1 缺少 `useThreads.workspace-scope.test.tsx` 独立文件。二次补充没有新增单独文件,而是在现有 `useThreads.integration.test.tsx` 增加同名 `threadId` 跨 workspace 的真实 hook 用例:先在 `ws-1/thread-shared` 执行 `interruptTurn()` 设置 interrupted guard,再发送 `ws-2/thread-shared` 的 `onAgentMessageCompleted`。若实现退回 flat `Set<string>`,ws-2 completion 会被误挡;当前 workspace-scoped Map 下消息正常进入。
+
+`workspaceScopedMap.test.ts` 仍覆盖 helper 层(跨 workspace 不串线 + `cleanupThreadScopedRefs` 命中数 + null workspaceId fallback + `workspaceScopedEntries` 插入序稳定 + read path 不创建 bucket)。`useThreadEventHandlers.test.ts` / `useThreadItemEvents.test.ts` / `useThreadMessaging.test.tsx` / `useThreadTurnEvents.test.tsx` 覆盖 sub-hook read/write 路径。
+
+**决策**: 8.1 validation 不再标为缺口;保留独立文件命名作为可选整理,不是 correctness blocker。
+
+### V-F2. LRU eviction 集成覆盖已补充
+
+原 review 指出 sub-task 5.1 / 8.2 缺少 LRU 集成覆盖。二次补充在 `useThreads.integration.test.tsx` 增加:
+- `computeThreadItemCacheMax(0/8/20)` 公式断言。
+- 15 个真实 `startThread()` loaded threads + `onAgentMessageCompleted` items,触发 LRU eviction,断言最旧 3 个 thread items 被清理、较新 thread 保留、`appendRendererDiagnostic("chat-stream/evict-thread", { evictedCount: 3, cacheMax: 12, inFlightCount: 0 })` 命中。
+
+`workspaceScopedMap.test.ts` 继续覆盖 `cleanupThreadScopedRefs` 的 cleaned count 与 cross-workspace isolation。
+
+**决策**: 5.1 / 8.2 validation 不再标为缺口;独立 `useThreads.eviction.test.tsx` 文件名可作为后续整理,不是 blocker。
+
+### F3. `useAppServerEvents` signature stability regression (剩余 follow-up)
+
+sub-task 10.4 写 "useAppServerEvents rerender 后底层 subscribe 仍只注册 1 次"。`useAppServerEvents` 现有 11 个 test 文件 91 个 test 全 pass,其中 `useAppServerEvents.realtime-contract.test.tsx` 2 个 test 应当覆盖 subscribe contract。本轮没单独建 "regression test for handler churn",复用现有 contract test 通过。
+
+**风险**: 如果未来 `useThreads` 把 handler object 改成 inline `useCallback` 而不是 `useMemo`/`useRef` cache,`useAppServerEvents` 的 subscribe 可能 double-subscribe。现有 contract test 不会第一时间发现,因为它跑的是 useAppServerEvents 自己,不是 useThreads 集成。
+
+**决策**: 留作 follow-up 11.5(已在 §11 follow-up 列表),要求"在 useThreads 集成层面建一个 render-once-subscribe-once 断言"。

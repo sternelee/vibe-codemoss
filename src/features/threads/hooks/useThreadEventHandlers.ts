@@ -1,4 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
+import {
+  workspaceScopedDelete,
+  workspaceScopedHas,
+} from "./workspaceScopedMap";
 import type {
   AppServerEvent,
   CollaborationModeBlockedRequest,
@@ -49,10 +53,13 @@ import {
   asString,
   buildAssistantSnapshotIngressKey,
   buildCodexTurnIdentityKey,
+  cleanupThreadTransientState,
   createThreadLifecycleSnapshot,
   createTurnDiagnosticState,
   extractTurnIdFromRawItem,
   getCodexNoProgressTimeoutMs,
+  sweepThreadTransientState,
+  TRANSIENT_TURN_STATE_SWEEP_INTERVAL_MS,
   inferRawItemEngine,
   inferThreadEngine,
   isExecutionItemType,
@@ -125,6 +132,7 @@ export function useThreadEventHandlers({
   onAgentMessageCompletedExternal,
   onTurnCompletedExternal,
   onTurnTerminalExternal,
+  onThreadTransientCleanupReady,
   onCollaborationModeResolved,
   onExitPlanModeToolCompleted,
   domainEventController = null,
@@ -140,6 +148,22 @@ export function useThreadEventHandlers({
   >(null);
   const assistantSnapshotIngressLengthRef = useRef<Map<string, number>>(new Map());
   const quarantinedCodexTurnsRef = useRef<Map<string, CodexQuarantinedTurn>>(new Map());
+  const cleanupThreadTransientRefs = useCallback(
+    (workspaceId: string | null | undefined, threadId: string) =>
+      cleanupThreadTransientState(
+        {
+          turnDiagnosticsRef,
+          quarantinedCodexTurnsRef,
+          assistantSnapshotIngressLengthRef,
+        },
+        workspaceId,
+        threadId,
+      ),
+    [],
+  );
+  useEffect(() => {
+    return onThreadTransientCleanupReady?.(cleanupThreadTransientRefs);
+  }, [cleanupThreadTransientRefs, onThreadTransientCleanupReady]);
   const getThreadLifecycleSnapshot = useCallback((threadId: string) => {
     return (
       threadLifecycleSnapshotRef.current.get(threadId) ?? createThreadLifecycleSnapshot()
@@ -769,6 +793,7 @@ export function useThreadEventHandlers({
     (
       stage: "scheduled" | "fired" | "skipped",
       input: {
+        workspaceId?: string | null;
         threadId: string;
         diagnostic: TurnDiagnosticState | null;
         reason?: string;
@@ -779,7 +804,7 @@ export function useThreadEventHandlers({
       },
     ) => {
       emitTurnDiagnostic(`codex-no-progress-watchdog-${stage}`, {
-        workspaceId: input.diagnostic?.workspaceId ?? null,
+        workspaceId: input.workspaceId ?? input.diagnostic?.workspaceId ?? null,
         threadId: input.threadId,
         turnId: input.diagnostic?.turnId ?? null,
         diagnosticCategory: "codex-no-progress-watchdog",
@@ -802,13 +827,14 @@ export function useThreadEventHandlers({
   );
 
   const scheduleCodexNoProgressTimer = useCallback(
-    (threadId: string) => {
+    (workspaceId: string | null, threadId: string) => {
       if (typeof window === "undefined" || inferThreadEngine(threadId) !== "codex") {
         return;
       }
       const diagnostic = turnDiagnosticsRef.current.get(threadId);
       if (!diagnostic) {
         emitCodexNoProgressWatchdogDiagnostic("skipped", {
+          workspaceId,
           threadId,
           diagnostic: null,
           reason: "missing-diagnostic",
@@ -821,6 +847,7 @@ export function useThreadEventHandlers({
       const elapsedSinceProgressMs = Math.max(0, now - diagnostic.lastProgressAt);
       const delayMs = Math.max(0, timeoutMs - elapsedSinceProgressMs);
       emitCodexNoProgressWatchdogDiagnostic("scheduled", {
+        workspaceId: diagnostic.workspaceId,
         threadId,
         diagnostic,
         timeoutMs,
@@ -831,6 +858,7 @@ export function useThreadEventHandlers({
         const latestDiagnostic = turnDiagnosticsRef.current.get(threadId);
         if (!latestDiagnostic) {
           emitCodexNoProgressWatchdogDiagnostic("skipped", {
+            workspaceId: diagnostic?.workspaceId ?? null,
             threadId,
             diagnostic: null,
             reason: "missing-diagnostic",
@@ -842,6 +870,7 @@ export function useThreadEventHandlers({
         const timeoutMs = getCodexNoProgressTimeoutMs(latestDiagnostic);
         const lifecycle = getThreadLifecycleSnapshot(threadId);
         emitCodexNoProgressWatchdogDiagnostic("fired", {
+          workspaceId: diagnostic?.workspaceId ?? null,
           threadId,
           diagnostic: latestDiagnostic,
           timeoutMs,
@@ -850,6 +879,7 @@ export function useThreadEventHandlers({
         });
         if (latestDiagnostic.completedAt !== null) {
           emitCodexNoProgressWatchdogDiagnostic("skipped", {
+            workspaceId: diagnostic?.workspaceId ?? null,
             threadId,
             diagnostic: latestDiagnostic,
             reason: "completed",
@@ -860,6 +890,7 @@ export function useThreadEventHandlers({
         }
         if (latestDiagnostic.errorAt !== null) {
           emitCodexNoProgressWatchdogDiagnostic("skipped", {
+            workspaceId: diagnostic?.workspaceId ?? null,
             threadId,
             diagnostic: latestDiagnostic,
             reason: "error",
@@ -868,7 +899,7 @@ export function useThreadEventHandlers({
           });
           return;
         }
-        if (interruptedThreadsRef.current.has(threadId)) {
+        if (workspaceScopedHas(interruptedThreadsRef.current, workspaceId ?? latestDiagnostic.workspaceId ?? null, threadId)) {
           const inferredEngine = inferThreadEngine(threadId);
           const correlationEngine =
             buildThreadStreamCorrelationDimensions(threadId).engine;
@@ -906,6 +937,7 @@ export function useThreadEventHandlers({
             allowAbandonedActiveTurn: true,
           });
           emitCodexNoProgressWatchdogDiagnostic("skipped", {
+            workspaceId: diagnostic?.workspaceId ?? null,
             threadId,
             diagnostic: latestDiagnostic,
             reason: "interrupted",
@@ -917,6 +949,7 @@ export function useThreadEventHandlers({
         }
         if (!lifecycle.isProcessing) {
           emitCodexNoProgressWatchdogDiagnostic("skipped", {
+            workspaceId: diagnostic?.workspaceId ?? null,
             threadId,
             diagnostic: latestDiagnostic,
             reason: "not-processing",
@@ -931,6 +964,7 @@ export function useThreadEventHandlers({
           lifecycle.activeTurnId !== latestDiagnostic.turnId
         ) {
           emitCodexNoProgressWatchdogDiagnostic("skipped", {
+            workspaceId: diagnostic?.workspaceId ?? null,
             threadId,
             diagnostic: latestDiagnostic,
             reason: "active-turn-mismatch",
@@ -942,6 +976,7 @@ export function useThreadEventHandlers({
         }
         if (elapsedSinceProgressMs < timeoutMs) {
           emitCodexNoProgressWatchdogDiagnostic("skipped", {
+            workspaceId: diagnostic?.workspaceId ?? null,
             threadId,
             diagnostic: latestDiagnostic,
             reason: "progress-still-fresh",
@@ -970,8 +1005,8 @@ export function useThreadEventHandlers({
   );
 
   const noteCodexTurnProgressEvidence = useCallback(
-    (threadId: string, source: string) => {
-      if (inferThreadEngine(threadId) !== "codex" || interruptedThreadsRef.current.has(threadId)) {
+    (workspaceId: string | null, threadId: string, source: string) => {
+      if (inferThreadEngine(threadId) !== "codex" || workspaceScopedHas(interruptedThreadsRef.current, workspaceId, threadId)) {
         return;
       }
       const diagnostic = turnDiagnosticsRef.current.get(threadId);
@@ -1011,7 +1046,7 @@ export function useThreadEventHandlers({
           ...buildThreadStreamCorrelationDimensions(threadId),
         }, { force: true });
       }
-      scheduleCodexNoProgressTimer(threadId);
+      scheduleCodexNoProgressTimer(workspaceId, threadId);
     },
     [
       emitTurnDiagnostic,
@@ -1023,13 +1058,13 @@ export function useThreadEventHandlers({
   );
 
   const scheduleFirstDeltaTimer = useCallback(
-    (threadId: string) => {
+    (workspaceId: string | null, threadId: string) => {
       if (typeof window === "undefined") {
         return;
       }
       clearFirstDeltaTimer(threadId);
       const timerId = window.setTimeout(() => {
-        if (interruptedThreadsRef.current.has(threadId)) {
+        if (workspaceScopedHas(interruptedThreadsRef.current, workspaceId, threadId)) {
           return;
         }
         const diagnostic = turnDiagnosticsRef.current.get(threadId);
@@ -1273,6 +1308,7 @@ export function useThreadEventHandlers({
 
   const captureTurnItemDiagnostic = useCallback(
     (
+      workspaceId: string | null,
       threadId: string,
       kind: "started" | "updated" | "completed",
       item: Record<string, unknown>,
@@ -1334,7 +1370,7 @@ export function useThreadEventHandlers({
         }
       }
       if (applyActiveExecutionItemEvent(diagnostic, kind, itemType, itemId, item, now)) {
-        scheduleCodexNoProgressTimer(threadId);
+        scheduleCodexNoProgressTimer(workspaceId, threadId);
       }
     },
     [
@@ -1366,7 +1402,7 @@ export function useThreadEventHandlers({
       textLength: number;
       source: StreamIngressSource;
     }) => {
-      if (interruptedThreadsRef.current.has(payload.threadId)) {
+      if (workspaceScopedHas(interruptedThreadsRef.current, payload.workspaceId, payload.threadId)) {
         return;
       }
       const diagnostic = turnDiagnosticsRef.current.get(payload.threadId);
@@ -1478,6 +1514,49 @@ export function useThreadEventHandlers({
       reconciliationQueryInFlight.clear();
     };
   }, []);
+
+  // chat-stream-render-isolation-2026-06 task 8.4: 60s interval sweep
+  // over turnDiagnosticsRef / quarantinedCodexTurnsRef. Active turns (no
+  // settled timestamp) are never evicted; settled entries expire 30min after
+  // their settledAt. See design.md §4 and sweepThreadTransientState in
+  // threadEventDiagnostics.ts.
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      const now = Date.now();
+      const diagnosticEntries = Array.from(
+        turnDiagnosticsRef.current.entries(),
+      ).map(([threadId, state]) => ({
+        threadId,
+        settledAt:
+          state.completedAt ?? state.errorAt ?? state.assistantCompletedAt,
+      }));
+      const diagnosticSweep = sweepThreadTransientState(
+        diagnosticEntries,
+        now,
+      );
+      for (const threadId of diagnosticSweep.expiredThreadIds) {
+        const workspaceId =
+          turnDiagnosticsRef.current.get(threadId)?.workspaceId ?? null;
+        cleanupThreadTransientRefs(workspaceId, threadId);
+      }
+      const quarantineEntries = Array.from(
+        quarantinedCodexTurnsRef.current.entries(),
+      ).map(([quarantineKey, entry]) => ({
+        threadId: quarantineKey,
+        settledAt: entry.settledAt,
+      }));
+      const quarantineSweep = sweepThreadTransientState(
+        quarantineEntries,
+        now,
+      );
+      for (const quarantineKey of quarantineSweep.expiredThreadIds) {
+        quarantinedCodexTurnsRef.current.delete(quarantineKey);
+      }
+    }, TRANSIENT_TURN_STATE_SWEEP_INTERVAL_MS);
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [cleanupThreadTransientRefs]);
 
   const onApprovalRequest = useThreadApprovalEvents({
     dispatch,
@@ -1663,7 +1742,7 @@ export function useThreadEventHandlers({
   const onThreadTokenUsageUpdatedTracked = useCallback(
     (workspaceId: string, threadId: string, tokenUsage: Record<string, unknown>) => {
       onThreadTokenUsageUpdatedBase(workspaceId, threadId, tokenUsage);
-      noteCodexTurnProgressEvidence(threadId, "thread-token-usage");
+      noteCodexTurnProgressEvidence(workspaceId, threadId, "thread-token-usage");
     },
     [noteCodexTurnProgressEvidence, onThreadTokenUsageUpdatedBase],
   );
@@ -1685,7 +1764,7 @@ export function useThreadEventHandlers({
       }
       dispatch({ type: "markHeartbeat", threadId, pulse });
       dispatch({ type: "markContinuationEvidence", threadId });
-      noteCodexTurnProgressEvidence(threadId, "processing-heartbeat");
+      noteCodexTurnProgressEvidence(_workspaceId, threadId, "processing-heartbeat");
       safeMessageActivity();
     },
     [dispatch, noteCodexTurnProgressEvidence, safeMessageActivity],
@@ -1742,8 +1821,8 @@ export function useThreadEventHandlers({
         createTurnDiagnosticState(workspaceId, threadId, turnId, startedAt),
       );
       dispatch({ type: "clearCodexSilentSuspected", threadId });
-      scheduleFirstDeltaTimer(threadId);
-      scheduleCodexNoProgressTimer(threadId);
+      scheduleFirstDeltaTimer(workspaceId, threadId);
+      scheduleCodexNoProgressTimer(workspaceId, threadId);
       onTurnStarted(workspaceId, threadId, turnId);
       dispatch({ type: "markContinuationEvidence", threadId });
       const lifecycle = getThreadLifecycleSnapshot(threadId);
@@ -1800,10 +1879,10 @@ export function useThreadEventHandlers({
       }
       onAgentMessageDelta(payload);
       dispatch({ type: "markContinuationEvidence", threadId: payload.threadId });
-      if (interruptedThreadsRef.current.has(payload.threadId)) {
+      if (workspaceScopedHas(interruptedThreadsRef.current, payload.workspaceId, payload.threadId)) {
         return;
       }
-      noteCodexTurnProgressEvidence(payload.threadId, "agent-message-delta");
+      noteCodexTurnProgressEvidence(payload.workspaceId, payload.threadId, "agent-message-delta");
       recordAssistantStreamIngress({
         workspaceId: payload.workspaceId,
         threadId: payload.threadId,
@@ -1836,7 +1915,7 @@ export function useThreadEventHandlers({
         return;
       }
       onAgentMessageCompleted(payload);
-      if (interruptedThreadsRef.current.has(payload.threadId) || payload.text.length === 0) {
+      if (workspaceScopedHas(interruptedThreadsRef.current, payload.workspaceId, payload.threadId) || payload.text.length === 0) {
         return;
       }
       recordAssistantCompletionEvidence(payload.threadId, payload.itemId);
@@ -1881,9 +1960,9 @@ export function useThreadEventHandlers({
       }
       onItemStarted(workspaceId, threadId, item);
       dispatch({ type: "markContinuationEvidence", threadId });
-      noteCodexTurnProgressEvidence(threadId, "item-started");
+      noteCodexTurnProgressEvidence(workspaceId, threadId, "item-started");
       maybeRecordAgentMessageSnapshotIngress(workspaceId, threadId, item);
-      captureTurnItemDiagnostic(threadId, "started", item);
+      captureTurnItemDiagnostic(workspaceId, threadId, "started", item);
     },
     [
       captureTurnItemDiagnostic,
@@ -1916,9 +1995,10 @@ export function useThreadEventHandlers({
       }
       onItemUpdated(workspaceId, threadId, item);
       dispatch({ type: "markContinuationEvidence", threadId });
-      noteCodexTurnProgressEvidence(threadId, "item-updated");
+      noteCodexTurnProgressEvidence(workspaceId, threadId, "item-updated");
       maybeRecordAgentMessageSnapshotIngress(workspaceId, threadId, item);
-      captureTurnItemDiagnostic(threadId, "updated", item);
+      captureTurnItemDiagnostic(workspaceId, threadId,
+        "updated", item);
       flushDeferredTurnCompletionRef.current?.(threadId, "item-terminal");
     },
     [
@@ -1952,8 +2032,9 @@ export function useThreadEventHandlers({
       }
       onItemCompleted(workspaceId, threadId, item);
       dispatch({ type: "markContinuationEvidence", threadId });
-      noteCodexTurnProgressEvidence(threadId, "item-completed");
-      captureTurnItemDiagnostic(threadId, "completed", item);
+      noteCodexTurnProgressEvidence(workspaceId, threadId, "item-completed");
+      captureTurnItemDiagnostic(workspaceId, threadId,
+        "completed", item);
       flushDeferredTurnCompletionRef.current?.(threadId, "item-terminal");
     },
     [
@@ -1993,7 +2074,7 @@ export function useThreadEventHandlers({
       }
       onNormalizedRealtimeEvent(event);
       dispatch({ type: "markContinuationEvidence", threadId: event.threadId });
-      noteCodexTurnProgressEvidence(event.threadId, `normalized:${event.operation}`);
+      noteCodexTurnProgressEvidence(event.workspaceId, event.threadId, `normalized:${event.operation}`);
       if (event.operation === "appendAgentMessageDelta") {
         const textLength =
           event.delta?.length ??
@@ -2050,16 +2131,19 @@ export function useThreadEventHandlers({
         );
       }
       if (event.operation === "itemStarted") {
-        captureTurnItemDiagnostic(event.threadId, "started", event.rawItem);
+        captureTurnItemDiagnostic(event.workspaceId, event.threadId,
+        "started", event.rawItem);
         return;
       }
       if (event.operation === "itemUpdated") {
-        captureTurnItemDiagnostic(event.threadId, "updated", event.rawItem);
+        captureTurnItemDiagnostic(event.workspaceId, event.threadId,
+        "updated", event.rawItem);
         flushDeferredTurnCompletionRef.current?.(event.threadId, "item-terminal");
         return;
       }
       if (event.operation === "itemCompleted") {
-        captureTurnItemDiagnostic(event.threadId, "completed", event.rawItem);
+        captureTurnItemDiagnostic(event.workspaceId, event.threadId,
+        "completed", event.rawItem);
         flushDeferredTurnCompletionRef.current?.(event.threadId, "item-terminal");
       }
     },
@@ -2086,7 +2170,7 @@ export function useThreadEventHandlers({
       turnId?: string | null,
     ) => {
       onCommandOutputDelta(workspaceId, threadId, itemId, delta, turnId);
-      if (interruptedThreadsRef.current.has(threadId)) {
+      if (workspaceScopedHas(interruptedThreadsRef.current, workspaceId, threadId)) {
         return;
       }
       noteNonTextRuntimeProgress(threadId, "command-output-delta", {
@@ -2108,7 +2192,7 @@ export function useThreadEventHandlers({
       turnId?: string | null,
     ) => {
       onFileChangeOutputDelta(workspaceId, threadId, itemId, delta, turnId);
-      if (interruptedThreadsRef.current.has(threadId)) {
+      if (workspaceScopedHas(interruptedThreadsRef.current, workspaceId, threadId)) {
         return;
       }
       noteNonTextRuntimeProgress(threadId, "file-change-output-delta", {
@@ -2130,7 +2214,7 @@ export function useThreadEventHandlers({
       turnId?: string | null,
     ) => {
       onTerminalInteraction(workspaceId, threadId, itemId, stdin, turnId);
-      if (interruptedThreadsRef.current.has(threadId)) {
+      if (workspaceScopedHas(interruptedThreadsRef.current, workspaceId, threadId)) {
         return;
       }
       noteNonTextRuntimeProgress(threadId, "terminal-interaction", {
@@ -2279,8 +2363,8 @@ export function useThreadEventHandlers({
           });
           markProcessingTracked(threadId, false);
           setActiveTurnIdTracked(threadId, null);
-          pendingInterruptsRef.current.delete(threadId);
-          interruptedThreadsRef.current.delete(threadId);
+          workspaceScopedDelete(pendingInterruptsRef.current, workspaceId, threadId);
+          workspaceScopedDelete(interruptedThreadsRef.current, workspaceId, threadId);
           dispatch({ type: "resetAgentSegment", threadId });
           dispatch({ type: "markLatestAssistantMessageFinal", threadId });
           onTurnCompletedExternal?.({

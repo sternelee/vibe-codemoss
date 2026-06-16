@@ -1,6 +1,6 @@
 # Runtime Evidence Gates
 
-Generated at: 2026-06-13T05:53:58.534Z
+Generated at: 2026-06-16T10:05:21.983Z
 
 ## Performance Evidence
 
@@ -17,10 +17,10 @@ Generated at: 2026-06-13T05:53:58.534Z
 | docs/perf/baseline.json | S-LL-1000 | firstPaintAfterMount | 48.29 | ms | proxy |  |  | Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof. | Keep as regression baseline and add runtime/browser evidence before release-grade closure. |
 | docs/perf/baseline.json | S-LL-1000 | scrollFrameDropPct | 0 | % | proxy | 1 | 5 | jsdom proxy; browser scroll gate is follow-up | Add browser-level scroll gate for the 1000-row scenario. |
 | docs/perf/baseline.json | S-CI-50 | keystrokeToCommitP95 | 0.08 | ms | proxy | 16 | 32 | Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof. | Keep as regression baseline and add runtime/browser evidence before release-grade closure. |
-| docs/perf/baseline.json | S-CI-50 | inputEventLossCount | 0 | count | proxy |  |  | Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof. | Keep as regression baseline and add runtime/browser evidence before release-grade closure. |
+| docs/perf/baseline.json | S-CI-50 | inputEventLossCount | 0 | count | proxy | 0 | 0 | Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof. | Keep as regression baseline and add runtime/browser evidence before release-grade closure. |
 | docs/perf/baseline.json | S-CI-50 | compositionToCommit | 0 | ms | proxy |  |  | Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof. | Keep as regression baseline and add runtime/browser evidence before release-grade closure. |
 | docs/perf/baseline.json | S-CI-100-IME | keystrokeToCommitP95 | 0.03 | ms | proxy | 16 | 32 | Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof. | Keep as regression baseline and add runtime/browser evidence before release-grade closure. |
-| docs/perf/baseline.json | S-CI-100-IME | inputEventLossCount | 0 | count | proxy |  |  | Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof. | Keep as regression baseline and add runtime/browser evidence before release-grade closure. |
+| docs/perf/baseline.json | S-CI-100-IME | inputEventLossCount | 0 | count | proxy | 0 | 0 | Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof. | Keep as regression baseline and add runtime/browser evidence before release-grade closure. |
 | docs/perf/baseline.json | S-CI-100-IME | compositionToCommit | 0.12 | ms | proxy |  |  | Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof. | Keep as regression baseline and add runtime/browser evidence before release-grade closure. |
 | docs/perf/baseline.json | S-RS-FT | firstTokenLatency | 5000 | ms | proxy | 2000 | 5000 | turn start to first assistant delta | Correlate replay metrics with runtime visible-lag and terminal-pressure traces. |
 | docs/perf/baseline.json | S-RS-FT | interTokenJitterP95 | 920 | ms | proxy | 500 | 920 | Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof. | Correlate replay metrics with runtime visible-lag and terminal-pressure traces. |
@@ -34,6 +34,11 @@ Generated at: 2026-06-13T05:53:58.534Z
 | docs/perf/baseline.json | S-CS-COLD | bundleSizeVendor | 741554 | bytes-gzip | measured | 680000 | 760000 | subset-shared.chunk-BqJAHzmS.js | Track for regression. |
 | docs/perf/baseline.json | S-CS-COLD | firstPaintMs | unsupported | ms | unsupported |  |  | Tauri/webview startup marker snapshot was not provided; bundle baseline is recorded. | Collect real Tauri webview cold-start timing on a supported runner. |
 | docs/perf/baseline.json | S-CS-COLD | firstInteractiveMs | unsupported | ms | unsupported |  |  | Tauri/webview startup marker snapshot was not provided; bundle baseline is recorded. | Collect real Tauri webview cold-start timing on a supported runner. |
+| docs/perf/baseline.json | S-CHAT-100 | longConversationFrameP95 | 24 | ms | proxy | 16.8 | 33.6 | 500-row + 2-thread parallel streaming 5min trace; baseline derived from S-RS-VL2 (proxy) | Keep as regression baseline and add runtime/browser evidence before release-grade closure. |
+| docs/perf/baseline.json | S-CHAT-101 | reducerFastPathHitRate | 0 | ratio | proxy | 0.85 | 0.6 | fraction of streaming deltas that returned prior state reference; chat-stream-render-isolation-2026-06 task 1.x | Keep as regression baseline and add runtime/browser evidence before release-grade closure. |
+| docs/perf/baseline.json | S-CHAT-102 | virtualizerActiveDuringStreaming | true | bool | proxy | true | false | shouldVirtualizeTimelineRows must be true when rowCount>=200 even if isThinking===true; chat-stream-render-isolation-2026-06 task 2.x | Keep as regression baseline and add runtime/browser evidence before release-grade closure. |
+| docs/perf/baseline.json | S-CHAT-103 | workspaceScopedRefEvictions | 0 | count | proxy | 0 | 0 | orphan workspace-scope ref entries after LRU eviction; chat-stream-render-isolation-2026-06 task 8.x | Keep as regression baseline and add runtime/browser evidence before release-grade closure. |
+| docs/perf/baseline.json | S-CHAT-104 | transientTimerCleanups | 1 | ratio | proxy | 1 | 1 | fraction of active-thread switches that cleared all 7 RAF/timeout refs in Messages; chat-stream-render-isolation-2026-06 task 7.1 | Keep as regression baseline and add runtime/browser evidence before release-grade closure. |
 | docs/perf/composer-baseline.json | S-CI-50 | keystrokeToCommitP95 | 0.08 | ms | proxy |  |  | Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof. | Keep as regression baseline and add runtime/browser evidence before release-grade closure. |
 | docs/perf/composer-baseline.json | S-CI-50 | inputEventLossCount | 0 | count | proxy |  |  | Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof. | Keep as regression baseline and add runtime/browser evidence before release-grade closure. |
 | docs/perf/composer-baseline.json | S-CI-50 | compositionToCommit | 0 | ms | proxy |  |  | Fixture or replay evidence; useful for regression comparison, not release-grade runtime proof. | Keep as regression baseline and add runtime/browser evidence before release-grade closure. |
@@ -45,6 +50,7 @@ Generated at: 2026-06-13T05:53:58.534Z
 | docs/perf/realtime-runtime-evidence.json | S-RS-RA | reducerAmplificationMedian | 3 | ratio | measured | 2 | 4 | measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json | Correlate replay metrics with runtime visible-lag and terminal-pressure traces. |
 | docs/perf/realtime-runtime-evidence.json | S-RS-FD | batchFlushDurationP95 | 14 | ms | measured | 8 | 16 | measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json | Correlate replay metrics with runtime visible-lag and terminal-pressure traces. |
 | docs/perf/realtime-runtime-evidence.json | S-RS-TS | terminalSettlementP95 | 70 | ms | measured | 100 | 250 | measured runtime turn trace from .artifacts/realtime-runtime-diagnostics.json | Correlate replay metrics with runtime visible-lag and terminal-pressure traces. |
+| docs/perf/realtime-runtime-evidence.json | S-RS-VL2 | visibleTextLagP95Streaming | 24 | ms | proxy |  |  | proxy: derived from realtime-extended baseline (2-thread 5min) until 500-row + 2-thread 5min streaming trace fixture is added; visibleTextLagP95 currently reported as 24ms in docs/perf/realtime-extended-baseline.json; chat-stream-render-isolation-2026-06 task 0.1 | Correlate replay metrics with runtime visible-lag and terminal-pressure traces. |
 
 ## Realtime Correlation
 

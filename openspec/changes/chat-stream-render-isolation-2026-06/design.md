@@ -132,8 +132,10 @@ type WorkspaceScopedMap<T> = ReturnType<typeof createWorkspaceScopedMap<T>>;
 ```
 
 **Ref 改造范围**(只 6 个核心,5 个 follow-up 见 proposal.md N7):
-- `pendingMemoryCaptureRef` / `pendingAssistantCompletionRef` / `recentThreadErrorsRef`:原 `useRef<Record<string, T>>({})` 改 `useRef<WorkspaceScopedMap<T>>(createWorkspaceScopedMap<T>('pendingMemoryCapture'))()`
-- `pendingInterruptsRef` / `interruptedThreadsRef` / `handledClaudeExitPlanToolIdsRef`:原 `useRef<Set<string>>(new Set())` 改 `useRef<WorkspaceScopedMap<boolean>>(createWorkspaceScopedMap<boolean>('pendingInterrupts'))()`
+- `pendingMemoryCaptureRef`:原 `useRef<Record<string, PendingMemoryCaptureEntry>>({})` 改 `useRef<WorkspaceScopedMap<PendingMemoryCaptureBucket>>(createWorkspaceScopedMap())`,outer key 是 `workspaceId`,inner key 是 `threadId`,bucket 内继续用 `buildMemoryTurnKey(threadId, turnId)` 保存多 turn entry
+- `pendingAssistantCompletionRef`:原 `useRef<Record<string, PendingAssistantCompletionEntry>>({})` 改 `useRef<WorkspaceScopedMap<PendingAssistantCompletionBucket>>(createWorkspaceScopedMap())`,结构同上
+- `recentThreadErrorsRef`:原 `useRef<Record<string, string[]>>({})` 改 `useRef<WorkspaceScopedMap<string[]>>(createWorkspaceScopedMap())`
+- `pendingInterruptsRef` / `interruptedThreadsRef` / `handledClaudeExitPlanToolIdsRef`:原 `useRef<Set<string>>(new Set())` 改 `useRef<WorkspaceScopedMap<boolean>>(createWorkspaceScopedMap())`
 
 **调用点改造**(实际查得需修改的位置):
 - `pendingInterruptsRef` 在 `useThreadEventHandlers.ts:116, 871, 966, 1020, 1032, 1369` 至少 6 处使用
@@ -468,10 +470,11 @@ useEffect(() => {
 ### 30-Minute TTL 周期
 
 1. `useThreadEventHandlers.ts` 启动 `setInterval(60_000)` TTL sweep
-2. 对 `turnDiagnosticsRef` / `quarantinedCodexTurnsRef` / `assistantSnapshotIngressLengthRef` 遍历 entries
+2. 对 `turnDiagnosticsRef` / `quarantinedCodexTurnsRef` 遍历 entries
 3. `quarantinedCodexTurnsRef` 用 `settledAt`;`turnDiagnosticsRef` 用 `completedAt ?? errorAt ?? assistantCompletedAt` 推导 settled timestamp
 4. active turn(无 settled timestamp)不动
-5. 移除时 `appendRendererDiagnostic("chat-stream/ref-cleanup-skipped", { ... })` 记录(可选,用于观察 cleanup 频率)
+5. diagnostic 过期时调用 `cleanupThreadTransientState(workspaceId, threadId)`,同步清 `turnDiagnosticsRef` / matching `quarantinedCodexTurnsRef` / `assistantSnapshotIngressLengthRef` prefix
+6. 单独的 quarantine 过期 sweep 只删除对应 quarantine key,避免没有 diagnostic 的 settled quarantine 残留
 
 ## Testing Strategy
 
@@ -479,17 +482,19 @@ useEffect(() => {
 
 1. `useThreadsReducer.completeAgentMessage` fast path 等价 / 不等价分支(`mergeCompletedAgentText` 边界独立)
 2. `useThreadsReducer.upsertItem` fast path 等价分支
-3. `useThreads.workspace-scope.test.tsx` 6 个 test(二级 Map 读写 + deleteWorkspace + cross-workspace 不串线)
-4. `useThreads.eviction.test.tsx` 5 套测试(evict 后无 orphan ref + diagnostic entry 命中)
-5. `useThreadEventHandlers.cleanup.test.ts` 3 套测试(`cleanupThreadTransientState` 单元测试)
-6. `messagesStreamingComplexity.delta.test.ts` 5 个分支(空 delta / 长度跳跃 / inside fence / 跨多 line / 中文文本)
+3. `workspaceScopedMap.test.ts` 覆盖二级 Map helper、deleteWorkspace、cross-workspace 不串线、read path 不创建 bucket
+4. `threadEventDiagnostics.transient-ttl.test.ts` 覆盖 `cleanupThreadTransientState` 和 30min TTL helper
+5. `useThreadEventHandlers.test.ts` / `useThreadItemEvents.test.ts` / `useThreadMessaging.test.tsx` / `useThreadTurnEvents.test.tsx` 覆盖 workspace-scoped sub-hook read/write 路径
+6. `messagesStreamingComplexity.test.ts` 覆盖 delta helper(空 delta / 长度跳跃 / inside fence / 跨多 line / same-line append parity)
 7. `messagesTimelineVirtualization.test.ts` 6 套测试(覆盖 isThinking true/false × rowCount 50/200/500)
-8. `useAppServerEvents.signature-stability.test.tsx` rerender 后不重复 subscribe
-9. `Messages.long-conversation.test.tsx` 500 row + streaming 集成测试
-10. `useThreads.codex-claude.test.tsx` codex + claude 并行 streaming(不串线)
-11. `rendererDiagnostics.chat-stream.test.ts` 3 类 entry schema 校验
+8. `useAppServerEvents.realtime-contract.test.tsx` 复用现有 subscribe contract;独立 `useThreads` handler churn 集成断言留 follow-up
+9. `Messages.transient-timer-cleanup.test.tsx` 覆盖 active thread 切换 timer cleanup
+10. `useThreads.integration.test.tsx` 覆盖 LRU 公式 0/8/20、15 loaded threads eviction diagnostic、同名 threadId 跨 workspace interrupted guard isolation
+11. follow-up: `Messages.long-conversation.test.tsx` / `rendererDiagnostics.chat-stream.test.ts` 尚未作为独立集成测试落地
 
-### Integration Tests (新增)
+### Integration Tests (follow-up)
+
+以下集成测试是原 design 期望。LRU eviction 与 workspace-scope isolation 已补到 `useThreads.integration.test.tsx`;剩余大型 end-to-end / long-conversation / renderer schema 独立文件保持 follow-up:
 
 1. `useThreads.end-to-end.test.tsx` 模拟 5 thread 并行 streaming,断言:
    - 5 个 thread 都有 active diagnostic
@@ -497,7 +502,7 @@ useEffect(() => {
    - 强制 eviction 后,workspace-scope ref 无 orphan
 2. `useThreads.codex-claude.test.tsx` 模拟 codex + claude 并行 streaming,断言:
    - 两条 engine 的 delta 各自落到正确 thread(不串线)
-   - `claude-pending-` / `codex-pending-`(实为 `isClaudeSessionBootstrapThreadId`)/ `gemini-pending-` / `opencode-pending-` 各自独立
+   - `claude-pending-` / `gemini-pending-` / `opencode-pending-` 前缀路径与 `isClaudeSessionBootstrapThreadId` 路径各自独立;代码库不存在 `codex-pending-` 前缀
 3. `Messages.long-conversation.test.tsx` 模拟 500 row + streaming,断言:
    - `data-timeline-virtualized="true"` 在 `isThinking === true` 时出现
    - 虚拟化 row 集合非空,DOM 节点数 ≤ 49
@@ -544,3 +549,31 @@ useEffect(() => {
 3. **assistantSnapshotIngressLengthRef TTL**:该 ref value 没有 timestamp,只能随 thread/turn cleanup prefix 删除;若需要独立 TTL,必须先改变 value shape。
 4. **`useThreads` 顶部 5 个 ref-sync effect 合并为 1 个后,`saveSidebarSnapshotThreads` debounce 250ms 是否影响 sidebar 实时性**:需要实测,若 250ms 过长可调 100ms。
 5. **B-0 baseline 测量的 fixture 稳定性**:500 row + 2 thread 并行 streaming 5min 真实 trace 怎么写,可能需要用 `realtimePerfExtendedFixture.ts` 现有 fixture 扩展。
+
+## Implementation Notes (2026-06-16)
+
+落地期对原 design 补充以下 4 点(均不影响外部 contract):
+
+1. **`sweepThreadTransientState` 抽到 `threadEventDiagnostics.ts`** 作为 pure helper,与 `resolveTransientSettledAt(diagnostic)` 共置;TTL sweep 效果通过 60s `setInterval` 落在 `useThreadEventHandlers.ts` 顶部,不影响 `useThreadStorage`。`assistantSnapshotIngressLengthRef` 没有自身 settled timestamp,但 diagnostic 过期时会通过 `cleanupThreadTransientState(workspaceId, threadId)` 按 `${threadId}\0` prefix 一并清理;explicit eviction cleanup 也走同一个 helper。
+2. **`workspaceScopedMap.ts` 在 `workspaceId` 为 `null` / `undefined` 时回退到 `"__no_workspace__"` 桶**;`cleanupThreadScopedRefs` 接受 `workspaceId: string | null | undefined`,这样 callback 内部 `workspaceId` 缺失(例如 `useThreadMessaging` 部分 fallback 路径)时不会误清整个 store。
+3. **`appendRendererDiagnostic("chat-stream/evict-thread", ...)` 写入 JSON-safe 数值 payload**,内部不直接携带 `WorkspaceScopedMap` 引用,避免序列化器依赖 `Map` prototype;诊断的语义在 `rendererDiagnostics` schema 中按 `evictedCount` 收敛。
+4. **`Messages` transient timer cleanup 的实现细节**:在 active `threadId` 变化的 `useEffect([threadId])` 内同步清掉 7 个 RAF / timeout,而不是把 timer 注册到一个全局 registry,符合 design §6.7 方案 C(本地 owner,跨 surface 通知不引入 `useThreads` 公共 API)。
+
+## Self-Review (2026-06-16 review pass)
+
+落地后 review pass 发现的 3 处需要回写,见 `proposal.md` §Self-Review (R1 / R2 / R3)。其中 R1 (`workspaceScopedHas` / `workspaceScopedGet` side-effect 修复) 影响了 `workspaceScopedMap.ts` 内部实现:
+
+```typescript
+// 修复后: 拆出 side-effect-free existingBucketFor
+function existingBucketFor<T>(store, workspaceId) {
+  return store.get(bucketKey(workspaceId));
+}
+export function workspaceScopedHas<T>(store, workspaceId, threadId) {
+  return existingBucketFor(store, workspaceId)?.has(threadId) ?? false;
+}
+export function workspaceScopedGet<T>(store, workspaceId, threadId) {
+  return existingBucketFor(store, workspaceId)?.get(threadId);
+}
+```
+
+`set` / `delete` 仍走带创建副作用的 `bucketFor`。这保证 read path 不会静默创建 bucket 推高 LRU accounting,与 proposal §Implementation Deviations #1 的 eviction diagnostic `cleanedRefCount` 语义对齐。

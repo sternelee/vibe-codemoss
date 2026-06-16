@@ -1,20 +1,16 @@
 # Runtime Evidence Gate Governance Report
 
-Generated at: 2026-06-13T05:53:58.534Z
+Generated at: 2026-06-16T10:05:21.983Z
 
 ## Archive Readiness
 
 | Change | Tasks | Recommendation | Qualifier |
 |---|---:|---|---|
 
-## Previous Archive Context
-
-- close-performance-iteration-2026-06: 25/25, previous-closure-context. Retained as historical closure context; not a current completed-active archive candidate.
-
 ## In Progress
 
-- close-client-performance-residual-2026-06: 0/30, not-archive-ready
-- collect-release-grade-performance-evidence: 28/32, not-archive-ready
+- chat-stream-render-isolation-2026-06: 24/27, not-archive-ready
+- fix-file-tree-virtual-scroll-height: 0/0, not-archive-ready
 
 ## Compatibility / Cleanup Matrix
 
