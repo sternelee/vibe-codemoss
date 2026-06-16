@@ -649,3 +649,42 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 843: 修复文件树首屏滚动容器布局
+
+**Date**: 2026-06-16
+**Task**: 修复文件树首屏滚动容器布局
+**Branch**: `feature/v0.5.10`
+
+### Summary
+
+修复右侧文件树首次进入时纵向 scrollbar 不出现、切换 Git 面板后才恢复的问题，并回写 OpenSpec proposal review。
+
+### Main Changes
+
+- 根因定位：`FileTreePanel` 首屏依赖 lazy-loaded `diff.css` 的 `.diff-panel` 布局 shell；未切过 Git 面板时 `.file-tree-list` 无法稳定形成正确 scroll container。
+- 修复实现：在 `src/styles/file-tree.css` 的 `.file-tree-panel` 内补齐 `display:flex`、`flex:1`、`flex-direction:column`、`min-height:0`、`padding`、`position` 和 `-webkit-app-region:no-drag`，保留 `.diff-panel.file-tree-panel` override 兼容既有样式链路。
+- 测试补强：在 `src/styles/client-typography-font-size.test.ts` 增加 CSS contract，锁定文件树 scroll shell 独立于 lazy Git diff styles。
+- 提案回写：新增 `openspec/changes/fix-file-tree-virtual-scroll-height/proposal-review.md`，记录现象、错误修复复盘、最终根因、兼容性 review、边界和验证结果。
+- 验证通过：`npm exec vitest run src/styles/client-typography-font-size.test.ts src/features/files/components/FileTreePanel.run.test.tsx`、`npm run typecheck`、`npm run lint`、`npm run check:large-files`。
+- OpenSpec strict validate 说明：`openspec validate fix-file-tree-virtual-scroll-height --strict` 返回 Unknown item，因为该 active change 当前只有目录骨架且无标准 `proposal.md/tasks.md/spec.md`，本次按 hotfix review artifact 收口，不伪造完整 lifecycle。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `269088b2` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

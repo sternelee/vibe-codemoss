@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-22.md`
-- **Total Sessions**: 842
-- **Last Active**: 2026-06-15
+- **Total Sessions**: 843
+- **Last Active**: 2026-06-16
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-22.md` | ~651 | Active |
+| `journal-22.md` | ~690 | Active |
 | `journal-21.md` | ~1970 | Archived |
 | `journal-20.md` | ~1997 | Archived |
 | `journal-19.md` | ~1989 | Archived |
@@ -50,6 +50,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 843 | 2026-06-16 | 修复文件树首屏滚动容器布局 | `269088b2` | `feature/v0.5.10` |
 | 842 | 2026-06-15 | 修复 Messages 测试 Suspense act 噪声 | `9f7002bf` | `bump-version-0.5.10` |
 | 841 | 2026-06-14 | 稳定 Suspense host-task teardown | `d4fcbbee5422b68c7c42e4efc9ad6099fe9fcc85` | `feature/v0.5.9` |
 | 840 | 2026-06-14 | 稳定 heavy-test-noise Suspense teardown | `ce59b8118fe1a09adc22289298c9b98c6cec8de7` | `feature/v0.5.9` |
