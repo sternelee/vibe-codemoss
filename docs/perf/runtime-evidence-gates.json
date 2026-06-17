@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0",
-  "generatedAt": "2026-06-17T04:23:50.444Z",
+  "generatedAt": "2026-06-17T09:50:58.775Z",
   "sources": {
     "perfBaseline": "docs/perf/baseline.json",
     "composerBaseline": "docs/perf/composer-baseline.json",
@@ -1855,16 +1855,6 @@
     "previousArchiveContext": [],
     "inProgress": [
       {
-        "name": "stabilize-long-running-client-runtime-2026-06",
-        "tasks": "22/27",
-        "recommendation": "not-archive-ready"
-      },
-      {
-        "name": "chat-stream-render-isolation-2026-06",
-        "tasks": "24/27",
-        "recommendation": "not-archive-ready"
-      },
-      {
         "name": "fix-file-tree-virtual-scroll-height",
         "tasks": "0/0",
         "recommendation": "not-archive-ready"
@@ -1900,28 +1890,38 @@
   ],
   "largeFileSummary": {
     "source": ".artifacts/large-files-near-threshold.json",
-    "generatedAt": "2026-06-13T04:17:57.746Z",
+    "generatedAt": "2026-06-17T07:16:36.950Z",
     "status": "warn",
     "candidates": [
       {
         "path": "src/app-shell.tsx",
-        "lines": 2547,
+        "lines": 2593,
         "priority": "P0",
         "policyId": "bridge-runtime-critical",
-        "headroom": 53,
+        "headroom": 7,
         "owner": "code-health",
-        "followUp": "Declare public facade before splitting. Next split must be scoped to bridge-runtime-critical (53 lines headroom).",
+        "followUp": "Declare public facade before splitting. Next split must be scoped to bridge-runtime-critical (7 lines headroom).",
         "facade": "Declare public facade before splitting."
       },
       {
         "path": "src/services/tauri.ts",
-        "lines": 2514,
+        "lines": 2567,
         "priority": "P0",
         "policyId": "bridge-runtime-critical",
-        "headroom": 86,
+        "headroom": 33,
         "owner": "frontend-tauri-bridge",
-        "followUp": "Preserve service exports, payload mapping, and web/Tauri fallback semantics. Next split must be scoped to bridge-runtime-critical (86 lines headroom).",
+        "followUp": "Preserve service exports, payload mapping, and web/Tauri fallback semantics. Next split must be scoped to bridge-runtime-critical (33 lines headroom).",
         "facade": "Preserve service exports, payload mapping, and web/Tauri fallback semantics."
+      },
+      {
+        "path": "src-tauri/src/engine/commands.rs",
+        "lines": 2528,
+        "priority": "P0",
+        "policyId": "bridge-runtime-critical",
+        "headroom": 72,
+        "owner": "backend-engine-runtime",
+        "followUp": "Preserve command registration, Rust module facade, payload shape, and cross-platform paths. Next split must be scoped to bridge-runtime-critical (72 lines headroom).",
+        "facade": "Preserve command registration, Rust module facade, payload shape, and cross-platform paths."
       },
       {
         "path": "src-tauri/src/engine/claude_history.rs",
@@ -1964,24 +1964,24 @@
         "facade": "Preserve command registration, Rust module facade, payload shape, and cross-platform paths."
       },
       {
-        "path": "src-tauri/src/engine/commands.rs",
-        "lines": 2286,
+        "path": "src-tauri/src/engine/claude.rs",
+        "lines": 2309,
         "priority": "P0",
         "policyId": "bridge-runtime-critical",
-        "headroom": 314,
+        "headroom": 291,
         "owner": "backend-engine-runtime",
-        "followUp": "Preserve command registration, Rust module facade, payload shape, and cross-platform paths. Next split must be scoped to bridge-runtime-critical (314 lines headroom).",
+        "followUp": "Preserve command registration, Rust module facade, payload shape, and cross-platform paths. Next split must be scoped to bridge-runtime-critical (291 lines headroom).",
         "facade": "Preserve command registration, Rust module facade, payload shape, and cross-platform paths."
       },
       {
-        "path": "src-tauri/src/engine/claude.rs",
-        "lines": 2272,
-        "priority": "P0",
-        "policyId": "bridge-runtime-critical",
-        "headroom": 328,
-        "owner": "backend-engine-runtime",
-        "followUp": "Preserve command registration, Rust module facade, payload shape, and cross-platform paths. Next split must be scoped to bridge-runtime-critical (328 lines headroom).",
-        "facade": "Preserve command registration, Rust module facade, payload shape, and cross-platform paths."
+        "path": "src/features/threads/hooks/useThreadEventHandlers.ts",
+        "lines": 2799,
+        "priority": "P1",
+        "policyId": "feature-hotpath",
+        "headroom": 1,
+        "owner": "frontend-thread-runtime",
+        "followUp": "Preserve hook input/output shape and async cleanup semantics. Next split must be scoped to feature-hotpath (1 lines headroom).",
+        "facade": "Preserve hook input/output shape and async cleanup semantics."
       },
       {
         "path": "src-tauri/src/session_management.rs",
@@ -1992,16 +1992,6 @@
         "owner": "backend-runtime",
         "followUp": "Preserve command registration, Rust module facade, payload shape, and cross-platform paths. Next split must be scoped to default-source (24 lines headroom).",
         "facade": "Preserve command registration, Rust module facade, payload shape, and cross-platform paths."
-      },
-      {
-        "path": "src/features/threads/hooks/useThreadEventHandlers.ts",
-        "lines": 2747,
-        "priority": "P1",
-        "policyId": "feature-hotpath",
-        "headroom": 53,
-        "owner": "frontend-thread-runtime",
-        "followUp": "Preserve hook input/output shape and async cleanup semantics. Next split must be scoped to feature-hotpath (53 lines headroom).",
-        "facade": "Preserve hook input/output shape and async cleanup semantics."
       }
     ],
     "nextAction": "Pick one coherent runtime boundary; do not batch unrelated hot paths together."

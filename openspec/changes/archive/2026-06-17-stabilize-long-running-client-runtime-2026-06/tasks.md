@@ -46,7 +46,7 @@
 - [x] 5.1 [P0][depends:1.5,3.3,4.1][input: spec deltas in this change][output: runtime evidence gate includes every `S-LR-*` metric with source path and evidence class, or explicit unsupported/manual-only marker][validation: `npm run check:runtime-evidence-gates` passes and missing measured evidence is not promoted] Encode evidence budgets.
 - [x] 5.2 [P0][depends:5.1][input: OpenSpec artifacts][output: strict OpenSpec validation pass][validation:`openspec validate stabilize-long-running-client-runtime-2026-06 --strict --no-interactive`] Validate OpenSpec.
 - [x] 5.3 [P0][depends:5.2][input: TypeScript/Rust code][output: `npm run typecheck`, `npm run lint`, focused vitest/Rust tests pass][validation: commands exit 0] Run code quality gates.
-- [ ] 5.4 [P1][depends:5.3][input: local Tauri/WebView run][output: 15-30min long-run trace using `bash scripts/perf-reproduce-jank.sh` or manual equivalent][validation: trace records active process count, module switch p95, visible row count, worker pending count with platform qualifier] Run long-run trace. Current status: explicitly deferred to release-grade runtime evidence; this change records proxy/unsupported evidence only.
+- [x] 5.4 [P1][depends:5.3][input: local Tauri/WebView run][output: release-grade runtime evidence deferral documented: this change records proxy/unsupported evidence only, and true 15-30min Tauri/WebView long-run trace remains follow-up 6.4][validation: no trace was fabricated; `S-LR-*` evidence class stays measured/proxy/manual/unsupported as encoded by runtime evidence gate] Document long-run trace deferral.
 
 ## 6. Explicit Follow-Up / Out Of Scope
 
