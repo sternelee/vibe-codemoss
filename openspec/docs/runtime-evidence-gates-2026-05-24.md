@@ -1,11 +1,12 @@
 # Runtime Evidence Gate Governance Report
 
-Generated at: 2026-06-17T09:50:58.775Z
+Generated at: 2026-06-17T14:52:41.534Z
 
 ## Archive Readiness
 
 | Change | Tasks | Recommendation | Qualifier |
 |---|---:|---|---|
+| fix-runtime-reconnect-card-state-loop | 7/7 | archive-candidate-after-qualifier-review | Review validation and platform qualifiers before archive. |
 
 ## In Progress
 
