@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-22.md`
-- **Total Sessions**: 851
+- **Total Sessions**: 852
 - **Last Active**: 2026-06-17
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-22.md` | ~1040 | Active |
+| `journal-22.md` | ~1089 | Active |
 | `journal-21.md` | ~1970 | Archived |
 | `journal-20.md` | ~1997 | Archived |
 | `journal-19.md` | ~1989 | Archived |
@@ -50,6 +50,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 852 | 2026-06-17 | 归档聊天流与长运行稳定性提案 | `94562f8a` | `feature/v0.5.10` |
 | 851 | 2026-06-17 | 收口 AppShell 运行态稳定性与 OpenSpec 归档 | `7d8b987d`, `29b835f0` | `feature/v0.5.10` |
 | 850 | 2026-06-17 | 稳定长运行客户端运行时 | `4e981689` | `feature/v0.5.10` |
 | 849 | 2026-06-17 | 修复 Apple event 诊断码快照合并 | `5f618c20` | `feature/v0.5.10` |

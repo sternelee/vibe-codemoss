@@ -1038,3 +1038,52 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 852: 归档聊天流与长运行稳定性提案
+
+**Date**: 2026-06-17
+**Task**: 归档聊天流与长运行稳定性提案
+**Branch**: `feature/v0.5.10`
+
+### Summary
+
+完成 chat-stream-render-isolation 与 stabilize-long-running-client-runtime 两个 OpenSpec change 的收尾、验证、归档和主 spec 同步。
+
+### Main Changes
+
+- 将 chat-stream 的真实 Tauri/WebView measured trace 明确迁移到 release-grade evidence follow-up,同时记录 10.7 scope exception 为 accepted archive exception。
+- 将 long-running runtime 的 15-30min long-run trace 明确迁移到 release-grade evidence follow-up,不伪造本地沙盒不可观测结果。
+- 归档 `chat-stream-render-isolation-2026-06` 至 `openspec/changes/archive/2026-06-17-chat-stream-render-isolation-2026-06/`,同步 `conversation-realtime-cpu-stability` 主 spec。
+- 归档 `stabilize-long-running-client-runtime-2026-06` 至 `openspec/changes/archive/2026-06-17-stabilize-long-running-client-runtime-2026-06/`,同步 `long-list-virtualization-performance` / `markdown-parse-pipeline` / `parallel-conversation-runtime-residuals` / `runtime-performance-evidence-gates` 主 specs。
+- 刷新 runtime evidence gate report,OpenSpec active list 中这两个 change 已清除。
+
+验证：
+- `openspec validate chat-stream-render-isolation-2026-06 --strict --no-interactive` pass
+- `openspec validate stabilize-long-running-client-runtime-2026-06 --strict --no-interactive` pass
+- `npm run typecheck` pass
+- `npm run lint` pass
+- `npm run check:runtime-evidence-gates` pass
+- `npm run perf:realtime:boundary-guard` pass
+- `npm run check:realtime-event-batching` pass
+- `npm run check:large-files:gate` pass, found=0
+- archived main specs validate pass: conversation-realtime-cpu-stability, long-list-virtualization-performance, markdown-parse-pipeline, parallel-conversation-runtime-residuals, runtime-performance-evidence-gates
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `94562f8a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
