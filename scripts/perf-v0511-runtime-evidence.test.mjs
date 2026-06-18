@@ -58,6 +58,12 @@ test("v0.5.11 runtime producer emits proxy evidence for the four performance gap
 
   assert.equal(byMetric.get("S-IO-RR/prepareThreadItems_calls_per_1000_delta")?.value, 0);
   assert.equal(byMetric.get("S-IO-AS/realtime_reducer_dispatches_per_1000_delta")?.value, 1000);
+  assert.deepEqual(fragment.evidenceClassCounts, {
+    measured: 0,
+    proxy: 21,
+    unsupported: 0,
+  });
+  assert.equal(fragment.proxyRatio, 1);
   assert.match(fragment.notes.join("\n"), /not release-grade desktop runtime proof/);
 });
 
@@ -105,7 +111,22 @@ test("v0.5.11 runtime producer promotes whitelisted diagnostics to measured evid
   assert.equal(byMetric.get("S-IO-RR/thread_reducer_flush_ms_p95")?.evidenceClass, "measured");
   assert.equal(byMetric.get("S-IO-FP/composer_render_count_per_streaming_minute")?.value, 42);
   assert.equal(byMetric.get("S-IO-FP/composer_render_count_per_streaming_minute")?.evidenceClass, "measured");
+  assert.equal(fragment.evidenceClassCounts.measured, 2);
+  assert.equal(fragment.evidenceClassCounts.proxy, 19);
+  assert.equal(fragment.proxyRatio, 0.9048);
   assert.match(fragment.notes.join("\n"), /accepted measuredMetricCount=2/);
+});
+
+test("v0.5.11 runtime producer records explicit evidence-class upgrade mode", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "ccgui-v0511-runtime-evidence-"));
+  const outputPath = join(dir, "runtime-evidence.json");
+
+  await runProducer(["--diagnostics=none", "--mode=evidenceClassUpgrade", `--output=${outputPath}`]);
+
+  const fragment = JSON.parse(await readFile(outputPath, "utf-8"));
+
+  assert.equal(fragment.mode, "evidenceClassUpgrade");
+  assert.match(fragment.notes.join("\n"), /Evidence class upgrade mode was requested/);
 });
 
 test("v0.5.11 runtime producer ignores unsafe or malformed diagnostics", async () => {
@@ -169,10 +190,15 @@ test("v0.5.11 runtime producer derives measured timing from turn trace summaries
               label: "realtime.turnTrace.summary",
               payload: {
                 evidenceClass: "measured",
+                startedAtMs: 1000,
+                endedAtMs: 3000,
                 deltas: {
                   batchFlushEndToReducerCommitMs: 3,
                 },
                 counters: {
+                  deltaCount: 2,
+                  reducerCommitCount: 2,
+                  batchFlushCount: 1,
                   realtimeDeltaRouteDurationAvgMs: 4,
                   appServerEventRouteDurationAvgMs: 5,
                 },
@@ -183,10 +209,15 @@ test("v0.5.11 runtime producer derives measured timing from turn trace summaries
               label: "realtime.turnTrace.summary",
               payload: {
                 evidenceClass: "measured",
+                startedAtMs: 1000,
+                endedAtMs: 3000,
                 deltas: {
                   batchFlushEndToReducerCommitMs: 6,
                 },
                 counters: {
+                  deltaCount: 4,
+                  reducerCommitCount: 4,
+                  batchFlushCount: 0,
                   realtimeDeltaRouteDurationAvgMs: 8,
                   appServerEventRouteDurationAvgMs: 9,
                 },
@@ -206,6 +237,8 @@ test("v0.5.11 runtime producer derives measured timing from turn trace summaries
 
   assert.equal(byMetric.get("S-IO-RR/realtime_delta_route_ms_p95")?.value, 8);
   assert.equal(byMetric.get("S-IO-RR/thread_reducer_flush_ms_p95")?.value, 6);
+  assert.equal(byMetric.get("S-IO-AS/app_server_event_raw_per_sec")?.value, 2);
+  assert.equal(byMetric.get("S-IO-AS/app_server_event_ipc_emit_per_sec")?.value, 0.5);
   assert.equal(byMetric.get("S-IO-AS/app_server_event_route_ms_p95")?.value, 9);
   assert.equal(byMetric.get("S-IO-AS/app_server_event_route_ms_p95")?.evidenceClass, "measured");
   assert.match(byMetric.get("S-IO-AS/app_server_event_route_ms_p95")?.notes ?? "", /sampleCount=2/);
@@ -225,9 +258,12 @@ test("v0.5.11 runtime producer derives reducer dispatch rate from measured turn 
           label: "realtime.turnTrace.summary",
           payload: {
             evidenceClass: "measured",
+            startedAtMs: 1000,
+            endedAtMs: 3000,
             counters: {
               deltaCount: 12,
               reducerCommitCount: 24,
+              batchFlushCount: 3,
               appServerEventRouteDurationAvgMs: 10,
             },
           },
@@ -237,9 +273,12 @@ test("v0.5.11 runtime producer derives reducer dispatch rate from measured turn 
           label: "realtime.turnTrace.summary",
           payload: {
             evidenceClass: "measured",
+            startedAtMs: 1000,
+            endedAtMs: 3000,
             counters: {
               deltaCount: 14,
               reducerCommitCount: 56,
+              batchFlushCount: 4,
               appServerEventRouteDurationAvgMs: 14,
             },
           },
@@ -257,11 +296,54 @@ test("v0.5.11 runtime producer derives reducer dispatch rate from measured turn 
     "S-IO-RR/realtime_reducer_dispatches_per_1000_delta",
   );
   const appServerRoute = byMetric.get("S-IO-AS/app_server_event_route_ms_p95");
+  const appServerDispatchRate = byMetric.get(
+    "S-IO-AS/realtime_reducer_dispatches_per_1000_delta",
+  );
+  const appServerEventRate = byMetric.get("S-IO-AS/app_server_event_raw_per_sec");
+  const appServerIpcRate = byMetric.get("S-IO-AS/app_server_event_ipc_emit_per_sec");
 
   assert.equal(reducerDispatchRate?.value, 4000);
   assert.equal(reducerDispatchRate?.evidenceClass, "measured");
+  assert.equal(appServerDispatchRate?.value, 4000);
+  assert.equal(appServerDispatchRate?.evidenceClass, "measured");
+  assert.equal(appServerEventRate?.value, 7);
+  assert.equal(appServerIpcRate?.value, 2);
   assert.equal(appServerRoute?.value, 14);
   assert.doesNotMatch(JSON.stringify(fragment), /firstDeltaToFirstVisibleTextMs/);
+});
+
+test("v0.5.11 runtime producer derives file I/O wall time from measured workspace listing diagnostics", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "ccgui-v0511-runtime-evidence-"));
+  const diagnosticsPath = join(dir, "workspace-listing-diagnostics.json");
+  const outputPath = join(dir, "runtime-evidence.json");
+
+  await writeFile(
+    diagnosticsPath,
+    JSON.stringify({
+      entries: [
+        {
+          timestamp: Date.now(),
+          label: "workspaces.file.listing-budget",
+          payload: {
+            evidenceClass: "measured",
+            durationMs: 123.45,
+            surfaceId: "initial-listing",
+          },
+        },
+      ],
+    }),
+    "utf-8",
+  );
+
+  await runProducer([`--diagnostics=${diagnosticsPath}`, `--output=${outputPath}`]);
+
+  const fragment = JSON.parse(await readFile(outputPath, "utf-8"));
+  const byMetric = metricMap(fragment);
+  const fileIoWallTime = byMetric.get("S-IO-FS/file_io_command_wall_ms_p95");
+
+  assert.equal(fileIoWallTime?.value, 123.45);
+  assert.equal(fileIoWallTime?.evidenceClass, "measured");
+  assert.match(fileIoWallTime?.notes ?? "", /workspace file listing command duration/);
 });
 
 test("v0.5.11 runtime producer does not promote legacy turn-window timings as measured route evidence", async () => {

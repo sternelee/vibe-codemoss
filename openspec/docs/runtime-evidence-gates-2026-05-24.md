@@ -1,17 +1,24 @@
 # Runtime Evidence Gate Governance Report
 
-Generated at: 2026-06-17T17:21:01.442Z
+Generated at: 2026-06-18T09:53:14.979Z
 
 ## Archive Readiness
 
 | Change | Tasks | Recommendation | Qualifier |
 |---|---:|---|---|
+| fix-disk-codex-empty-draft-fresh-replay | 7/7 | archive-candidate-after-qualifier-review | Review validation and platform qualifiers before archive. |
+| optimize-governance-sentry-noise-and-large-file-split | 14/14 | archive-candidate-after-qualifier-review | Archive only after evidence report identifies measured/proxy/unsupported boundaries. |
+| measure-codex-turn-start-ack-latency | 7/7 | archive-candidate-after-qualifier-review | Review validation and platform qualifiers before archive. |
+| measure-codex-first-delta-latency | 8/8 | archive-candidate-after-qualifier-review | Review validation and platform qualifiers before archive. |
+| reduce-turn-trace-batch-flush-lag | 12/12 | archive-candidate-after-qualifier-review | Review validation and platform qualifiers before archive. |
+| reduce-message-row-render-amplification | 12/12 | archive-candidate-after-qualifier-review | Review validation and platform qualifiers before archive. |
+| reduce-streaming-reducer-commit-lag | 12/12 | archive-candidate-after-qualifier-review | Review validation and platform qualifiers before archive. |
 | v0511-performance-evidence-and-runtime-jank-hardening | 28/28 | archive-candidate-after-qualifier-review | Archive only after evidence report identifies measured/proxy/unsupported boundaries. |
 | fix-runtime-reconnect-card-state-loop | 7/7 | archive-candidate-after-qualifier-review | Review validation and platform qualifiers before archive. |
 
 ## In Progress
 
-- fix-file-tree-virtual-scroll-height: 0/0, not-archive-ready
+- refactor-v0511-thread-messaging-recovery-and-streaming: 16/44, not-archive-ready
 
 ## Compatibility / Cleanup Matrix
 

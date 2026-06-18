@@ -35,6 +35,11 @@ const schemaVersion = "1.0";
 const outputPath = getArgValue("--output") ?? "docs/perf/v0511-runtime-evidence.json";
 const defaultDiagnosticsPath = ".artifacts/realtime-runtime-diagnostics.json";
 const diagnosticsPath = resolveDiagnosticsPath(getArgValue("--diagnostics"));
+const evidenceMode = getArgValue("--mode") ?? (
+  process.argv.includes("--evidence-class-upgrade")
+    ? "evidenceClassUpgrade"
+    : "baseline"
+);
 const burstDeltaCount = 1000;
 const fixtureDurationSec = 1;
 const longTaskThresholdMs = 50;
@@ -195,6 +200,7 @@ function readNestedNumber(payload: Record<string, unknown>, group: string, field
 function measuredReducerDispatchesPer1000Delta(
   payload: Record<string, unknown>,
   sourcePath: string,
+  scenario = "S-IO-RR",
 ) {
   const deltaCount = readNestedNumber(payload, "counters", "deltaCount");
   const reducerCommitCount = readNestedNumber(payload, "counters", "reducerCommitCount");
@@ -202,13 +208,35 @@ function measuredReducerDispatchesPer1000Delta(
     return null;
   }
   return metric({
-    scenario: "S-IO-RR",
+    scenario,
     name: "realtime_reducer_dispatches_per_1000_delta",
     value: Number(((reducerCommitCount / deltaCount) * 1000).toFixed(3)),
     unit: "count",
     evidenceClass: "measured",
     notes:
       `Measured realtime.turnTrace.summary reducerCommitCount/deltaCount from ${sourcePath}.`,
+  });
+}
+
+function measuredRuntimeRate(
+  input: {
+    scenario: string;
+    name: string;
+    value: number | null;
+    unit: string;
+    notes: string;
+  },
+) {
+  if (input.value === null) {
+    return null;
+  }
+  return metric({
+    scenario: input.scenario,
+    name: input.name,
+    value: input.value,
+    unit: input.unit,
+    evidenceClass: "measured",
+    notes: input.notes,
   });
 }
 
@@ -228,6 +256,44 @@ function measuredMetricsFromTurnTrace(entry: Record<string, unknown>, sourcePath
   if (reducerDispatchesPer1000Delta) {
     rows.push(reducerDispatchesPer1000Delta);
   }
+  const appServerReducerDispatchesPer1000Delta = measuredReducerDispatchesPer1000Delta(
+    payload,
+    sourcePath,
+    "S-IO-AS",
+  );
+  if (appServerReducerDispatchesPer1000Delta) {
+    rows.push(appServerReducerDispatchesPer1000Delta);
+  }
+  const startedAtMs = toFiniteNonNegativeNumber(payload.startedAtMs);
+  const endedAtMs = toFiniteNonNegativeNumber(payload.endedAtMs);
+  const traceDurationSec = startedAtMs !== null && endedAtMs !== null && endedAtMs > startedAtMs
+    ? (endedAtMs - startedAtMs) / 1000
+    : null;
+  const deltaCount = readNestedNumber(payload, "counters", "deltaCount");
+  rows.push(
+    ...[
+      measuredRuntimeRate({
+        scenario: "S-IO-AS",
+        name: "app_server_event_raw_per_sec",
+        value: traceDurationSec && deltaCount !== null
+          ? Number((deltaCount / traceDurationSec).toFixed(3))
+          : null,
+        unit: "events/sec",
+        notes:
+          `Measured realtime.turnTrace.summary deltaCount over trace duration from ${sourcePath}.`,
+      }),
+      measuredRuntimeRate({
+        scenario: "S-IO-AS",
+        name: "app_server_event_ipc_emit_per_sec",
+        value: traceDurationSec
+          ? Number(((readNestedNumber(payload, "counters", "batchFlushCount") ?? 0) / traceDurationSec).toFixed(3))
+          : null,
+        unit: "events/sec",
+        notes:
+          `Measured realtime.turnTrace.summary batchFlushCount over trace duration from ${sourcePath}.`,
+      }),
+    ].filter((row): row is RuntimeEvidenceMetric => row !== null),
+  );
   const realtimeDeltaRouteDurationAvgMs = readNestedNumber(
     payload,
     "counters",
@@ -279,6 +345,31 @@ function measuredMetricsFromTurnTrace(entry: Record<string, unknown>, sourcePath
   return rows;
 }
 
+function measuredMetricsFromWorkspaceFileListing(entry: Record<string, unknown>, sourcePath: string) {
+  if (entry.label !== "workspaces.file.listing-budget" || !isRecord(entry.payload)) {
+    return [];
+  }
+  const payload = entry.payload;
+  if (payload.evidenceClass !== "measured") {
+    return [];
+  }
+  const durationMs = toFiniteNonNegativeNumber(payload.durationMs);
+  if (durationMs === null) {
+    return [];
+  }
+  return [
+    metric({
+      scenario: "S-IO-FS",
+      name: "file_io_command_wall_ms_p95",
+      value: durationMs,
+      unit: "ms",
+      evidenceClass: "measured",
+      notes:
+        `Measured workspace file listing command duration from ${sourcePath}. surfaceId=${toBoundedNotes(payload.surfaceId) ?? "unknown"}`,
+    }),
+  ];
+}
+
 async function buildMeasuredMetricsFromDiagnostics(path: string | null) {
   if (!path || !existsSync(path)) {
     return [];
@@ -295,6 +386,9 @@ async function buildMeasuredMetricsFromDiagnostics(path: string | null) {
   for (const entry of collectDiagnosticEntries(input)) {
     addMeasured(measuredMetricFromDiagnostic(entry, path));
     for (const measured of measuredMetricsFromTurnTrace(entry, path)) {
+      addMeasured(measured);
+    }
+    for (const measured of measuredMetricsFromWorkspaceFileListing(entry, path)) {
       addMeasured(measured);
     }
   }
@@ -324,6 +418,25 @@ function mergeMeasuredMetrics(
   return proxyMetrics.map((entry) =>
     measuredByKey.get(`${entry.scenario}/${entry.metric}`) ?? entry
   );
+}
+
+function summarizeEvidenceClasses(metrics: RuntimeEvidenceMetric[]) {
+  const counts = {
+    measured: 0,
+    proxy: 0,
+    unsupported: 0,
+  };
+  for (const row of metrics) {
+    counts[row.evidenceClass] += 1;
+  }
+  const classifiedCount = counts.measured + counts.proxy + counts.unsupported;
+  const proxyRatio = classifiedCount > 0
+    ? Number((counts.proxy / classifiedCount).toFixed(4))
+    : 0;
+  return {
+    counts,
+    proxyRatio,
+  };
 }
 
 function processingEngineState(threadId: string, items: ConversationItem[]): ThreadState {
@@ -693,17 +806,25 @@ async function main() {
     ...buildFrontendPropChainMetrics(),
   ];
   const metrics = mergeMeasuredMetrics(proxyMetrics, measuredMetrics);
+  const evidenceSummary = summarizeEvidenceClasses(metrics);
   const fragment = {
     schemaVersion,
     generatedAt: new Date().toISOString(),
     source: "v0511-runtime-evidence",
+    mode: evidenceMode,
     git: {
       branch: gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown"),
       commit: gitValue(["rev-parse", "HEAD"], "unknown"),
     },
+    evidenceClassCounts: evidenceSummary.counts,
+    proxyRatio: evidenceSummary.proxyRatio,
     metrics,
     notes: [
       "Proxy rows are deterministic fixture evidence, not release-grade desktop runtime proof.",
+      `Evidence class summary: measured=${evidenceSummary.counts.measured}, proxy=${evidenceSummary.counts.proxy}, unsupported=${evidenceSummary.counts.unsupported}, proxyRatio=${evidenceSummary.proxyRatio}.`,
+      evidenceMode === "evidenceClassUpgrade"
+        ? "Evidence class upgrade mode was requested; only allowlisted runtime diagnostics can replace proxy rows with measured rows."
+        : "Baseline mode preserves proxy rows unless allowlisted runtime diagnostics are available.",
       diagnosticsPath
         ? `Measured diagnostics input: ${diagnosticsPath}; accepted measuredMetricCount=${measuredMetrics.length}.`
         : "Measured diagnostics input was not provided; proxy rows remain the active evidence.",

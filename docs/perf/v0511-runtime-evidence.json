@@ -1,11 +1,18 @@
 {
   "schemaVersion": "1.0",
-  "generatedAt": "2026-06-17T17:20:44.609Z",
+  "generatedAt": "2026-06-18T09:52:43.090Z",
   "source": "v0511-runtime-evidence",
+  "mode": "baseline",
   "git": {
     "branch": "feature/v0.5.11",
-    "commit": "e03d8a5eb2574a6c1442b42e9f06296d4a4006c1"
+    "commit": "7d16d1c9c0d5f4ccd944faf4ae0d9848664ad384"
   },
+  "evidenceClassCounts": {
+    "measured": 8,
+    "proxy": 13,
+    "unsupported": 0
+  },
+  "proxyRatio": 0.619,
   "metrics": [
     {
       "scenario": "S-IO-RR",
@@ -26,7 +33,7 @@
     {
       "scenario": "S-IO-RR",
       "metric": "thread_reducer_flush_ms_p95",
-      "value": 7265,
+      "value": 14750,
       "unit": "ms",
       "evidenceClass": "measured",
       "notes": "Measured realtime.turnTrace.summary batchFlushEndToReducerCommitMs from .artifacts/realtime-runtime-diagnostics.json. sampleCount=1"
@@ -42,18 +49,18 @@
     {
       "scenario": "S-IO-AS",
       "metric": "app_server_event_raw_per_sec",
-      "value": 1000,
+      "value": 0.28,
       "unit": "events/sec",
-      "evidenceClass": "proxy",
-      "notes": "Proxy burst fixture: 1000 app-server delta events submitted in a one-second synthetic window."
+      "evidenceClass": "measured",
+      "notes": "Measured realtime.turnTrace.summary deltaCount over trace duration from .artifacts/realtime-runtime-diagnostics.json. sampleCount=1"
     },
     {
       "scenario": "S-IO-AS",
       "metric": "app_server_event_ipc_emit_per_sec",
-      "value": 1,
+      "value": 0.011,
       "unit": "events/sec",
-      "evidenceClass": "proxy",
-      "notes": "Proxy burst fixture expects one per-workspace batch IPC payload for the synthetic window."
+      "evidenceClass": "measured",
+      "notes": "Measured realtime.turnTrace.summary batchFlushCount over trace duration from .artifacts/realtime-runtime-diagnostics.json. sampleCount=1"
     },
     {
       "scenario": "S-IO-AS",
@@ -68,8 +75,8 @@
       "metric": "realtime_reducer_dispatches_per_1000_delta",
       "value": 1000,
       "unit": "count",
-      "evidenceClass": "proxy",
-      "notes": "Proxy fixture counts routed append-only deltas through dispatchAppServerEventBatch."
+      "evidenceClass": "measured",
+      "notes": "Measured realtime.turnTrace.summary reducerCommitCount/deltaCount from .artifacts/realtime-runtime-diagnostics.json. sampleCount=1"
     },
     {
       "scenario": "S-IO-AS",
@@ -114,15 +121,15 @@
     {
       "scenario": "S-IO-FS",
       "metric": "file_io_command_wall_ms_p95",
-      "value": 16.772,
+      "value": 4072,
       "unit": "ms",
-      "evidenceClass": "proxy",
-      "notes": "Proxy Node async fs fixture: 10MB write+read wall-time P95; Tauri command timing remains release follow-up."
+      "evidenceClass": "measured",
+      "notes": "Measured workspace file listing command duration from .artifacts/realtime-runtime-diagnostics.json. surfaceId=initial-listing sampleCount=10"
     },
     {
       "scenario": "S-IO-FS",
       "metric": "file_io_async_worker_stall_ms_p95",
-      "value": 0.202,
+      "value": 0.196,
       "unit": "ms",
       "evidenceClass": "proxy",
       "notes": "Proxy event-loop stall probe sampled with setImmediate during async 10MB write+read fixture."
@@ -138,7 +145,7 @@
     {
       "scenario": "S-IO-FS",
       "metric": "tauri_command_during_stream_ms_p95",
-      "value": 16.772,
+      "value": 8.323,
       "unit": "ms",
       "evidenceClass": "proxy",
       "notes": "Proxy wall-time reused for the content-safe file I/O fixture; not a live Tauri command measurement."
@@ -178,7 +185,9 @@
   ],
   "notes": [
     "Proxy rows are deterministic fixture evidence, not release-grade desktop runtime proof.",
-    "Measured diagnostics input: .artifacts/realtime-runtime-diagnostics.json; accepted measuredMetricCount=4.",
+    "Evidence class summary: measured=8, proxy=13, unsupported=0, proxyRatio=0.619.",
+    "Baseline mode preserves proxy rows unless allowlisted runtime diagnostics are available.",
+    "Measured diagnostics input: .artifacts/realtime-runtime-diagnostics.json; accepted measuredMetricCount=8.",
     "Unsupported rows are intentionally preserved when the current repository lacks a trustworthy producer.",
     "S-IO-FS and S-IO-FP proxy rows are content-safe fixture evidence; native Tauri/WebView capture remains the release-grade follow-up."
   ]

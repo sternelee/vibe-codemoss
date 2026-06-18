@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0",
-  "generatedAt": "2026-06-17T17:21:01.442Z",
+  "generatedAt": "2026-06-18T09:53:14.979Z",
   "sources": {
     "perfBaseline": "docs/perf/baseline.json",
     "composerBaseline": "docs/perf/composer-baseline.json",
@@ -18,7 +18,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-200",
       "metric": "commitDurationP50",
-      "value": 10.06,
+      "value": 9.31,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -29,7 +29,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-200",
       "metric": "commitDurationP95",
-      "value": 10.06,
+      "value": 9.31,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -40,7 +40,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-200",
       "metric": "firstPaintAfterMount",
-      "value": 36.9,
+      "value": 33.84,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -51,7 +51,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-500",
       "metric": "commitDurationP50",
-      "value": 12.96,
+      "value": 13.55,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -62,7 +62,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-500",
       "metric": "commitDurationP95",
-      "value": 12.96,
+      "value": 13.55,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -73,7 +73,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-500",
       "metric": "firstPaintAfterMount",
-      "value": 32.03,
+      "value": 32.97,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -84,7 +84,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-1000",
       "metric": "commitDurationP50",
-      "value": 21.28,
+      "value": 21.62,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -95,7 +95,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-1000",
       "metric": "commitDurationP95",
-      "value": 21.28,
+      "value": 21.62,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -106,7 +106,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-1000",
       "metric": "firstPaintAfterMount",
-      "value": 41.55,
+      "value": 41.25,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -223,7 +223,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-CI-100-IME",
       "metric": "compositionToCommit",
-      "value": 0.1,
+      "value": 0.12,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -283,7 +283,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-RS-PE",
       "metric": "assemblerLatency",
-      "value": 4.21,
+      "value": 4.44,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -370,11 +370,11 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-CS-COLD",
       "metric": "bundleSizeMain",
-      "value": 1068094,
+      "value": 1070357,
       "unit": "bytes-gzip",
       "evidenceClass": "measured",
       "budget": {
-        "observed": 1068094,
+        "observed": 1070357,
         "target": 950000,
         "hardFail": 1100000,
         "unit": "bytes-gzip",
@@ -382,7 +382,7 @@
         "source": "docs/perf/baseline.json",
         "rollout": "advisory-until-bundle-optimization"
       },
-      "reason": "App-pCMuvY3q.js",
+      "reason": "App-Cz8DJU3r.js",
       "nextAction": "Track for regression."
     },
     {
@@ -401,7 +401,7 @@
         "source": "docs/perf/baseline.json",
         "rollout": "advisory"
       },
-      "reason": "subset-shared.chunk-BcpPBYlL.js",
+      "reason": "subset-shared.chunk-BHRqEbTD.js",
       "nextAction": "Track for regression."
     },
     {
@@ -485,7 +485,7 @@
       "source": "docs/perf/composer-baseline.json",
       "scenario": "S-CI-100-IME",
       "metric": "compositionToCommit",
-      "value": 0.1,
+      "value": 0.12,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -605,7 +605,7 @@
       "source": "docs/perf/v0511-runtime-evidence.json",
       "scenario": "S-IO-RR",
       "metric": "thread_reducer_flush_ms_p95",
-      "value": 7265,
+      "value": 14750,
       "unit": "ms",
       "evidenceClass": "measured",
       "budget": null,
@@ -627,23 +627,23 @@
       "source": "docs/perf/v0511-runtime-evidence.json",
       "scenario": "S-IO-AS",
       "metric": "app_server_event_raw_per_sec",
-      "value": 1000,
+      "value": 0.28,
       "unit": "events/sec",
-      "evidenceClass": "proxy",
+      "evidenceClass": "measured",
       "budget": null,
-      "reason": "Proxy burst fixture: 1000 app-server delta events submitted in a one-second synthetic window.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Measured realtime.turnTrace.summary deltaCount over trace duration from .artifacts/realtime-runtime-diagnostics.json. sampleCount=1",
+      "nextAction": "Track for regression."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
       "scenario": "S-IO-AS",
       "metric": "app_server_event_ipc_emit_per_sec",
-      "value": 1,
+      "value": 0.011,
       "unit": "events/sec",
-      "evidenceClass": "proxy",
+      "evidenceClass": "measured",
       "budget": null,
-      "reason": "Proxy burst fixture expects one per-workspace batch IPC payload for the synthetic window.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Measured realtime.turnTrace.summary batchFlushCount over trace duration from .artifacts/realtime-runtime-diagnostics.json. sampleCount=1",
+      "nextAction": "Track for regression."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
@@ -662,10 +662,10 @@
       "metric": "realtime_reducer_dispatches_per_1000_delta",
       "value": 1000,
       "unit": "count",
-      "evidenceClass": "proxy",
+      "evidenceClass": "measured",
       "budget": null,
-      "reason": "Proxy fixture counts routed append-only deltas through dispatchAppServerEventBatch.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Measured realtime.turnTrace.summary reducerCommitCount/deltaCount from .artifacts/realtime-runtime-diagnostics.json. sampleCount=1",
+      "nextAction": "Track for regression."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
@@ -726,18 +726,18 @@
       "source": "docs/perf/v0511-runtime-evidence.json",
       "scenario": "S-IO-FS",
       "metric": "file_io_command_wall_ms_p95",
-      "value": 16.772,
+      "value": 4072,
       "unit": "ms",
-      "evidenceClass": "proxy",
+      "evidenceClass": "measured",
       "budget": null,
-      "reason": "Proxy Node async fs fixture: 10MB write+read wall-time P95; Tauri command timing remains release follow-up.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Measured workspace file listing command duration from .artifacts/realtime-runtime-diagnostics.json. surfaceId=initial-listing sampleCount=10",
+      "nextAction": "Track for regression."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
       "scenario": "S-IO-FS",
       "metric": "file_io_async_worker_stall_ms_p95",
-      "value": 0.202,
+      "value": 0.196,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -759,7 +759,7 @@
       "source": "docs/perf/v0511-runtime-evidence.json",
       "scenario": "S-IO-FS",
       "metric": "tauri_command_during_stream_ms_p95",
-      "value": 16.772,
+      "value": 8.323,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -891,7 +891,7 @@
   "realtimeSummary": {
     "firstTokenLatencyMs": 5000,
     "interTokenJitterP95Ms": 920,
-    "assemblerLatencyMs": 4.21,
+    "assemblerLatencyMs": 4.44,
     "visibleTextLagP95Ms": 116,
     "reducerAmplificationMedian": 1,
     "batchFlushDurationP95Ms": 0,
@@ -1038,7 +1038,7 @@
       "evidenceClass": "proxy"
     },
     "longListProxy": {
-      "commitDurationP95Ms": 21.28,
+      "commitDurationP95Ms": 21.62,
       "browserScrollFrameDropPct": 0,
       "evidenceClass": "measured"
     },
@@ -1097,7 +1097,7 @@
       "realtimeDeltaRouteMsP95": 4
     },
     "prepareThreadItems_calls_per_1000_delta": 0,
-    "thread_reducer_flush_ms_p95": 7265,
+    "thread_reducer_flush_ms_p95": 14750,
     "realtime_delta_route_ms_p95": 0,
     "evidenceClass": "proxy",
     "reason": "Producer artifact captures reducer fast-path and realtime route timing proxy evidence.",
@@ -1122,12 +1122,12 @@
       "file_io_blocking_pool_call_count": null,
       "tauri_command_during_stream_ms_p95": null
     },
-    "file_io_command_wall_ms_p95": 16.772,
-    "file_io_async_worker_stall_ms_p95": 0.202,
+    "file_io_command_wall_ms_p95": 4072,
+    "file_io_async_worker_stall_ms_p95": 0.196,
     "file_io_blocking_pool_call_count": 10,
-    "tauri_command_during_stream_ms_p95": 16.772,
-    "evidenceClass": "proxy",
-    "reason": "Proxy Node async fs fixture: 10MB write+read wall-time P95; Tauri command timing remains release follow-up.",
+    "tauri_command_during_stream_ms_p95": 8.323,
+    "evidenceClass": "measured",
+    "reason": "Measured workspace file listing command duration from .artifacts/realtime-runtime-diagnostics.json. surfaceId=initial-listing sampleCount=10",
     "nextAction": "Run blocking pool call counter and async-worker stall probe in a 10MB read/write fixture during streaming."
   },
   "fileChangeEventDebounceSummary": {
@@ -1179,12 +1179,12 @@
       "realtime_reducer_dispatches_per_1000_delta": 1000,
       "main_thread_long_task_count_during_stream": 0
     },
-    "app_server_event_raw_per_sec": 1000,
-    "app_server_event_ipc_emit_per_sec": 1,
+    "app_server_event_raw_per_sec": 0.28,
+    "app_server_event_ipc_emit_per_sec": 0.011,
     "app_server_event_route_ms_p95": 0,
     "realtime_reducer_dispatches_per_1000_delta": 1000,
     "main_thread_long_task_count_during_stream": 0,
-    "evidenceClass": "proxy",
+    "evidenceClass": "measured",
     "reason": "Producer artifact captures raw-vs-IPC batching, route timing, reducer dispatch, and long-task proxy evidence.",
     "nextAction": "Promote proxy route timing and long-task count to measured browser/Tauri evidence before release-grade closure."
   },
@@ -1218,7 +1218,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-200",
       "metric": "commitDurationP50",
-      "value": 10.06,
+      "value": 9.31,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -1229,7 +1229,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-200",
       "metric": "commitDurationP95",
-      "value": 10.06,
+      "value": 9.31,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -1240,7 +1240,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-200",
       "metric": "firstPaintAfterMount",
-      "value": 36.9,
+      "value": 33.84,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -1251,7 +1251,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-500",
       "metric": "commitDurationP50",
-      "value": 12.96,
+      "value": 13.55,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -1262,7 +1262,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-500",
       "metric": "commitDurationP95",
-      "value": 12.96,
+      "value": 13.55,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -1273,7 +1273,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-500",
       "metric": "firstPaintAfterMount",
-      "value": 32.03,
+      "value": 32.97,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -1284,7 +1284,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-1000",
       "metric": "commitDurationP50",
-      "value": 21.28,
+      "value": 21.62,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -1295,7 +1295,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-1000",
       "metric": "commitDurationP95",
-      "value": 21.28,
+      "value": 21.62,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -1306,7 +1306,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-1000",
       "metric": "firstPaintAfterMount",
-      "value": 41.55,
+      "value": 41.25,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -1423,7 +1423,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-CI-100-IME",
       "metric": "compositionToCommit",
-      "value": 0.1,
+      "value": 0.12,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -1483,7 +1483,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-RS-PE",
       "metric": "assemblerLatency",
-      "value": 4.21,
+      "value": 4.44,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -1570,11 +1570,11 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-CS-COLD",
       "metric": "bundleSizeMain",
-      "value": 1068094,
+      "value": 1070357,
       "unit": "bytes-gzip",
       "evidenceClass": "measured",
       "budget": {
-        "observed": 1068094,
+        "observed": 1070357,
         "target": 950000,
         "hardFail": 1100000,
         "unit": "bytes-gzip",
@@ -1582,7 +1582,7 @@
         "source": "docs/perf/baseline.json",
         "rollout": "advisory-until-bundle-optimization"
       },
-      "reason": "App-pCMuvY3q.js",
+      "reason": "App-Cz8DJU3r.js",
       "nextAction": "Track for regression."
     },
     {
@@ -1601,7 +1601,7 @@
         "source": "docs/perf/baseline.json",
         "rollout": "advisory"
       },
-      "reason": "subset-shared.chunk-BcpPBYlL.js",
+      "reason": "subset-shared.chunk-BHRqEbTD.js",
       "nextAction": "Track for regression."
     },
     {
@@ -1685,7 +1685,7 @@
       "source": "docs/perf/composer-baseline.json",
       "scenario": "S-CI-100-IME",
       "metric": "compositionToCommit",
-      "value": 0.1,
+      "value": 0.12,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -1805,7 +1805,7 @@
       "source": "docs/perf/v0511-runtime-evidence.json",
       "scenario": "S-IO-RR",
       "metric": "thread_reducer_flush_ms_p95",
-      "value": 7265,
+      "value": 14750,
       "unit": "ms",
       "evidenceClass": "measured",
       "budget": null,
@@ -1827,23 +1827,23 @@
       "source": "docs/perf/v0511-runtime-evidence.json",
       "scenario": "S-IO-AS",
       "metric": "app_server_event_raw_per_sec",
-      "value": 1000,
+      "value": 0.28,
       "unit": "events/sec",
-      "evidenceClass": "proxy",
+      "evidenceClass": "measured",
       "budget": null,
-      "reason": "Proxy burst fixture: 1000 app-server delta events submitted in a one-second synthetic window.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Measured realtime.turnTrace.summary deltaCount over trace duration from .artifacts/realtime-runtime-diagnostics.json. sampleCount=1",
+      "nextAction": "Track for regression."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
       "scenario": "S-IO-AS",
       "metric": "app_server_event_ipc_emit_per_sec",
-      "value": 1,
+      "value": 0.011,
       "unit": "events/sec",
-      "evidenceClass": "proxy",
+      "evidenceClass": "measured",
       "budget": null,
-      "reason": "Proxy burst fixture expects one per-workspace batch IPC payload for the synthetic window.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Measured realtime.turnTrace.summary batchFlushCount over trace duration from .artifacts/realtime-runtime-diagnostics.json. sampleCount=1",
+      "nextAction": "Track for regression."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
@@ -1862,10 +1862,10 @@
       "metric": "realtime_reducer_dispatches_per_1000_delta",
       "value": 1000,
       "unit": "count",
-      "evidenceClass": "proxy",
+      "evidenceClass": "measured",
       "budget": null,
-      "reason": "Proxy fixture counts routed append-only deltas through dispatchAppServerEventBatch.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Measured realtime.turnTrace.summary reducerCommitCount/deltaCount from .artifacts/realtime-runtime-diagnostics.json. sampleCount=1",
+      "nextAction": "Track for regression."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
@@ -1926,18 +1926,18 @@
       "source": "docs/perf/v0511-runtime-evidence.json",
       "scenario": "S-IO-FS",
       "metric": "file_io_command_wall_ms_p95",
-      "value": 16.772,
+      "value": 4072,
       "unit": "ms",
-      "evidenceClass": "proxy",
+      "evidenceClass": "measured",
       "budget": null,
-      "reason": "Proxy Node async fs fixture: 10MB write+read wall-time P95; Tauri command timing remains release follow-up.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Measured workspace file listing command duration from .artifacts/realtime-runtime-diagnostics.json. surfaceId=initial-listing sampleCount=10",
+      "nextAction": "Track for regression."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
       "scenario": "S-IO-FS",
       "metric": "file_io_async_worker_stall_ms_p95",
-      "value": 0.202,
+      "value": 0.196,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -1959,7 +1959,7 @@
       "source": "docs/perf/v0511-runtime-evidence.json",
       "scenario": "S-IO-FS",
       "metric": "tauri_command_during_stream_ms_p95",
-      "value": 16.772,
+      "value": 8.323,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -2098,6 +2098,48 @@
     "source": "openspec list --json",
     "completed": [
       {
+        "name": "fix-disk-codex-empty-draft-fresh-replay",
+        "tasks": "7/7",
+        "recommendation": "archive-candidate-after-qualifier-review",
+        "qualifier": "Review validation and platform qualifiers before archive."
+      },
+      {
+        "name": "optimize-governance-sentry-noise-and-large-file-split",
+        "tasks": "14/14",
+        "recommendation": "archive-candidate-after-qualifier-review",
+        "qualifier": "Archive only after evidence report identifies measured/proxy/unsupported boundaries."
+      },
+      {
+        "name": "measure-codex-turn-start-ack-latency",
+        "tasks": "7/7",
+        "recommendation": "archive-candidate-after-qualifier-review",
+        "qualifier": "Review validation and platform qualifiers before archive."
+      },
+      {
+        "name": "measure-codex-first-delta-latency",
+        "tasks": "8/8",
+        "recommendation": "archive-candidate-after-qualifier-review",
+        "qualifier": "Review validation and platform qualifiers before archive."
+      },
+      {
+        "name": "reduce-turn-trace-batch-flush-lag",
+        "tasks": "12/12",
+        "recommendation": "archive-candidate-after-qualifier-review",
+        "qualifier": "Review validation and platform qualifiers before archive."
+      },
+      {
+        "name": "reduce-message-row-render-amplification",
+        "tasks": "12/12",
+        "recommendation": "archive-candidate-after-qualifier-review",
+        "qualifier": "Review validation and platform qualifiers before archive."
+      },
+      {
+        "name": "reduce-streaming-reducer-commit-lag",
+        "tasks": "12/12",
+        "recommendation": "archive-candidate-after-qualifier-review",
+        "qualifier": "Review validation and platform qualifiers before archive."
+      },
+      {
         "name": "v0511-performance-evidence-and-runtime-jank-hardening",
         "tasks": "28/28",
         "recommendation": "archive-candidate-after-qualifier-review",
@@ -2113,8 +2155,8 @@
     "previousArchiveContext": [],
     "inProgress": [
       {
-        "name": "fix-file-tree-virtual-scroll-height",
-        "tasks": "0/0",
+        "name": "refactor-v0511-thread-messaging-recovery-and-streaming",
+        "tasks": "16/44",
         "recommendation": "not-archive-ready"
       }
     ],

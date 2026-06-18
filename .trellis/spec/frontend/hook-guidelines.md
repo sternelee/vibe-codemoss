@@ -259,3 +259,34 @@ list_workspace_directory_children_inner_with_refresh(
   - error path
   - edge case（空值、race、重复触发）
 - 测试中 mock `services/tauri`，不要直接 patch 全局 runtime。
+
+## Realtime Dispatch Decision Matrix
+
+### 1. Scope / Trigger
+
+- Trigger：修改 `src/features/threads/hooks/useThreadItemEvents.ts`、`src/features/threads/contracts/realtimeEventBatcher.ts` 或新增 normalized realtime operation。
+- 目标：把流式事件明确路由到 batch aggregator、contract batcher 或 urgent dispatch，避免首 token 可见性与高频 reducer 压力互相污染。
+
+### 2. Contracts
+
+| Operation / Flush reason | Dispatch channel | `useTransitionForDispatch` |
+|---|---|---|
+| `appendAgentMessageDelta` / any reason | urgent dispatch | `false` |
+| `appendReasoningContentDelta` / `first-token` | urgent dispatch | `false` |
+| `appendReasoningContentDelta` / non-`first-token` | batch aggregator | `true` unless terminal |
+| `appendReasoningSummaryDelta` | batch aggregator | `true` unless terminal |
+| `appendToolOutputDelta` | batch aggregator | `true` unless terminal |
+| assistant `itemStarted` / `itemUpdated` snapshot | normalized latest-frame buffer | `false` at flush |
+
+### 3. Predicate Rules
+
+- `shouldBatchNormalizedRealtimeEvent`、`shouldUseContractRealtimeBatcher`、`shouldDispatchNormalizedRealtimeEventUrgently` 与 `shouldUrgentlyDispatchReasoningDelta` MUST remain pure.
+- These predicates MUST NOT read React state, refs, localStorage, timers, network, or current time.
+- First-token urgency MUST be keyed by `RealtimeBatcherFlushReason === "first-token"`; do not infer it from delta text length.
+
+### 4. Tests Required
+
+- Add or update hook tests when a normalized operation changes dispatch channel.
+- Reasoning content streaming MUST cover both:
+  - first-token reasoning delta dispatches without a queued transition
+  - steady-state reasoning delta remains batched after cadence flush

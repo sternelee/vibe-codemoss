@@ -74,9 +74,12 @@ const BUDGET_RESIDUALS = new Map([
 const VALID_EVIDENCE_CLASSES = new Set([
   "measured",
   "proxy",
+  "synthetic",
   "manual-only",
   "unsupported",
 ]);
+
+const PROXY_RATIO_WARN_THRESHOLD = 0.5;
 
 function repoPath(path) {
   return resolve(process.cwd(), path);
@@ -155,6 +158,13 @@ function runtimeEvidenceObjects(runtimeGates) {
   }
   visit(runtimeGates, "runtimeEvidenceGates");
   return records;
+}
+
+function evidenceClassMetricRecords(baseline, runtimeGates) {
+  return [
+    ...(Array.isArray(baseline?.metrics) ? baseline.metrics : []),
+    ...runtimeMetricRecords(runtimeGates),
+  ];
 }
 
 function evidenceObjectLabel(item) {
@@ -417,6 +427,46 @@ function summarizeUnsupported(runtimeGates) {
     .map(evidenceObjectLabel);
 }
 
+function summarizeProxyRatio(records) {
+  const counts = {
+    measured: 0,
+    proxy: 0,
+    synthetic: 0,
+    unsupported: 0,
+    "manual-only": 0,
+  };
+  for (const record of records) {
+    const evidenceClass = record?.evidenceClass;
+    if (Object.prototype.hasOwnProperty.call(counts, evidenceClass)) {
+      counts[evidenceClass] += 1;
+    }
+  }
+  const denominator = counts.measured + counts.proxy + counts.synthetic;
+  const proxyRatio = denominator > 0
+    ? Number((counts.proxy / denominator).toFixed(4))
+    : 0;
+  return {
+    counts,
+    proxyRatio,
+    denominator,
+  };
+}
+
+function buildProxyRatioWarnings(summary) {
+  if (summary.proxyRatio <= PROXY_RATIO_WARN_THRESHOLD) {
+    return [];
+  }
+  return [{
+    code: "proxy-ratio-too-high",
+    check: "proxy-ratio-too-high",
+    record: "performance-evidence",
+    detail:
+      `proxyRatio=${summary.proxyRatio} exceeds warn threshold=${PROXY_RATIO_WARN_THRESHOLD}; measured=${summary.counts.measured}, proxy=${summary.counts.proxy}, synthetic=${summary.counts.synthetic}, unsupported=${summary.counts.unsupported}, manualOnly=${summary.counts["manual-only"]}`,
+    owner: "runtime-perf-evidence-classification",
+    nextAction: "Upgrade proxy metrics to measured evidence before release-grade archive; this is warn-only for v0.5.11.",
+  }];
+}
+
 function renderTextReport(result) {
   const lines = [];
   lines.push(result.releaseMode ? "perf-archive-readiness (release mode)" : "perf-archive-readiness");
@@ -547,7 +597,13 @@ async function main() {
     ...releaseCheck.failures,
   ];
 
-  const warnings = [...unitCheck.warnings, ...releaseCheck.warnings];
+  const evidenceClassSummary = summarizeProxyRatio(evidenceClassMetricRecords(baseline, runtimeGates));
+  const proxyRatioWarnings = buildProxyRatioWarnings(evidenceClassSummary);
+  const warnings = [
+    ...unitCheck.warnings,
+    ...releaseCheck.warnings,
+    ...proxyRatioWarnings,
+  ];
   const unsupportedRecords = summarizeUnsupported(runtimeGates);
   const budgetMissingCount = warnings.filter((w) => w.check === "budget-missing").length;
 
@@ -572,6 +628,8 @@ async function main() {
     activeChangeCount: activeNames.size,
     metricCount: Array.isArray(baseline?.metrics) ? baseline.metrics.length : 0,
     budgetMissingCount,
+    proxyRatio: evidenceClassSummary.proxyRatio,
+    evidenceClassCounts: evidenceClassSummary.counts,
     hardFailures,
     warnings,
     unsupportedRecords,

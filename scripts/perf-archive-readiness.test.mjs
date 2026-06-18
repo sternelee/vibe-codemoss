@@ -102,8 +102,109 @@ test("default archive-readiness keeps hard budget breach advisory", async () => 
 
   assert.equal(result.status, 2);
   assert.equal(result.json.releaseMode, false);
+  assert.equal(result.json.proxyRatio, 0.5);
   assert.deepEqual(result.json.hardFailures, []);
   assert.ok(result.json.warnings.some((warning) => warning.check === "budget-missing"));
+});
+
+test("default archive-readiness warns but does not hard fail on high proxy ratio", async () => {
+  const fixture = await createFixture({ coldStartEvidence: "measured" });
+  const result = runReadiness(fixture);
+
+  assert.equal(result.status, 2);
+  assert.equal(result.json.proxyRatio, 0.25);
+  assert.deepEqual(result.json.hardFailures, []);
+
+  const baseline = {
+    metrics: [
+      {
+        scenario: "S-PROXY",
+        metric: "one",
+        value: 1,
+        unit: "count",
+        evidenceClass: "proxy",
+      },
+      {
+        scenario: "S-PROXY",
+        metric: "two",
+        value: 2,
+        unit: "count",
+        evidenceClass: "proxy",
+      },
+      {
+        scenario: "S-MEASURED",
+        metric: "one",
+        value: 1,
+        unit: "count",
+        evidenceClass: "measured",
+      },
+    ],
+  };
+  const runtimeEvidence = {
+    archiveReadiness: { completed: [] },
+    largeFileSummary: { candidates: [] },
+    performanceEvidence: baseline.metrics,
+    realtimeTraceBudgets: [],
+  };
+  await writeJson(fixture.baselinePath, baseline);
+  await writeJson(fixture.runtimePath, runtimeEvidence);
+
+  const highProxyResult = runReadiness(fixture);
+
+  assert.equal(highProxyResult.status, 2);
+  assert.ok(highProxyResult.json.proxyRatio > 0.5);
+  assert.deepEqual(highProxyResult.json.hardFailures, []);
+  assert.ok(highProxyResult.json.warnings.some((warning) => (
+    warning.check === "proxy-ratio-too-high"
+    && warning.code === "proxy-ratio-too-high"
+    && warning.record === "performance-evidence"
+  )));
+});
+
+test("archive-readiness includes synthetic evidence in proxy ratio denominator", async () => {
+  const fixture = await createFixture({ coldStartEvidence: "measured" });
+  const baseline = {
+    metrics: [
+      {
+        scenario: "S-PROXY",
+        metric: "one",
+        value: 1,
+        unit: "count",
+        evidenceClass: "proxy",
+      },
+      {
+        scenario: "S-MEASURED",
+        metric: "one",
+        value: 1,
+        unit: "count",
+        evidenceClass: "measured",
+      },
+      {
+        scenario: "S-SYNTHETIC",
+        metric: "one",
+        value: 1,
+        unit: "count",
+        evidenceClass: "synthetic",
+      },
+    ],
+  };
+  const runtimeEvidence = {
+    archiveReadiness: { completed: [] },
+    largeFileSummary: { candidates: [] },
+    performanceEvidence: baseline.metrics,
+    realtimeTraceBudgets: [],
+  };
+  await writeJson(fixture.baselinePath, baseline);
+  await writeJson(fixture.runtimePath, runtimeEvidence);
+
+  const result = runReadiness(fixture);
+
+  assert.equal(result.status, 2);
+  assert.equal(result.json.proxyRatio, 0.3333);
+  assert.equal(result.json.evidenceClassCounts.synthetic, 2);
+  assert.ok(!result.json.warnings.some((warning) => (
+    warning.check === "proxy-ratio-too-high"
+  )));
 });
 
 test("release readiness fails on hard breach and unsupported cold-start evidence", async () => {

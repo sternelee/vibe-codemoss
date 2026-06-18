@@ -6,6 +6,7 @@ import type { NormalizedThreadEvent } from "../contracts/conversationCurtainCont
 import {
   createRealtimeEventBatcher,
   type RealtimeBatcherFlush,
+  type RealtimeBatcherFlushReason,
 } from "../contracts/realtimeEventBatcher";
 import { asString } from "../utils/threadNormalize";
 import type { ConversationItem, DebugEntry } from "../../../types";
@@ -220,8 +221,24 @@ function shouldUseContractRealtimeBatcher(event: NormalizedThreadEvent) {
   return event.operation === "appendAgentMessageDelta";
 }
 
-function shouldDispatchNormalizedRealtimeEventUrgently(event: NormalizedThreadEvent) {
-  return event.operation === "appendAgentMessageDelta";
+export function shouldUrgentlyDispatchReasoningDelta(
+  event: NormalizedThreadEvent,
+  flushReason: RealtimeBatcherFlushReason,
+) {
+  return (
+    event.operation === "appendReasoningContentDelta" &&
+    flushReason === "first-token"
+  );
+}
+
+function shouldDispatchNormalizedRealtimeEventUrgently(
+  event: NormalizedThreadEvent,
+  flushReason: RealtimeBatcherFlushReason,
+) {
+  return (
+    event.operation === "appendAgentMessageDelta" ||
+    shouldUrgentlyDispatchReasoningDelta(event, flushReason)
+  );
 }
 
 function buildPendingNormalizedRealtimeOperationKey(event: NormalizedThreadEvent) {
@@ -797,7 +814,7 @@ export function useThreadItemEvents({
         for (const event of flush.events) {
           const useTransitionForDispatch =
             flush.reason !== "terminal" &&
-            !shouldDispatchNormalizedRealtimeEventUrgently(event);
+            !shouldDispatchNormalizedRealtimeEventUrgently(event, flush.reason);
           applyNormalizedRealtimeEventNow(
             {
               event,
@@ -865,7 +882,10 @@ export function useThreadItemEvents({
                 hasCustomName: operation.hasCustomName,
               },
               {
-                useTransitionForDispatch: !shouldDispatchNormalizedRealtimeEventUrgently(event),
+                useTransitionForDispatch: !shouldDispatchNormalizedRealtimeEventUrgently(
+                  event,
+                  flush.reason,
+                ),
               },
             );
           }

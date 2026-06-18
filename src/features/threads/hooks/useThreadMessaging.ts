@@ -83,7 +83,6 @@ import {
   isInvalidReviewThreadIdError,
   isLikelyForeignModelForGemini,
   isRecoverableCodexThreadBindingError,
-  isCodexMissingThreadBindingError,
   isUnknownEngineInterruptTurnMethodError,
   mapNetworkErrorToUserMessage,
   normalizeAccessMode,
@@ -103,8 +102,6 @@ import {
   extractOptimisticGeneratedImagePrompt,
 } from "../utils/generatedImagePlaceholder";
 import {
-  buildCodexLivenessDiagnostic,
-  canUseLocalFirstSendCodexDraftReplacement,
   resolveCodexAcceptedTurnFact,
   shouldDeferCodexActivityUntilTurnAccepted,
 } from "../utils/codexConversationLiveness";
@@ -115,6 +112,7 @@ import {
   normalizeEngineScopedEffort,
   withMemoryScoutTimeout,
 } from "./messageRuntimeController";
+import { useCodexMessageRecovery } from "./useCodexMessageRecovery";
 
 type SendMessageOptions = {
   skipPromptExpansion?: boolean;
@@ -323,6 +321,7 @@ export function useThreadMessaging({
   const lastOpenCodeModelByThreadRef = useRef<Map<string, string>>(new Map());
   const sessionSpecLinkByThreadRef = useRef<Map<string, SessionSpecLinkContext>>(new Map());
   const sendMessageToThreadRef = useRef<SendMessageToThreadFn | null>(null);
+  const { createRecoveryAttempt } = useCodexMessageRecovery();
   const {
     claudeCandidateSessionIdByPendingThreadRef,
     claudePendingThreadAwaitingNativeSessionRef,
@@ -1020,66 +1019,26 @@ export function useThreadMessaging({
             codexInvalidThreadRetryAttempted: true,
           });
         };
-        const canUseFirstSendDraftReplacement =
-          canUseLocalFirstSendCodexDraftReplacement({
-            resolution: acceptedTurnResolution,
-            hasLocalUserIntent: Boolean(optimisticUserItem),
-          });
-        const canUseFreshDraftReplacementForMalformedThreadId =
-          isInvalidReviewThreadIdError(errorMessage) && canUseFirstSendDraftReplacement;
-        const canUseFreshDraftReplacementForMissingThread =
-          isCodexMissingThreadBindingError(errorMessage) &&
-          canUseFirstSendDraftReplacement;
-        const canUseFreshDraftReplacement =
-          canUseFreshDraftReplacementForMalformedThreadId ||
-          canUseFreshDraftReplacementForMissingThread;
-        const isUnverifiedSameThreadMissingRebind =
-          reboundThreadId === threadId && canUseFreshDraftReplacementForMissingThread;
-        let freshDraftReplacementAttempted = false;
-        const tryFreshDraftReplacement = async (
-          fallbackReason: string | null,
-        ): Promise<boolean> => {
-          if (!canUseFreshDraftReplacement || freshDraftReplacementAttempted) {
-            return false;
-          }
-          freshDraftReplacementAttempted = true;
-          const freshThreadId = await startThreadForMessageSend(workspace, "codex");
-          if (!freshThreadId) {
-            return false;
-          }
-          onDebug?.({
-            id: `${Date.now()}-client-turn-start-draft-fresh-fallback`,
-            timestamp: Date.now(),
-            source: "client",
-            label: "turn/start draft fresh fallback",
-            payload: {
-              ...buildCodexLivenessDiagnostic({
-                workspaceId: workspace.id,
-                threadId,
-                stage: "fresh-continuation",
-                outcome: "fresh",
-                acceptedTurnFact: acceptedTurnResolution.fact,
-                source: acceptedTurnResolution.source,
-                reason: fallbackReason ? `${errorMessage}; ${fallbackReason}` : errorMessage,
-              }),
-              reasonCode: staleRecoveryClassification?.reasonCode ?? null,
-              staleReason: staleRecoveryClassification?.staleReason ?? null,
-              userAction: staleRecoveryClassification?.userAction ?? null,
-            },
-          });
-          dispatch({
-            type: "setActiveThreadId",
-            workspaceId: workspace.id,
-            threadId: freshThreadId,
-          });
-          moveOptimisticUserIntentToThread(freshThreadId);
-          await retrySendOnThread(freshThreadId);
-          return true;
-        };
-        if (!reboundThreadId || isUnverifiedSameThreadMissingRebind) {
+        const recoveryAttempt = createRecoveryAttempt({
+          threadId,
+          workspace,
+          reboundThreadId,
+          acceptedTurnResolution,
+          staleRecoveryClassification,
+          optimisticUserItem,
+          moveOptimisticUserIntentToThread,
+          retrySendOnThread,
+          startThreadForMessageSend,
+          forkThreadForWorkspace,
+          dispatch,
+          onDebug,
+          errorMessage,
+          refreshErrorMessage,
+        });
+        if (!reboundThreadId || recoveryAttempt.isUnverifiedSameThreadMissingRebind) {
           if (
-            await tryFreshDraftReplacement(
-              isUnverifiedSameThreadMissingRebind
+            await recoveryAttempt.tryFreshDraftReplacement(
+              recoveryAttempt.isUnverifiedSameThreadMissingRebind
                 ? "refresh returned the same missing thread"
                 : refreshErrorMessage
                   ? `refresh failed: ${refreshErrorMessage}`
@@ -1088,55 +1047,7 @@ export function useThreadMessaging({
           ) {
             return true;
           }
-          let forkedThreadId: string | null = null;
-          let forkErrorMessage: string | null = null;
-          try {
-            forkedThreadId = await forkThreadForWorkspace(workspace.id, threadId, {
-              activate: true,
-            });
-          } catch (forkError) {
-            forkErrorMessage =
-              forkError instanceof Error ? forkError.message : String(forkError);
-            forkedThreadId = null;
-          }
-          const normalizedForkedThreadId =
-            typeof forkedThreadId === "string" ? forkedThreadId.trim() : "";
-          if (normalizedForkedThreadId) {
-            onDebug?.({
-              id: `${Date.now()}-client-turn-start-stale-fork-continuation`,
-              timestamp: Date.now(),
-              source: "client",
-              label: "turn/start stale fork continuation",
-              payload: {
-                ...buildCodexLivenessDiagnostic({
-                  workspaceId: workspace.id,
-                  threadId,
-                  stage: "fresh-continuation",
-                  outcome: "fresh",
-                  acceptedTurnFact: acceptedTurnResolution.fact,
-                  source: acceptedTurnResolution.source,
-                  reason: refreshErrorMessage
-                    ? `${errorMessage}; refresh failed: ${refreshErrorMessage}`
-                    : errorMessage,
-                }),
-                forkedThreadId: normalizedForkedThreadId,
-                reasonCode: staleRecoveryClassification?.reasonCode ?? null,
-                staleReason: staleRecoveryClassification?.staleReason ?? null,
-                userAction: "start-fresh-thread",
-              },
-            });
-            dispatch({
-              type: "setActiveThreadId",
-              workspaceId: workspace.id,
-              threadId: normalizedForkedThreadId,
-            });
-            moveOptimisticUserIntentToThread(normalizedForkedThreadId);
-            await retrySendOnThread(normalizedForkedThreadId);
-            return true;
-          }
-          return tryFreshDraftReplacement(
-            forkErrorMessage ? `fork failed: ${forkErrorMessage}` : null,
-          );
+          return recoveryAttempt.tryForkFromMessage(refreshErrorMessage);
         }
         onDebug?.({
           id: `${Date.now()}-client-turn-start-thread-retry`,
@@ -1805,6 +1716,7 @@ export function useThreadMessaging({
       claudeThinkingVisible,
       customPrompts,
       codexAcceptedTurnByThread,
+      createRecoveryAttempt,
       dispatch,
       effort,
       geminiSessionIdByPendingThreadRef,
