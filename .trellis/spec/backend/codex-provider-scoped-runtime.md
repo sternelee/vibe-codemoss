@@ -33,7 +33,7 @@
 - `start_thread` MUST normalize selected provider id, ensure that provider runtime, call `thread/start`, and record `CodexProviderBinding` only after a thread id is returned.
 - Thread-bound commands MUST call `resolve_thread_provider_profile_id` from metadata before ensuring/sending to a runtime. Missing metadata MAY default to disk for legacy threads; unavailable managed provider MUST surface a provider error from provider resolution.
 - Provider-selected fork defaults to parent provider when `providerProfileId` is blank. Cross-provider fork MUST validate/ensure selected provider first, then native-fork in the parent provider runtime, copy the native child history into the selected provider home when homes differ, then record child binding.
-- Stale `turn/start` recovery stays inside the same `WorkspaceSession`: classify `thread not found` / `thread_not_found`, clear foreground work, send bounded `thread/resume`, retry the original `turn/start` once, and clear foreground work if recovery fails.
+- Stale `turn/start` recovery stays inside the same `WorkspaceSession`: classify `thread not found` / `thread_not_found`, clear foreground work, send bounded `thread/resume`, then use short bounded readiness backoff before retrying the original `turn/start`; if the retry still reports missing thread, it may retry once more and MUST clear foreground work if recovery fails.
 - Daemon adapter currently supports only disk Codex runtime. It MUST parse `providerProfileId`; `None`, blank, and `__disk__` are allowed; managed provider ids return an explicit unsupported provider-scoped runtime error.
 - Codex app-server launch MUST set `initialize.clientInfo.name/title` to `codex-tui`, resolve `clientInfo.version` from `codex --version`, fallback to `0.137.0`, and set terminal env hints `TERM_PROGRAM` / `TERM_PROGRAM_VERSION` while preserving existing env values when present.
 
@@ -46,7 +46,7 @@
 | provider 缺失/删除后继续发送 | 返回 provider not found / unavailable 类错误 | 静默按 `__disk__` 发送 |
 | thread metadata 缺失的旧会话 | 作为 legacy disk thread 处理 | 标记为 managed provider |
 | cross-provider fork | parent runtime native fork -> copy child history -> record selected provider binding | transcript seed turn 或隐藏/改写 parent thread |
-| `turn/start` stale thread | same runtime `thread/resume` + one bounded retry | 重新路由到 disk 或无限 retry |
+| `turn/start` stale thread | same runtime `thread/resume` + short bounded readiness retry | 重新路由到 disk、无限 retry 或立即把 cold-start race 当成用户恢复卡 |
 | daemon 收到 managed provider id | 显式 unsupported error | 丢弃 `providerProfileId` 后创建 disk thread |
 | Codex launch identity | `codex-tui` client info + terminal fallback env | 影响 Claude/Gemini/OpenCode launch |
 

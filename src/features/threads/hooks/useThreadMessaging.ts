@@ -1033,6 +1033,8 @@ export function useThreadMessaging({
         const canUseFreshDraftReplacement =
           canUseFreshDraftReplacementForMalformedThreadId ||
           canUseFreshDraftReplacementForMissingThread;
+        const isUnverifiedSameThreadMissingRebind =
+          reboundThreadId === threadId && canUseFreshDraftReplacementForMissingThread;
         let freshDraftReplacementAttempted = false;
         const tryFreshDraftReplacement = async (
           fallbackReason: string | null,
@@ -1074,10 +1076,14 @@ export function useThreadMessaging({
           await retrySendOnThread(freshThreadId);
           return true;
         };
-        if (!reboundThreadId) {
+        if (!reboundThreadId || isUnverifiedSameThreadMissingRebind) {
           if (
             await tryFreshDraftReplacement(
-              refreshErrorMessage ? `refresh failed: ${refreshErrorMessage}` : null,
+              isUnverifiedSameThreadMissingRebind
+                ? "refresh returned the same missing thread"
+                : refreshErrorMessage
+                  ? `refresh failed: ${refreshErrorMessage}`
+                  : null,
             )
           ) {
             return true;
