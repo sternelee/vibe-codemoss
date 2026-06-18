@@ -371,3 +371,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 881: 拆分 FileTreePanel 视图状态
+
+**Date**: 2026-06-18
+**Task**: 拆分 FileTreePanel 视图状态
+**Branch**: `feature/v0.5.11`
+
+### Summary
+
+继续 follow-up v0.5.11 large-file wave3：从 FileTreePanel.tsx 抽出 useFileTreeViewState.ts 管理文件树 view state、lazy cache、manual refresh reset；新增 FileTreeRefreshControls.tsx 承接加载失败和重试 UI；同步 OpenSpec tasks 5/6。验证通过 npm run typecheck、npm run lint（0 errors，React exhaustive-deps 对 custom hook setters/refs 仍提示 warnings）、FileTreePanel.run/detached focused tests、FileViewPanel focused tests、npm run check:large-files、openspec validate --strict --no-interactive。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8d1c4705` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
