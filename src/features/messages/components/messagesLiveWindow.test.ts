@@ -28,6 +28,15 @@ function assistantMessage(id: string, text = id): Extract<ConversationItem, { ki
   };
 }
 
+function reasoningItem(id: string, content = id): Extract<ConversationItem, { kind: "reasoning" }> {
+  return {
+    id,
+    kind: "reasoning",
+    summary: "",
+    content,
+  };
+}
+
 describe("messages live window", () => {
   it("builds a bounded live tail working set and preserves the sticky user", () => {
     const items: ConversationItem[] = [
@@ -131,6 +140,49 @@ describe("messages live window", () => {
       deferredItems,
       currentItems,
       true,
+    );
+
+    expect(resolvedItems).toBe(deferredItems);
+  });
+
+  it("refreshes an active live item with the same id while preserving the deferred history snapshot", () => {
+    const deferredItems = [
+      userMessage("user-1", "问题"),
+      assistantMessage("assistant-1", "第一版输出"),
+    ];
+    const currentItems = [
+      userMessage("user-1", "问题"),
+      assistantMessage("assistant-1", "完成后的 live 输出"),
+    ];
+
+    const resolvedItems = resolveStreamingPresentationItems(
+      deferredItems,
+      currentItems,
+      true,
+      new Set(["assistant-1"]),
+    );
+
+    expect(resolvedItems).toEqual([
+      deferredItems[0],
+      currentItems[1],
+    ]);
+  });
+
+  it("does not replace a deferred item when a live override reuses the id for another item kind", () => {
+    const deferredItems = [
+      userMessage("user-1", "问题"),
+      reasoningItem("shared-1", "推理过程"),
+    ];
+    const currentItems = [
+      userMessage("user-1", "问题"),
+      assistantMessage("shared-1", "实时正文"),
+    ];
+
+    const resolvedItems = resolveStreamingPresentationItems(
+      deferredItems,
+      currentItems,
+      true,
+      new Set(["shared-1"]),
     );
 
     expect(resolvedItems).toBe(deferredItems);
