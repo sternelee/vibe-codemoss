@@ -29,6 +29,10 @@ type RuntimeEvidenceMetric = {
   evidenceClass: EvidenceClass;
   notes?: string;
   unsupportedReason?: string;
+  sampleCount?: number;
+  sourceArtifact?: string;
+  measurementBlocker?: string;
+  requiredSourceArtifact?: string;
 };
 
 const schemaVersion = "1.0";
@@ -68,6 +72,63 @@ const measuredMetricUnits = new Map([
   ["S-IO-FP/thread_row_rerender_count_per_1000_delta", "count"],
   ["S-IO-FP/layout_nodes_recompute_count_per_1000_delta", "count"],
 ]);
+const proxyMeasurementRequirements = new Map<string, {
+  blocker: string;
+  requiredSourceArtifact: string;
+}>([
+  ["S-IO-RR/prepareThreadItems_calls_per_1000_delta", {
+    blocker: "No runtime producer records prepareThreadItems call count from a live Tauri/WebView stream yet.",
+    requiredSourceArtifact: "Tauri/WebView profiler artifact containing live prepareThreadItemsCallCount per streaming turn.",
+  }],
+  ["S-IO-AS/main_thread_long_task_count_during_stream", {
+    blocker: "Node fixture cannot observe browser main-thread long tasks.",
+    requiredSourceArtifact: "Browser PerformanceObserver longtask trace captured during a live streaming turn.",
+  }],
+  ["S-IO-FC/fs_event_raw_per_sec", {
+    blocker: "Current fixture mirrors debouncer semantics but does not read native file watcher runtime throughput.",
+    requiredSourceArtifact: "Native file watcher diagnostic with raw event count and observation duration.",
+  }],
+  ["S-IO-FC/fs_event_emitted_per_sec", {
+    blocker: "Current fixture emits one synthetic debounce batch but does not read native watcher emit cadence.",
+    requiredSourceArtifact: "Native file watcher diagnostic with emitted batch count and observation duration.",
+  }],
+  ["S-IO-FC/fs_event_same_path_coalesce_ratio", {
+    blocker: "Current fixture uses a same-path synthetic burst; live watcher same-path replacement counts are not emitted.",
+    requiredSourceArtifact: "Native file watcher diagnostic containing raw, replaced, and emitted same-path counts.",
+  }],
+  ["S-IO-FC/fs_event_empty_batch_emit_count", {
+    blocker: "Current fixture verifies the no-empty-batch contract; runtime empty-batch diagnostics are not emitted.",
+    requiredSourceArtifact: "Native file watcher diagnostic with empty batch emission count.",
+  }],
+  ["S-IO-FS/file_io_async_worker_stall_ms_p95", {
+    blocker: "Node setImmediate stall probe is not the Tauri async worker or WebView event-loop stall source.",
+    requiredSourceArtifact: "Tauri/WebView file I/O diagnostic with event-loop stall samples during command execution.",
+  }],
+  ["S-IO-FS/file_io_blocking_pool_call_count", {
+    blocker: "Node fs operation count cannot attribute native Tauri blocking-pool calls.",
+    requiredSourceArtifact: "Tauri backend diagnostic with blocking-pool call attribution for file commands.",
+  }],
+  ["S-IO-FS/tauri_command_during_stream_ms_p95", {
+    blocker: "Node wall-time fixture is not a live Tauri command measurement during streaming.",
+    requiredSourceArtifact: "Tauri command trace captured while a streaming turn is active.",
+  }],
+  ["S-IO-FP/composer_render_count_per_streaming_minute", {
+    blocker: "Synthetic render-counter fixture is not a production React Profiler capture.",
+    requiredSourceArtifact: "React Profiler/runtime diagnostic for Composer renders during a live streaming minute.",
+  }],
+  ["S-IO-FP/sidebar_render_count_per_streaming_minute", {
+    blocker: "Synthetic render-counter fixture is not a production React Profiler capture.",
+    requiredSourceArtifact: "React Profiler/runtime diagnostic for sidebar renders during a live streaming minute.",
+  }],
+  ["S-IO-FP/thread_row_rerender_count_per_1000_delta", {
+    blocker: "Synthetic render-counter fixture does not capture production row-level rerenders.",
+    requiredSourceArtifact: "React Profiler/runtime diagnostic with thread-row render counts over a 1000-delta stream.",
+  }],
+  ["S-IO-FP/layout_nodes_recompute_count_per_1000_delta", {
+    blocker: "Synthetic render-counter fixture does not capture production layout-node recompute diagnostics.",
+    requiredSourceArtifact: "React Profiler/runtime diagnostic with layout node recompute counts over a 1000-delta stream.",
+  }],
+]);
 
 function gitValue(args: string[], fallback: string) {
   try {
@@ -94,15 +155,28 @@ function metric(input: {
   evidenceClass?: EvidenceClass;
   notes?: string;
   unsupportedReason?: string;
+  sampleCount?: number;
+  sourceArtifact?: string;
+  measurementBlocker?: string;
+  requiredSourceArtifact?: string;
 }): RuntimeEvidenceMetric {
+  const evidenceClass = input.evidenceClass ?? (input.value == null ? "unsupported" : "proxy");
+  const metricKey = `${input.scenario}/${input.name}`;
+  const proxyRequirement = evidenceClass === "proxy"
+    ? proxyMeasurementRequirements.get(metricKey)
+    : undefined;
   return {
     scenario: input.scenario,
     metric: input.name,
     value: input.value,
     unit: input.unit,
-    evidenceClass: input.evidenceClass ?? (input.value == null ? "unsupported" : "proxy"),
+    evidenceClass,
     notes: input.notes,
     unsupportedReason: input.unsupportedReason,
+    sampleCount: input.sampleCount,
+    sourceArtifact: input.sourceArtifact,
+    measurementBlocker: input.measurementBlocker ?? proxyRequirement?.blocker,
+    requiredSourceArtifact: input.requiredSourceArtifact ?? proxyRequirement?.requiredSourceArtifact,
   };
 }
 
@@ -400,6 +474,10 @@ async function buildMeasuredMetricsFromDiagnostics(path: string | null) {
     return {
       ...lastRow,
       value: percentile(values, 0.95),
+      sampleCount: values.length,
+      sourceArtifact: path,
+      measurementBlocker: undefined,
+      requiredSourceArtifact: undefined,
       notes: `${lastRow?.notes ?? "Measured runtime diagnostic."} sampleCount=${values.length}`,
     } as RuntimeEvidenceMetric;
   });

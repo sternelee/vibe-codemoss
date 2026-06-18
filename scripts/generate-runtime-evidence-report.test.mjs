@@ -160,6 +160,8 @@ test("buildPerfEvidence preserves v0.5.11 S-IO producer evidence", () => {
             unit: "ratio",
             evidenceClass: "proxy",
             notes: "same-path burst fixture",
+            measurementBlocker: "native watcher diagnostic is not available",
+            requiredSourceArtifact: "native file watcher throughput artifact",
           },
         ],
       },
@@ -172,6 +174,8 @@ test("buildPerfEvidence preserves v0.5.11 S-IO producer evidence", () => {
   assert.equal(evidence[0]?.value, 0.999);
   assert.equal(evidence[0]?.evidenceClass, "proxy");
   assert.match(evidence[0]?.reason ?? "", /same-path burst/);
+  assert.match(evidence[0]?.reason ?? "", /native watcher diagnostic is not available/);
+  assert.match(evidence[0]?.nextAction ?? "", /native file watcher throughput artifact/);
 });
 
 test("S-IO summaries use producer-aware reason text", () => {

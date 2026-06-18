@@ -28,6 +28,22 @@ function metricMap(fragment) {
   );
 }
 
+const residualProxyMetricKeys = [
+  "S-IO-RR/prepareThreadItems_calls_per_1000_delta",
+  "S-IO-AS/main_thread_long_task_count_during_stream",
+  "S-IO-FC/fs_event_raw_per_sec",
+  "S-IO-FC/fs_event_emitted_per_sec",
+  "S-IO-FC/fs_event_same_path_coalesce_ratio",
+  "S-IO-FC/fs_event_empty_batch_emit_count",
+  "S-IO-FS/file_io_async_worker_stall_ms_p95",
+  "S-IO-FS/file_io_blocking_pool_call_count",
+  "S-IO-FS/tauri_command_during_stream_ms_p95",
+  "S-IO-FP/composer_render_count_per_streaming_minute",
+  "S-IO-FP/sidebar_render_count_per_streaming_minute",
+  "S-IO-FP/thread_row_rerender_count_per_1000_delta",
+  "S-IO-FP/layout_nodes_recompute_count_per_1000_delta",
+];
+
 test("v0.5.11 runtime producer emits proxy evidence for the four performance gaps", async () => {
   const dir = await mkdtemp(join(tmpdir(), "ccgui-v0511-runtime-evidence-"));
   const outputPath = join(dir, "runtime-evidence.json");
@@ -63,6 +79,14 @@ test("v0.5.11 runtime producer emits proxy evidence for the four performance gap
     proxy: 21,
     unsupported: 0,
   });
+  for (const key of residualProxyMetricKeys) {
+    const row = byMetric.get(key);
+    assert.equal(row?.evidenceClass, "proxy", `${key} should remain proxy without runtime artifact`);
+    assert.equal(typeof row?.measurementBlocker, "string", `${key} should document blocker`);
+    assert.equal(typeof row?.requiredSourceArtifact, "string", `${key} should document required artifact`);
+    assert.equal(row?.sourceArtifact, undefined, `${key} must not claim a source artifact`);
+    assert.equal(row?.sampleCount, undefined, `${key} must not claim samples`);
+  }
   assert.equal(fragment.proxyRatio, 1);
   assert.match(fragment.notes.join("\n"), /not release-grade desktop runtime proof/);
 });
@@ -109,8 +133,16 @@ test("v0.5.11 runtime producer promotes whitelisted diagnostics to measured evid
 
   assert.equal(byMetric.get("S-IO-RR/thread_reducer_flush_ms_p95")?.value, 7.25);
   assert.equal(byMetric.get("S-IO-RR/thread_reducer_flush_ms_p95")?.evidenceClass, "measured");
+  assert.equal(byMetric.get("S-IO-RR/thread_reducer_flush_ms_p95")?.sourceArtifact, diagnosticsPath);
+  assert.equal(byMetric.get("S-IO-RR/thread_reducer_flush_ms_p95")?.sampleCount, 1);
   assert.equal(byMetric.get("S-IO-FP/composer_render_count_per_streaming_minute")?.value, 42);
   assert.equal(byMetric.get("S-IO-FP/composer_render_count_per_streaming_minute")?.evidenceClass, "measured");
+  assert.equal(byMetric.get("S-IO-FP/composer_render_count_per_streaming_minute")?.sourceArtifact, diagnosticsPath);
+  assert.equal(byMetric.get("S-IO-FP/composer_render_count_per_streaming_minute")?.sampleCount, 1);
+  assert.equal(
+    byMetric.get("S-IO-FP/composer_render_count_per_streaming_minute")?.measurementBlocker,
+    undefined,
+  );
   assert.equal(fragment.evidenceClassCounts.measured, 2);
   assert.equal(fragment.evidenceClassCounts.proxy, 19);
   assert.equal(fragment.proxyRatio, 0.9048);
@@ -241,6 +273,8 @@ test("v0.5.11 runtime producer derives measured timing from turn trace summaries
   assert.equal(byMetric.get("S-IO-AS/app_server_event_ipc_emit_per_sec")?.value, 0.5);
   assert.equal(byMetric.get("S-IO-AS/app_server_event_route_ms_p95")?.value, 9);
   assert.equal(byMetric.get("S-IO-AS/app_server_event_route_ms_p95")?.evidenceClass, "measured");
+  assert.equal(byMetric.get("S-IO-AS/app_server_event_route_ms_p95")?.sourceArtifact, diagnosticsPath);
+  assert.equal(byMetric.get("S-IO-AS/app_server_event_route_ms_p95")?.sampleCount, 2);
   assert.match(byMetric.get("S-IO-AS/app_server_event_route_ms_p95")?.notes ?? "", /sampleCount=2/);
 });
 
@@ -304,6 +338,8 @@ test("v0.5.11 runtime producer derives reducer dispatch rate from measured turn 
 
   assert.equal(reducerDispatchRate?.value, 4000);
   assert.equal(reducerDispatchRate?.evidenceClass, "measured");
+  assert.equal(reducerDispatchRate?.sourceArtifact, diagnosticsPath);
+  assert.equal(reducerDispatchRate?.sampleCount, 2);
   assert.equal(appServerDispatchRate?.value, 4000);
   assert.equal(appServerDispatchRate?.evidenceClass, "measured");
   assert.equal(appServerEventRate?.value, 7);
@@ -343,6 +379,8 @@ test("v0.5.11 runtime producer derives file I/O wall time from measured workspac
 
   assert.equal(fileIoWallTime?.value, 123.45);
   assert.equal(fileIoWallTime?.evidenceClass, "measured");
+  assert.equal(fileIoWallTime?.sourceArtifact, diagnosticsPath);
+  assert.equal(fileIoWallTime?.sampleCount, 1);
   assert.match(fileIoWallTime?.notes ?? "", /workspace file listing command duration/);
 });
 

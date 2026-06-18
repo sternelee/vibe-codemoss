@@ -1,11 +1,11 @@
 {
   "schemaVersion": "1.0",
-  "generatedAt": "2026-06-18T09:52:43.090Z",
+  "generatedAt": "2026-06-18T11:01:33.433Z",
   "source": "v0511-runtime-evidence",
   "mode": "baseline",
   "git": {
     "branch": "feature/v0.5.11",
-    "commit": "7d16d1c9c0d5f4ccd944faf4ae0d9848664ad384"
+    "commit": "9a2c9f4a18656549c009c4bc8199f1770327ce3b"
   },
   "evidenceClassCounts": {
     "measured": 8,
@@ -20,7 +20,9 @@
       "value": 0,
       "unit": "count",
       "evidenceClass": "proxy",
-      "notes": "Proxy fixture anchored to useThreadsReducer.append-agent-delta-fast-path 1000-delta Codex burst."
+      "notes": "Proxy fixture anchored to useThreadsReducer.append-agent-delta-fast-path 1000-delta Codex burst.",
+      "measurementBlocker": "No runtime producer records prepareThreadItems call count from a live Tauri/WebView stream yet.",
+      "requiredSourceArtifact": "Tauri/WebView profiler artifact containing live prepareThreadItemsCallCount per streaming turn."
     },
     {
       "scenario": "S-IO-RR",
@@ -28,7 +30,9 @@
       "value": 1000,
       "unit": "count",
       "evidenceClass": "measured",
-      "notes": "Measured realtime.turnTrace.summary reducerCommitCount/deltaCount from .artifacts/realtime-runtime-diagnostics.json. sampleCount=1"
+      "notes": "Measured realtime.turnTrace.summary reducerCommitCount/deltaCount from .artifacts/realtime-runtime-diagnostics.json. sampleCount=1",
+      "sampleCount": 1,
+      "sourceArtifact": ".artifacts/realtime-runtime-diagnostics.json"
     },
     {
       "scenario": "S-IO-RR",
@@ -36,7 +40,9 @@
       "value": 14750,
       "unit": "ms",
       "evidenceClass": "measured",
-      "notes": "Measured realtime.turnTrace.summary batchFlushEndToReducerCommitMs from .artifacts/realtime-runtime-diagnostics.json. sampleCount=1"
+      "notes": "Measured realtime.turnTrace.summary batchFlushEndToReducerCommitMs from .artifacts/realtime-runtime-diagnostics.json. sampleCount=1",
+      "sampleCount": 1,
+      "sourceArtifact": ".artifacts/realtime-runtime-diagnostics.json"
     },
     {
       "scenario": "S-IO-RR",
@@ -44,7 +50,9 @@
       "value": 0,
       "unit": "ms",
       "evidenceClass": "measured",
-      "notes": "Measured realtime.turnTrace.summary realtimeDeltaRouteDurationAvgMs from .artifacts/realtime-runtime-diagnostics.json. sampleCount=1"
+      "notes": "Measured realtime.turnTrace.summary realtimeDeltaRouteDurationAvgMs from .artifacts/realtime-runtime-diagnostics.json. sampleCount=1",
+      "sampleCount": 1,
+      "sourceArtifact": ".artifacts/realtime-runtime-diagnostics.json"
     },
     {
       "scenario": "S-IO-AS",
@@ -52,7 +60,9 @@
       "value": 0.28,
       "unit": "events/sec",
       "evidenceClass": "measured",
-      "notes": "Measured realtime.turnTrace.summary deltaCount over trace duration from .artifacts/realtime-runtime-diagnostics.json. sampleCount=1"
+      "notes": "Measured realtime.turnTrace.summary deltaCount over trace duration from .artifacts/realtime-runtime-diagnostics.json. sampleCount=1",
+      "sampleCount": 1,
+      "sourceArtifact": ".artifacts/realtime-runtime-diagnostics.json"
     },
     {
       "scenario": "S-IO-AS",
@@ -60,7 +70,9 @@
       "value": 0.011,
       "unit": "events/sec",
       "evidenceClass": "measured",
-      "notes": "Measured realtime.turnTrace.summary batchFlushCount over trace duration from .artifacts/realtime-runtime-diagnostics.json. sampleCount=1"
+      "notes": "Measured realtime.turnTrace.summary batchFlushCount over trace duration from .artifacts/realtime-runtime-diagnostics.json. sampleCount=1",
+      "sampleCount": 1,
+      "sourceArtifact": ".artifacts/realtime-runtime-diagnostics.json"
     },
     {
       "scenario": "S-IO-AS",
@@ -68,7 +80,9 @@
       "value": 0,
       "unit": "ms",
       "evidenceClass": "measured",
-      "notes": "Measured realtime.turnTrace.summary appServerEventRouteDurationAvgMs from .artifacts/realtime-runtime-diagnostics.json. sampleCount=1"
+      "notes": "Measured realtime.turnTrace.summary appServerEventRouteDurationAvgMs from .artifacts/realtime-runtime-diagnostics.json. sampleCount=1",
+      "sampleCount": 1,
+      "sourceArtifact": ".artifacts/realtime-runtime-diagnostics.json"
     },
     {
       "scenario": "S-IO-AS",
@@ -76,7 +90,9 @@
       "value": 1000,
       "unit": "count",
       "evidenceClass": "measured",
-      "notes": "Measured realtime.turnTrace.summary reducerCommitCount/deltaCount from .artifacts/realtime-runtime-diagnostics.json. sampleCount=1"
+      "notes": "Measured realtime.turnTrace.summary reducerCommitCount/deltaCount from .artifacts/realtime-runtime-diagnostics.json. sampleCount=1",
+      "sampleCount": 1,
+      "sourceArtifact": ".artifacts/realtime-runtime-diagnostics.json"
     },
     {
       "scenario": "S-IO-AS",
@@ -84,7 +100,9 @@
       "value": 0,
       "unit": "count",
       "evidenceClass": "proxy",
-      "notes": "Node fixture proxy: one synchronous batch route is compared to the 50ms long-task threshold; browser PerformanceObserver remains release follow-up."
+      "notes": "Node fixture proxy: one synchronous batch route is compared to the 50ms long-task threshold; browser PerformanceObserver remains release follow-up.",
+      "measurementBlocker": "Node fixture cannot observe browser main-thread long tasks.",
+      "requiredSourceArtifact": "Browser PerformanceObserver longtask trace captured during a live streaming turn."
     },
     {
       "scenario": "S-IO-FC",
@@ -92,7 +110,9 @@
       "value": 1000,
       "unit": "events/sec",
       "evidenceClass": "proxy",
-      "notes": "Proxy same-path burst fixture mirrors DebouncedState same-key replacement semantics."
+      "notes": "Proxy same-path burst fixture mirrors DebouncedState same-key replacement semantics.",
+      "measurementBlocker": "Current fixture mirrors debouncer semantics but does not read native file watcher runtime throughput.",
+      "requiredSourceArtifact": "Native file watcher diagnostic with raw event count and observation duration."
     },
     {
       "scenario": "S-IO-FC",
@@ -100,7 +120,9 @@
       "value": 1,
       "unit": "events/sec",
       "evidenceClass": "proxy",
-      "notes": "Proxy same-path burst fixture emits one debounced batch for one flush window."
+      "notes": "Proxy same-path burst fixture emits one debounced batch for one flush window.",
+      "measurementBlocker": "Current fixture emits one synthetic debounce batch but does not read native watcher emit cadence.",
+      "requiredSourceArtifact": "Native file watcher diagnostic with emitted batch count and observation duration."
     },
     {
       "scenario": "S-IO-FC",
@@ -108,7 +130,9 @@
       "value": 0.999,
       "unit": "ratio",
       "evidenceClass": "proxy",
-      "notes": "Proxy same-path burst fixture: (rawCount - emittedCount) / rawCount."
+      "notes": "Proxy same-path burst fixture: (rawCount - emittedCount) / rawCount.",
+      "measurementBlocker": "Current fixture uses a same-path synthetic burst; live watcher same-path replacement counts are not emitted.",
+      "requiredSourceArtifact": "Native file watcher diagnostic containing raw, replaced, and emitted same-path counts."
     },
     {
       "scenario": "S-IO-FC",
@@ -116,7 +140,9 @@
       "value": 0,
       "unit": "count",
       "evidenceClass": "proxy",
-      "notes": "Proxy fixture matches external_changes_debouncer_no_empty_batch_emit regression contract."
+      "notes": "Proxy fixture matches external_changes_debouncer_no_empty_batch_emit regression contract.",
+      "measurementBlocker": "Current fixture verifies the no-empty-batch contract; runtime empty-batch diagnostics are not emitted.",
+      "requiredSourceArtifact": "Native file watcher diagnostic with empty batch emission count."
     },
     {
       "scenario": "S-IO-FS",
@@ -124,15 +150,19 @@
       "value": 4072,
       "unit": "ms",
       "evidenceClass": "measured",
-      "notes": "Measured workspace file listing command duration from .artifacts/realtime-runtime-diagnostics.json. surfaceId=initial-listing sampleCount=10"
+      "notes": "Measured workspace file listing command duration from .artifacts/realtime-runtime-diagnostics.json. surfaceId=initial-listing sampleCount=10",
+      "sampleCount": 10,
+      "sourceArtifact": ".artifacts/realtime-runtime-diagnostics.json"
     },
     {
       "scenario": "S-IO-FS",
       "metric": "file_io_async_worker_stall_ms_p95",
-      "value": 0.196,
+      "value": 0.226,
       "unit": "ms",
       "evidenceClass": "proxy",
-      "notes": "Proxy event-loop stall probe sampled with setImmediate during async 10MB write+read fixture."
+      "notes": "Proxy event-loop stall probe sampled with setImmediate during async 10MB write+read fixture.",
+      "measurementBlocker": "Node setImmediate stall probe is not the Tauri async worker or WebView event-loop stall source.",
+      "requiredSourceArtifact": "Tauri/WebView file I/O diagnostic with event-loop stall samples during command execution."
     },
     {
       "scenario": "S-IO-FS",
@@ -140,15 +170,19 @@
       "value": 10,
       "unit": "count",
       "evidenceClass": "proxy",
-      "notes": "Proxy count of async fs operations in the fixture; native Tauri blocking-pool attribution remains release follow-up."
+      "notes": "Proxy count of async fs operations in the fixture; native Tauri blocking-pool attribution remains release follow-up.",
+      "measurementBlocker": "Node fs operation count cannot attribute native Tauri blocking-pool calls.",
+      "requiredSourceArtifact": "Tauri backend diagnostic with blocking-pool call attribution for file commands."
     },
     {
       "scenario": "S-IO-FS",
       "metric": "tauri_command_during_stream_ms_p95",
-      "value": 8.323,
+      "value": 4.584,
       "unit": "ms",
       "evidenceClass": "proxy",
-      "notes": "Proxy wall-time reused for the content-safe file I/O fixture; not a live Tauri command measurement."
+      "notes": "Proxy wall-time reused for the content-safe file I/O fixture; not a live Tauri command measurement.",
+      "measurementBlocker": "Node wall-time fixture is not a live Tauri command measurement during streaming.",
+      "requiredSourceArtifact": "Tauri command trace captured while a streaming turn is active."
     },
     {
       "scenario": "S-IO-FP",
@@ -156,7 +190,9 @@
       "value": 2,
       "unit": "count",
       "evidenceClass": "proxy",
-      "notes": "Proxy render-counter fixture using the same __profile.recordComponentRender hook wired by useLayoutNodes Profiler."
+      "notes": "Proxy render-counter fixture using the same __profile.recordComponentRender hook wired by useLayoutNodes Profiler.",
+      "measurementBlocker": "Synthetic render-counter fixture is not a production React Profiler capture.",
+      "requiredSourceArtifact": "React Profiler/runtime diagnostic for Composer renders during a live streaming minute."
     },
     {
       "scenario": "S-IO-FP",
@@ -164,7 +200,9 @@
       "value": 1,
       "unit": "count",
       "evidenceClass": "proxy",
-      "notes": "Proxy render-counter fixture using the same __profile.recordComponentRender hook wired by useLayoutNodes Profiler."
+      "notes": "Proxy render-counter fixture using the same __profile.recordComponentRender hook wired by useLayoutNodes Profiler.",
+      "measurementBlocker": "Synthetic render-counter fixture is not a production React Profiler capture.",
+      "requiredSourceArtifact": "React Profiler/runtime diagnostic for sidebar renders during a live streaming minute."
     },
     {
       "scenario": "S-IO-FP",
@@ -172,7 +210,9 @@
       "value": 1,
       "unit": "count",
       "evidenceClass": "proxy",
-      "notes": "Proxy render-counter fixture; production row-level Profiler capture remains release follow-up."
+      "notes": "Proxy render-counter fixture; production row-level Profiler capture remains release follow-up.",
+      "measurementBlocker": "Synthetic render-counter fixture does not capture production row-level rerenders.",
+      "requiredSourceArtifact": "React Profiler/runtime diagnostic with thread-row render counts over a 1000-delta stream."
     },
     {
       "scenario": "S-IO-FP",
@@ -180,7 +220,9 @@
       "value": 1,
       "unit": "count",
       "evidenceClass": "proxy",
-      "notes": "Proxy render-counter fixture; production layout recompute capture remains release follow-up."
+      "notes": "Proxy render-counter fixture; production layout recompute capture remains release follow-up.",
+      "measurementBlocker": "Synthetic render-counter fixture does not capture production layout-node recompute diagnostics.",
+      "requiredSourceArtifact": "React Profiler/runtime diagnostic with layout node recompute counts over a 1000-delta stream."
     }
   ],
   "notes": [

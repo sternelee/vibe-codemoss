@@ -17,17 +17,17 @@
 
 ## 3. Measured evidence producers
 
-- [ ] Add runtime producers for at least 10 remaining proxy metrics, or explicitly document why each cannot be measured yet.
-- [ ] Keep unsupported/proxy rows honest when no real source artifact exists.
-- [ ] Update `scripts/perf-v0511-runtime-evidence.test.mjs` for every producer.
-- [ ] Regenerate `docs/perf/v0511-runtime-evidence.json` and aggregate perf reports.
+- [x] Add runtime producers for at least 10 remaining proxy metrics, or explicitly document why each cannot be measured yet.
+- [x] Keep unsupported/proxy rows honest when no real source artifact exists.
+- [x] Update `scripts/perf-v0511-runtime-evidence.test.mjs` for every producer.
+- [x] Regenerate `docs/perf/v0511-runtime-evidence.json` and aggregate perf reports.
 
 ## 4. Validation
 
 - [x] `npm run typecheck`
 - [x] `npm run lint`
 - [x] `npm run check:large-files`
-- [ ] `node --test scripts/perf-v0511-runtime-evidence.test.mjs scripts/perf-archive-readiness.test.mjs`
-- [ ] `npm run perf:baseline:all`
-- [ ] `npm run perf:archive-readiness -- --json`
+- [x] `node --test scripts/perf-v0511-runtime-evidence.test.mjs scripts/perf-archive-readiness.test.mjs`
+- [x] `npm run perf:baseline:all`
+- [x] `npm run perf:archive-readiness -- --json`
 - [x] `openspec validate follow-up-v0511-large-file-cookbook-and-measured-evidence --strict --no-interactive`

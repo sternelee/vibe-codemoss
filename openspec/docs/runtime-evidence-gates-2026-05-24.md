@@ -1,11 +1,12 @@
 # Runtime Evidence Gate Governance Report
 
-Generated at: 2026-06-18T09:53:14.979Z
+Generated at: 2026-06-18T11:01:58.314Z
 
 ## Archive Readiness
 
 | Change | Tasks | Recommendation | Qualifier |
 |---|---:|---|---|
+| refactor-v0511-thread-messaging-recovery-and-streaming | 44/44 | archive-candidate-after-qualifier-review | Review validation and platform qualifiers before archive. |
 | fix-disk-codex-empty-draft-fresh-replay | 7/7 | archive-candidate-after-qualifier-review | Review validation and platform qualifiers before archive. |
 | optimize-governance-sentry-noise-and-large-file-split | 14/14 | archive-candidate-after-qualifier-review | Archive only after evidence report identifies measured/proxy/unsupported boundaries. |
 | measure-codex-turn-start-ack-latency | 7/7 | archive-candidate-after-qualifier-review | Review validation and platform qualifiers before archive. |
@@ -18,7 +19,7 @@ Generated at: 2026-06-18T09:53:14.979Z
 
 ## In Progress
 
-- refactor-v0511-thread-messaging-recovery-and-streaming: 16/44, not-archive-ready
+- follow-up-v0511-large-file-cookbook-and-measured-evidence: 15/22, not-archive-ready
 
 ## Compatibility / Cleanup Matrix
 

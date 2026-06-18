@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0",
-  "generatedAt": "2026-06-18T09:53:14.979Z",
+  "generatedAt": "2026-06-18T11:01:58.314Z",
   "sources": {
     "perfBaseline": "docs/perf/baseline.json",
     "composerBaseline": "docs/perf/composer-baseline.json",
@@ -18,7 +18,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-200",
       "metric": "commitDurationP50",
-      "value": 9.31,
+      "value": 9.08,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -29,7 +29,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-200",
       "metric": "commitDurationP95",
-      "value": 9.31,
+      "value": 9.08,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -40,7 +40,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-200",
       "metric": "firstPaintAfterMount",
-      "value": 33.84,
+      "value": 34.19,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -51,7 +51,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-500",
       "metric": "commitDurationP50",
-      "value": 13.55,
+      "value": 13.48,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -62,7 +62,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-500",
       "metric": "commitDurationP95",
-      "value": 13.55,
+      "value": 13.48,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -73,7 +73,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-500",
       "metric": "firstPaintAfterMount",
-      "value": 32.97,
+      "value": 32.89,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -84,7 +84,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-1000",
       "metric": "commitDurationP50",
-      "value": 21.62,
+      "value": 17.89,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -95,7 +95,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-1000",
       "metric": "commitDurationP95",
-      "value": 21.62,
+      "value": 17.89,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -106,7 +106,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-1000",
       "metric": "firstPaintAfterMount",
-      "value": 41.25,
+      "value": 37.69,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -136,11 +136,11 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-CI-50",
       "metric": "keystrokeToCommitP95",
-      "value": 0.08,
+      "value": 0.09,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": {
-        "observed": 0.08,
+        "observed": 0.09,
         "target": 16,
         "hardFail": 32,
         "unit": "ms",
@@ -185,11 +185,11 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-CI-100-IME",
       "metric": "keystrokeToCommitP95",
-      "value": 0.03,
+      "value": 0.04,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": {
-        "observed": 0.03,
+        "observed": 0.04,
         "target": 16,
         "hardFail": 32,
         "unit": "ms",
@@ -223,7 +223,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-CI-100-IME",
       "metric": "compositionToCommit",
-      "value": 0.12,
+      "value": 0.1,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -283,7 +283,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-RS-PE",
       "metric": "assemblerLatency",
-      "value": 4.44,
+      "value": 4.2,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -370,11 +370,11 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-CS-COLD",
       "metric": "bundleSizeMain",
-      "value": 1070357,
+      "value": 1071362,
       "unit": "bytes-gzip",
       "evidenceClass": "measured",
       "budget": {
-        "observed": 1070357,
+        "observed": 1071362,
         "target": 950000,
         "hardFail": 1100000,
         "unit": "bytes-gzip",
@@ -382,18 +382,18 @@
         "source": "docs/perf/baseline.json",
         "rollout": "advisory-until-bundle-optimization"
       },
-      "reason": "App-Cz8DJU3r.js",
+      "reason": "App-TXlavGAo.js",
       "nextAction": "Track for regression."
     },
     {
       "source": "docs/perf/baseline.json",
       "scenario": "S-CS-COLD",
       "metric": "bundleSizeVendor",
-      "value": 741553,
+      "value": 741551,
       "unit": "bytes-gzip",
       "evidenceClass": "measured",
       "budget": {
-        "observed": 741553,
+        "observed": 741551,
         "target": 680000,
         "hardFail": 760000,
         "unit": "bytes-gzip",
@@ -401,7 +401,7 @@
         "source": "docs/perf/baseline.json",
         "rollout": "advisory"
       },
-      "reason": "subset-shared.chunk-BHRqEbTD.js",
+      "reason": "subset-shared.chunk-BRs1PAVC.js",
       "nextAction": "Track for regression."
     },
     {
@@ -430,7 +430,7 @@
       "source": "docs/perf/composer-baseline.json",
       "scenario": "S-CI-50",
       "metric": "keystrokeToCommitP95",
-      "value": 0.08,
+      "value": 0.09,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -463,7 +463,7 @@
       "source": "docs/perf/composer-baseline.json",
       "scenario": "S-CI-100-IME",
       "metric": "keystrokeToCommitP95",
-      "value": 0.03,
+      "value": 0.04,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -485,7 +485,7 @@
       "source": "docs/perf/composer-baseline.json",
       "scenario": "S-CI-100-IME",
       "metric": "compositionToCommit",
-      "value": 0.12,
+      "value": 0.1,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -587,8 +587,8 @@
       "unit": "count",
       "evidenceClass": "proxy",
       "budget": null,
-      "reason": "Proxy fixture anchored to useThreadsReducer.append-agent-delta-fast-path 1000-delta Codex burst.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Proxy fixture anchored to useThreadsReducer.append-agent-delta-fast-path 1000-delta Codex burst. Measurement blocker: No runtime producer records prepareThreadItems call count from a live Tauri/WebView stream yet. Required source artifact: Tauri/WebView profiler artifact containing live prepareThreadItemsCallCount per streaming turn.",
+      "nextAction": "Keep as regression baseline until available: Tauri/WebView profiler artifact containing live prepareThreadItemsCallCount per streaming turn."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
@@ -675,8 +675,8 @@
       "unit": "count",
       "evidenceClass": "proxy",
       "budget": null,
-      "reason": "Node fixture proxy: one synchronous batch route is compared to the 50ms long-task threshold; browser PerformanceObserver remains release follow-up.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Node fixture proxy: one synchronous batch route is compared to the 50ms long-task threshold; browser PerformanceObserver remains release follow-up. Measurement blocker: Node fixture cannot observe browser main-thread long tasks. Required source artifact: Browser PerformanceObserver longtask trace captured during a live streaming turn.",
+      "nextAction": "Keep as regression baseline until available: Browser PerformanceObserver longtask trace captured during a live streaming turn."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
@@ -686,8 +686,8 @@
       "unit": "events/sec",
       "evidenceClass": "proxy",
       "budget": null,
-      "reason": "Proxy same-path burst fixture mirrors DebouncedState same-key replacement semantics.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Proxy same-path burst fixture mirrors DebouncedState same-key replacement semantics. Measurement blocker: Current fixture mirrors debouncer semantics but does not read native file watcher runtime throughput. Required source artifact: Native file watcher diagnostic with raw event count and observation duration.",
+      "nextAction": "Keep as regression baseline until available: Native file watcher diagnostic with raw event count and observation duration."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
@@ -697,8 +697,8 @@
       "unit": "events/sec",
       "evidenceClass": "proxy",
       "budget": null,
-      "reason": "Proxy same-path burst fixture emits one debounced batch for one flush window.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Proxy same-path burst fixture emits one debounced batch for one flush window. Measurement blocker: Current fixture emits one synthetic debounce batch but does not read native watcher emit cadence. Required source artifact: Native file watcher diagnostic with emitted batch count and observation duration.",
+      "nextAction": "Keep as regression baseline until available: Native file watcher diagnostic with emitted batch count and observation duration."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
@@ -708,8 +708,8 @@
       "unit": "ratio",
       "evidenceClass": "proxy",
       "budget": null,
-      "reason": "Proxy same-path burst fixture: (rawCount - emittedCount) / rawCount.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Proxy same-path burst fixture: (rawCount - emittedCount) / rawCount. Measurement blocker: Current fixture uses a same-path synthetic burst; live watcher same-path replacement counts are not emitted. Required source artifact: Native file watcher diagnostic containing raw, replaced, and emitted same-path counts.",
+      "nextAction": "Keep as regression baseline until available: Native file watcher diagnostic containing raw, replaced, and emitted same-path counts."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
@@ -719,8 +719,8 @@
       "unit": "count",
       "evidenceClass": "proxy",
       "budget": null,
-      "reason": "Proxy fixture matches external_changes_debouncer_no_empty_batch_emit regression contract.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Proxy fixture matches external_changes_debouncer_no_empty_batch_emit regression contract. Measurement blocker: Current fixture verifies the no-empty-batch contract; runtime empty-batch diagnostics are not emitted. Required source artifact: Native file watcher diagnostic with empty batch emission count.",
+      "nextAction": "Keep as regression baseline until available: Native file watcher diagnostic with empty batch emission count."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
@@ -737,12 +737,12 @@
       "source": "docs/perf/v0511-runtime-evidence.json",
       "scenario": "S-IO-FS",
       "metric": "file_io_async_worker_stall_ms_p95",
-      "value": 0.196,
+      "value": 0.226,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
-      "reason": "Proxy event-loop stall probe sampled with setImmediate during async 10MB write+read fixture.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Proxy event-loop stall probe sampled with setImmediate during async 10MB write+read fixture. Measurement blocker: Node setImmediate stall probe is not the Tauri async worker or WebView event-loop stall source. Required source artifact: Tauri/WebView file I/O diagnostic with event-loop stall samples during command execution.",
+      "nextAction": "Keep as regression baseline until available: Tauri/WebView file I/O diagnostic with event-loop stall samples during command execution."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
@@ -752,19 +752,19 @@
       "unit": "count",
       "evidenceClass": "proxy",
       "budget": null,
-      "reason": "Proxy count of async fs operations in the fixture; native Tauri blocking-pool attribution remains release follow-up.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Proxy count of async fs operations in the fixture; native Tauri blocking-pool attribution remains release follow-up. Measurement blocker: Node fs operation count cannot attribute native Tauri blocking-pool calls. Required source artifact: Tauri backend diagnostic with blocking-pool call attribution for file commands.",
+      "nextAction": "Keep as regression baseline until available: Tauri backend diagnostic with blocking-pool call attribution for file commands."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
       "scenario": "S-IO-FS",
       "metric": "tauri_command_during_stream_ms_p95",
-      "value": 8.323,
+      "value": 4.584,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
-      "reason": "Proxy wall-time reused for the content-safe file I/O fixture; not a live Tauri command measurement.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Proxy wall-time reused for the content-safe file I/O fixture; not a live Tauri command measurement. Measurement blocker: Node wall-time fixture is not a live Tauri command measurement during streaming. Required source artifact: Tauri command trace captured while a streaming turn is active.",
+      "nextAction": "Keep as regression baseline until available: Tauri command trace captured while a streaming turn is active."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
@@ -774,8 +774,8 @@
       "unit": "count",
       "evidenceClass": "proxy",
       "budget": null,
-      "reason": "Proxy render-counter fixture using the same __profile.recordComponentRender hook wired by useLayoutNodes Profiler.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Proxy render-counter fixture using the same __profile.recordComponentRender hook wired by useLayoutNodes Profiler. Measurement blocker: Synthetic render-counter fixture is not a production React Profiler capture. Required source artifact: React Profiler/runtime diagnostic for Composer renders during a live streaming minute.",
+      "nextAction": "Keep as regression baseline until available: React Profiler/runtime diagnostic for Composer renders during a live streaming minute."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
@@ -785,8 +785,8 @@
       "unit": "count",
       "evidenceClass": "proxy",
       "budget": null,
-      "reason": "Proxy render-counter fixture using the same __profile.recordComponentRender hook wired by useLayoutNodes Profiler.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Proxy render-counter fixture using the same __profile.recordComponentRender hook wired by useLayoutNodes Profiler. Measurement blocker: Synthetic render-counter fixture is not a production React Profiler capture. Required source artifact: React Profiler/runtime diagnostic for sidebar renders during a live streaming minute.",
+      "nextAction": "Keep as regression baseline until available: React Profiler/runtime diagnostic for sidebar renders during a live streaming minute."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
@@ -796,8 +796,8 @@
       "unit": "count",
       "evidenceClass": "proxy",
       "budget": null,
-      "reason": "Proxy render-counter fixture; production row-level Profiler capture remains release follow-up.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Proxy render-counter fixture; production row-level Profiler capture remains release follow-up. Measurement blocker: Synthetic render-counter fixture does not capture production row-level rerenders. Required source artifact: React Profiler/runtime diagnostic with thread-row render counts over a 1000-delta stream.",
+      "nextAction": "Keep as regression baseline until available: React Profiler/runtime diagnostic with thread-row render counts over a 1000-delta stream."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
@@ -807,8 +807,8 @@
       "unit": "count",
       "evidenceClass": "proxy",
       "budget": null,
-      "reason": "Proxy render-counter fixture; production layout recompute capture remains release follow-up.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Proxy render-counter fixture; production layout recompute capture remains release follow-up. Measurement blocker: Synthetic render-counter fixture does not capture production layout-node recompute diagnostics. Required source artifact: React Profiler/runtime diagnostic with layout node recompute counts over a 1000-delta stream.",
+      "nextAction": "Keep as regression baseline until available: React Profiler/runtime diagnostic with layout node recompute counts over a 1000-delta stream."
     },
     {
       "source": "docs/perf/long-running-runtime-evidence.json",
@@ -891,7 +891,7 @@
   "realtimeSummary": {
     "firstTokenLatencyMs": 5000,
     "interTokenJitterP95Ms": 920,
-    "assemblerLatencyMs": 4.44,
+    "assemblerLatencyMs": 4.2,
     "visibleTextLagP95Ms": 116,
     "reducerAmplificationMedian": 1,
     "batchFlushDurationP95Ms": 0,
@@ -1038,7 +1038,7 @@
       "evidenceClass": "proxy"
     },
     "longListProxy": {
-      "commitDurationP95Ms": 21.62,
+      "commitDurationP95Ms": 17.89,
       "browserScrollFrameDropPct": 0,
       "evidenceClass": "measured"
     },
@@ -1123,9 +1123,9 @@
       "tauri_command_during_stream_ms_p95": null
     },
     "file_io_command_wall_ms_p95": 4072,
-    "file_io_async_worker_stall_ms_p95": 0.196,
+    "file_io_async_worker_stall_ms_p95": 0.226,
     "file_io_blocking_pool_call_count": 10,
-    "tauri_command_during_stream_ms_p95": 8.323,
+    "tauri_command_during_stream_ms_p95": 4.584,
     "evidenceClass": "measured",
     "reason": "Measured workspace file listing command duration from .artifacts/realtime-runtime-diagnostics.json. surfaceId=initial-listing sampleCount=10",
     "nextAction": "Run blocking pool call counter and async-worker stall probe in a 10MB read/write fixture during streaming."
@@ -1210,7 +1210,7 @@
     "thread_row_rerender_count_per_1000_delta": 1,
     "layout_nodes_recompute_count_per_1000_delta": 1,
     "evidenceClass": "proxy",
-    "reason": "Proxy render-counter fixture using the same __profile.recordComponentRender hook wired by useLayoutNodes Profiler.",
+    "reason": "Proxy render-counter fixture using the same __profile.recordComponentRender hook wired by useLayoutNodes Profiler. Measurement blocker: Synthetic render-counter fixture is not a production React Profiler capture. Required source artifact: React Profiler/runtime diagnostic for Composer renders during a live streaming minute.",
     "nextAction": "Add Profiler-based render counters or React Profiler API capture during the streaming fixture."
   },
   "realtimeTraceBudgets": [
@@ -1218,7 +1218,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-200",
       "metric": "commitDurationP50",
-      "value": 9.31,
+      "value": 9.08,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -1229,7 +1229,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-200",
       "metric": "commitDurationP95",
-      "value": 9.31,
+      "value": 9.08,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -1240,7 +1240,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-200",
       "metric": "firstPaintAfterMount",
-      "value": 33.84,
+      "value": 34.19,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -1251,7 +1251,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-500",
       "metric": "commitDurationP50",
-      "value": 13.55,
+      "value": 13.48,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -1262,7 +1262,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-500",
       "metric": "commitDurationP95",
-      "value": 13.55,
+      "value": 13.48,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -1273,7 +1273,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-500",
       "metric": "firstPaintAfterMount",
-      "value": 32.97,
+      "value": 32.89,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -1284,7 +1284,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-1000",
       "metric": "commitDurationP50",
-      "value": 21.62,
+      "value": 17.89,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -1295,7 +1295,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-1000",
       "metric": "commitDurationP95",
-      "value": 21.62,
+      "value": 17.89,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -1306,7 +1306,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-LL-1000",
       "metric": "firstPaintAfterMount",
-      "value": 41.25,
+      "value": 37.69,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -1336,11 +1336,11 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-CI-50",
       "metric": "keystrokeToCommitP95",
-      "value": 0.08,
+      "value": 0.09,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": {
-        "observed": 0.08,
+        "observed": 0.09,
         "target": 16,
         "hardFail": 32,
         "unit": "ms",
@@ -1385,11 +1385,11 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-CI-100-IME",
       "metric": "keystrokeToCommitP95",
-      "value": 0.03,
+      "value": 0.04,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": {
-        "observed": 0.03,
+        "observed": 0.04,
         "target": 16,
         "hardFail": 32,
         "unit": "ms",
@@ -1423,7 +1423,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-CI-100-IME",
       "metric": "compositionToCommit",
-      "value": 0.12,
+      "value": 0.1,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -1483,7 +1483,7 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-RS-PE",
       "metric": "assemblerLatency",
-      "value": 4.44,
+      "value": 4.2,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -1570,11 +1570,11 @@
       "source": "docs/perf/baseline.json",
       "scenario": "S-CS-COLD",
       "metric": "bundleSizeMain",
-      "value": 1070357,
+      "value": 1071362,
       "unit": "bytes-gzip",
       "evidenceClass": "measured",
       "budget": {
-        "observed": 1070357,
+        "observed": 1071362,
         "target": 950000,
         "hardFail": 1100000,
         "unit": "bytes-gzip",
@@ -1582,18 +1582,18 @@
         "source": "docs/perf/baseline.json",
         "rollout": "advisory-until-bundle-optimization"
       },
-      "reason": "App-Cz8DJU3r.js",
+      "reason": "App-TXlavGAo.js",
       "nextAction": "Track for regression."
     },
     {
       "source": "docs/perf/baseline.json",
       "scenario": "S-CS-COLD",
       "metric": "bundleSizeVendor",
-      "value": 741553,
+      "value": 741551,
       "unit": "bytes-gzip",
       "evidenceClass": "measured",
       "budget": {
-        "observed": 741553,
+        "observed": 741551,
         "target": 680000,
         "hardFail": 760000,
         "unit": "bytes-gzip",
@@ -1601,7 +1601,7 @@
         "source": "docs/perf/baseline.json",
         "rollout": "advisory"
       },
-      "reason": "subset-shared.chunk-BHRqEbTD.js",
+      "reason": "subset-shared.chunk-BRs1PAVC.js",
       "nextAction": "Track for regression."
     },
     {
@@ -1630,7 +1630,7 @@
       "source": "docs/perf/composer-baseline.json",
       "scenario": "S-CI-50",
       "metric": "keystrokeToCommitP95",
-      "value": 0.08,
+      "value": 0.09,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -1663,7 +1663,7 @@
       "source": "docs/perf/composer-baseline.json",
       "scenario": "S-CI-100-IME",
       "metric": "keystrokeToCommitP95",
-      "value": 0.03,
+      "value": 0.04,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -1685,7 +1685,7 @@
       "source": "docs/perf/composer-baseline.json",
       "scenario": "S-CI-100-IME",
       "metric": "compositionToCommit",
-      "value": 0.12,
+      "value": 0.1,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
@@ -1787,8 +1787,8 @@
       "unit": "count",
       "evidenceClass": "proxy",
       "budget": null,
-      "reason": "Proxy fixture anchored to useThreadsReducer.append-agent-delta-fast-path 1000-delta Codex burst.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Proxy fixture anchored to useThreadsReducer.append-agent-delta-fast-path 1000-delta Codex burst. Measurement blocker: No runtime producer records prepareThreadItems call count from a live Tauri/WebView stream yet. Required source artifact: Tauri/WebView profiler artifact containing live prepareThreadItemsCallCount per streaming turn.",
+      "nextAction": "Keep as regression baseline until available: Tauri/WebView profiler artifact containing live prepareThreadItemsCallCount per streaming turn."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
@@ -1875,8 +1875,8 @@
       "unit": "count",
       "evidenceClass": "proxy",
       "budget": null,
-      "reason": "Node fixture proxy: one synchronous batch route is compared to the 50ms long-task threshold; browser PerformanceObserver remains release follow-up.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Node fixture proxy: one synchronous batch route is compared to the 50ms long-task threshold; browser PerformanceObserver remains release follow-up. Measurement blocker: Node fixture cannot observe browser main-thread long tasks. Required source artifact: Browser PerformanceObserver longtask trace captured during a live streaming turn.",
+      "nextAction": "Keep as regression baseline until available: Browser PerformanceObserver longtask trace captured during a live streaming turn."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
@@ -1886,8 +1886,8 @@
       "unit": "events/sec",
       "evidenceClass": "proxy",
       "budget": null,
-      "reason": "Proxy same-path burst fixture mirrors DebouncedState same-key replacement semantics.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Proxy same-path burst fixture mirrors DebouncedState same-key replacement semantics. Measurement blocker: Current fixture mirrors debouncer semantics but does not read native file watcher runtime throughput. Required source artifact: Native file watcher diagnostic with raw event count and observation duration.",
+      "nextAction": "Keep as regression baseline until available: Native file watcher diagnostic with raw event count and observation duration."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
@@ -1897,8 +1897,8 @@
       "unit": "events/sec",
       "evidenceClass": "proxy",
       "budget": null,
-      "reason": "Proxy same-path burst fixture emits one debounced batch for one flush window.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Proxy same-path burst fixture emits one debounced batch for one flush window. Measurement blocker: Current fixture emits one synthetic debounce batch but does not read native watcher emit cadence. Required source artifact: Native file watcher diagnostic with emitted batch count and observation duration.",
+      "nextAction": "Keep as regression baseline until available: Native file watcher diagnostic with emitted batch count and observation duration."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
@@ -1908,8 +1908,8 @@
       "unit": "ratio",
       "evidenceClass": "proxy",
       "budget": null,
-      "reason": "Proxy same-path burst fixture: (rawCount - emittedCount) / rawCount.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Proxy same-path burst fixture: (rawCount - emittedCount) / rawCount. Measurement blocker: Current fixture uses a same-path synthetic burst; live watcher same-path replacement counts are not emitted. Required source artifact: Native file watcher diagnostic containing raw, replaced, and emitted same-path counts.",
+      "nextAction": "Keep as regression baseline until available: Native file watcher diagnostic containing raw, replaced, and emitted same-path counts."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
@@ -1919,8 +1919,8 @@
       "unit": "count",
       "evidenceClass": "proxy",
       "budget": null,
-      "reason": "Proxy fixture matches external_changes_debouncer_no_empty_batch_emit regression contract.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Proxy fixture matches external_changes_debouncer_no_empty_batch_emit regression contract. Measurement blocker: Current fixture verifies the no-empty-batch contract; runtime empty-batch diagnostics are not emitted. Required source artifact: Native file watcher diagnostic with empty batch emission count.",
+      "nextAction": "Keep as regression baseline until available: Native file watcher diagnostic with empty batch emission count."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
@@ -1937,12 +1937,12 @@
       "source": "docs/perf/v0511-runtime-evidence.json",
       "scenario": "S-IO-FS",
       "metric": "file_io_async_worker_stall_ms_p95",
-      "value": 0.196,
+      "value": 0.226,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
-      "reason": "Proxy event-loop stall probe sampled with setImmediate during async 10MB write+read fixture.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Proxy event-loop stall probe sampled with setImmediate during async 10MB write+read fixture. Measurement blocker: Node setImmediate stall probe is not the Tauri async worker or WebView event-loop stall source. Required source artifact: Tauri/WebView file I/O diagnostic with event-loop stall samples during command execution.",
+      "nextAction": "Keep as regression baseline until available: Tauri/WebView file I/O diagnostic with event-loop stall samples during command execution."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
@@ -1952,19 +1952,19 @@
       "unit": "count",
       "evidenceClass": "proxy",
       "budget": null,
-      "reason": "Proxy count of async fs operations in the fixture; native Tauri blocking-pool attribution remains release follow-up.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Proxy count of async fs operations in the fixture; native Tauri blocking-pool attribution remains release follow-up. Measurement blocker: Node fs operation count cannot attribute native Tauri blocking-pool calls. Required source artifact: Tauri backend diagnostic with blocking-pool call attribution for file commands.",
+      "nextAction": "Keep as regression baseline until available: Tauri backend diagnostic with blocking-pool call attribution for file commands."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
       "scenario": "S-IO-FS",
       "metric": "tauri_command_during_stream_ms_p95",
-      "value": 8.323,
+      "value": 4.584,
       "unit": "ms",
       "evidenceClass": "proxy",
       "budget": null,
-      "reason": "Proxy wall-time reused for the content-safe file I/O fixture; not a live Tauri command measurement.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Proxy wall-time reused for the content-safe file I/O fixture; not a live Tauri command measurement. Measurement blocker: Node wall-time fixture is not a live Tauri command measurement during streaming. Required source artifact: Tauri command trace captured while a streaming turn is active.",
+      "nextAction": "Keep as regression baseline until available: Tauri command trace captured while a streaming turn is active."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
@@ -1974,8 +1974,8 @@
       "unit": "count",
       "evidenceClass": "proxy",
       "budget": null,
-      "reason": "Proxy render-counter fixture using the same __profile.recordComponentRender hook wired by useLayoutNodes Profiler.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Proxy render-counter fixture using the same __profile.recordComponentRender hook wired by useLayoutNodes Profiler. Measurement blocker: Synthetic render-counter fixture is not a production React Profiler capture. Required source artifact: React Profiler/runtime diagnostic for Composer renders during a live streaming minute.",
+      "nextAction": "Keep as regression baseline until available: React Profiler/runtime diagnostic for Composer renders during a live streaming minute."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
@@ -1985,8 +1985,8 @@
       "unit": "count",
       "evidenceClass": "proxy",
       "budget": null,
-      "reason": "Proxy render-counter fixture using the same __profile.recordComponentRender hook wired by useLayoutNodes Profiler.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Proxy render-counter fixture using the same __profile.recordComponentRender hook wired by useLayoutNodes Profiler. Measurement blocker: Synthetic render-counter fixture is not a production React Profiler capture. Required source artifact: React Profiler/runtime diagnostic for sidebar renders during a live streaming minute.",
+      "nextAction": "Keep as regression baseline until available: React Profiler/runtime diagnostic for sidebar renders during a live streaming minute."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
@@ -1996,8 +1996,8 @@
       "unit": "count",
       "evidenceClass": "proxy",
       "budget": null,
-      "reason": "Proxy render-counter fixture; production row-level Profiler capture remains release follow-up.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Proxy render-counter fixture; production row-level Profiler capture remains release follow-up. Measurement blocker: Synthetic render-counter fixture does not capture production row-level rerenders. Required source artifact: React Profiler/runtime diagnostic with thread-row render counts over a 1000-delta stream.",
+      "nextAction": "Keep as regression baseline until available: React Profiler/runtime diagnostic with thread-row render counts over a 1000-delta stream."
     },
     {
       "source": "docs/perf/v0511-runtime-evidence.json",
@@ -2007,8 +2007,8 @@
       "unit": "count",
       "evidenceClass": "proxy",
       "budget": null,
-      "reason": "Proxy render-counter fixture; production layout recompute capture remains release follow-up.",
-      "nextAction": "Keep as regression baseline and add runtime/browser evidence before release-grade closure."
+      "reason": "Proxy render-counter fixture; production layout recompute capture remains release follow-up. Measurement blocker: Synthetic render-counter fixture does not capture production layout-node recompute diagnostics. Required source artifact: React Profiler/runtime diagnostic with layout node recompute counts over a 1000-delta stream.",
+      "nextAction": "Keep as regression baseline until available: React Profiler/runtime diagnostic with layout node recompute counts over a 1000-delta stream."
     },
     {
       "source": "docs/perf/long-running-runtime-evidence.json",
@@ -2098,6 +2098,12 @@
     "source": "openspec list --json",
     "completed": [
       {
+        "name": "refactor-v0511-thread-messaging-recovery-and-streaming",
+        "tasks": "44/44",
+        "recommendation": "archive-candidate-after-qualifier-review",
+        "qualifier": "Review validation and platform qualifiers before archive."
+      },
+      {
         "name": "fix-disk-codex-empty-draft-fresh-replay",
         "tasks": "7/7",
         "recommendation": "archive-candidate-after-qualifier-review",
@@ -2155,8 +2161,8 @@
     "previousArchiveContext": [],
     "inProgress": [
       {
-        "name": "refactor-v0511-thread-messaging-recovery-and-streaming",
-        "tasks": "16/44",
+        "name": "follow-up-v0511-large-file-cookbook-and-measured-evidence",
+        "tasks": "15/22",
         "recommendation": "not-archive-ready"
       }
     ],

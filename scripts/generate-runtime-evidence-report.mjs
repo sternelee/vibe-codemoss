@@ -129,6 +129,12 @@ function metricReason(metric, evidenceClass) {
   if (metric.unsupportedReason) {
     return metric.unsupportedReason;
   }
+  if (evidenceClass === "proxy" && metric.measurementBlocker) {
+    const sourceRequirement = metric.requiredSourceArtifact
+      ? ` Required source artifact: ${metric.requiredSourceArtifact}`
+      : "";
+    return `${metric.notes ?? "Proxy evidence retained."} Measurement blocker: ${metric.measurementBlocker}${sourceRequirement}`;
+  }
   if (metric.notes) {
     return metric.notes;
   }
@@ -149,6 +155,9 @@ function metricNextAction(metric, evidenceClass) {
     return "Correlate replay metrics with runtime visible-lag and terminal-pressure traces.";
   }
   if (evidenceClass === "proxy") {
+    if (metric.requiredSourceArtifact) {
+      return `Keep as regression baseline until available: ${metric.requiredSourceArtifact}`;
+    }
     return "Keep as regression baseline and add runtime/browser evidence before release-grade closure.";
   }
   if (evidenceClass === "unsupported") {
