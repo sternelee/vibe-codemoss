@@ -731,12 +731,15 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
     options.onResolvedClaudeThinkingVisibleChange;
   const handleResolvedAlwaysThinkingChange = useCallback(
     (enabled: boolean) => {
+      if (claudeThinkingVisible === enabled) {
+        return;
+      }
       setLocalClaudeThinkingVisible((previous) =>
         previous === enabled ? previous : enabled,
       );
       onResolvedClaudeThinkingVisibleChange?.(enabled);
     },
-    [onResolvedClaudeThinkingVisibleChange],
+    [claudeThinkingVisible, onResolvedClaudeThinkingVisibleChange],
   );
   const onForkFromMessage = options.onForkFromMessage;
   const handleOpenForkConfirmFromMessage = useCallback((messageId: string) => {

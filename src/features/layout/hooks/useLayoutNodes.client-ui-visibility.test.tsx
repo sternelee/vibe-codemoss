@@ -186,6 +186,7 @@ vi.mock("../../composer/components/Composer", () => ({
     sendLabel,
     onOpenDiffPath,
     showStatusPanelToggleOverride,
+    onResolvedAlwaysThinkingChange,
   }: {
     draftText: string;
     onDraftChange: (next: string) => void;
@@ -193,6 +194,7 @@ vi.mock("../../composer/components/Composer", () => ({
     sendLabel: string;
     onOpenDiffPath?: (path: string) => void;
     showStatusPanelToggleOverride?: boolean;
+    onResolvedAlwaysThinkingChange?: (enabled: boolean) => void;
   }) => (
     <form
       data-testid="composer"
@@ -213,6 +215,12 @@ vi.mock("../../composer/components/Composer", () => ({
           open file reference
         </button>
       ) : null}
+      <button
+        type="button"
+        onClick={() => onResolvedAlwaysThinkingChange?.(false)}
+      >
+        report thinking disabled
+      </button>
     </form>
   ),
 }));
@@ -983,6 +991,27 @@ describe("useLayoutNodes client UI visibility", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "settings" }));
     expect(onOpenSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not forward duplicate resolved Claude thinking visibility", async () => {
+    const onResolvedClaudeThinkingVisibleChange = vi.fn();
+    const { result } = await renderUseLayoutNodes(
+      createLayoutOptions({
+        claudeThinkingVisible: false,
+        onResolvedClaudeThinkingVisibleChange,
+      }),
+    );
+
+    render(
+      <>
+        {result.current.messagesNode}
+        {result.current.composerNode}
+      </>,
+    );
+
+    fireEvent.click(screen.getByText("report thinking disabled"));
+
+    expect(onResolvedClaudeThinkingVisibleChange).not.toHaveBeenCalled();
   });
 
   it("forwards restored history metadata into the runtime conversation state", async () => {
