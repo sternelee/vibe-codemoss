@@ -120,6 +120,37 @@ function collectTraceConsistencyCautions(summaries) {
   return cautions;
 }
 
+function collectFirstDeltaDominanceNotes(summaries) {
+  const notes = [];
+  for (const [index, summary] of summaries.entries()) {
+    const firstDeltaLatencyMs = toFiniteNumber(summary.deltas?.sendToFirstDeltaMs);
+    const visibleTextLagMs = toFiniteNumber(summary.deltas?.firstDeltaToFirstVisibleTextMs);
+    const reducerAmplification = toFiniteNumber(summary.counters?.reducerAmplification);
+    if (
+      firstDeltaLatencyMs === null ||
+      visibleTextLagMs === null ||
+      firstDeltaLatencyMs < 2_000 ||
+      visibleTextLagMs > 500 ||
+      (reducerAmplification !== null && reducerAmplification > 1)
+    ) {
+      continue;
+    }
+    const traceId = typeof summary.traceId === "string" && summary.traceId.length > 0
+      ? summary.traceId
+      : `summary-${index + 1}`;
+    const engine = typeof summary.engine === "string" && summary.engine.length > 0
+      ? summary.engine
+      : "unknown-engine";
+    const model = typeof summary.model === "string" && summary.model.length > 0
+      ? summary.model
+      : "unknown-model";
+    notes.push(
+      `firstDeltaDominates=${traceId}: ${engine}/${model} waited ${firstDeltaLatencyMs}ms before first delta while visible lag was ${visibleTextLagMs}ms and reducerAmplification=${reducerAmplification ?? "missing"}; investigate upstream/provider/startup phase before client render optimization`,
+    );
+  }
+  return notes;
+}
+
 function buildFragment(summaries, sourcePath) {
   const unsupportedReason = summaries.length === 0
     ? "No measured realtime.turnTrace.summary diagnostics were found. Enable turn trace in a Tauri/webview session and export renderer diagnostics."
@@ -127,6 +158,7 @@ function buildFragment(summaries, sourcePath) {
   const missingPreciseRouteTimingReason =
     "Measured realtime.turnTrace.summary diagnostics do not contain appServerEventRouteDurationAvgMs. Run a build with precise route timing instrumentation before claiming batch flush duration.";
   const visibleTextLagValues = summaries.map((summary) => summary.deltas?.firstDeltaToFirstVisibleTextMs);
+  const firstDeltaLatencyValues = summaries.map((summary) => summary.deltas?.sendToFirstDeltaMs);
   const reducerAmplificationValues = summaries.map((summary) => summary.counters?.reducerAmplification);
   const batchFlushDurationValues = summaries.map((summary) =>
     summary.counters?.appServerEventRouteDurationAvgMs
@@ -139,6 +171,14 @@ function buildFragment(summaries, sourcePath) {
     generatedAt: new Date().toISOString(),
     source: "realtime-runtime",
     metrics: [
+      metricFromValues({
+        scenario: "S-RS-FT",
+        metric: "firstDeltaLatencyP95",
+        values: firstDeltaLatencyValues,
+        unit: "ms",
+        notes: `measured runtime turn trace sendToFirstDeltaMs from ${sourcePath}`,
+        unsupportedReason,
+      }),
       metricFromValues({
         scenario: "S-RS-VL",
         metric: "visibleTextLagP95",
@@ -177,6 +217,7 @@ function buildFragment(summaries, sourcePath) {
       `measuredSummaryCount=${summaries.length}`,
       "contentSafety=ids, durations, counters, and dimensions only; no prompt, assistant text, tool output, or file content",
       ...collectTraceConsistencyCautions(summaries),
+      ...collectFirstDeltaDominanceNotes(summaries),
     ],
   };
 }

@@ -29,6 +29,7 @@ test("realtime runtime report derives measured metrics from content-safe diagnos
         payload: {
           evidenceClass: "measured",
           deltas: {
+            sendToFirstDeltaMs: 20,
             firstDeltaToFirstVisibleTextMs: 25,
             lastReducerCommitToTerminalSettlementMs: 50,
           },
@@ -45,6 +46,7 @@ test("realtime runtime report derives measured metrics from content-safe diagnos
         payload: {
           evidenceClass: "measured",
           deltas: {
+            sendToFirstDeltaMs: 40,
             firstDeltaToFirstVisibleTextMs: 35,
             lastReducerCommitToTerminalSettlementMs: 70,
           },
@@ -61,10 +63,76 @@ test("realtime runtime report derives measured metrics from content-safe diagnos
   await runScript(["--input", inputPath, "--output", outputPath]);
   const fragment = JSON.parse(await readFile(outputPath, "utf-8"));
   const byMetric = new Map(fragment.metrics.map((metric) => [metric.metric, metric]));
+  assert.equal(byMetric.get("firstDeltaLatencyP95")?.value, 40);
   assert.equal(byMetric.get("visibleTextLagP95")?.value, 35);
   assert.equal(byMetric.get("reducerAmplificationMedian")?.value, 3);
   assert.equal(byMetric.get("batchFlushDurationP95")?.evidenceClass, "measured");
   assert.match(fragment.notes.join("\n"), /contentSafety=/);
+});
+
+test("realtime runtime report separates first-delta latency from visible lag", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "ccgui-realtime-runtime-"));
+  const inputPath = join(dir, "diagnostics.json");
+  const outputPath = join(dir, "runtime.json");
+  await writeFile(inputPath, JSON.stringify({
+    entries: [
+      {
+        timestamp: Date.now(),
+        label: "realtime.turnTrace.summary",
+        payload: {
+          traceId: "tt-slow-first-delta",
+          engine: "codex",
+          model: "MiniMax-M3",
+          evidenceClass: "measured",
+          deltas: {
+            sendToFirstDeltaMs: 14_602,
+            firstDeltaToFirstVisibleTextMs: 177,
+            lastReducerCommitToTerminalSettlementMs: 462,
+          },
+          counters: {
+            reducerAmplification: 1,
+            appServerEventRouteDurationAvgMs: 0.167,
+            terminalSettlementLagMs: 462,
+          },
+        },
+      },
+      {
+        timestamp: Date.now(),
+        label: "realtime.turnTrace.summary",
+        payload: {
+          traceId: "tt-normal-first-delta",
+          engine: "codex",
+          model: "MiniMax-M3",
+          evidenceClass: "measured",
+          deltas: {
+            sendToFirstDeltaMs: 1_272,
+            firstDeltaToFirstVisibleTextMs: 177,
+            lastReducerCommitToTerminalSettlementMs: 462,
+          },
+          counters: {
+            reducerAmplification: 1,
+            appServerEventRouteDurationAvgMs: 0.167,
+            terminalSettlementLagMs: 462,
+          },
+        },
+      },
+    ],
+  }), "utf-8");
+
+  await runScript(["--input", inputPath, "--output", outputPath]);
+  const fragment = JSON.parse(await readFile(outputPath, "utf-8"));
+  const byMetric = new Map(fragment.metrics.map((metric) => [metric.metric, metric]));
+
+  assert.equal(byMetric.get("firstDeltaLatencyP95")?.value, 14602);
+  assert.equal(byMetric.get("visibleTextLagP95")?.value, 177);
+  assert.match(
+    fragment.notes.join("\n"),
+    /firstDeltaDominates=tt-slow-first-delta/,
+  );
+  assert.match(
+    fragment.notes.join("\n"),
+    /upstream\/provider\/startup phase/,
+  );
 });
 
 test("realtime runtime report does not use legacy batch wait windows as measured flush duration", async () => {
