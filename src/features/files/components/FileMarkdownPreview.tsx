@@ -126,6 +126,7 @@ const MAX_CACHED_MERMAID_DOCUMENTS = 50;
 const MAX_CACHED_MERMAID_RENDERS = 80;
 const MAX_CACHED_KATEX_RENDERS = 120;
 const MAX_CACHED_TABLE_SCROLL_POSITIONS = 160;
+const MAX_CACHED_NESTED_LINE_RANGE_ENTRIES = 4_000;
 const MAX_REVEALED_HEAVY_BLOCKS = 800;
 const PROGRESSIVE_INITIAL_LINES = 360;
 const PROGRESSIVE_CHUNK_LINES = 720;
@@ -143,6 +144,7 @@ const mermaidTabSessionCache = new Map<string, Record<string, MermaidBlockTab>>(
 const mermaidRenderCache = new Map<string, string>();
 const katexRenderCache = new Map<string, string | null>();
 const tableScrollPositionCache = new Map<string, number>();
+const nestedNodeLineRangeCache = new Map<string, CodeAnnotationLineRange[]>();
 const revealedHeavyBlockCache = new Set<string>();
 
 function readCachedTableScrollPosition(cacheKey: string) {
@@ -530,6 +532,46 @@ function collectNestedNodeLineRanges(
     ranges.push(...collectNestedNodeLineRanges(childNode, bodyStartLine));
   }
   return ranges;
+}
+
+function createNestedLineRangeCacheKey(
+  documentCacheKey: string,
+  blockStartLine: number,
+  node: MarkdownPositionTreeNode,
+) {
+  const position = node?.position;
+  return [
+    documentCacheKey,
+    blockStartLine,
+    node?.tagName ?? "unknown",
+    position?.start.line ?? 0,
+    position?.start.column ?? 0,
+    position?.end.line ?? 0,
+    position?.end.column ?? 0,
+  ].join(":");
+}
+
+function readCachedNestedNodeLineRanges(
+  cacheKey: string,
+  node: MarkdownPositionTreeNode,
+  bodyStartLine: number,
+) {
+  const cachedRanges = nestedNodeLineRangeCache.get(cacheKey);
+  if (cachedRanges) {
+    nestedNodeLineRangeCache.delete(cacheKey);
+    nestedNodeLineRangeCache.set(cacheKey, cachedRanges);
+    return cachedRanges;
+  }
+  const nextRanges = collectNestedNodeLineRanges(node, bodyStartLine);
+  nestedNodeLineRangeCache.set(cacheKey, nextRanges);
+  while (nestedNodeLineRangeCache.size > MAX_CACHED_NESTED_LINE_RANGE_ENTRIES) {
+    const oldestKey = nestedNodeLineRangeCache.keys().next().value;
+    if (!oldestKey) {
+      break;
+    }
+    nestedNodeLineRangeCache.delete(oldestKey);
+  }
+  return nextRanges;
 }
 
 function hasMoreSpecificAnnotationBlock(
@@ -1231,7 +1273,16 @@ export function FileMarkdownPreview({
     if (!lineRange) {
       return content;
     }
-      const nestedRanges = collectNestedNodeLineRanges(node, 1).map((nestedRange) => {
+      const nestedRangeCacheKey = createNestedLineRangeCacheKey(
+        compiledDocument.cacheKey,
+        blockStartLine,
+        node,
+      );
+      const nestedRanges = readCachedNestedNodeLineRanges(
+        nestedRangeCacheKey,
+        node,
+        1,
+      ).map((nestedRange) => {
         const normalizedStartLine = blockStartLine + nestedRange.startLine - 1;
         const normalizedEndLine = blockStartLine + nestedRange.endLine - 1;
         return {
@@ -1269,6 +1320,7 @@ export function FileMarkdownPreview({
     annotationBucketsByEndLine,
     annotationActionLabel,
     annotationDraft,
+    compiledDocument.cacheKey,
     compiledDocument.bodyStartLine,
     markdownLineMap,
     onAnnotationStart,
@@ -1486,5 +1538,6 @@ export function clearFileMarkdownPreviewRuntimeCachesForTests() {
   mermaidRenderCache.clear();
   katexRenderCache.clear();
   tableScrollPositionCache.clear();
+  nestedNodeLineRangeCache.clear();
   revealedHeavyBlockCache.clear();
 }
