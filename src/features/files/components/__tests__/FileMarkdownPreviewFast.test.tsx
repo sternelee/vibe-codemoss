@@ -216,19 +216,24 @@ describe("FileMarkdownPreviewFast", () => {
   });
 
   it("auto-collapses unpinned outline when the pointer leaves the outline panel", async () => {
-    render(
+    await renderUnderAct(
       <FileMarkdownPreviewFast
         value={"# Title\n\n## Details\n\nBody"}
         documentKey="doc-rich-outline-mouseleave"
       />,
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: "Show outline" }));
-    fireEvent.mouseLeave(await screen.findByRole("navigation", { name: "Outline" }));
-
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Show outline" })).toBeTruthy();
+    const expandOutlineButton = await screen.findByRole("button", {
+      name: "Show outline",
     });
+    fireEvent.click(expandOutlineButton);
+
+    const outlineNavigation = await screen.findByRole("navigation", {
+      name: "Outline",
+    });
+    fireEvent.mouseLeave(outlineNavigation);
+
+    expect(await screen.findByRole("button", { name: "Show outline" })).toBeTruthy();
   });
 
   it("keeps pinned outline open when the pointer leaves the outline panel", async () => {
