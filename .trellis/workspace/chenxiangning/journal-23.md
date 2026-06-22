@@ -1482,3 +1482,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 908: 移除首页最近会话入口
+
+**Date**: 2026-06-22
+**Task**: 移除首页最近会话入口
+**Branch**: `feature/v0.5.12`
+
+### Summary
+
+删除 HomeChat 首页最近会话展示区，回写 workspace-home-shadcn-ux OpenSpec 主规范，并验证 focused HomeChat tests、typecheck、lint、large-file 与 OpenSpec strict validation。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `118e4eb7` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
