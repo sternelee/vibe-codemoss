@@ -1369,3 +1369,46 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 905: 归档 Mermaid 全屏 viewer OpenSpec
+
+**Date**: 2026-06-22
+**Task**: 归档 Mermaid 全屏 viewer OpenSpec
+**Branch**: `feature/v0.5.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| 项目 | 内容 |
+|------|------|
+| Change | `2026-06-22-add-mermaid-block-fullscreen-viewer` |
+| 本次工作 | 审计剩余任务后确认仅剩 OpenSpec archive gate，完成 main spec 同步并将 change 移入 archive。 |
+| 关键处理 | 当前 `openspec` CLI 拒绝以数字开头的 change id，无法直接执行 `openspec archive 2026-...`；采用等价手工 archive：同步 `markdown-mermaid-block-fullscreen-viewer` main spec、移动 change 目录、更新 tasks 勾选状态。 |
+| 验证 | `openspec validate --specs --strict --no-interactive` 通过，357 passed / 0 failed。 |
+
+**Updated Files**:
+- `openspec/specs/markdown-mermaid-block-fullscreen-viewer/spec.md`
+- `openspec/changes/archive/2026-06-22-add-mermaid-block-fullscreen-viewer/**`
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `18e0ae99` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

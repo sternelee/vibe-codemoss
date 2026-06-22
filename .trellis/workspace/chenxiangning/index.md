@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-23.md`
-- **Total Sessions**: 904
+- **Total Sessions**: 905
 - **Last Active**: 2026-06-22
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-23.md` | ~1371 | Active |
+| `journal-23.md` | ~1414 | Active |
 | `journal-22.md` | ~1969 | Archived |
 | `journal-21.md` | ~1970 | Archived |
 | `journal-20.md` | ~1997 | Archived |
@@ -51,6 +51,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 905 | 2026-06-22 | 归档 Mermaid 全屏 viewer OpenSpec | `18e0ae99` | `feature/v0.5.12` |
 | 904 | 2026-06-22 | 收口 Markdown 渲染性能优化提案 | `4f231fbd` | `feature/v0.5.12` |
 | 903 | 2026-06-22 | 修复 CI 品牌检查与文件面板测试抖动 | `ea2e348c` | `feature/v0.5.12` |
 | 902 | 2026-06-22 | Markdown 图片全屏与消息目录 | `12f99419` | `feature/v0.5.12` |
