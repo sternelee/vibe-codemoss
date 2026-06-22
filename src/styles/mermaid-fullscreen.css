@@ -2,7 +2,7 @@
  * Mermaid block fullscreen viewer — theme overrides on top of viewerjs.
  *
  * viewerjs ships hard-coded colors for backdrop, toolbar, navbar and
- * title. We rewrite them to use the mossx design-system tokens so the
+ * title. We rewrite them to use the application design-system tokens so the
  * fullscreen viewer matches the rest of the application surface.
  *
  * z-index: the variable sits above the highest hard-coded z-index in

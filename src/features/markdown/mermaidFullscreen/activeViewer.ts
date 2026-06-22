@@ -4,7 +4,7 @@ import type Viewer from "viewerjs";
  * Module-level singleton: at most one Mermaid fullscreen viewer is alive
  * at any time. When a new viewer is about to be created, the previous one
  * MUST be destroyed first to avoid overlapping backdrops and leaked
- * DOM nodes (mossx desktop shell renders Mermaid blocks in two independent
+ * DOM nodes (the desktop shell renders Mermaid blocks in two independent
  * surfaces — messages and file preview — and a user can open both).
  */
 let activeViewer: Viewer | null = null;
