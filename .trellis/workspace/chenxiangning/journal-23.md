@@ -1412,3 +1412,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 906: 修复 Codex provider 恢复绑定
+
+**Date**: 2026-06-22
+**Task**: 修复 Codex provider 恢复绑定
+**Branch**: `feature/v0.5.12`
+
+### Summary
+
+修复 Codex stale thread recovery 在 provider-scoped 会话下丢失 provider binding 的问题；补 canonical backend lookup、frontend provider inheritance、AppShell 稳定 resolver 防 update loop，并清理 focused heavy-test-noise act warning。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `db554da4` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
