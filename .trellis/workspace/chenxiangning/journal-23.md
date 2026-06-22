@@ -1515,3 +1515,42 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 909: 修复供应商模型目录与 Codex 刷新断联
+
+**Date**: 2026-06-22
+**Task**: 修复供应商模型目录与 Codex 刷新断联
+**Branch**: `feature/v0.5.12`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| 项目 | 内容 |
+|------|------|
+| 问题 | Codex 模型选择器刷新会触发 runtime reload，导致运行中的 Codex 会话出现 `settings_restart` 断联；grouped selector 使用 active engine models 导致 Codex/Claude 自定义模型在非当前 provider 下不可见。 |
+| 修复 | 将 Codex selector refresh 改为 catalog-only；移除 provider switch 的隐式 runtime reload；新增 provider-scoped model catalog 传递链路；Codex provider `customModels` additive merge 到 composer-visible custom model store。 |
+| 验证 | `npm run lint`、`npm run typecheck`、focused Vitest 15 tests passed、`openspec validate --changes fix-provider-model-catalog-and-codex-refresh-isolation --strict --no-interactive` 通过。 |
+| Commit | `657d1351 fix(composer): 修复供应商模型目录与 Codex 刷新断联` |
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `657d1351` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
