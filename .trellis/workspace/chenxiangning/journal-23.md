@@ -1863,3 +1863,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 917: 修复 composer 输入框低优先级卡顿
+
+**Date**: 2026-06-23
+**Task**: 修复 composer 输入框低优先级卡顿
+**Branch**: `feature/v0.5.13`
+
+### Summary
+
+修复 composer typing 在 streaming 压力下严重滞后的回归：移除 ChatInputBoxAdapter.handleInput 与 useComposerController.handleDraftChange 中包裹输入事实源的 startTransition，使 text/draft 更新保持 urgent；补 useComposerController 同步更新测试与源码哨兵测试；回写 OpenSpec tasks 11.4 与 frontend state-management 规则，明确 text/draft/selection/IME 不得进入 transition/deferred/scheduler tier。验证：focused vitest 61/61 pass；openspec validate strict pass；git diff --check pass。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7eb791c8` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
