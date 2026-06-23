@@ -1896,3 +1896,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 918: 修复 fast Markdown 标注入口
+
+**Date**: 2026-06-23
+**Task**: 修复 fast Markdown 标注入口
+**Branch**: `feature/v0.5.13`
+
+### Summary
+
+恢复大 Markdown fast renderer 下的标准“标注给 AI”入口：将 fast path 的 annotation action 从 DOM 旁路插入改为 overlay anchor 渲染，补 hover/focus 样式和 focused regression test，并新增 OpenSpec change fix-fast-markdown-annotation-action。验证已跑 fast renderer 测试、FileViewPanel Markdown annotation focused tests、openspec strict validate、typecheck、large-file guard、lint。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f3ceddc4` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
