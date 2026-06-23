@@ -120,88 +120,14 @@ The system MUST materialize managed provider configuration into an app-local pro
 
 The system MUST isolate Codex runtime sessions by workspace and provider profile so multiple providers can run concurrently.
 
-#### Scenario: same workspace can run multiple provider runtimes
+#### Scenario: thread-bound provider binding lookup prefers canonical catalog metadata
 
-- **WHEN** the user creates two Codex conversations in the same workspace with two different provider profiles
-- **THEN** the backend MUST create or reuse distinct provider-scoped Codex runtimes
-- **AND** managed-provider runtime identity MUST include both workspace identity and provider profile identity
-- **AND** the disk provider MAY keep the legacy workspace-only runtime key as the compatibility representation of `providerProfileId="__disk__"`
-
-#### Scenario: same workspace can run multiple conversations with the same provider
-
-- **WHEN** the user creates multiple Codex conversations in the same workspace with the same provider profile, including multiple disk-profile conversations
-- **THEN** the system MUST allow those conversations to run concurrently
-- **AND** each conversation MUST keep its own thread/session identity
-- **AND** the implementation MAY reuse one provider-scoped runtime for those conversations when thread routing remains correct
-
-#### Scenario: concurrent provider conversations do not collide
-
-- **WHEN** two Codex conversations using different provider profiles send turns concurrently
-- **THEN** each turn MUST be routed to the runtime bound to that thread's provider profile
-- **AND** neither turn MUST modify or depend on the other provider's `CODEX_HOME`
-
-#### Scenario: concurrent same-provider conversations do not collide
-
-- **WHEN** two Codex conversations using the same provider profile send turns concurrently
-- **THEN** each turn MUST be routed to the correct Codex thread/session
-- **AND** neither turn MUST receive events, status, or output belonging to the other thread
-
-#### Scenario: unavailable provider binding does not silently fall back
-
-- **WHEN** a thread is bound to a managed provider that is later deleted or unavailable
-- **AND** the user sends another turn to that thread
-- **THEN** the system MUST surface a provider-unavailable error
-- **AND** it MUST NOT silently route the turn through the disk `.codex` provider profile
-
-#### Scenario: app restart restores provider-bound history
-
-- **WHEN** the app restarts after Codex conversations were created with disk and managed provider profiles
-- **THEN** the Codex session catalog MUST aggregate disk-profile history and managed-provider history
-- **AND** each restored thread MUST expose its provider profile id, source, name, and availability
-- **AND** historical managed-provider threads MUST NOT be rewritten as disk-profile threads
-
-#### Scenario: thread-bound continuation commands use persisted provider binding
-
-- **WHEN** the user performs a thread-bound Codex continuation operation such as turn start, resume, compaction, rewind, or thread status
-- **THEN** the backend MUST resolve the target thread's provider binding from metadata
-- **AND** it MUST route the operation to the runtime for that workspace and provider profile
-
-#### Scenario: stale app-server thread recovery stays within the bound provider runtime
-
-- **WHEN** a thread-bound `turn/start` is routed to the thread's persisted provider runtime
-- **AND** Codex app-server returns a `thread not found` or `thread_not_found` error for that thread id
-- **THEN** the backend MAY send `thread/resume` for the same thread id to the same provider runtime and retry `turn/start` once
-- **AND** the retry MUST use the original turn payload and the same provider runtime key
-- **AND** the retry MUST use bounded request timeouts and clear foreground work if recovery fails
-- **AND** it MUST NOT silently route the turn through the disk `.codex` provider profile
-
-#### Scenario: fork is routed as a thread-derived launch
-
-- **WHEN** the user forks a Codex thread
-- **THEN** the backend MUST read the parent thread metadata and history
-- **AND** it MUST route native child thread creation to the runtime for the parent provider profile
-- **AND** if the selected provider profile differs from the parent provider, it MUST rebind the native child to the selected provider only after the child history is visible to the selected provider home
-- **AND** it MUST NOT mutate the parent thread provider binding
-
-#### Scenario: provider-selected workspace commands require an explicit provider
-
-- **WHEN** the user invokes a provider-sensitive workspace command such as model list, account read, provider diagnostics, or MCP status
-- **THEN** the frontend or backend caller MUST provide an explicit provider profile id
-- **AND** the backend MUST NOT infer a managed provider from a global active Codex supplier state
-
-#### Scenario: unclassified Codex commands are blocked from provider-scoped fallback
-
-- **WHEN** a Codex command is not classified as thread-bound, provider-selected, disk-default, or provider-agnostic
-- **THEN** the provider-scoped implementation MUST treat the command as unsupported until routing is defined
-- **AND** it MUST NOT reuse the old workspace-only runtime lookup by default
-
-#### Scenario: adapters without managed provider runtimes fail visibly
-
-- **WHEN** a remote or daemon adapter receives a Codex creation or fork command with a managed `providerProfileId`
-- **AND** that adapter has not implemented provider-scoped Codex runtime launch
-- **THEN** the adapter MUST return a user-visible unsupported-provider-runtime error
-- **AND** it MUST NOT drop `providerProfileId`
-- **AND** it MUST NOT create, fork, or send the command through the disk `.codex` provider profile
+- **WHEN** a thread-bound Codex operation resolves provider metadata for `workspaceId` and `threadId`
+- **THEN** the backend MUST first look up the canonical catalog key `codex:<workspaceId>:<threadId>`
+- **AND** it MAY fall back to legacy keys such as `codex::<workspaceId>::<threadId>`, `<threadId>`, and `codex:<threadId>`
+- **AND** blank `threadId` MUST NOT produce a metadata lookup key
+- **AND** missing metadata MAY default to the disk provider only for legacy compatibility
+- **AND** an existing non-disk canonical binding MUST NOT be bypassed by a legacy disk binding.
 
 ### Requirement: Codex Supplier Management MUST Not Expose Misleading Global Enablement
 
@@ -344,3 +270,23 @@ Shared-session native thread rebinding MUST continue to rely on explicit native/
 - **AND** an event lacks native thread identity and lacks unique pending binding
 - **THEN** frontend MUST NOT route the event to the active shared thread
 - **AND** the event MUST NOT mutate either shared conversation's lifecycle state by guess
+
+### Requirement: Codex Provider Custom Models MUST Feed Model Catalog
+
+Custom models stored on managed Codex provider profiles MUST be treated as model catalog facts for composer selection. Adding, editing, loading, or deleting Codex providers MUST update the composer-visible Codex custom model catalog without requiring an app restart.
+
+#### Scenario: provider custom model appears after provider add
+- **WHEN** the user creates a managed Codex provider with `customModels`
+- **THEN** those custom models MUST become visible in the Codex model selector catalog
+- **AND** the update MUST NOT trigger Codex runtime reload
+
+#### Scenario: provider custom model appears after provider edit
+- **WHEN** the user edits a managed Codex provider and changes `customModels`
+- **THEN** the Codex model selector catalog MUST reflect the provider custom model additions
+- **AND** it MUST deduplicate them against existing global custom model entries by model id
+
+#### Scenario: provider management is not active runtime switch
+- **WHEN** the user adds, edits, or deletes a managed Codex provider profile
+- **THEN** existing Codex conversations MUST keep their thread-bound provider runtime
+- **AND** provider management MUST NOT switch or restart the active runtime as a side effect
+

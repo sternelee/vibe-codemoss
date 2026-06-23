@@ -1,6 +1,6 @@
 ## MODIFIED Requirements
 
-### Requirement: App MUST Provide A Global Runtime Notice Dock Entry
+### Requirement: App MUST Provide A Global Runtime Notice Dock In The Bottom-Right Corner
 
 系统 MUST 在 `client-ui-visibility-controls` 允许显示时提供一个 app-global runtime notice entry；该 entry 的数据源不属于任何单独页面、thread 或 workspace 子面板，但 desktop/tablet presentation MUST follow sidebar bottom action hierarchy。
 
@@ -92,7 +92,7 @@
 - **THEN** 系统 MUST 使用 `streaming` 或 `has-error` 等高亮语义提示变化
 - **AND** MUST NOT 展示数字型未读角标
 
-### Requirement: Notice Rows MUST Use A Compact Summary Layout With Lightweight Timestamp
+### Requirement: Notice Rows MUST Use A Single-Line Summary Layout With Lightweight Timestamp
 
 notice 行 MUST 保持紧凑、可扫描的摘要结构，以支持快速理解与时间顺序判断；在 sidebar compact popover 中，长文案 MAY wrap to preserve readability。
 
