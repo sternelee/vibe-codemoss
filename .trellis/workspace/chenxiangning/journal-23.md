@@ -1775,3 +1775,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 915: 阶段性收口工具调用卡顿治理
+
+**Date**: 2026-06-23
+**Task**: 阶段性收口工具调用卡顿治理
+**Branch**: `feature/v0.5.13`
+
+### Summary
+
+阶段性提交 realtime interaction jank 治理：Rust 端增加 SnapshotThrottle 与 critical bypass batch stats，webview 端接入 app-server-event per-event backpressure 与 scheduled dispatch，工具输出增加 tail gate，reducer 合并 agent completed batch，layout 增加 deferred frame accumulator；OpenSpec change 与 perf placeholder/docs 同步落地。验证：typecheck、lint、focused Vitest、Rust snapshot_throttle/event_sink/tool_output_delta、OpenSpec validate、capability matrix 均通过；release evidence / UX acceptance / archive gate 仍未完成。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1b04db4f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
