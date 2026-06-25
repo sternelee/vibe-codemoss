@@ -12,6 +12,7 @@ Managed provider 创建路径目前稳定，不能因为修默认磁盘供应商
 - Managed provider 创建仍保持原路径：不新增 disk auto-recovery，不额外调用 default `ensureRuntimeReady`。
 - Backend 只对 disk provider 的 `thread/start` 成功响应做短超时 `thread/resume` ready confirmation；managed provider 不执行该确认。
 - Codex app-server `--help` probe 增加成功态 TTL cache，减少重复 spawn/app-server probe 成本；失败不缓存，避免用户修复 CLI 后被负缓存挡住。
+- Runtime reconnect UI 区分 blocking connectivity drift 与 transient managed-runtime cleanup：`broken pipe` / `workspace not connected` / `thread not found` 仍显示恢复操作；`stale_reuse_cleanup` / `internal_replacement` 等自动切换态降级为轻量提示，用户继续输入后不再把旧 transient diagnostic 挂成断联卡。
 
 ## Non-Goals
 
@@ -25,4 +26,4 @@ Managed provider 创建路径目前稳定，不能因为修默认磁盘供应商
 
 - Disk ready confirmation 会让首次创建多一次短 `thread/resume` RPC。该 RPC 只在 disk provider 上执行，超时短，目的是用可诊断失败替代虚连成功。
 - Probe cache 若 key 过粗可能串 provider 或 wrapper。实现必须包含 resolved binary、PATH env、codex args、launch options；只缓存成功结果。
-
+- Runtime reconnect 文案与恢复按钮必须避免过度承诺：transient cleanup 不是用户可手动修复的真实断联，不能继续给“重新连接 / 重发上一条提示词”的重操作；blocking diagnostic 仍必须保留恢复入口，避免隐藏真实失败。

@@ -304,6 +304,8 @@ describe("Messages runtime reconnect", () => {
     expect(transientCard).toBeTruthy();
     expect(transientCard.className).toContain("is-transient");
     expect(screen.getByText("messages.runtimeReconnectTransientCleanup")).toBeTruthy();
+    expect(screen.queryByText("messages.runtimeReconnectAction")).toBeNull();
+    expect(screen.queryByText("messages.runtimeReconnectResendAction")).toBeNull();
     expect(
       screen.queryByText(
         "[RUNTIME_ENDED] Managed runtime stopped after manual shutdown (source: stale_reuse_cleanup).",
@@ -311,6 +313,36 @@ describe("Messages runtime reconnect", () => {
     ).toBeNull();
     expect(
       screen.queryByRole("group", { name: "messages.runtimeReconnectTitle" }),
+    ).toBeNull();
+  });
+
+  it("drops transient runtime cleanup diagnostics after the user continues", () => {
+    renderMessages([
+      {
+        id: "assistant-runtime-stale-cleanup",
+        kind: "message",
+        role: "assistant",
+        text:
+          "[RUNTIME_ENDED] Managed runtime stopped after manual shutdown (source: stale_reuse_cleanup).",
+      },
+      {
+        id: "user-after-runtime-stale-cleanup",
+        kind: "message",
+        role: "user",
+        text: "继续",
+      },
+    ], {
+      threadId: "thread-runtime-stale-cleanup-user-follow-up",
+    });
+
+    expect(
+      screen.queryByRole("group", { name: "messages.runtimeReconnectTransientTitle" }),
+    ).toBeNull();
+    expect(screen.getByText("继续")).toBeTruthy();
+    expect(
+      screen.queryByText(
+        "[RUNTIME_ENDED] Managed runtime stopped after manual shutdown (source: stale_reuse_cleanup).",
+      ),
     ).toBeNull();
   });
 

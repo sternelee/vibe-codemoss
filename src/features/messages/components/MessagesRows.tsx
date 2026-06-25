@@ -1201,6 +1201,9 @@ export const MessageRow = memo(function MessageRow({
     Boolean(runtimeReconnectHint) &&
     showRuntimeReconnectCard;
   const suppressRuntimeReconnectText = Boolean(runtimeReconnectHint);
+  if (runtimeReconnectHint && !showActiveRuntimeReconnectCard) {
+    return null;
+  }
 
   const bubbleNode = (
     <div className={`bubble message-bubble${agentTaskNotification ? " message-bubble-agent-task" : ""}`}>

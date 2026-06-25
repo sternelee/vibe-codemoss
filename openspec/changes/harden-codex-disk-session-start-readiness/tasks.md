@@ -29,3 +29,11 @@
 - [x] 4.6 `npm run check:runtime-contracts`
 - [x] 4.7 `cargo test --manifest-path src-tauri/Cargo.toml --no-run`
 
+## 5. Runtime Reconnect UI Semantics
+
+- [x] 5.1 Audit the runtime reconnect card decision path: assistant diagnostic text → `resolveThreadStabilityDiagnostic` → latest reconnect row → `RuntimeReconnectCard`.
+- [x] 5.2 Keep blocking diagnostics (`broken pipe`, `workspace not connected`, `thread/session not found`) on the recovery-card path with reconnect/resend actions.
+- [x] 5.3 Downgrade transient managed-runtime cleanup (`stale_reuse_cleanup`, `internal_replacement`) to a lightweight switching notice without reconnect/resend actions.
+- [x] 5.4 Drop stale transient cleanup diagnostics after the user continues, so old runtime switching text does not keep occupying the conversation flow.
+- [x] 5.5 Add focused regression tests for transient cleanup action suppression and stale transient cleanup dismissal.
+- [x] 5.6 Validate with `npx vitest run src/features/messages/components/Messages.runtime-reconnect.test.tsx src/features/messages/components/runtimeReconnect.test.ts`, `npm run typecheck`, and `npm run lint`.

@@ -258,16 +258,30 @@ export const Messages = memo(function Messages({
   const readableWindowRecoveryActive =
     blankingRecoveryActive || visibleStallRecoveryActive;
   const latestRuntimeReconnectItemId = useMemo(() => {
+    let sawUserMessageAfterDiagnostic = false;
     for (let index = items.length - 1; index >= 0; index -= 1) {
       const item = items[index];
-      if (!item || item.kind !== "message" || item.role !== "assistant") {
+      if (!item || item.kind !== "message") {
+        continue;
+      }
+      if (item.role === "user") {
+        sawUserMessageAfterDiagnostic = true;
+        continue;
+      }
+      if (item.role !== "assistant") {
         continue;
       }
       const runtimeReconnectHint = resolveAssistantRuntimeReconnectHint(
         item,
         Boolean(parseAgentTaskNotification(item.text)),
       );
-      return runtimeReconnectHint ? item.id : null;
+      if (!runtimeReconnectHint) {
+        return null;
+      }
+      if (runtimeReconnectHint.tone === "transient" && sawUserMessageAfterDiagnostic) {
+        continue;
+      }
+      return item.id;
     }
     return null;
   }, [items]);
