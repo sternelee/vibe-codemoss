@@ -717,9 +717,13 @@ export function useAppShellLayoutNodesSection(
       ),
     [effectiveModels, effectiveSelectedModelId],
   );
+  const isProjectMapDatasetEnabled =
+    centerMode === "projectMap" ||
+    (centerMode === "editor" && editorSplitCompanion === "projectMap");
   const projectMapDatasetController = useProjectMapDataset(
     activeWorkspace ?? null,
     {
+      enabled: isProjectMapDatasetEnabled,
       generationDefaults: {
         engine: activeEngine ?? null,
         model: projectMapGenerationModel,

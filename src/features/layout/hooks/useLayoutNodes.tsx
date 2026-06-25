@@ -16,8 +16,6 @@ import { useTranslation } from "react-i18next";
 import { Sidebar } from "../../app/components/Sidebar";
 import { HomeChat } from "../../home/components/HomeChat";
 import { MainHeader } from "../../app/components/MainHeader";
-import { Messages } from "../../messages/components/Messages";
-import { MessageForkConfirmDialog } from "../../messages/components/MessageForkConfirmDialog";
 import {
   CODEX_DISK_PROVIDER_PROFILE_ID,
   type CodexProviderProfileSelection,
@@ -42,7 +40,10 @@ import type {
   IntentCanvasCodeSelectionAnchor,
 } from "../../intent-canvas/types";
 import { pushErrorToast } from "../../../services/toasts";
-import { buildGitStatusProjectMapImpactInput } from "../../project-map/utils/impactSources";
+import {
+  buildGitStatusProjectMapImpactInput,
+  type ProjectMapImpactInput,
+} from "../../project-map/utils/impactSources";
 import {
   OrchestrationCenterView,
   applyOrchestrationReviewAction,
@@ -125,6 +126,8 @@ import { loadCodeSelectionRelationshipGraph } from "./codeSelectionRelationshipG
 import { resolveRuntimeLifecycleForComposer } from "./runtimeLifecycle";
 import { focusUserInputRequestCard } from "./userInputRequestFocus";
 import { dispatchMessageJumpEvent } from "./messageJumpEvent";
+import { buildShellRuntimeSummary } from "./layoutShellSummary";
+import { buildConversationCanvasNode } from "./conversationCanvasNode";
 import { useLayoutTopbarSessionTabs } from "./useLayoutTopbarSessionTabs";
 import {
   buildCompactEmptyNode,
@@ -167,6 +170,14 @@ import type {
   RightPanelTabSelection,
 } from "./layoutNodesTypes";
 const EMPTY_COMMANDS: CustomCommandOption[] = [];
+const EMPTY_PROJECT_MAP_IMPACT_INPUT: ProjectMapImpactInput = {
+  filePaths: [],
+  source: {
+    kind: "none",
+    label: "No impact source",
+    fileCount: 0,
+  },
+};
 let lastOrchestrationProjectionSignature: string | null = null;
 
 function buildOrchestrationProjectionSignature(
@@ -366,7 +377,22 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
       "bottomActivity.latestConversation",
     ),
   };
-  const isThreadThinking = activeThreadStatus?.isProcessing ?? false;
+  const shellRuntimeSummary = useMemo(
+    () =>
+      buildShellRuntimeSummary({
+        activeWorkspaceId: options.activeWorkspaceId,
+        activeThreadId: options.activeThreadId,
+        activeItems: options.activeItems,
+        activeThreadStatus,
+      }),
+    [
+      activeThreadStatus,
+      options.activeItems,
+      options.activeThreadId,
+      options.activeWorkspaceId,
+    ],
+  );
+  const isThreadThinking = shellRuntimeSummary.isActiveThreadProcessing;
   const fileRenderPressure = useMemo(
     () => ({
       engineProcessing: isThreadThinking,
@@ -594,6 +620,8 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
   ) : null;
   const sidebarRuntimeNoticeDockNode = options.isPhone ? null : globalRuntimeNoticeDockNode;
   const appRuntimeNoticeDockNode = options.isPhone ? globalRuntimeNoticeDockNode : null;
+  const sidebarActiveItems = shellRuntimeSummary.sidebarSubagentItems;
+  const canCopyActiveThread = shellRuntimeSummary.canCopyActiveThread;
 
   const sidebarNode = (
     <Profiler id="sidebar" onRender={handleRuntimeProfileRender}>
@@ -603,7 +631,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
         hasWorkspaceGroups={options.hasWorkspaceGroups}
         deletingWorktreeIds={options.deletingWorktreeIds}
         threadsByWorkspace={options.threadsByWorkspace}
-        activeItems={options.activeItems}
+        activeItems={sidebarActiveItems}
         threadParentById={options.threadParentById}
         threadStatusById={options.threadStatusById}
         runningSessionCountByWorkspaceId={
@@ -847,76 +875,72 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
   const taskRunStore = useTaskRunStore();
 
   const messagesNode = useMemo(
-    () => (
-      <>
-        <Messages
-          items={options.activeItems}
-          threadId={options.activeThreadId ?? null}
-          workspaceId={options.activeWorkspace?.id ?? null}
-          workspacePath={options.activeWorkspace?.path ?? null}
-          openTargets={options.openAppTargets}
-          selectedOpenAppId={options.selectedOpenAppId}
-          showMessageAnchors={showMessageAnchors}
-          showStickyUserBubble={showStickyUserBubble}
-          codeBlockCopyUseModifier={options.codeBlockCopyUseModifier}
-          userInputRequests={options.userInputRequests}
-          approvals={options.approvals}
-          workspaces={options.workspaces}
-          onUserInputSubmit={options.handleUserInputSubmit}
-          onUserInputDismiss={options.handleUserInputDismiss}
-          onRecoverThreadRuntime={options.onRecoverThreadRuntime}
-          onRecoverThreadRuntimeAndResend={
-            options.onRecoverThreadRuntimeAndResend
-          }
-          onThreadRecoveryFork={options.onThreadRecoveryFork}
-          onForkFromMessage={
-            onForkFromMessage ? handleOpenForkConfirmFromMessage : undefined
-          }
-          onRewindFromMessage={
-            options.onRewind ? handleOpenRewindDialogFromMessage : undefined
-          }
-          onApprovalDecision={options.handleApprovalDecision}
-          onApprovalBatchAccept={options.handleApprovalBatchAccept}
-          onApprovalRemember={options.handleApprovalRemember}
-          conversationState={conversationState}
-          presentationProfile={presentationProfile}
-          activeEngine={conversationEngine}
-          claudeThinkingVisible={claudeThinkingVisible}
-          activeCollaborationModeId={options.selectedCollaborationModeId}
-          plan={options.plan}
-          isPlanMode={options.isPlanMode}
-          isPlanProcessing={options.isProcessing}
-          onOpenDiffPath={handleOpenDiffPath}
-          onOpenPlanPanel={options.onOpenPlanPanel}
-          onExitPlanModeExecute={options.handleExitPlanModeExecute}
-          onOpenWorkspaceFile={options.onOpenFile}
-          agentTaskScrollRequest={options.agentTaskScrollRequest}
-          isThinking={isThreadThinking}
-          isHistoryLoading={activeThreadHistoryLoading}
-          isContextCompacting={activeThreadStatus?.isContextCompacting ?? false}
-          proxyEnabled={options.systemProxyEnabled}
-          proxyUrl={options.systemProxyUrl}
-          processingStartedAt={activeThreadStatus?.processingStartedAt ?? null}
-          lastDurationMs={activeThreadStatus?.lastDurationMs ?? null}
-          heartbeatPulse={heartbeatPulseRef.current ?? 0}
-          codexSilentSuspectedAt={
-            activeThreadStatus?.codexSilentSuspectedAt ?? null
-          }
-          taskRuns={taskRunStore.runs}
-        />
-        <MessageForkConfirmDialog
-          userMessageId={forkConfirmUserMessageId}
-          onCancel={handleCancelForkConfirm}
-          onConfirm={handleConfirmForkFromMessage}
-          showProviderSelector={conversationEngine === "codex"}
-          defaultProviderProfileId={
+    () =>
+      buildConversationCanvasNode({
+        messagesProps: {
+          items: options.activeItems,
+          threadId: options.activeThreadId ?? null,
+          workspaceId: options.activeWorkspace?.id ?? null,
+          workspacePath: options.activeWorkspace?.path ?? null,
+          openTargets: options.openAppTargets,
+          selectedOpenAppId: options.selectedOpenAppId,
+          showMessageAnchors,
+          showStickyUserBubble,
+          codeBlockCopyUseModifier: options.codeBlockCopyUseModifier,
+          userInputRequests: options.userInputRequests,
+          approvals: options.approvals,
+          workspaces: options.workspaces,
+          onUserInputSubmit: options.handleUserInputSubmit,
+          onUserInputDismiss: options.handleUserInputDismiss,
+          onRecoverThreadRuntime: options.onRecoverThreadRuntime,
+          onRecoverThreadRuntimeAndResend:
+            options.onRecoverThreadRuntimeAndResend,
+          onThreadRecoveryFork: options.onThreadRecoveryFork,
+          onForkFromMessage: onForkFromMessage
+            ? handleOpenForkConfirmFromMessage
+            : undefined,
+          onRewindFromMessage: options.onRewind
+            ? handleOpenRewindDialogFromMessage
+            : undefined,
+          onApprovalDecision: options.handleApprovalDecision,
+          onApprovalBatchAccept: options.handleApprovalBatchAccept,
+          onApprovalRemember: options.handleApprovalRemember,
+          conversationState,
+          presentationProfile,
+          activeEngine: conversationEngine,
+          claudeThinkingVisible,
+          activeCollaborationModeId: options.selectedCollaborationModeId,
+          plan: options.plan,
+          isPlanMode: options.isPlanMode,
+          isPlanProcessing: options.isProcessing,
+          onOpenDiffPath: handleOpenDiffPath,
+          onOpenPlanPanel: options.onOpenPlanPanel,
+          onExitPlanModeExecute: options.handleExitPlanModeExecute,
+          onOpenWorkspaceFile: options.onOpenFile,
+          agentTaskScrollRequest: options.agentTaskScrollRequest,
+          isThinking: isThreadThinking,
+          isHistoryLoading: activeThreadHistoryLoading,
+          isContextCompacting: activeThreadStatus?.isContextCompacting ?? false,
+          proxyEnabled: options.systemProxyEnabled,
+          proxyUrl: options.systemProxyUrl,
+          processingStartedAt: activeThreadStatus?.processingStartedAt ?? null,
+          lastDurationMs: activeThreadStatus?.lastDurationMs ?? null,
+          heartbeatPulse: heartbeatPulseRef.current ?? 0,
+          codexSilentSuspectedAt:
+            activeThreadStatus?.codexSilentSuspectedAt ?? null,
+          taskRuns: taskRunStore.runs,
+        },
+        forkConfirmDialogProps: {
+          userMessageId: forkConfirmUserMessageId,
+          onCancel: handleCancelForkConfirm,
+          onConfirm: handleConfirmForkFromMessage,
+          showProviderSelector: conversationEngine === "codex",
+          defaultProviderProfileId:
             activeThreadSummary?.providerProfileId ??
-            CODEX_DISK_PROVIDER_PROFILE_ID
-          }
-          providerProfiles={codexForkProviderProfiles}
-        />
-      </>
-    ),
+            CODEX_DISK_PROVIDER_PROFILE_ID,
+          providerProfiles: codexForkProviderProfiles,
+        },
+      }),
     [
       options.activeItems,
       options.activeThreadId,
@@ -1310,7 +1334,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
       onCheckoutBranch={options.onCheckoutBranch}
       onCreateBranch={options.onCreateBranch}
       sessionTabsNode={sessionTabsNode}
-      canCopyThread={options.activeItems.length > 0}
+      canCopyThread={canCopyActiveThread}
       onCopyThread={options.onCopyThread}
       onLockPanel={options.onLockPanel}
       launchScript={options.launchScript}
@@ -1775,8 +1799,11 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
     ) : null;
 
   const projectMapImpactInput = useMemo(
-    () => buildGitStatusProjectMapImpactInput(options.gitStatus.files),
-    [options.gitStatus.files],
+    () =>
+      isProjectMapSurfaceActive
+        ? buildGitStatusProjectMapImpactInput(options.gitStatus.files)
+        : EMPTY_PROJECT_MAP_IMPACT_INPUT,
+    [isProjectMapSurfaceActive, options.gitStatus.files],
   );
   const orchestrationTaskStore = useOrchestrationTaskStore();
   const [isOrchestrationCenterOpen, setIsOrchestrationCenterOpen] =
@@ -1794,10 +1821,12 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
     projectMapDataset?.manifest.storageKey ??
     null;
   const persistedOrchestrationTasks = orchestrationTaskStore.tasks;
+  const shouldComputeProjectMapOrchestration =
+    isProjectMapSurfaceActive || isOrchestrationCenterOpen;
   const [specWorkspaceSnapshot, setSpecWorkspaceSnapshot] =
     useState<SpecWorkspaceSnapshot | null>(null);
   useEffect(() => {
-    if (!orchestrationWorkspaceId) {
+    if (!shouldComputeProjectMapOrchestration || !orchestrationWorkspaceId) {
       setSpecWorkspaceSnapshot(null);
       return;
     }
@@ -1830,9 +1859,10 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
     orchestrationWorkspaceId,
     options.directories,
     options.files,
+    shouldComputeProjectMapOrchestration,
   ]);
   const orchestrationProviderSnapshots = useMemo(() => {
-    if (!orchestrationWorkspaceId) {
+    if (!shouldComputeProjectMapOrchestration || !orchestrationWorkspaceId) {
       return [];
     }
     const coreSnapshots = collectCoreOrchestrationProviderSnapshots({
@@ -1859,6 +1889,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
     orchestrationWorkspaceId,
     projectMapDataset,
     projectMapRelationshipContextPack,
+    shouldComputeProjectMapOrchestration,
     specWorkspaceSnapshot,
     taskRunStore.runs,
   ]);
@@ -2016,49 +2047,53 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
     [options],
   );
 
-  const projectMapPanelNode = isOrchestrationCenterOpen ? (
-    <OrchestrationCenterView
-      key={`${options.activeWorkspace?.id ?? "no-workspace"}:orchestration`}
-      workspaceId={orchestrationWorkspaceId}
-      workspaceName={options.activeWorkspace?.name ?? null}
-      persistedTasks={persistedOrchestrationTasks}
-      providerSnapshots={orchestrationProviderSnapshots}
-      selectedTaskId={selectedOrchestrationTaskId}
-      onOpenSourceRef={handleOpenOrchestrationSourceRef}
-      onConfirmDispatch={handleConfirmOrchestrationDispatch}
-      onCreateManualTask={handleCreateManualOrchestrationTask}
-      onCancelRun={handleCancelOrchestrationRun}
-      onReviewAction={handleOrchestrationReviewAction}
-      onArchiveTask={handleArchiveOrchestrationTask}
-      onOpenSession={handleOpenOrchestrationSession}
-      taskRuns={taskRunStore.runs}
-      modelOptions={options.models}
-      defaultModelId={options.selectedModelId}
-      onBackToProjectMap={handleBackToProjectMapFromOrchestration}
-    />
-  ) : (
-    <Suspense fallback={<HeavyPanelFallback />}>
-      <ProjectMapPanel
-        key={options.activeWorkspace?.id ?? "no-workspace"}
-        activeWorkspace={options.activeWorkspace ?? null}
+  const shouldMountProjectMapPanel =
+    isProjectMapSurfaceActive || isOrchestrationCenterOpen;
+  const projectMapPanelNode = shouldMountProjectMapPanel ? (
+    isOrchestrationCenterOpen ? (
+      <OrchestrationCenterView
+        key={`${options.activeWorkspace?.id ?? "no-workspace"}:orchestration`}
+        workspaceId={orchestrationWorkspaceId}
         workspaceName={options.activeWorkspace?.name ?? null}
-        selectedEngine={options.selectedEngine ?? null}
-        selectedModelId={options.selectedModelId}
-        models={options.models}
-        datasetController={options.projectMapDatasetController}
-        changedFilePaths={projectMapImpactInput.filePaths}
-        changedFileSource={projectMapImpactInput.source}
-        sourceFocusNodeId={projectMapSourceFocusNodeId}
-        activeCodeSelectionAnchor={options.activeCodeSelectionAnchor}
-        onOpenEvidenceFile={handleOpenProjectMapEvidenceFile}
-        onOpenOrchestrationTask={handleOpenOrchestrationTask}
-        onOpenIntentCanvas={options.onOpenIntentCanvas}
-        onOpenIntentCanvasFromRelationship={options.onOpenIntentCanvas}
+        persistedTasks={persistedOrchestrationTasks}
+        providerSnapshots={orchestrationProviderSnapshots}
+        selectedTaskId={selectedOrchestrationTaskId}
+        onOpenSourceRef={handleOpenOrchestrationSourceRef}
+        onConfirmDispatch={handleConfirmOrchestrationDispatch}
+        onCreateManualTask={handleCreateManualOrchestrationTask}
+        onCancelRun={handleCancelOrchestrationRun}
+        onReviewAction={handleOrchestrationReviewAction}
+        onArchiveTask={handleArchiveOrchestrationTask}
+        onOpenSession={handleOpenOrchestrationSession}
+        taskRuns={taskRunStore.runs}
+        modelOptions={options.models}
+        defaultModelId={options.selectedModelId}
+        onBackToProjectMap={handleBackToProjectMapFromOrchestration}
       />
-    </Suspense>
-  );
+    ) : (
+      <Suspense fallback={<HeavyPanelFallback />}>
+        <ProjectMapPanel
+          key={options.activeWorkspace?.id ?? "no-workspace"}
+          activeWorkspace={options.activeWorkspace ?? null}
+          workspaceName={options.activeWorkspace?.name ?? null}
+          selectedEngine={options.selectedEngine ?? null}
+          selectedModelId={options.selectedModelId}
+          models={options.models}
+          datasetController={options.projectMapDatasetController}
+          changedFilePaths={projectMapImpactInput.filePaths}
+          changedFileSource={projectMapImpactInput.source}
+          sourceFocusNodeId={projectMapSourceFocusNodeId}
+          activeCodeSelectionAnchor={options.activeCodeSelectionAnchor}
+          onOpenEvidenceFile={handleOpenProjectMapEvidenceFile}
+          onOpenOrchestrationTask={handleOpenOrchestrationTask}
+          onOpenIntentCanvas={options.onOpenIntentCanvas}
+          onOpenIntentCanvasFromRelationship={options.onOpenIntentCanvas}
+        />
+      </Suspense>
+    )
+  ) : null;
 
-  const intentCanvasPanelNode = (
+  const intentCanvasPanelNode = isIntentCanvasSurfaceActive ? (
     <Suspense fallback={<HeavyPanelFallback />}>
       <IntentCanvasManager
         activeWorkspace={options.activeWorkspace ?? null}
@@ -2070,7 +2105,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
         onOpenSourceFile={handleOpenProjectMapEvidenceFile}
       />
     </Suspense>
-  );
+  ) : null;
 
   const planPanelNode = shouldMountBottomStatusPanel ? (
     <StatusPanel

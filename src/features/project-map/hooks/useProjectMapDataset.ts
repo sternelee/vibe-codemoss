@@ -614,11 +614,13 @@ export function useProjectMapDataset(
   options: {
     generationDefaults?: ProjectMapGenerationDefaults | null;
     preferredLanguage?: ProjectMapPreferredLanguage | null;
+    enabled?: boolean;
   } = {},
 ): ProjectMapDatasetController {
   const workspaceId = workspace?.id ?? null;
   const workspaceName = workspace?.name ?? null;
   const workspacePath = workspace?.path ?? null;
+  const enabled = options.enabled !== false;
   const identity = useMemo(
     () =>
       resolveWorkspaceIdentity(
@@ -635,7 +637,9 @@ export function useProjectMapDataset(
   const [dataset, setDataset] = useState<ProjectMapDataset>(() =>
     createEmptyProjectMapDataset({ identity }),
   );
-  const [status, setStatus] = useState<ProjectMapDatasetStatus>(workspaceId ? "loading" : "empty");
+  const [status, setStatus] = useState<ProjectMapDatasetStatus>(
+    enabled && workspaceId ? "loading" : "empty",
+  );
   const [storageDir, setStorageDir] = useState<string | null>(null);
   const [activeReadLocation, setActiveReadLocation] = useState<ProjectMapStorageLocation>(
     DEFAULT_STORAGE_LOCATION,
@@ -707,7 +711,7 @@ export function useProjectMapDataset(
   );
 
   const loadRelationshipContextFromLocation = useCallback(async (readLocation: ProjectMapStorageLocation) => {
-    if (!workspaceId) {
+    if (!enabled || !workspaceId) {
       setRelationshipContextPack(null);
       setRelationshipStaleSummary(null);
       return;
@@ -723,12 +727,12 @@ export function useProjectMapDataset(
       setRelationshipContextPack(null);
       setRelationshipStaleSummary(null);
     }
-  }, [workspaceId]);
+  }, [enabled, workspaceId]);
 
   const loadDatasetFromLocation = useCallback(async (readLocation: ProjectMapStorageLocation) => {
     const loadSequence = loadSequenceRef.current + 1;
     loadSequenceRef.current = loadSequence;
-    if (!workspaceId) {
+    if (!enabled || !workspaceId) {
       setDataset(createEmptyProjectMapDataset({ identity, storageKey: expectedStorageKey }));
       setStatus("empty");
       setStorageDir(null);
@@ -800,7 +804,7 @@ export function useProjectMapDataset(
       setRelationshipContextPack(null);
       setRelationshipStaleSummary(null);
     }
-  }, [expectedStorageKey, identity, loadRelationshipContextFromLocation, workspaceId]);
+  }, [enabled, expectedStorageKey, identity, loadRelationshipContextFromLocation, workspaceId]);
 
   const reload = useCallback(async () => {
     await loadDatasetFromLocation(activeReadLocation);
@@ -816,9 +820,11 @@ export function useProjectMapDataset(
         return;
       }
       setActiveReadLocation(location);
-      void loadDatasetFromLocation(location);
+      if (enabled) {
+        void loadDatasetFromLocation(location);
+      }
     },
-    [activeReadLocation, loadDatasetFromLocation],
+    [activeReadLocation, enabled, loadDatasetFromLocation],
   );
 
   useEffect(() => {
@@ -828,6 +834,7 @@ export function useProjectMapDataset(
   useEffect(() => {
     if (
       !workspaceId ||
+      !enabled ||
       status !== "persisted" ||
       dataset.manifest.storageKey !== expectedStorageKey
     ) {
@@ -1021,6 +1028,7 @@ export function useProjectMapDataset(
     activeReadLocation,
     activeRunId,
     dataset.manifest.storageKey,
+    enabled,
     expectedStorageKey,
     status,
     workspaceId,
@@ -1031,6 +1039,7 @@ export function useProjectMapDataset(
     const checkedAt = new Date().toISOString();
     if (
       !workspaceId ||
+      !enabled ||
       status !== "persisted" ||
       !shouldEvaluateProjectMapAutoIngestion({
         settings: dataset.autoIngestionSettings,
@@ -1122,7 +1131,7 @@ export function useProjectMapDataset(
     return () => {
       cancelled = true;
     };
-  }, [dataset, defaultWritePath, persistDataset, preferredLanguage, status, workspaceId, workspacePath]);
+  }, [dataset, defaultWritePath, enabled, persistDataset, preferredLanguage, status, workspaceId, workspacePath]);
 
   const openGlobalCollection = useCallback(() => {
     const defaults = resolveGenerationDefaults(dataset, generationDefaults);
