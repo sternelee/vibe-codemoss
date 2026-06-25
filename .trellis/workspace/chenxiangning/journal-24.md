@@ -426,3 +426,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 931: Shell-first lazy runtime isolation
+
+**Date**: 2026-06-25
+**Task**: Shell-first lazy runtime isolation
+**Branch**: `feature/v0.5.13`
+
+### Summary
+
+创建 OpenSpec shell-first-lazy-runtime-isolation，并实现 Shell summary、Conversation Canvas node builder、ProjectMap/IntentCanvas hidden compute gates；全量 heavy-test-noise 729 test files 通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4c8d3191` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
