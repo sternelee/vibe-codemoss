@@ -519,7 +519,8 @@ pub(crate) fn list_enabled_curated_skill_bodies(
 
 /// Empirical token estimate: `chars / 3`. The MVP uses this as a coarse proxy
 /// (English-leading text typically lands within 15 % of the real count).
-pub(crate) fn validate_token_estimate(body: &str) -> usize {
+#[cfg(test)]
+fn validate_token_estimate(body: &str) -> usize {
     body.chars().count() / 3
 }
 
