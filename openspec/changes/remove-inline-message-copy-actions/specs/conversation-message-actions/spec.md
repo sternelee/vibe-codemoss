@@ -1,8 +1,7 @@
 # conversation-message-actions Specification
 
-## Purpose
-TBD - created by archiving change refine-conversation-message-copy-actions. Update Purpose after archive.
-## Requirements
+## MODIFIED Requirements
+
 ### Requirement: Assistant Turn Copy Action SHALL Be Final-Row Scoped
 The conversation canvas SHALL expose copy affordances only through the final assistant message tail action group. No standalone copy action SHALL be rendered inside non-final assistant segments, user bubbles, or non-assistant message rows.
 
@@ -54,3 +53,4 @@ Assistant copy action placement SHALL be a render-surface concern and SHALL NOT 
 - **THEN** the Fork operation MUST run as a messages-only session fork
 - **AND** it MUST NOT restore, delete, revert, or overwrite workspace files
 - **AND** Codex provider selection MUST only affect the child conversation provider binding
+

@@ -1080,8 +1080,6 @@ export const MessagesTimeline = memo(function MessagesTimeline({
                   ? latestRetryMessage
                   : null
               }
-              isCopied={isCopied}
-              onCopy={handleCopyMessage}
               codeBlockCopyUseModifier={codeBlockCopyUseModifier}
               onOpenFileLink={openFileLink}
               onOpenFileLinkMenu={showFileLinkMenu}
