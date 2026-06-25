@@ -657,3 +657,46 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 937: Fix history canvas lightweight spacing & expanded-history layout
+
+**Date**: 2026-06-26
+**Task**: Fix history canvas lightweight spacing & expanded-history layout
+**Branch**: `feature/v0.5.13`
+
+### Summary
+
+历史会话 lightweight mode 出现大段空白、点击“显示之前 n 条消息”后抖动 + 顶部操作卡片被裁剪 + banner/sticky/rows 分属不同 layout contract。根因不是单个 CSS 间距：virtualized row 沿用旧 heavy measured height，manual reveal 还在用 scrollHeight delta viewport restore + absolute virtual canvas，timeline root 顶部再叠 inset 补丁。
+
+修复：
+- MessagesTimeline 区分 lightweight summary row 走 compact virtualized placeholder height
+- lightweight / detail hydration 切换触发 bounded virtualizer remeasure
+- manual reveal 切到稳定 expanded-history document flow，移除 scrollHeight delta 视口恢复；jump-to-message 仍由 anchor scroll 定位
+- lightweight mode bar、history sticky header、collapsed-history reveal control 收敛到同一个 messages-full padding contract
+- 新增 curtain.stickyUserBubble 默认 client UI control
+- i18n Hydrate visible details -> Render details
+
+同步 messages-streaming-render-contract.md spec、openspec change fix-history-canvas-lightweight-spacing 落地。openspec validate --strict、npm run typecheck、focused vitest 7 files / 149 tests 全部通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `40398107` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
