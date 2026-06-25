@@ -1,18 +1,31 @@
 import type { Virtualizer } from "@tanstack/react-virtual";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  buildTimelineRenderWeightDiagnosticPayload,
   classifyTimelineVirtualizerStability,
   estimateTimelineProjectionRowSize,
   estimateTimelineProjectionRenderWeight,
   getActiveLiveTimelineRowKeys,
+  isTimelineRenderWeightGateEnabled,
+  DEFAULT_TIMELINE_VIRTUALIZER_STABILITY_RECOVERY_BUDGET,
+  summarizeTimelineProjectionRenderWeight,
   observeTimelineElementOffset,
+  resolveTimelineVirtualizerStabilityRecovery,
+  resolveVirtualizedTimelineScopeReset,
   shouldVirtualizeTimelineRows,
+  TIMELINE_RENDER_WEIGHT_BASELINE_FLAG_KEY,
+  TIMELINE_VIRTUALIZER_STABILITY_MAX_REMEASURE_COUNT,
   TIMELINE_VIRTUALIZATION_MIN_RENDER_WEIGHT,
   TIMELINE_VIRTUALIZATION_MIN_ROWS,
 } from "./messagesTimelineVirtualization";
+import { createHeavyHistoryFixture } from "./messagesHeavyHistoryFixture.test-support";
 import type { TimelineProjectionRow } from "./messagesTimelineProjection";
 
 describe("messagesTimelineVirtualization", () => {
+  afterEach(() => {
+    globalThis.localStorage.removeItem(TIMELINE_RENDER_WEIGHT_BASELINE_FLAG_KEY);
+  });
+
   it("enables virtualization only for long stable timelines", () => {
     expect(shouldVirtualizeTimelineRows({
       isThinking: false,
@@ -39,12 +52,47 @@ describe("messagesTimelineVirtualization", () => {
     })).toBe(false);
   });
 
-  it("enables virtualization for image-heavy streaming timelines by render weight", () => {
+  it("does not virtualize active streaming timelines by render weight below the row-count threshold", () => {
     expect(shouldVirtualizeTimelineRows({
       isThinking: true,
       rowCount: 12,
       renderWeight: TIMELINE_VIRTUALIZATION_MIN_RENDER_WEIGHT,
-    })).toBe(true);
+    })).toBe(false);
+  });
+
+  it("can restore the baseline eager behavior below the row-count threshold", () => {
+    globalThis.localStorage.setItem(TIMELINE_RENDER_WEIGHT_BASELINE_FLAG_KEY, "1");
+
+    expect(shouldVirtualizeTimelineRows({
+      isThinking: false,
+      rowCount: 12,
+      renderWeight: TIMELINE_VIRTUALIZATION_MIN_RENDER_WEIGHT * 4,
+    })).toBe(false);
+  });
+
+  it("keeps the render-weight gate enabled when storage is unavailable", () => {
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      get() {
+        throw new Error("storage unavailable");
+      },
+    });
+
+    try {
+      expect(isTimelineRenderWeightGateEnabled()).toBe(true);
+      expect(shouldVirtualizeTimelineRows({
+        isThinking: false,
+        rowCount: 12,
+        renderWeight: TIMELINE_VIRTUALIZATION_MIN_RENDER_WEIGHT * 4,
+      })).toBe(true);
+    } finally {
+      if (descriptor) {
+        Object.defineProperty(globalThis, "localStorage", descriptor);
+      } else {
+        delete (globalThis as { localStorage?: Storage }).localStorage;
+      }
+    }
   });
 
   it("estimates grouped rows higher than a single item row", () => {
@@ -110,6 +158,52 @@ describe("messagesTimelineVirtualization", () => {
     };
 
     expect(estimateTimelineProjectionRenderWeight(imageRow)).toBeGreaterThan(40);
+  });
+
+  it("virtualizes #721-class heavy history even when row count is below the threshold", () => {
+    const { rows } = createHeavyHistoryFixture("heavy");
+    const summary = summarizeTimelineProjectionRenderWeight(rows);
+
+    expect(summary.rowCount).toBeLessThan(TIMELINE_VIRTUALIZATION_MIN_ROWS);
+    expect(summary.renderWeight).toBeGreaterThanOrEqual(TIMELINE_VIRTUALIZATION_MIN_RENDER_WEIGHT);
+    expect(summary.categoryCounts.markdownTable).toBeGreaterThan(0);
+    expect(summary.categoryCounts.codeFence).toBeGreaterThan(0);
+    expect(summary.categoryCounts.toolRawPayload).toBeGreaterThan(0);
+    expect(summary.categoryCounts.readBatch).toBeGreaterThan(0);
+    expect(summary.categoryCounts.diff).toBeGreaterThan(0);
+    expect(shouldVirtualizeTimelineRows({
+      isThinking: false,
+      rowCount: summary.rowCount,
+      renderWeight: summary.renderWeight,
+    })).toBe(true);
+  });
+
+  it("builds content-safe heavy-history baseline diagnostics", () => {
+    const { rows } = createHeavyHistoryFixture("medium");
+    const summary = summarizeTimelineProjectionRenderWeight(rows);
+    const payload = buildTimelineRenderWeightDiagnosticPayload({
+      summary,
+      shouldVirtualize: true,
+      hydratedHeavyRowCount: 3,
+      localErrorState: "none",
+      threadId: "thread-1",
+      workspaceId: "workspace-1",
+    });
+    const serializedPayload = JSON.stringify(payload);
+
+    expect(payload).toMatchObject({
+      threadId: "thread-1",
+      workspaceId: "workspace-1",
+      rowCount: summary.rowCount,
+      renderWeight: summary.renderWeight,
+      heavyRowCount: summary.heavyRowCount,
+      hydratedHeavyRowCount: 3,
+      localErrorState: "none",
+      shouldVirtualize: true,
+    });
+    expect(serializedPayload).not.toContain("src/fixture");
+    expect(serializedPayload).not.toContain("secret.ts");
+    expect(serializedPayload).not.toContain("tool_call");
   });
 
   it("finds active live row keys from item and docked reasoning rows", () => {
@@ -182,6 +276,103 @@ describe("messagesTimelineVirtualization", () => {
       activeLiveRowKeys: ["item:message:assistant-live"],
       streamingActive: true,
     })).toBe("stable");
+  });
+
+  it("bounds repeated virtualizer stability remeasure recovery by signature", () => {
+    let budget = DEFAULT_TIMELINE_VIRTUALIZER_STABILITY_RECOVERY_BUDGET;
+
+    for (let attempt = 0; attempt < TIMELINE_VIRTUALIZER_STABILITY_MAX_REMEASURE_COUNT; attempt += 1) {
+      const recovery = resolveTimelineVirtualizerStabilityRecovery({
+        previous: budget,
+        signature: "active-live-row-missing:8",
+        now: (attempt + 1) * 1_000,
+        remeasureCooldownMs: 1,
+        diagnosticCooldownMs: 1,
+      });
+      expect(recovery.shouldRemeasure).toBe(true);
+      budget = recovery.nextBudget;
+    }
+
+    const suppressedRecovery = resolveTimelineVirtualizerStabilityRecovery({
+      previous: budget,
+      signature: "active-live-row-missing:8",
+      now: 10_000,
+      remeasureCooldownMs: 1,
+      diagnosticCooldownMs: 1,
+    });
+
+    expect(suppressedRecovery.shouldRemeasure).toBe(false);
+    expect(suppressedRecovery.remeasureSuppressed).toBe(true);
+    expect(suppressedRecovery.nextBudget.remeasureCount).toBe(
+      TIMELINE_VIRTUALIZER_STABILITY_MAX_REMEASURE_COUNT,
+    );
+  });
+
+  it("resets virtualizer stability recovery budget for a new signature", () => {
+    const exhaustedRecovery = resolveTimelineVirtualizerStabilityRecovery({
+      previous: {
+        signature: "active-live-row-missing:8",
+        remeasureCount: TIMELINE_VIRTUALIZER_STABILITY_MAX_REMEASURE_COUNT,
+        lastRemeasureAt: 1_000,
+        lastDiagnosticAt: 1_000,
+      },
+      signature: "empty-visible-set:8",
+      now: 2_000,
+      remeasureCooldownMs: 1,
+      diagnosticCooldownMs: 1,
+    });
+
+    expect(exhaustedRecovery.shouldRemeasure).toBe(true);
+    expect(exhaustedRecovery.nextBudget.remeasureCount).toBe(1);
+    expect(exhaustedRecovery.remeasureSuppressed).toBe(false);
+  });
+
+  it("resets stale scroll scope only for a new stable virtualized history thread", () => {
+    expect(resolveVirtualizedTimelineScopeReset({
+      previousScopeKey: "ws-1\u0000thread-old\u0000200",
+      nextScopeKey: "ws-1\u0000thread-new\u0000200",
+      shouldVirtualize: true,
+      stableHistoryView: true,
+      hasPendingJump: false,
+      hasScrollElement: true,
+    })).toEqual({
+      nextScopeKey: "ws-1\u0000thread-new\u0000200",
+      shouldResetScroll: true,
+      shouldMeasure: true,
+    });
+
+    expect(resolveVirtualizedTimelineScopeReset({
+      previousScopeKey: "ws-1\u0000thread-new\u0000200",
+      nextScopeKey: "ws-1\u0000thread-new\u0000200",
+      shouldVirtualize: true,
+      stableHistoryView: true,
+      hasPendingJump: false,
+      hasScrollElement: true,
+    })).toEqual({
+      nextScopeKey: "ws-1\u0000thread-new\u0000200",
+      shouldResetScroll: false,
+      shouldMeasure: false,
+    });
+  });
+
+  it("does not reset virtualized scroll during streaming or jump targeting", () => {
+    expect(resolveVirtualizedTimelineScopeReset({
+      previousScopeKey: "ws-1\u0000thread-old\u0000200",
+      nextScopeKey: "ws-1\u0000thread-new\u0000200",
+      shouldVirtualize: true,
+      stableHistoryView: false,
+      hasPendingJump: false,
+      hasScrollElement: true,
+    }).shouldResetScroll).toBe(false);
+
+    expect(resolveVirtualizedTimelineScopeReset({
+      previousScopeKey: "ws-1\u0000thread-old\u0000200",
+      nextScopeKey: "ws-1\u0000thread-new\u0000200",
+      shouldVirtualize: true,
+      stableHistoryView: true,
+      hasPendingJump: true,
+      hasScrollElement: true,
+    }).shouldResetScroll).toBe(false);
   });
 
   it("clears pending scroll-end fallback when virtualizer unmounts", () => {

@@ -71,7 +71,7 @@ describe("useAppServerEvents token usage", () => {
       useNormalizedRealtimeAdapters: true,
     });
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -88,6 +88,8 @@ describe("useAppServerEvents token usage", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onAgentMessageCompleted).toHaveBeenCalledWith({
@@ -135,7 +137,7 @@ describe("useAppServerEvents token usage", () => {
       useNormalizedRealtimeAdapters: true,
     });
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -157,6 +159,8 @@ describe("useAppServerEvents token usage", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onThreadTokenUsageUpdated).toHaveBeenCalledWith(
@@ -196,7 +200,7 @@ describe("useAppServerEvents token usage", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -212,6 +216,8 @@ describe("useAppServerEvents token usage", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onThreadTokenUsageUpdated).toHaveBeenCalledWith(
@@ -248,7 +254,7 @@ describe("useAppServerEvents token usage", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -265,6 +271,8 @@ describe("useAppServerEvents token usage", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onThreadTokenUsageUpdated).toHaveBeenCalledWith(
@@ -301,7 +309,7 @@ describe("useAppServerEvents token usage", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -316,6 +324,8 @@ describe("useAppServerEvents token usage", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onThreadTokenUsageUpdated).toHaveBeenCalledWith(
@@ -340,7 +350,7 @@ describe("useAppServerEvents token usage", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -361,6 +371,8 @@ describe("useAppServerEvents token usage", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onThreadTokenUsageUpdated).toHaveBeenCalledWith(

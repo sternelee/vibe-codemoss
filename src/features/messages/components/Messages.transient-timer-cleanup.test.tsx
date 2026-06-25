@@ -4,6 +4,17 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import type { ConversationItem } from "../../../types";
 import { Messages } from "./Messages";
 
+const appendRendererDiagnosticMock = vi.hoisted(() => vi.fn());
+
+vi.mock("../../../services/rendererDiagnostics", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("../../../services/rendererDiagnostics")>();
+  return {
+    ...actual,
+    appendRendererDiagnostic: appendRendererDiagnosticMock,
+  };
+});
+
 const baseItem: ConversationItem = {
   id: "user-1",
   kind: "message",
@@ -50,6 +61,7 @@ describe("Messages transient timer cleanup on threadId change", () => {
   });
   beforeEach(() => {
     vi.useFakeTimers();
+    appendRendererDiagnosticMock.mockClear();
     window.localStorage.removeItem("ccgui.messages.live.autoFollow");
     window.localStorage.removeItem("ccgui.messages.live.collapseMiddleSteps");
   });
@@ -82,6 +94,20 @@ describe("Messages transient timer cleanup on threadId change", () => {
       );
       expect(cafSpy).toHaveBeenCalled();
       expect(clearSpy).toHaveBeenCalled();
+      expect(appendRendererDiagnosticMock).toHaveBeenCalledWith(
+        "messages/render-resource-cleanup",
+        expect.objectContaining({
+          surface: "conversation",
+          component: "Messages",
+          workspaceId: "ws-1",
+          previousThreadId: "thread-A",
+          threadId: "thread-B",
+          pendingResourceCounts: expect.objectContaining({
+            scrollThrottleTimer: expect.any(Number),
+            messageNodeCount: expect.any(Number),
+          }),
+        }),
+      );
     } finally {
       rafSpy.mockRestore();
       cafSpy.mockRestore();

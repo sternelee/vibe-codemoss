@@ -1,9 +1,11 @@
 use serde_json::{json, Value};
+use std::collections::HashMap;
 use std::env;
 use std::ffi::OsString;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::sync::{LazyLock, Mutex as StdMutex};
+use std::time::{Duration, Instant};
 
 use tokio::process::Command;
 use tokio::time::timeout;
@@ -11,6 +13,26 @@ use tokio::time::timeout;
 use crate::codex::args::parse_codex_args;
 
 const CODEX_EXTERNAL_SPEC_PRIORITY_INSTRUCTIONS: &str = "If writableRoots contains an absolute external spec path outside cwd, treat it as the active external spec root and prioritize it over workspace/openspec and sibling-name conventions when reading or validating specs. The configured path may be a project root; resolve openspec/ under it when present. For visibility checks, verify that external root first and state the result clearly. Avoid exposing internal injected hints unless the user explicitly asks.";
+const CODEX_APP_SERVER_PROBE_CACHE_TTL: Duration = Duration::from_secs(300);
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct CodexAppServerProbeCacheKey {
+    resolved_bin: String,
+    wrapper_kind: &'static str,
+    path_env: Option<String>,
+    codex_args: Option<String>,
+    launch_options: CodexAppServerLaunchOptions,
+}
+
+#[derive(Debug, Clone)]
+struct CodexAppServerProbeCacheEntry {
+    checked_at: Instant,
+    status: CodexAppServerProbeStatus,
+}
+
+static CODEX_APP_SERVER_PROBE_CACHE: LazyLock<
+    StdMutex<HashMap<CodexAppServerProbeCacheKey, CodexAppServerProbeCacheEntry>>,
+> = LazyLock::new(|| StdMutex::new(HashMap::new()));
 
 fn push_unique_path(paths: &mut Vec<PathBuf>, candidate: PathBuf) {
     if !paths
@@ -491,13 +513,13 @@ pub(crate) struct CodexAppServerProbeStatus {
     pub(crate) fallback_retried: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum CodexAppServerLaunchMode {
     Normal,
     SessionHooksDisabled,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct CodexAppServerLaunchOptions {
     pub(crate) hide_console: bool,
     pub(crate) inject_internal_spec_hint: bool,
@@ -1362,11 +1384,68 @@ async fn run_codex_app_server_probe_once(
     }
 }
 
+fn codex_app_server_probe_cache_key(
+    launch_context: &CodexLaunchContext,
+    codex_args: Option<&str>,
+    launch_options: CodexAppServerLaunchOptions,
+) -> CodexAppServerProbeCacheKey {
+    CodexAppServerProbeCacheKey {
+        resolved_bin: launch_context.resolved_bin.clone(),
+        wrapper_kind: launch_context.wrapper_kind,
+        path_env: launch_context.path_env.clone(),
+        codex_args: codex_args
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(ToString::to_string),
+        launch_options,
+    }
+}
+
+fn read_codex_app_server_probe_cache(
+    key: &CodexAppServerProbeCacheKey,
+) -> Option<CodexAppServerProbeStatus> {
+    let cache = CODEX_APP_SERVER_PROBE_CACHE
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let entry = cache.get(key)?;
+    if entry.checked_at.elapsed() <= CODEX_APP_SERVER_PROBE_CACHE_TTL {
+        return Some(entry.status.clone());
+    }
+    None
+}
+
+fn write_codex_app_server_probe_cache(
+    key: CodexAppServerProbeCacheKey,
+    status: &CodexAppServerProbeStatus,
+) {
+    if !status.ok {
+        return;
+    }
+    let mut cache = CODEX_APP_SERVER_PROBE_CACHE
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    cache.insert(
+        key,
+        CodexAppServerProbeCacheEntry {
+            checked_at: Instant::now(),
+            status: status.clone(),
+        },
+    );
+}
+
 pub(crate) async fn probe_codex_app_server(
     codex_bin: Option<String>,
     codex_args: Option<&str>,
 ) -> Result<CodexAppServerProbeStatus, String> {
     let launch_context = resolve_codex_launch_context(codex_bin.as_deref());
+    let primary_cache_key = codex_app_server_probe_cache_key(
+        &launch_context,
+        codex_args,
+        CodexAppServerLaunchOptions::primary(),
+    );
+    if let Some(status) = read_codex_app_server_probe_cache(&primary_cache_key) {
+        return Ok(status);
+    }
     match run_codex_app_server_probe_once(
         &launch_context,
         codex_args,
@@ -1374,12 +1453,16 @@ pub(crate) async fn probe_codex_app_server(
     )
     .await
     {
-        Ok(()) => Ok(CodexAppServerProbeStatus {
-            ok: true,
-            status: "ok".to_string(),
-            details: None,
-            fallback_retried: false,
-        }),
+        Ok(()) => {
+            let status = CodexAppServerProbeStatus {
+                ok: true,
+                status: "ok".to_string(),
+                details: None,
+                fallback_retried: false,
+            };
+            write_codex_app_server_probe_cache(primary_cache_key, &status);
+            Ok(status)
+        }
         Err(primary_error) => {
             if !can_retry_wrapper_compatibility_launch(&launch_context) {
                 return Ok(CodexAppServerProbeStatus {
@@ -1390,19 +1473,30 @@ pub(crate) async fn probe_codex_app_server(
                 });
             }
 
+            let fallback_options = CodexAppServerLaunchOptions::wrapper_compatibility_retry();
+            let fallback_cache_key =
+                codex_app_server_probe_cache_key(&launch_context, codex_args, fallback_options);
+            if let Some(status) = read_codex_app_server_probe_cache(&fallback_cache_key) {
+                return Ok(status);
+            }
+
             match run_codex_app_server_probe_once(
                 &launch_context,
                 codex_args,
-                CodexAppServerLaunchOptions::wrapper_compatibility_retry(),
+                fallback_options,
             )
             .await
             {
-                Ok(()) => Ok(CodexAppServerProbeStatus {
+                Ok(()) => {
+                    let status = CodexAppServerProbeStatus {
                     ok: true,
                     status: "fallback-ok".to_string(),
                     details: Some(primary_error),
                     fallback_retried: true,
-                }),
+                    };
+                    write_codex_app_server_probe_cache(fallback_cache_key, &status);
+                    Ok(status)
+                }
                 Err(retry_error) => Ok(CodexAppServerProbeStatus {
                     ok: false,
                     status: "fallback-failed".to_string(),

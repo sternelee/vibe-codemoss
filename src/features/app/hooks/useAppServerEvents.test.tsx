@@ -81,7 +81,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -92,6 +92,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
     expect(handlers.onReasoningSummaryDelta).toHaveBeenCalledWith(
       "ws-1",
@@ -100,7 +102,7 @@ describe("useAppServerEvents", () => {
       "checking sibling specs",
     );
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -110,6 +112,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
     expect(handlers.onReasoningSummaryBoundary).toHaveBeenCalledWith(
       "ws-1",
@@ -117,7 +121,7 @@ describe("useAppServerEvents", () => {
       "reasoning-2",
     );
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -128,6 +132,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
     expect(handlers.onReasoningTextDelta).toHaveBeenCalledWith(
       "ws-1",
@@ -149,7 +155,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -160,6 +166,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.getSingleProcessingCodexThreadId).toHaveBeenCalledWith(
@@ -181,7 +189,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -192,6 +200,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.getActiveCodexThreadId).not.toHaveBeenCalled();
@@ -221,7 +231,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -231,6 +241,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.getActiveCodexThreadId).not.toHaveBeenCalled();
@@ -248,7 +260,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -260,6 +272,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onAgentMessageDelta).toHaveBeenCalledWith({
@@ -285,7 +299,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -296,9 +310,11 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -309,9 +325,11 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -322,9 +340,11 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -335,9 +355,11 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -348,6 +370,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onItemStarted).toHaveBeenCalledWith("ws-1", "claude:session-1", {
@@ -396,7 +420,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-codex",
         message: {
@@ -409,6 +433,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onAgentMessageDelta).toHaveBeenCalledWith({
@@ -433,7 +459,7 @@ describe("useAppServerEvents", () => {
       useNormalizedRealtimeAdapters: true,
     });
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-claude-normalized",
         message: {
@@ -445,9 +471,11 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-claude-normalized",
         message: {
@@ -462,6 +490,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onAgentMessageDelta).toHaveBeenCalledWith({
@@ -490,7 +520,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-codex",
         message: {
@@ -506,6 +536,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onItemUpdated).toHaveBeenCalledWith(
@@ -535,7 +567,7 @@ describe("useAppServerEvents", () => {
     });
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-shared-claude-legacy-item",
         message: {
@@ -551,6 +583,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onItemUpdated).toHaveBeenCalledWith(
@@ -579,7 +613,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -591,6 +625,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onAgentMessageDelta).toHaveBeenCalledWith({
@@ -611,7 +647,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -619,8 +655,10 @@ describe("useAppServerEvents", () => {
           params: { threadId: "", itemId: "item-1", delta: "Hello" },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -628,8 +666,10 @@ describe("useAppServerEvents", () => {
           params: { threadId: "thread-1", itemId: "", delta: "Hello" },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -637,6 +677,8 @@ describe("useAppServerEvents", () => {
           params: { threadId: "thread-1", itemId: "item-1", delta: "" },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onAgentMessageDelta).not.toHaveBeenCalled();
@@ -652,7 +694,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-opencode",
         message: {
@@ -665,6 +707,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onThreadSessionIdUpdated).toHaveBeenCalledWith(
@@ -692,7 +736,7 @@ describe("useAppServerEvents", () => {
     });
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-shared-codex",
         message: {
@@ -714,6 +758,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(updateSharedSessionNativeBindingService).not.toHaveBeenCalled();
@@ -741,7 +787,7 @@ describe("useAppServerEvents", () => {
     });
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-shared-claude-stalled",
         message: {
@@ -756,6 +802,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onTurnStalled).toHaveBeenCalledWith(
@@ -791,7 +839,7 @@ describe("useAppServerEvents", () => {
     });
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-shared-codex-pending",
         message: {
@@ -813,6 +861,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onThreadStarted).not.toHaveBeenCalled();
@@ -850,7 +900,7 @@ describe("useAppServerEvents", () => {
     });
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-shared-claude",
         message: {
@@ -872,6 +922,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(updateSharedSessionNativeBindingService).toHaveBeenCalledWith(
@@ -900,7 +952,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -912,6 +964,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onAgentMessageCompleted).toHaveBeenCalledWith({
@@ -934,7 +988,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -950,6 +1004,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onAgentMessageCompleted).toHaveBeenCalledWith({
@@ -973,7 +1029,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -981,9 +1037,11 @@ describe("useAppServerEvents", () => {
           params: { threadId: "thread-1", itemId: "item-1", delta: "streaming..." },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -995,6 +1053,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onAgentMessageCompleted).not.toHaveBeenCalled();
@@ -1013,7 +1073,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -1024,9 +1084,11 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -1038,6 +1100,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onAgentMessageCompleted).toHaveBeenCalledTimes(1);
@@ -1056,7 +1120,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -1067,9 +1131,11 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -1081,6 +1147,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onItemUpdated).toHaveBeenCalledTimes(1);
@@ -1104,7 +1172,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -1115,9 +1183,11 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -1129,6 +1199,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onItemUpdated).toHaveBeenCalledTimes(1);
@@ -1165,7 +1237,7 @@ describe("useAppServerEvents", () => {
     });
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-shared-codex-turn",
         message: {
@@ -1187,6 +1259,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onItemUpdated).toHaveBeenCalledWith(
@@ -1228,7 +1302,7 @@ describe("useAppServerEvents", () => {
     });
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-shared-codex-empty",
         message: {
@@ -1250,6 +1324,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onItemUpdated).toHaveBeenCalledWith(
@@ -1290,7 +1366,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -1311,6 +1387,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onAgentMessageCompleted).toHaveBeenCalledTimes(2);
@@ -1339,7 +1417,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -1360,6 +1438,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onAgentMessageCompleted).toHaveBeenCalledTimes(1);
@@ -1381,7 +1461,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-1",
         message: {
@@ -1389,6 +1469,8 @@ describe("useAppServerEvents", () => {
           params: { threadId: "thread-1", pulse: 3 },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onProcessingHeartbeat).toHaveBeenCalledWith(
@@ -1410,7 +1492,7 @@ describe("useAppServerEvents", () => {
       useNormalizedRealtimeAdapters: true,
     });
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-opencode",
         message: {
@@ -1422,6 +1504,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onAgentMessageDelta).toHaveBeenCalledWith({
@@ -1445,7 +1529,7 @@ describe("useAppServerEvents", () => {
       useNormalizedRealtimeAdapters: true,
     });
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-claude",
         message: {
@@ -1460,6 +1544,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onAgentMessageDelta).toHaveBeenCalledTimes(1);
@@ -1484,7 +1570,7 @@ describe("useAppServerEvents", () => {
       useNormalizedRealtimeAdapters: true,
     });
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-codex",
         message: {
@@ -1501,6 +1587,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onItemStarted).toHaveBeenCalledWith(
@@ -1524,7 +1612,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-codex",
         message: {
@@ -1543,6 +1631,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onItemStarted).toHaveBeenCalledWith(
@@ -1570,7 +1660,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-codex",
         message: {
@@ -1586,6 +1676,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.getSingleProcessingCodexThreadId).toHaveBeenCalledWith(
@@ -1612,7 +1704,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-codex",
         message: {
@@ -1628,6 +1720,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.getSingleProcessingCodexThreadId).toHaveBeenCalledWith(
@@ -1651,7 +1745,7 @@ describe("useAppServerEvents", () => {
       useNormalizedRealtimeAdapters: true,
     });
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-claude",
         message: {
@@ -1739,6 +1833,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onAgentMessageDelta).toHaveBeenCalledTimes(3);
@@ -1785,7 +1881,7 @@ describe("useAppServerEvents", () => {
       useNormalizedRealtimeAdapters: true,
     });
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-claude",
         message: {
@@ -1814,6 +1910,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onAgentMessageDelta).toHaveBeenCalledTimes(1);
@@ -1845,7 +1943,7 @@ describe("useAppServerEvents", () => {
       useNormalizedRealtimeAdapters: true,
     });
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-claude",
         message: {
@@ -1857,6 +1955,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onAgentMessageDelta).toHaveBeenCalledWith({
@@ -1878,7 +1978,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-gemini",
         message: {
@@ -1890,6 +1990,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onAgentMessageDelta).toHaveBeenCalledWith({
@@ -1910,7 +2012,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-opencode",
         message: {
@@ -1922,6 +2024,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onAgentMessageDelta).not.toHaveBeenCalled();
@@ -1938,7 +2042,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-claude",
         message: {
@@ -1953,6 +2057,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onAgentMessageDelta).not.toHaveBeenCalled();
@@ -1979,7 +2085,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-codex",
         message: {
@@ -1991,9 +2097,11 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-codex",
         message: {
@@ -2008,6 +2116,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onAgentMessageDelta).toHaveBeenCalledTimes(1);
@@ -2033,7 +2143,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-claude",
         message: {
@@ -2121,6 +2231,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onAgentMessageDelta).toHaveBeenCalledTimes(2);
@@ -2168,7 +2280,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-claude",
         message: {
@@ -2197,6 +2309,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onAgentMessageDelta).not.toHaveBeenCalled();
@@ -2231,7 +2345,7 @@ describe("useAppServerEvents", () => {
       useNormalizedRealtimeAdapters: true,
     });
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-codex",
         message: {
@@ -2246,6 +2360,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onItemUpdated).toHaveBeenCalledTimes(1);
@@ -2273,7 +2389,7 @@ describe("useAppServerEvents", () => {
       useNormalizedRealtimeAdapters: true,
     });
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-codex-direct",
         message: {
@@ -2288,6 +2404,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onNormalizedRealtimeEvent).toHaveBeenCalledWith(
@@ -2322,7 +2440,7 @@ describe("useAppServerEvents", () => {
       useNormalizedRealtimeAdapters: true,
     });
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-codex-direct",
         message: {
@@ -2341,6 +2459,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onNormalizedRealtimeEvent).toHaveBeenCalledWith(
@@ -2383,7 +2503,7 @@ describe("useAppServerEvents", () => {
       useNormalizedRealtimeAdapters: true,
     });
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-codex",
         message: {
@@ -2395,9 +2515,11 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-codex",
         message: {
@@ -2412,6 +2534,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onAgentMessageDelta).toHaveBeenCalledTimes(1);
@@ -2446,7 +2570,7 @@ describe("useAppServerEvents", () => {
       useNormalizedRealtimeAdapters: true,
     });
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-codex",
         message: {
@@ -2461,9 +2585,11 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-codex",
         message: {
@@ -2475,6 +2601,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onNormalizedRealtimeEvent).toHaveBeenCalledTimes(1);
@@ -2508,7 +2636,7 @@ describe("useAppServerEvents", () => {
       useNormalizedRealtimeAdapters: true,
     });
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-codex",
         message: {
@@ -2523,9 +2651,11 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-codex",
         message: {
@@ -2537,6 +2667,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onNormalizedRealtimeEvent).toHaveBeenCalledTimes(1);
@@ -2567,7 +2699,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-claude",
         message: {
@@ -2578,6 +2710,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onAgentMessageDelta).toHaveBeenCalledWith({
@@ -2598,7 +2732,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-claude",
         message: {
@@ -2610,6 +2744,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onAgentMessageDelta).toHaveBeenCalledWith({
@@ -2631,7 +2767,7 @@ describe("useAppServerEvents", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-claude",
         message: {
@@ -2648,6 +2784,8 @@ describe("useAppServerEvents", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onItemCompleted).toHaveBeenCalledWith(

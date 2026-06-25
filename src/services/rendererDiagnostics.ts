@@ -19,6 +19,9 @@ const MAX_RENDERER_DIAGNOSTICS = 200;
 const MAX_PERF_ENTRIES = 1000;
 const MAX_REALTIME_TURN_SUMMARIES = 100;
 const MAX_STREAM_LATENCY_ENTRIES = 600;
+const MAX_MESSAGE_ROW_RENDER_DIAGNOSTIC_SIGNATURES = 400;
+const MESSAGE_ROW_RENDER_DIAGNOSTIC_MIN_INTERVAL_MS = 5_000;
+const MESSAGE_ROW_RENDER_DIAGNOSTIC_RENDER_COUNT_STEP = 20;
 const EARLY_RENDERER_DIAGNOSTICS_STORAGE_KEY = "ccgui.bootstrapRendererDiagnostics";
 const DEFAULT_BLANK_WATCHDOG_INTERVAL_MS = 1_500;
 const DEFAULT_BLANK_WATCHDOG_MIN_CONSECUTIVE_SAMPLES = 2;
@@ -35,6 +38,10 @@ let rendererHeartbeatTimer: number | null = null;
 let rendererHeartbeatInFlight = false;
 let rendererHeartbeatSequence = 0;
 let rendererHeartbeatFailureReports = 0;
+const messageRowRenderDiagnosticSamples = new Map<string, {
+  lastAt: number;
+  renderCount: number;
+}>();
 
 type BlankScreenWatchdogOptions = {
   rootId?: string;
@@ -398,6 +405,7 @@ export type MarkdownPrecomputeDiagnosticInput = {
   cacheState: string;
   fallbackReason?: string | null;
   evidenceClass: ClientInteractionPerfEvidenceKind;
+  heavyCategoryCounts?: Record<string, number> | null;
   totalHeadings?: number | null;
   totalHeavyBlocks?: number | null;
   totalSourceLines?: number | null;
@@ -428,6 +436,51 @@ function toFiniteDiagnosticNumber(value: number | null | undefined) {
 function toBoundedDiagnosticString(value: string | null | undefined) {
   const trimmed = value?.trim();
   return trimmed ? trimmed.slice(0, 120) : null;
+}
+
+function toBoundedDiagnosticCountRecord(value: Record<string, number> | null | undefined) {
+  if (!value) {
+    return null;
+  }
+  const result: Record<string, number> = {};
+  for (const [key, count] of Object.entries(value).slice(0, 20)) {
+    if (typeof count !== "number" || !Number.isFinite(count) || count <= 0) {
+      continue;
+    }
+    result[toBoundedDiagnosticString(key) ?? "unknown"] = Math.round(count);
+  }
+  return Object.keys(result).length > 0 ? result : null;
+}
+
+function shouldAppendMessageRowRenderBudgetDiagnostic(
+  input: MessageRowRenderBudgetDiagnosticInput,
+) {
+  const signature = [
+    input.threadId ?? "thread:unknown",
+    input.itemId,
+    input.role,
+    input.subtype,
+  ].join(":");
+  const now = Date.now();
+  const previous = messageRowRenderDiagnosticSamples.get(signature);
+  const renderCount = toFiniteDiagnosticNumber(input.renderCount) ?? 0;
+  const shouldAppend =
+    !previous ||
+    now - previous.lastAt >= MESSAGE_ROW_RENDER_DIAGNOSTIC_MIN_INTERVAL_MS ||
+    renderCount - previous.renderCount >= MESSAGE_ROW_RENDER_DIAGNOSTIC_RENDER_COUNT_STEP;
+  if (!shouldAppend) {
+    return false;
+  }
+  messageRowRenderDiagnosticSamples.delete(signature);
+  messageRowRenderDiagnosticSamples.set(signature, { lastAt: now, renderCount });
+  while (messageRowRenderDiagnosticSamples.size > MAX_MESSAGE_ROW_RENDER_DIAGNOSTIC_SIGNATURES) {
+    const oldestKey = messageRowRenderDiagnosticSamples.keys().next().value;
+    if (typeof oldestKey !== "string") {
+      break;
+    }
+    messageRowRenderDiagnosticSamples.delete(oldestKey);
+  }
+  return true;
 }
 
 function isPerfDiagnosticCollectionEnabled() {
@@ -603,6 +656,9 @@ export function appendMessageRowRenderBudgetDiagnostic(
   if (!isPerfDiagnosticCollectionEnabled()) {
     return;
   }
+  if (!shouldAppendMessageRowRenderBudgetDiagnostic(input)) {
+    return;
+  }
   appendRendererDiagnostic("perf.messages.row-render-budget", {
     threadId: toBoundedDiagnosticString(input.threadId),
     itemId: toBoundedDiagnosticString(input.itemId),
@@ -675,6 +731,7 @@ export function appendMarkdownPrecomputeDiagnostic(
     cacheState: toBoundedDiagnosticString(input.cacheState),
     fallbackReason: toBoundedDiagnosticString(input.fallbackReason),
     evidenceClass: input.evidenceClass,
+    heavyCategoryCounts: toBoundedDiagnosticCountRecord(input.heavyCategoryCounts),
     totalHeadings: toFiniteDiagnosticNumber(input.totalHeadings),
     totalHeavyBlocks: toFiniteDiagnosticNumber(input.totalHeavyBlocks),
     totalSourceLines: toFiniteDiagnosticNumber(input.totalSourceLines),

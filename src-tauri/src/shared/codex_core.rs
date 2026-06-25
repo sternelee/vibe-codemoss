@@ -31,6 +31,7 @@ const THREAD_COMPACTION_METHOD_CANDIDATES: [&str; 3] = [
     "thread/compact",
 ];
 const TURN_START_THREAD_NOT_FOUND_RETRY_DELAYS_MS: [u64; 2] = [150, 350];
+const THREAD_START_READY_CONFIRM_TIMEOUT_MS: u64 = 2_000;
 const FIRST_PACKET_TIMEOUT_ERROR_PREFIX: &str = "FIRST_PACKET_TIMEOUT";
 pub(crate) const INVALID_THREAD_START_RESPONSE_ERROR_PREFIX: &str = "invalid_thread_start_response";
 
@@ -552,6 +553,30 @@ pub(crate) async fn resume_thread_core(
         }
     }
     Ok(response)
+}
+
+pub(crate) async fn confirm_thread_ready_after_start_core(
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    workspace_id: String,
+    provider_profile_id: Option<String>,
+    thread_id: String,
+) -> Result<(), String> {
+    let session_key = session_key_for_provider(&workspace_id, provider_profile_id.as_deref());
+    let session = get_session_clone(sessions, &session_key).await?;
+    let params = json!({ "threadId": thread_id.clone() });
+    session
+        .send_request_with_timeout(
+            "thread/resume",
+            params,
+            Duration::from_millis(THREAD_START_READY_CONFIRM_TIMEOUT_MS),
+        )
+        .await
+        .map(|_| ())
+        .map_err(|error| {
+            format!(
+                "thread/start ready confirmation failed for workspace {workspace_id} thread {thread_id}: {error}"
+            )
+        })
 }
 
 pub(crate) async fn fork_thread_core(

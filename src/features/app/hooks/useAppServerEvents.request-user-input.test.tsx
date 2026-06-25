@@ -61,7 +61,7 @@ describe("useAppServerEvents request user input", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-9",
         message: {
@@ -95,6 +95,8 @@ describe("useAppServerEvents request user input", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onRequestUserInput).toHaveBeenCalledWith({
@@ -131,7 +133,7 @@ describe("useAppServerEvents request user input", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-multi",
         message: {
@@ -153,6 +155,8 @@ describe("useAppServerEvents request user input", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onRequestUserInput).toHaveBeenCalledWith({
@@ -187,7 +191,7 @@ describe("useAppServerEvents request user input", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-req-id",
         message: {
@@ -202,6 +206,8 @@ describe("useAppServerEvents request user input", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onRequestUserInput).toHaveBeenCalledWith({
@@ -235,7 +241,7 @@ describe("useAppServerEvents request user input", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-secret",
         message: {
@@ -256,6 +262,8 @@ describe("useAppServerEvents request user input", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onRequestUserInput).toHaveBeenCalledWith({
@@ -292,7 +300,7 @@ describe("useAppServerEvents request user input", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-nested",
         message: {
@@ -307,6 +315,8 @@ describe("useAppServerEvents request user input", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onRequestUserInput).toHaveBeenLastCalledWith({
@@ -329,7 +339,7 @@ describe("useAppServerEvents request user input", () => {
       },
     });
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-nested",
         message: {
@@ -341,6 +351,8 @@ describe("useAppServerEvents request user input", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onRequestUserInput).toHaveBeenLastCalledWith({
@@ -374,7 +386,7 @@ describe("useAppServerEvents request user input", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-completed",
         message: {
@@ -389,6 +401,8 @@ describe("useAppServerEvents request user input", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onRequestUserInput).toHaveBeenCalledWith({

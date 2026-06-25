@@ -69,7 +69,7 @@ describe("useAppServerEvents runtime ended routing", () => {
     });
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-runtime-ended",
         message: {
@@ -84,6 +84,8 @@ describe("useAppServerEvents runtime ended routing", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onRuntimeEnded).toHaveBeenCalledWith("ws-runtime-ended", {
@@ -117,7 +119,7 @@ describe("useAppServerEvents runtime ended routing", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-runtime-ended-manual",
         message: {
@@ -130,6 +132,8 @@ describe("useAppServerEvents runtime ended routing", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onRuntimeEnded).toHaveBeenCalledWith(
@@ -152,7 +156,7 @@ describe("useAppServerEvents runtime ended routing", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-runtime-ended-stale-cleanup",
         message: {
@@ -169,6 +173,8 @@ describe("useAppServerEvents runtime ended routing", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onRuntimeEnded).toHaveBeenCalledWith(
@@ -202,7 +208,7 @@ describe("useAppServerEvents runtime ended routing", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-runtime-ended-active-lease",
         message: {
@@ -215,6 +221,8 @@ describe("useAppServerEvents runtime ended routing", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onTurnError).toHaveBeenCalledWith(
@@ -243,7 +251,7 @@ describe("useAppServerEvents runtime ended routing", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-runtime-ended-ambiguous",
         message: {
@@ -256,6 +264,8 @@ describe("useAppServerEvents runtime ended routing", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onRuntimeEnded).toHaveBeenCalledWith(
@@ -295,7 +305,7 @@ describe("useAppServerEvents runtime ended routing", () => {
     });
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-runtime-ended-multi",
         message: {
@@ -318,6 +328,8 @@ describe("useAppServerEvents runtime ended routing", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onTurnError).toHaveBeenNthCalledWith(
@@ -365,7 +377,7 @@ describe("useAppServerEvents runtime ended routing", () => {
     });
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-runtime-ended-map-only",
         message: {
@@ -390,6 +402,8 @@ describe("useAppServerEvents runtime ended routing", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onRuntimeEnded).toHaveBeenCalledWith(

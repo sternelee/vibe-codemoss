@@ -54,6 +54,13 @@ async function mount(handlers: Handlers) {
   return { root };
 }
 
+async function deliver(event: AppServerEvent) {
+  await act(async () => {
+    listener?.(event);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+}
+
 describe("useAppServerEvents completion turn identity", () => {
   it("passes normalized turn id from top-level turn/completed params", async () => {
     const handlers: Handlers = {
@@ -61,19 +68,17 @@ describe("useAppServerEvents completion turn identity", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
-      listener?.({
-        workspace_id: "ws-1",
-        message: {
-          method: "turn/completed",
-          params: {
-            threadId: "claude:session-1",
-            turnId: "claude-turn-1",
-            result: { text: "final response" },
-            assistantFinalBoundary: true,
-          },
+    await deliver({
+      workspace_id: "ws-1",
+      message: {
+        method: "turn/completed",
+        params: {
+          threadId: "claude:session-1",
+          turnId: "claude-turn-1",
+          result: { text: "final response" },
+          assistantFinalBoundary: true,
         },
-      });
+      },
     });
 
     expect(handlers.onTurnCompleted).toHaveBeenCalledWith(
@@ -93,22 +98,20 @@ describe("useAppServerEvents completion turn identity", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
-      listener?.({
-        workspace_id: "ws-1",
-        message: {
-          method: "turn/completed",
-          params: {
-            threadId: "claude:session-1",
-            turnId: "claude-turn-normalized",
-            turn: {
-              id: "raw-engine-turn",
-            },
-            result: { text: "final response" },
-            assistantFinalBoundary: true,
+    await deliver({
+      workspace_id: "ws-1",
+      message: {
+        method: "turn/completed",
+        params: {
+          threadId: "claude:session-1",
+          turnId: "claude-turn-normalized",
+          turn: {
+            id: "raw-engine-turn",
           },
+          result: { text: "final response" },
+          assistantFinalBoundary: true,
         },
-      });
+      },
     });
 
     expect(handlers.onTurnCompleted).toHaveBeenCalledWith(

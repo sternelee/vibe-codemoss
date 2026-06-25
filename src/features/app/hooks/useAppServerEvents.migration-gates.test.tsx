@@ -75,7 +75,7 @@ describe("useAppServerEvents migration gates", () => {
         useNormalizedRealtimeAdapters: true,
       });
 
-      act(() => {
+      await act(async () => {
         listener?.({
           workspace_id: "ws-claude",
           message: {
@@ -90,6 +90,8 @@ describe("useAppServerEvents migration gates", () => {
             },
           },
         });
+
+        await new Promise((resolve) => setTimeout(resolve, 0));
       });
 
       expect(handlers.onAgentMessageDelta).not.toHaveBeenCalled();

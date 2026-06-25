@@ -215,6 +215,42 @@ vi.mock("react-i18next", () => ({
         "home.refreshUsage": "Refresh usage",
         "messages.reasoningProcessBoundary": "Thinking Process",
         "messages.finalMessageBoundary": "Final Message",
+        "messages.rowRenderFailedTitle": "This message could not be rendered.",
+        "messages.rowRenderFailedDescription":
+          "The rest of the conversation is still available. Retry this row or continue working.",
+        "messages.rowRenderRetry": "Retry row",
+        "messages.rowRenderRetryBlocked": "Retry blocked",
+        "messages.conversationLightweightModeEyebrow": "Render budget",
+        "messages.conversationLightweightSuggestionTitle": "Heavy conversation detected",
+        "messages.conversationLightweightSuggestionDescription":
+          "{{heavyRows}} heavy rows, render weight {{renderWeight}}.",
+        "messages.conversationLightweightModeTitle": "Lightweight mode is on",
+        "messages.conversationLightweightModeDescription":
+          "Heavy rows are shown as summaries first.",
+        "messages.conversationOversizedHistoryTitle":
+          "Oversized conversation opened in lightweight mode",
+        "messages.conversationOversizedHistoryDescription":
+          "{{rows}} rows, render weight {{renderWeight}}.",
+        "messages.conversationLightweightUse": "Use lightweight",
+        "messages.conversationLightweightStayLightweight": "Stay lightweight",
+        "messages.conversationLightweightHydrateVisible": "Hydrate visible details",
+        "messages.conversationLightweightRetryFullDetail": "Retry full detail",
+        "messages.conversationLightweightRowEyebrow": "Deferred detail",
+        "messages.conversationLightweightRowTitle": `${String(params?.kind ?? "")} summary`,
+        "messages.conversationLightweightRowMeta": `Render weight ${String(params?.weight ?? "")}`,
+        "messages.conversationLightweightAssistantMessage": "Assistant message",
+        "messages.conversationLightweightUserMessage": "User message",
+        "messages.markdownHeavyBlockDeferred": "Heavy Markdown detail deferred",
+        "messages.markdownHeavyBlockMeta":
+          `${String(params?.kind ?? "")} · ${String(params?.lines ?? "")} lines`,
+        "messages.markdownHeavyBlockShow": "Show detail",
+        "messages.markdownHeavyBlockTable": "Table",
+        "messages.toolHeavyDetailDeferred": "Tool detail deferred",
+        "messages.toolHeavyDetailMeta":
+          `${String(params?.kind ?? "")} · ${String(params?.count ?? "")} items`,
+        "messages.toolHeavyDetailShow": "Show detail",
+        "messages.toolHeavyOutput": "Output",
+        "messages.toolHeavyDiff": "Diff",
         "messages.agentBadgeAriaLabel": "Agent badge",
         "messages.agentBadgeWithNameAriaLabel": `Show agent badge: ${String(params?.name ?? "")}`,
         "git.semanticDiff.intent.springExceptionHandler":

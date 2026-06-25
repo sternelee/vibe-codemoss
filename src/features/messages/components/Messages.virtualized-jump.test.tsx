@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConversationItem } from "../../../types";
 
@@ -98,5 +98,175 @@ describe("Messages virtualized jump behavior", () => {
       expect.any(Number),
       { align: "center" },
     ]);
+  });
+
+  it("scrolls to an offscreen heavy anchor when render weight triggers virtualization", async () => {
+    const heavyMarkdown = [
+      "# Heavy section",
+      "| A | B | C |",
+      "| - | - | - |",
+      ...Array.from({ length: 28 }, (_, index) => `| ${index} | value | value |`),
+      "```ts",
+      ...Array.from({ length: 24 }, (_, index) => `const value${index} = ${index};`),
+      "```",
+      "<tool_call><invoke name=\"read_file\" /></tool_call>",
+    ].join("\n");
+    const items: ConversationItem[] = Array.from({ length: 36 }, (_, index) => ({
+      id: `heavy-u${index + 1}`,
+      kind: "message" as const,
+      role: "user" as const,
+      text: `${heavyMarkdown}\n\n${index + 1}`,
+    }));
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-heavy-jump"
+        workspaceId="ws-heavy"
+        isThinking={false}
+        activeEngine="claude"
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(container.querySelector('[data-message-anchor-id="heavy-u30"]')).toBeNull();
+
+    act(() => {
+      document.dispatchEvent(
+        new CustomEvent<string>("ccgui:jump-to-message", {
+          detail: "heavy-u30",
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(scrollToIndexMock).toHaveBeenCalled();
+    });
+    expect(scrollToIndexMock.mock.calls.at(-1)).toEqual([
+      expect.any(Number),
+      { align: "center" },
+    ]);
+  });
+
+  it("toggles lightweight summaries and hydrates details on request", async () => {
+    const heavyMarkdown = [
+      "# Heavy assistant answer",
+      "| A | B | C |",
+      "| - | - | - |",
+      ...Array.from({ length: 18 }, (_, index) => `| ${index} | value | value |`),
+      "```ts",
+      ...Array.from({ length: 18 }, (_, index) => `const heavyValue${index} = ${index};`),
+      "```",
+    ].join("\n");
+    const items: ConversationItem[] = Array.from({ length: 8 }, (_, index) => ({
+      id: `assistant-heavy-${index + 1}`,
+      kind: "message" as const,
+      role: "assistant" as const,
+      text: `canonical assistant payload ${index + 1}\n\n${heavyMarkdown}`,
+      isFinal: true,
+    }));
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-lightweight-toggle"
+        workspaceId="ws-heavy"
+        isThinking={false}
+        activeEngine="claude"
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(screen.getByText("Heavy conversation detected")).toBeTruthy();
+    expect(screen.queryByText("Deferred detail")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Use lightweight" }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Deferred detail").length).toBeGreaterThan(0);
+    });
+    expect(screen.getAllByRole("button", { name: "messages.copyMessage" }).length)
+      .toBeGreaterThan(0);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Hydrate visible details" })[0]!);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Deferred detail")).toBeNull();
+    });
+  });
+
+  it("does not inject lightweight summary cards while a heavy conversation is streaming", () => {
+    const heavyMarkdown = [
+      "# Streaming heavy answer",
+      "| A | B | C |",
+      "| - | - | - |",
+      ...Array.from({ length: 32 }, (_, index) => `| ${index} | value | value |`),
+      "```ts",
+      ...Array.from({ length: 32 }, (_, index) => `const streamingValue${index} = ${index};`),
+      "```",
+    ].join("\n");
+    const items: ConversationItem[] = Array.from({ length: 8 }, (_, index) => ({
+      id: `streaming-heavy-${index + 1}`,
+      kind: "message" as const,
+      role: "assistant" as const,
+      text: `${heavyMarkdown}\n\nchunk ${index + 1}`,
+      isFinal: index < 7,
+    }));
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-heavy-streaming"
+        workspaceId="ws-heavy"
+        isThinking={true}
+        activeEngine="claude"
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(screen.queryByText("Heavy conversation detected")).toBeNull();
+    expect(screen.queryByText("Deferred detail")).toBeNull();
+    expect(container.querySelector("[data-timeline-virtualized='true']")).toBeNull();
+    expect(screen.getAllByText(/Streaming heavy answer/).length).toBeGreaterThan(0);
+  });
+
+  it("shows an oversized history prompt before full detail hydration", () => {
+    const oversizedMarkdown = [
+      "# Oversized section",
+      "| A | B | C |",
+      "| - | - | - |",
+      ...Array.from({ length: 90 }, (_, index) => `| ${index} | value | value |`),
+      "```ts",
+      ...Array.from({ length: 44 }, (_, index) => `const oversizedValue${index} = ${index};`),
+      "```",
+      "<tool_call><invoke name=\"read_file\" /></tool_call>",
+    ].join("\n");
+    const items: ConversationItem[] = Array.from({ length: 12 }, (_, index) => ({
+      id: `oversized-u${index + 1}`,
+      kind: "message" as const,
+      role: "user" as const,
+      text: `${oversizedMarkdown}\n\n${index + 1}`,
+    }));
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-oversized-prompt"
+        workspaceId="ws-heavy"
+        isThinking={false}
+        activeEngine="claude"
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(screen.getByText("Oversized conversation opened in lightweight mode")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Stay lightweight" })).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Hydrate visible details" }).length)
+      .toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Retry full detail" })).toBeTruthy();
   });
 });

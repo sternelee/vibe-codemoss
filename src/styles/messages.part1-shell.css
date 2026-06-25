@@ -145,11 +145,123 @@
 
 .messages-virtualized-row {
   contain: layout paint style;
+  box-sizing: border-box;
+  min-width: 0;
+  overflow: visible;
+  padding-bottom: 1px;
 }
 
 .messages-virtualized-row.is-active-live-row {
   contain: layout paint;
   isolation: isolate;
+}
+
+.messages-lightweight-mode-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px auto 12px;
+  max-width: 750px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-panel, var(--surface-secondary)) 88%, #2563eb 12%);
+  color: var(--text-default);
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.messages-lightweight-mode-banner-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.messages-lightweight-mode-banner-eyebrow,
+.messages-lightweight-row-summary-eyebrow {
+  color: var(--text-faint);
+  font-size: var(--message-caption-font-size);
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.messages-lightweight-mode-banner strong,
+.messages-lightweight-row-summary strong {
+  color: var(--text-strong);
+  font-size: var(--message-title-font-size);
+}
+
+.messages-lightweight-mode-banner span,
+.messages-lightweight-row-summary span {
+  color: var(--text-muted);
+  font-size: var(--message-meta-font-size);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.messages-lightweight-mode-banner-actions,
+.messages-lightweight-row-summary-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.messages-lightweight-mode-banner-actions button,
+.messages-lightweight-row-detail-button {
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--surface-hover);
+  color: var(--text-default);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--message-meta-font-size);
+}
+
+.messages-lightweight-mode-banner-actions button:hover,
+.messages-lightweight-mode-banner-actions button:focus-visible,
+.messages-lightweight-row-detail-button:hover,
+.messages-lightweight-row-detail-button:focus-visible {
+  border-color: color-mix(in srgb, var(--accent, #2563eb) 42%, var(--border-subtle));
+  color: var(--text-strong);
+}
+
+.messages-lightweight-row-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 0;
+  padding: 10px 12px;
+  border: 1px dashed var(--border-subtle);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-panel, var(--surface-secondary)) 92%, #2563eb 8%);
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.messages-lightweight-row-summary-main {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .messages-lightweight-mode-banner,
+  .messages-lightweight-row-summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .messages-lightweight-mode-banner-actions,
+  .messages-lightweight-row-summary-actions {
+    flex-wrap: wrap;
+  }
 }
 
 .messages-inline-approval-slot {

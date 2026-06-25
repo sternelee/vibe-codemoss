@@ -119,6 +119,12 @@ import {
   VISIBLE_TEXT_REPORT_MIN_INTERVAL_MS,
 } from "./messagesConstants";
 import {
+  DEFAULT_RENDER_LOOP_GUARD_BUDGET,
+  resolveIdempotentRenderLoopGuard,
+  type RenderLoopGuardBudget,
+} from "./messagesRenderLoopGuards";
+import { addBoundedConversationRenderModeKey } from "./messagesConversationLightweightMode";
+import {
   resolveAssistantRuntimeReconnectHint,
   resolveRetryMessageForReconnectItem,
 } from "./runtimeReconnect";
@@ -223,6 +229,8 @@ export const Messages = memo(function Messages({
   const activeTurnId = effectiveState.meta.activeTurnId ?? null;
   const activeEngine = toConversationEngine(effectiveState.meta.engine);
   const renderScopeKey = `${workspaceId ?? ""}\u0000${threadId ?? ""}`;
+  const conversationRenderModeKey =
+    workspaceId && threadId ? `${workspaceId}\u0000${threadId}` : null;
   const isThinking = conversationState
     ? effectiveState.meta.isThinking
     : legacyIsThinking;
@@ -291,8 +299,60 @@ export const Messages = memo(function Messages({
     Record<string, Extract<AccessMode, "default" | "full-access">>
   >({});
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [lightweightConversationKeys, setLightweightConversationKeys] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [detailHydrationConversationKeys, setDetailHydrationConversationKeys] = useState<
+    Set<string>
+  >(() => new Set());
+  const conversationLightweightModeEnabled = Boolean(
+    conversationRenderModeKey && lightweightConversationKeys.has(conversationRenderModeKey),
+  );
+  const conversationDetailHydrationRequested = Boolean(
+    conversationRenderModeKey && detailHydrationConversationKeys.has(conversationRenderModeKey),
+  );
+  const handleConversationLightweightModeEnable = useCallback(() => {
+    if (!conversationRenderModeKey) {
+      return;
+    }
+    setLightweightConversationKeys((previous) => {
+      return addBoundedConversationRenderModeKey(previous, conversationRenderModeKey);
+    });
+    setDetailHydrationConversationKeys((previous) => {
+      if (!previous.has(conversationRenderModeKey)) {
+        return previous;
+      }
+      const next = new Set(previous);
+      next.delete(conversationRenderModeKey);
+      return next;
+    });
+  }, [conversationRenderModeKey]);
+  const handleConversationDetailHydrationRequest = useCallback(() => {
+    if (!conversationRenderModeKey) {
+      return;
+    }
+    setDetailHydrationConversationKeys((previous) => {
+      return addBoundedConversationRenderModeKey(previous, conversationRenderModeKey);
+    });
+    setLightweightConversationKeys((previous) => {
+      if (!previous.has(conversationRenderModeKey)) {
+        return previous;
+      }
+      const next = new Set(previous);
+      next.delete(conversationRenderModeKey);
+      return next;
+    });
+  }, [conversationRenderModeKey]);
   const [activeAnchorId, setActiveAnchorId] = useState<string | null>(null);
   const [activeStickyMessageId, setActiveStickyMessageId] = useState<string | null>(null);
+  const activeAnchorIdRef = useRef<string | null>(null);
+  const activeStickyMessageIdRef = useRef<string | null>(null);
+  const anchorLoopGuardRef = useRef<RenderLoopGuardBudget>(
+    DEFAULT_RENDER_LOOP_GUARD_BUDGET,
+  );
+  const stickyLoopGuardRef = useRef<RenderLoopGuardBudget>(
+    DEFAULT_RENDER_LOOP_GUARD_BUDGET,
+  );
   const [showAllHistoryItems, setShowAllHistoryItems] = useState(false);
   const [pendingJumpMessageId, setPendingJumpMessageId] = useState<string | null>(null);
   const [liveAutoFollowEnabled, setLiveAutoFollowEnabled] = useState(() =>
@@ -326,6 +386,7 @@ export const Messages = memo(function Messages({
   const lastStreamSurfaceDiagnosticKeyRef = useRef<string | null>(null);
   const previousAssistantThinkingRef = useRef(isThinking);
   const previousAssistantThreadIdRef = useRef(threadId);
+  const resourceCleanupThreadIdRef = useRef(threadId);
   const frozenItemsRef = useRef<ConversationItem[] | null>(null);
   const latestItemsRef = useRef(items);
   latestItemsRef.current = items;
@@ -457,11 +518,29 @@ export const Messages = memo(function Messages({
   }, []);
 
   useEffect(() => {
+    const previousThreadId = resourceCleanupThreadIdRef.current;
+    const threadChanged = previousThreadId !== threadId;
+    const pendingResourceCounts = {
+      anchorRaf: anchorUpdateRafRef.current !== null ? 1 : 0,
+      stickyRaf: historyStickyUpdateRafRef.current !== null ? 1 : 0,
+      planFocusRaf: planPanelFocusRafRef.current !== null ? 1 : 0,
+      planFocusTimer: planPanelFocusTimeoutRef.current !== null ? 1 : 0,
+      assistantFinalizingTimer: assistantFinalizingTimerRef.current !== null ? 1 : 0,
+      copyTimer: copyTimeoutRef.current !== null ? 1 : 0,
+      scrollThrottleTimer: scrollThrottleRef.current ? 1 : 0,
+      messageNodeCount: messageNodeByIdRef.current.size,
+      agentTaskNodeCount:
+        agentTaskNodeByTaskIdRef.current.size + agentTaskNodeByToolUseIdRef.current.size,
+    };
     autoScrollRef.current = true;
-    setExpandedItems(new Set());
+    setExpandedItems((previous) => (previous.size === 0 ? previous : new Set()));
     setIsSelectionFrozen(false);
     frozenItemsRef.current = null;
     pendingHistoryExpansionScrollSnapshotRef.current = null;
+    activeAnchorIdRef.current = null;
+    activeStickyMessageIdRef.current = null;
+    anchorLoopGuardRef.current = DEFAULT_RENDER_LOOP_GUARD_BUDGET;
+    stickyLoopGuardRef.current = DEFAULT_RENDER_LOOP_GUARD_BUDGET;
     if (typeof window !== "undefined") {
       if (anchorUpdateRafRef.current !== null) {
         window.cancelAnimationFrame(anchorUpdateRafRef.current);
@@ -492,10 +571,23 @@ export const Messages = memo(function Messages({
         scrollThrottleRef.current = 0;
       }
     }
+    if (threadChanged) {
+      appendRendererDiagnostic("messages/render-resource-cleanup", {
+        surface: "conversation",
+        component: "Messages",
+        workspaceId: workspaceId ?? null,
+        previousThreadId,
+        threadId,
+        pendingResourceCounts,
+      });
+    }
+    resourceCleanupThreadIdRef.current = threadId;
     setFinalizingAssistantMessageId(null);
+    setActiveAnchorId(null);
+    setActiveStickyMessageId(null);
     previousAssistantThinkingRef.current = false;
     previousAssistantThreadIdRef.current = threadId;
-  }, [threadId]);
+  }, [threadId, workspaceId]);
   useEffect(() => {
     scrollToAgentTaskCard(agentTaskScrollRequest);
   }, [agentTaskScrollRequest, scrollToAgentTaskCard]);
@@ -1477,6 +1569,78 @@ export const Messages = memo(function Messages({
     },
     [],
   );
+  const commitActiveAnchorId = useCallback(
+    (nextActiveAnchor: string | null, reason: "scroll" | "sync") => {
+      const signature = [
+        "anchor",
+        reason,
+        nextActiveAnchor ?? "none",
+        messageAnchors.length,
+      ].join(":");
+      const guard = resolveIdempotentRenderLoopGuard({
+        previous: anchorLoopGuardRef.current,
+        signature,
+        changed: activeAnchorIdRef.current !== nextActiveAnchor,
+        now: Date.now(),
+      });
+      anchorLoopGuardRef.current = guard.nextBudget;
+      if (!guard.shouldCommit) {
+        if (guard.shouldDiagnose) {
+          appendRendererDiagnostic("messages/overlay-loop-guard", {
+            surface: "anchor-rail",
+            component: "Messages",
+            reason,
+            threadId,
+            workspaceId: workspaceId ?? null,
+            rowKind: "message-anchor",
+            counter: guard.suppressedCount,
+            threshold: "idempotent-state-write",
+            anchorCount: messageAnchors.length,
+          });
+        }
+        return;
+      }
+      activeAnchorIdRef.current = nextActiveAnchor;
+      setActiveAnchorId(nextActiveAnchor);
+    },
+    [messageAnchors.length, threadId, workspaceId],
+  );
+  const commitActiveStickyMessageId = useCallback(
+    (nextStickyId: string | null, reason: "scroll" | "sync") => {
+      const signature = [
+        "sticky",
+        reason,
+        nextStickyId ?? "none",
+        historyStickyCandidates.length,
+      ].join(":");
+      const guard = resolveIdempotentRenderLoopGuard({
+        previous: stickyLoopGuardRef.current,
+        signature,
+        changed: activeStickyMessageIdRef.current !== nextStickyId,
+        now: Date.now(),
+      });
+      stickyLoopGuardRef.current = guard.nextBudget;
+      if (!guard.shouldCommit) {
+        if (guard.shouldDiagnose) {
+          appendRendererDiagnostic("messages/overlay-loop-guard", {
+            surface: "sticky-header",
+            component: "Messages",
+            reason,
+            threadId,
+            workspaceId: workspaceId ?? null,
+            rowKind: "history-sticky-message",
+            counter: guard.suppressedCount,
+            threshold: "idempotent-state-write",
+            candidateCount: historyStickyCandidates.length,
+          });
+        }
+        return;
+      }
+      activeStickyMessageIdRef.current = nextStickyId;
+      setActiveStickyMessageId(nextStickyId);
+    },
+    [historyStickyCandidates.length, threadId, workspaceId],
+  );
   const scheduleAnchorUpdate = useCallback(
     (reason: "scroll" | "sync") => {
       if (!hasAnchorRail) {
@@ -1503,12 +1667,10 @@ export const Messages = memo(function Messages({
             threadId,
           });
         }
-        setActiveAnchorId((previous) =>
-          previous === nextActiveAnchor ? previous : nextActiveAnchor,
-        );
+        commitActiveAnchorId(nextActiveAnchor, reason);
       });
     },
-    [computeActiveAnchor, hasAnchorRail, messageAnchors, threadId],
+    [commitActiveAnchorId, computeActiveAnchor, hasAnchorRail, messageAnchors, threadId],
   );
   const scheduleStickyHeaderUpdate = useCallback(
     (reason: "scroll" | "sync") => {
@@ -1535,12 +1697,11 @@ export const Messages = memo(function Messages({
             threadId,
           });
         }
-        setActiveStickyMessageId((previous) =>
-          previous === nextStickyId ? previous : nextStickyId,
-        );
+        commitActiveStickyMessageId(nextStickyId, reason);
       });
     },
     [
+      commitActiveStickyMessageId,
       computeActiveStickyMessageId,
       historyStickyCandidates,
       showStickyUserBubble,
@@ -1616,6 +1777,9 @@ export const Messages = memo(function Messages({
       planPanelFocusNodeRef.current.classList.remove("plan-panel-focus-ring");
       planPanelFocusNodeRef.current = null;
     }
+    messageNodeByIdRef.current.clear();
+    agentTaskNodeByTaskIdRef.current.clear();
+    agentTaskNodeByToolUseIdRef.current.clear();
   }, []);
 
   useEffect(() => {
@@ -1781,6 +1945,8 @@ export const Messages = memo(function Messages({
         window.cancelAnimationFrame(anchorUpdateRafRef.current);
         anchorUpdateRafRef.current = null;
       }
+      activeAnchorIdRef.current = null;
+      anchorLoopGuardRef.current = DEFAULT_RENDER_LOOP_GUARD_BUDGET;
       setActiveAnchorId(null);
       return;
     }
@@ -1793,6 +1959,8 @@ export const Messages = memo(function Messages({
         window.cancelAnimationFrame(historyStickyUpdateRafRef.current);
         historyStickyUpdateRafRef.current = null;
       }
+      activeStickyMessageIdRef.current = null;
+      stickyLoopGuardRef.current = DEFAULT_RENDER_LOOP_GUARD_BUDGET;
       setActiveStickyMessageId(null);
       return;
     }
@@ -1974,9 +2142,9 @@ export const Messages = memo(function Messages({
       top: Math.max(0, targetTop),
       behavior: "smooth",
     });
-    setActiveAnchorId((previous) => (previous === messageId ? previous : messageId));
+    commitActiveAnchorId(messageId, "sync");
     return true;
-  }, []);
+  }, [commitActiveAnchorId]);
 
   const requestScrollToAnchor = useCallback((messageId: string) => {
     if (scrollToAnchor(messageId)) {
@@ -2109,8 +2277,12 @@ export const Messages = memo(function Messages({
           latestRuntimeReconnectItemId={latestRuntimeReconnectItemId}
           latestWorkingActivityLabel={latestWorkingActivityLabel}
           liveAutoExpandedExploreId={liveAutoExpandedExploreId}
+          conversationDetailHydrationRequested={conversationDetailHydrationRequested}
+          conversationLightweightModeEnabled={conversationLightweightModeEnabled}
           messageNodeByIdRef={messageNodeByIdRef}
           onOpenDiffPath={onOpenDiffPath}
+          onConversationDetailHydrationRequest={handleConversationDetailHydrationRequest}
+          onConversationLightweightModeEnable={handleConversationLightweightModeEnable}
           onRecoverThreadRuntime={onRecoverThreadRuntime}
           onRecoverThreadRuntimeAndResend={onRecoverThreadRuntimeAndResend}
           onThreadRecoveryFork={onThreadRecoveryFork}

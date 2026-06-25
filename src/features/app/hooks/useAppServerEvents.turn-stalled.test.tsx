@@ -61,7 +61,7 @@ describe("useAppServerEvents turn stalled", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.({
         workspace_id: "ws-stalled",
         message: {
@@ -81,6 +81,8 @@ describe("useAppServerEvents turn stalled", () => {
           },
         },
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onTurnStalled).toHaveBeenCalledWith(

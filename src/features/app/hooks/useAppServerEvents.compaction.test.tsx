@@ -54,6 +54,13 @@ async function mount(handlers: Handlers) {
   return { root };
 }
 
+async function deliver(event: AppServerEvent) {
+  await act(async () => {
+    listener?.(event);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+}
+
 describe("useAppServerEvents compaction events", () => {
   it("routes compaction source flags for manual lifecycle events", async () => {
     const handlers: Handlers = {
@@ -62,18 +69,16 @@ describe("useAppServerEvents compaction events", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
-      listener?.({
-        workspace_id: "ws-2",
-        message: {
-          method: "thread/compacting",
-          params: {
-            threadId: "thread-2",
-            auto: false,
-            manual: true,
-          },
+    await deliver({
+      workspace_id: "ws-2",
+      message: {
+        method: "thread/compacting",
+        params: {
+          threadId: "thread-2",
+          auto: false,
+          manual: true,
         },
-      });
+      },
     });
 
     expect(handlers.onContextCompacting).toHaveBeenCalledWith(
@@ -88,18 +93,16 @@ describe("useAppServerEvents compaction events", () => {
       },
     );
 
-    act(() => {
-      listener?.({
-        workspace_id: "ws-2",
-        message: {
-          method: "thread/compacted",
-          params: {
-            threadId: "thread-2",
-            turnId: "turn-2",
-            manual: true,
-          },
+    await deliver({
+      workspace_id: "ws-2",
+      message: {
+        method: "thread/compacted",
+        params: {
+          threadId: "thread-2",
+          turnId: "turn-2",
+          manual: true,
         },
-      });
+      },
     });
 
     expect(handlers.onContextCompacted).toHaveBeenCalledWith(
@@ -122,17 +125,15 @@ describe("useAppServerEvents compaction events", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
-      listener?.({
-        workspace_id: "ws-nested",
-        message: {
-          method: "thread/compacting",
-          params: {
-            thread: { id: "codex-thread-nested" },
-            auto: true,
-          },
+    await deliver({
+      workspace_id: "ws-nested",
+      message: {
+        method: "thread/compacting",
+        params: {
+          thread: { id: "codex-thread-nested" },
+          auto: true,
         },
-      });
+      },
     });
 
     expect(handlers.onContextCompacting).toHaveBeenCalledWith(
@@ -146,17 +147,15 @@ describe("useAppServerEvents compaction events", () => {
       },
     );
 
-    act(() => {
-      listener?.({
-        workspace_id: "ws-nested",
-        message: {
-          method: "thread/compacted",
-          params: {
-            thread: { id: "codex-thread-nested" },
-            turn: { id: "turn-nested" },
-          },
+    await deliver({
+      workspace_id: "ws-nested",
+      message: {
+        method: "thread/compacted",
+        params: {
+          thread: { id: "codex-thread-nested" },
+          turn: { id: "turn-nested" },
         },
-      });
+      },
     });
 
     expect(handlers.onContextCompacted).toHaveBeenCalledWith(
@@ -165,17 +164,15 @@ describe("useAppServerEvents compaction events", () => {
       "turn-nested",
     );
 
-    act(() => {
-      listener?.({
-        workspace_id: "ws-nested",
-        message: {
-          method: "thread/compactionFailed",
-          params: {
-            thread: { id: "codex-thread-nested" },
-            reason: "nested failed",
-          },
+    await deliver({
+      workspace_id: "ws-nested",
+      message: {
+        method: "thread/compactionFailed",
+        params: {
+          thread: { id: "codex-thread-nested" },
+          reason: "nested failed",
         },
-      });
+      },
     });
 
     expect(handlers.onContextCompactionFailed).toHaveBeenCalledWith(
@@ -197,18 +194,16 @@ describe("useAppServerEvents compaction events", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
-      listener?.({
-        workspace_id: "ws-numeric",
-        message: {
-          method: "thread/compacting",
-          params: {
-            thread: { threadId: "codex-thread-threadId" },
-            auto: 1,
-            manual: 0,
-          },
+    await deliver({
+      workspace_id: "ws-numeric",
+      message: {
+        method: "thread/compacting",
+        params: {
+          thread: { threadId: "codex-thread-threadId" },
+          auto: 1,
+          manual: 0,
         },
-      });
+      },
     });
 
     expect(handlers.onContextCompacting).toHaveBeenCalledWith(
@@ -234,14 +229,12 @@ describe("useAppServerEvents compaction events", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
-      listener?.({
-        workspace_id: "ws-2",
-        message: {
-          method: "thread/compacted",
-          params: { threadId: "thread-2" },
-        },
-      });
+    await deliver({
+      workspace_id: "ws-2",
+      message: {
+        method: "thread/compacted",
+        params: { threadId: "thread-2" },
+      },
     });
 
     expect(handlers.onContextCompacted).toHaveBeenCalledWith(

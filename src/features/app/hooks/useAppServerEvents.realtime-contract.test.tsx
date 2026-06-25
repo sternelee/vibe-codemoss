@@ -86,12 +86,14 @@ describe("useAppServerEvents realtime contract", () => {
     };
     const { root } = await mount(handlers);
 
-    act(() => {
+    await act(async () => {
       listener?.(canonicalEvent("turnStarted"));
       listener?.(canonicalEvent("processingHeartbeat"));
       listener?.(canonicalEvent("usageUpdate"));
       listener?.(canonicalEvent("turnError"));
       listener?.(canonicalEvent("turnCompleted"));
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onTurnStarted).toHaveBeenCalledWith(
@@ -143,8 +145,10 @@ describe("useAppServerEvents realtime contract", () => {
       throw new Error("Missing legacy usage fixture");
     }
 
-    act(() => {
+    await act(async () => {
       listener?.(usageAlias.event);
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(handlers.onThreadTokenUsageUpdated).toHaveBeenCalledWith(
