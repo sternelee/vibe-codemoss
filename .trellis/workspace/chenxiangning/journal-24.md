@@ -166,3 +166,51 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 924: 完成精选技能收口
+
+**Date**: 2026-06-25
+**Task**: 完成精选技能收口
+**Branch**: `feature/v0.5.13`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| Area | Summary |
+|------|---------|
+| Curated skills | Added bundled `lazy-senior-dev` curated skill assets, metadata, lock validation, runtime loading, Settings toggle surface, and composer readiness indicator. |
+| Engine integration | Injected enabled curated skills into Codex app-server developer instructions and Claude `--append-system-prompt`, with restart detection for stale app-server snapshots. |
+| Boundary hardening | Added build-time/runtime curated skill id validation, settings id sanitization, safe UTF-8 prompt truncation, source/path validation, and async unmount guards. |
+| Large-file governance | Split Claude curated prompt construction into `src-tauri/src/engine/claude/curated_skill_prompt.rs`, reducing `claude.rs` growth while keeping the hard gate clean. |
+| OpenSpec | Reconciled the archived original curated-skill proposal, wrote follow-up change artifacts, and updated main `curated-skill-bundles` spec plus tasks verification. |
+| Verification | Passed typecheck, lint, runtime contracts, OpenSpec strict validation, large-file hard/advisory gates, focused Rust/frontend tests, and `npm run check:heavy-test-noise` across 723 Vitest files. |
+
+**Primary commit**: `45c65526 feat(curated-skills): 完成精选技能收口`
+
+**Notes**:
+- `npm run check:heavy-test-noise` completed with environment warnings=1, act warnings=0, stdout payload lines=0, stderr payload lines=0.
+- `npm run check:large-files:gate` reported found=0.
+- `npm run check:large-files:near-threshold` reported advisory watch-list warnings only; no failing files.
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `45c65526` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
