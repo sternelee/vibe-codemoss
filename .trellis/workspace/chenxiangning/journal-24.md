@@ -214,3 +214,43 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 925: 消除精选技能测试 helper 死代码告警
+
+**Date**: 2026-06-25
+**Task**: 消除精选技能测试 helper 死代码告警
+**Branch**: `feature/v0.5.13`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| Area | Summary |
+|------|---------|
+| Rust warning cleanup | Changed `validate_token_estimate` in `src-tauri/src/curated_skills.rs` from `pub(crate)` production-visible helper to a `#[cfg(test)]` private helper because it is only used by unit tests. |
+| Verification | `cargo test --manifest-path src-tauri/Cargo.toml curated_skill --lib` passed with 36 tests. |
+| Verification | `cargo check --manifest-path src-tauri/Cargo.toml --lib` passed without the reported dead_code warning. |
+
+**Primary commit**: `911537d7 fix(curated-skills): 消除测试估算函数死代码告警`
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `911537d7` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
