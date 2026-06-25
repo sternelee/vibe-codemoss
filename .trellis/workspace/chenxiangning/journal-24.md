@@ -496,3 +496,41 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 933: 降级临时 runtime 重连提示
+
+**Date**: 2026-06-25
+**Task**: 降级临时 runtime 重连提示
+**Branch**: `feature/v0.5.13`
+
+### Summary
+
+修复 transient managed-runtime cleanup 被误当作真实断联恢复卡的问题，并同步记录到 harden-codex-disk-session-start-readiness 提案。
+
+### Main Changes
+
+- 区分 blocking runtime reconnect diagnostic 与 transient managed-runtime cleanup。
+- `stale_reuse_cleanup` / `internal_replacement` 只显示轻量 Runtime 切换提示，不再显示重连/重发按钮。
+- 用户继续输入后丢弃旧 transient diagnostic，避免旧 runtime 切换提示长期占据对话流。
+- 更新 `harden-codex-disk-session-start-readiness` proposal/tasks，记录本次 UI semantics 收敛。
+- 验证：focused runtime reconnect tests、typecheck、lint、OpenSpec validate 均通过。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `809e8234` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
