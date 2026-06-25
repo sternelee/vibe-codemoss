@@ -85,6 +85,7 @@ export function useAppServerEventBatchDispatch(
   const renderScheduler = useRenderScheduler({
     budgetMs: schedule.budgetMs,
     idleTimeoutMs: schedule.idleTimeoutMs,
+    diagnosticSurfaceId: "app-server-event-dispatch",
   });
 
   const queueRef = useRef<AppServerEvent[]>([]);

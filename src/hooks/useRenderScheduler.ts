@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
+import { appendRenderSchedulerResourceDiagnostic } from "../services/rendererDiagnostics";
 
 // Reusable idle-callback + budget scheduler. Replaces the ad-hoc
 // `requestIdleCallback` + `setTimeout(0)` fallback in
@@ -21,6 +22,8 @@ export type UseRenderSchedulerOptions = {
   onChunk?: (info: { chunkIndex: number; yieldCount: number }) => void;
   /** Optional input-pending detector. Defaults to `navigator.scheduling.isInputPending`. */
   isInputPending?: () => boolean;
+  /** Optional content-safe diagnostics owner for long-run resource cleanup evidence. */
+  diagnosticSurfaceId?: string;
 };
 
 export type UseRenderScheduler = {
@@ -46,6 +49,10 @@ export type RenderSchedulerInstrumentation = {
   budgetMissCount: number;
   idleCallbackCount: number;
   timeoutFallbackCount: number;
+  pendingCallback: boolean;
+  idleCallbackPending: boolean;
+  timeoutFallbackPending: boolean;
+  cancelled: boolean;
 };
 
 type IdleHandle = number;
@@ -71,6 +78,7 @@ export function useRenderScheduler(
     onYield,
     onChunk,
     isInputPending,
+    diagnosticSurfaceId,
   } = options;
 
   const countersRef = useRef<RenderSchedulerInstrumentation>({
@@ -80,6 +88,10 @@ export function useRenderScheduler(
     budgetMissCount: 0,
     idleCallbackCount: 0,
     timeoutFallbackCount: 0,
+    pendingCallback: false,
+    idleCallbackPending: false,
+    timeoutFallbackPending: false,
+    cancelled: false,
   });
   const pendingRef = useRef(false);
   const scheduleRef = useRef<((run: () => boolean) => void) | null>(null);
@@ -115,6 +127,46 @@ export function useRenderScheduler(
       clearTimeout(timeoutHandleRef.current);
       timeoutHandleRef.current = null;
     }
+  }, []);
+
+  const snapshotInstrumentation = useCallback(
+    (): RenderSchedulerInstrumentation => ({
+      ...countersRef.current,
+      pendingCallback: pendingRef.current,
+      idleCallbackPending: idleHandleRef.current !== null,
+      timeoutFallbackPending: timeoutHandleRef.current !== null,
+      cancelled: cancelledRef.current,
+    }),
+    [],
+  );
+
+  const appendResourceSnapshot = useCallback(
+    (cancelled: boolean) => {
+      if (!diagnosticSurfaceId) {
+        return;
+      }
+      const snapshot = snapshotInstrumentation();
+      appendRenderSchedulerResourceDiagnostic({
+        surfaceId: diagnosticSurfaceId,
+        chunkCount: snapshot.chunkCount,
+        yieldCount: snapshot.yieldCount,
+        inputPendingYieldCount: snapshot.inputPendingYieldCount,
+        budgetMissCount: snapshot.budgetMissCount,
+        idleCallbackCount: snapshot.idleCallbackCount,
+        timeoutFallbackCount: snapshot.timeoutFallbackCount,
+        pendingCallback: snapshot.pendingCallback,
+        idleCallbackPending: snapshot.idleCallbackPending,
+        timeoutFallbackPending: snapshot.timeoutFallbackPending,
+        cancelled,
+        evidenceClass: "proxy",
+      });
+    },
+    [diagnosticSurfaceId, snapshotInstrumentation],
+  );
+
+  const markCancelled = useCallback((cancelled: boolean) => {
+    cancelledRef.current = cancelled;
+    countersRef.current.cancelled = cancelled;
   }, []);
 
   const invokeYield = useCallback(
@@ -215,23 +267,25 @@ export function useRenderScheduler(
   );
 
   const cancel = useCallback(() => {
-    cancelledRef.current = true;
+    markCancelled(true);
+    appendResourceSnapshot(true);
     pendingRef.current = false;
     clearPendingHandles();
-  }, [clearPendingHandles]);
+  }, [appendResourceSnapshot, clearPendingHandles, markCancelled]);
 
   // Reset cancellation latch on each render; we keep the counters intact.
   useEffect(() => {
-    cancelledRef.current = false;
+    markCancelled(false);
     return () => {
-      cancelledRef.current = true;
+      markCancelled(true);
+      appendResourceSnapshot(true);
       clearPendingHandles();
     };
-  }, [clearPendingHandles]);
+  }, [appendResourceSnapshot, clearPendingHandles, markCancelled]);
 
   const __getInstrumentationForTests = useCallback(
-    () => ({ ...countersRef.current }),
-    [],
+    () => snapshotInstrumentation(),
+    [snapshotInstrumentation],
   );
 
   return useMemo<UseRenderScheduler>(

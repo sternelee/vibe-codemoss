@@ -55,4 +55,13 @@ describe("composer input responsiveness guard", () => {
     expect(handleDraftChangeBlock).toContain("setComposerDraftsByThread");
     expect(handleDraftChangeBlock).not.toContain("startTransition");
   });
+
+  it("keeps Composer protected by an interaction-safe memo comparator", () => {
+    const source = readSource("src/features/composer/components/Composer.tsx");
+
+    expect(source).toContain("COMPOSER_CANVAS_ONLY_PROPS");
+    expect(source).toContain("\"threadItemsByThread\"");
+    expect(source).toContain("\"threadStatusById\"");
+    expect(source).toContain("export const Composer = memo(ComposerImpl, areComposerPropsEqual)");
+  });
 });

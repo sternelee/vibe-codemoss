@@ -427,6 +427,21 @@ export type WorkspaceFileListingBudgetDiagnosticInput = {
   fallbackReason?: string | null;
 };
 
+export type RenderSchedulerResourceDiagnosticInput = {
+  surfaceId: string;
+  chunkCount: number;
+  yieldCount: number;
+  inputPendingYieldCount: number;
+  budgetMissCount: number;
+  idleCallbackCount: number;
+  timeoutFallbackCount: number;
+  pendingCallback: boolean;
+  idleCallbackPending: boolean;
+  timeoutFallbackPending: boolean;
+  cancelled: boolean;
+  evidenceClass: ClientInteractionPerfEvidenceKind;
+};
+
 function toFiniteDiagnosticNumber(value: number | null | undefined) {
   return typeof value === "number" && Number.isFinite(value)
     ? Math.max(0, value)
@@ -758,6 +773,28 @@ export function appendWorkspaceFileListingBudgetDiagnostic(
     requestedPathHash: toBoundedDiagnosticString(input.requestedPathHash),
     evidenceClass: input.evidenceClass,
     fallbackReason: toBoundedDiagnosticString(input.fallbackReason),
+  });
+}
+
+export function appendRenderSchedulerResourceDiagnostic(
+  input: RenderSchedulerResourceDiagnosticInput,
+) {
+  if (!isPerfDiagnosticCollectionEnabled()) {
+    return;
+  }
+  appendRendererDiagnostic("render-scheduler.resource", {
+    surfaceId: toBoundedDiagnosticString(input.surfaceId),
+    chunkCount: toFiniteDiagnosticNumber(input.chunkCount),
+    yieldCount: toFiniteDiagnosticNumber(input.yieldCount),
+    inputPendingYieldCount: toFiniteDiagnosticNumber(input.inputPendingYieldCount),
+    budgetMissCount: toFiniteDiagnosticNumber(input.budgetMissCount),
+    idleCallbackCount: toFiniteDiagnosticNumber(input.idleCallbackCount),
+    timeoutFallbackCount: toFiniteDiagnosticNumber(input.timeoutFallbackCount),
+    pendingCallback: Boolean(input.pendingCallback),
+    idleCallbackPending: Boolean(input.idleCallbackPending),
+    timeoutFallbackPending: Boolean(input.timeoutFallbackPending),
+    cancelled: Boolean(input.cancelled),
+    evidenceClass: input.evidenceClass,
   });
 }
 

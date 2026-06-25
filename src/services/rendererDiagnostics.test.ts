@@ -432,6 +432,52 @@ describe("rendererDiagnostics", () => {
     expect(entry.payload).not.toHaveProperty("terminalOutput");
   });
 
+  it("records content-safe render scheduler resource diagnostics", async () => {
+    clientStorageMocks.isPreloaded.mockReturnValue(true);
+    clientStorageMocks.getClientStoreSync.mockReturnValue([]);
+    const diagnostics = await import("./rendererDiagnostics");
+
+    diagnostics.appendRenderSchedulerResourceDiagnostic({
+      surfaceId: "app-server-event-dispatch",
+      chunkCount: 8,
+      yieldCount: 4,
+      inputPendingYieldCount: 2,
+      budgetMissCount: 1,
+      idleCallbackCount: 3,
+      timeoutFallbackCount: 5,
+      pendingCallback: false,
+      idleCallbackPending: false,
+      timeoutFallbackPending: false,
+      cancelled: true,
+      evidenceClass: "proxy",
+      // @ts-expect-error queue payloads are intentionally rejected.
+      assistantText: "secret assistant body",
+    });
+
+    const [, , persistedValue] =
+      clientStorageMocks.writeClientStoreValue.mock.calls[0] ?? [];
+    const [entry] = persistedValue as Array<{
+      label: string;
+      payload: Record<string, unknown>;
+    }>;
+    expect(entry.label).toBe("render-scheduler.resource");
+    expect(entry.payload).toMatchObject({
+      surfaceId: "app-server-event-dispatch",
+      chunkCount: 8,
+      yieldCount: 4,
+      inputPendingYieldCount: 2,
+      budgetMissCount: 1,
+      idleCallbackCount: 3,
+      timeoutFallbackCount: 5,
+      pendingCallback: false,
+      idleCallbackPending: false,
+      timeoutFallbackPending: false,
+      cancelled: true,
+      evidenceClass: "proxy",
+    });
+    expect(entry.payload).not.toHaveProperty("assistantText");
+  });
+
   it("records content-safe listener and media owner diagnostics", async () => {
     clientStorageMocks.isPreloaded.mockReturnValue(true);
     clientStorageMocks.getClientStoreSync.mockReturnValue([]);
