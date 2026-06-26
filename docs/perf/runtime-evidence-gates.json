@@ -2250,15 +2250,16 @@
   },
   "archiveReadiness": {
     "source": "openspec list --json",
-    "completed": [
+    "completed": [],
+    "previousArchiveContext": [
       {
         "name": "fix-codex-provider-composer-cold-start-binding",
+        "archivedAs": "openspec/changes/archive/2026-06-24-fix-codex-provider-composer-cold-start-binding",
         "tasks": "11/11",
-        "recommendation": "archive-candidate-after-qualifier-review",
+        "recommendation": "archived-after-qualifier-review",
         "qualifier": "Review validation and platform qualifiers before archive."
       }
     ],
-    "previousArchiveContext": [],
     "inProgress": [
       {
         "name": "2026-06-24-harden-realtime-interaction-jank-during-tool-call",
