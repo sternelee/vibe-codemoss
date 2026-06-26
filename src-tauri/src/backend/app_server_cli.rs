@@ -1638,7 +1638,7 @@ mod curated_skill_injection_tests {
 
     #[test]
     fn codex_curated_skills_config_arg_returns_none_when_empty() {
-        let s = AppSettings::default();
+        let s = settings_with(vec![]);
         let out = codex_curated_skills_config_arg(&s, None);
         assert!(out.is_none());
     }
@@ -1652,7 +1652,7 @@ mod curated_skill_injection_tests {
 
     #[test]
     fn build_codex_app_server_args_with_settings_does_not_inject_when_disabled() {
-        let s = AppSettings::default();
+        let s = settings_with(vec![]);
         let args =
             build_codex_app_server_args_with_settings(None, primary_no_hint(), Some(&s)).unwrap();
         // Should not contain any developer_instructions arg.

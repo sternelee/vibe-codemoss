@@ -668,7 +668,8 @@ mod tests {
 
     #[test]
     fn enabled_curated_skill_ids_change_requires_restart_when_adding() {
-        let previous = AppSettings::default();
+        let mut previous = AppSettings::default();
+        previous.enabled_curated_skill_ids.clear();
         let mut updated = previous.clone();
         updated.enabled_curated_skill_ids = vec!["lazy-senior-dev".to_string()];
         assert!(

@@ -66,7 +66,7 @@ mod tests {
 
     #[test]
     fn append_args_returns_none_when_no_curated_enabled() {
-        let settings = AppSettings::default();
+        let settings = settings_with(vec![]);
         let out = build_curated_skill_append_args(&settings);
         assert!(out.is_none(), "no curated -> None");
     }
