@@ -1035,7 +1035,7 @@ describe("SettingsView Display", () => {
     });
   });
 
-  it("persists Gemini and OpenCode disable toggles inside CLI validation tabs", async () => {
+  it("hides deprecated Gemini and OpenCode entries inside CLI validation tabs", () => {
     cleanup();
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     render(
@@ -1074,25 +1074,13 @@ describe("SettingsView Display", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("tab", { name: "Gemini CLI" }));
-    fireEvent.click(screen.getByRole("switch", { name: "Gemini CLI" }));
-
-    await waitFor(() => {
-      expect(onUpdateAppSettings).toHaveBeenCalledWith(
-        expect.objectContaining({ geminiEnabled: false }),
-      );
-    });
-
-    onUpdateAppSettings.mockClear();
-
-    fireEvent.click(screen.getByRole("tab", { name: "OpenCode CLI" }));
-    fireEvent.click(screen.getByRole("switch", { name: "OpenCode CLI" }));
-
-    await waitFor(() => {
-      expect(onUpdateAppSettings).toHaveBeenCalledWith(
-        expect.objectContaining({ opencodeEnabled: false }),
-      );
-    });
+    expect(screen.getByRole("tab", { name: "Codex" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Claude Code" })).toBeTruthy();
+    expect(screen.queryByRole("tab", { name: "Gemini CLI" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "OpenCode CLI" })).toBeNull();
+    expect(screen.queryByRole("switch", { name: "Gemini CLI" })).toBeNull();
+    expect(screen.queryByRole("switch", { name: "OpenCode CLI" })).toBeNull();
+    expect(onUpdateAppSettings).not.toHaveBeenCalled();
   });
 
   it("updates the theme selection", async () => {

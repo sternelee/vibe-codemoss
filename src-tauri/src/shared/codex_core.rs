@@ -31,7 +31,9 @@ const THREAD_COMPACTION_METHOD_CANDIDATES: [&str; 3] = [
     "thread/compact",
 ];
 const TURN_START_THREAD_NOT_FOUND_RETRY_DELAYS_MS: [u64; 2] = [150, 350];
-const THREAD_START_READY_CONFIRM_TIMEOUT_MS: u64 = 2_000;
+// Disk Codex cold starts can take longer than the normal turn/start ack window.
+// Keep readiness bounded, but do not misclassify a slow first resume as a broken thread.
+const THREAD_START_READY_CONFIRM_TIMEOUT_MS: u64 = 8_000;
 const FIRST_PACKET_TIMEOUT_ERROR_PREFIX: &str = "FIRST_PACKET_TIMEOUT";
 pub(crate) const INVALID_THREAD_START_RESPONSE_ERROR_PREFIX: &str = "invalid_thread_start_response";
 
