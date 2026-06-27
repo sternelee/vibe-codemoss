@@ -82,3 +82,48 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 3: 新增 devtools 菜单项 + Geist 字体与文档观感优化
+
+**Date**: 2026-06-27
+**Task**: 新增 devtools 菜单项 + Geist 字体与文档观感优化
+**Branch**: `feat/ui-refactoring`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| 模块 | 说明 |
+|------|------|
+| 菜单 | 新增「切换开发者工具」菜单项，启用 tauri devtools feature，绑定 CmdOrCtrl+Alt+I |
+| 字体 | 引入 Geist 可变字体，.markdown 正文改用 Geist |
+| 排版 | 放宽标题/列表/表格块间距，正文强字色降为 --text-strong |
+
+**Updated Files**:
+- `src-tauri/Cargo.toml`、`src-tauri/src/menu.rs`
+- `src/features/app/hooks/useMenuLocalization.ts`、`src/i18n/locales/{en,zh}.part6.ts`
+- `src/assets/fonts/{Geist-Variable.woff2,geist.css}`、`src/styles/{base,messages.part2}.css`
+- `src/styles/client-typography-font-size.test.ts`
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7a1d11e5` | (see git log) |
+| `9d480e77` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

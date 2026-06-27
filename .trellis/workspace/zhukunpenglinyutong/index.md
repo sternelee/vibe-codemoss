@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 2
-- **Last Active**: 2026-06-26
+- **Total Sessions**: 3
+- **Last Active**: 2026-06-27
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~84 | Active |
+| `journal-1.md` | ~129 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 3 | 2026-06-27 | 新增 devtools 菜单项 + Geist 字体与文档观感优化 | `7a1d11e5`, `9d480e77` | `feat/ui-refactoring` |
 | 2 | 2026-06-26 | 迁移到 shadcn 默认 zinc 样式并统一组件库到 radix | `c4f9de84` | `feat/ui-refactoring` |
 | 1 | 2026-06-26 | 隔离诊断存储并补齐代理配置 | `df1e5163` | `chore/bump-version-0.5.13` |
 <!-- @@@/auto:session-history -->
