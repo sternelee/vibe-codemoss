@@ -1010,3 +1010,47 @@ Validation:
 ### Next Steps
 
 - None - task complete
+
+
+## Session 945: 优化用户气泡复制入口
+
+**Date**: 2026-06-27
+**Task**: 优化用户气泡复制入口
+**Branch**: `feature/v0.6`
+
+### Summary
+
+用户消息气泡内新增复制入口并调整为贴近右下角的无背景 icon；保持四角对称圆角，复制内容使用用户可见文本。
+
+### Main Changes
+
+- 在 `MessagesTimeline` 中生成用户消息复制 action，并通过 `userActionNode` 明确传入 `MessageRow` 的气泡 slot，避免内部条件分裂导致按钮不渲染。
+- 在 `MessagesRows` 中保留兼容 props，同时将用户 action slot 渲染到 user bubble 内部。
+- 调整 `messages.part1.css`：用户气泡四角统一 `12px`，copy icon 去背景/边框/阴影并右下对齐。
+- 新增 `messages.copyUserMessage` 中英文文案。
+- 更新 `Messages.test.tsx` 与 `Messages.user-input.test.tsx` 覆盖用户 copy button 和 `[User Input]` 可见文本复制。
+
+Validation:
+- `npx vitest run src/features/messages/components/Messages.test.tsx src/features/messages/components/Messages.user-input.test.tsx`
+- `npm run typecheck`
+- `npm run lint`
+- `npm run check:large-files`
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `177f403a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
