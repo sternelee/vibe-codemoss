@@ -1160,3 +1160,36 @@ Validation:
 ### Next Steps
 
 - None - task complete
+
+
+## Session 949: 更新 v0.6.0 变更日志
+
+**Date**: 2026-06-27
+**Task**: 更新 v0.6.0 变更日志
+**Branch**: `feature/v0.6`
+
+### Summary
+
+补齐 v0.6.0 changelog 中最近的消息复制入口、供应商配置、Git Diff 非 Git 扫描和统计显示修复条目，并同步中英文描述。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `30897632` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
