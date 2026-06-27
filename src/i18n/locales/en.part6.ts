@@ -251,6 +251,7 @@ const enPart6 = {
     toggleGlobalSearch: "Toggle Global Search",
     toggleDebugPanel: "Toggle Debug Panel",
     toggleTerminal: "Toggle Terminal",
+    toggleDevtools: "Toggle Developer Tools",
     nextAgent: "Next Agent",
     previousAgent: "Previous Agent",
     nextWorkspace: "Next Workspace",

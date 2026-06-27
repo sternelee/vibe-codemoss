@@ -75,6 +75,7 @@ const zhPart6 = {
     toggleGlobalSearch: "切换全局搜索",
     toggleDebugPanel: "切换调试面板",
     toggleTerminal: "切换终端",
+    toggleDevtools: "切换开发者工具",
     nextAgent: "下一个代理",
     previousAgent: "上一个代理",
     nextWorkspace: "下一个工作区",
