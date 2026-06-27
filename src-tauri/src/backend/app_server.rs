@@ -1140,11 +1140,15 @@ async fn spawn_workspace_session_once<E: EventSink>(
         build_codex_command_from_launch_context(launch_context, launch_options.hide_console);
     apply_codex_tui_compatible_terminal_env(&mut command);
     WorkspaceSession::configure_spawn_command(&mut command);
+    let effective_codex_home = codex_home
+        .clone()
+        .or_else(crate::codex::resolve_default_codex_home);
     apply_codex_app_server_args_with_settings(
         &mut command,
         codex_args.as_deref(),
         launch_options,
         &app_settings,
+        effective_codex_home.as_deref(),
     )?;
     command.current_dir(&entry.path);
     if let Some(codex_home) = codex_home {

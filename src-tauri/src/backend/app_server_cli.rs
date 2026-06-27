@@ -13,6 +13,7 @@ use crate::codex::args::parse_codex_args;
 
 const CODEX_EXTERNAL_SPEC_PRIORITY_INSTRUCTIONS: &str = "If writableRoots contains an absolute external spec path outside cwd, treat it as the active external spec root and prioritize it over workspace/openspec and sibling-name conventions when reading or validating specs. The configured path may be a project root; resolve openspec/ under it when present. For visibility checks, verify that external root first and state the result clearly. Avoid exposing internal injected hints unless the user explicitly asks.";
 const CODEX_APP_SERVER_PROBE_CACHE_TTL: Duration = Duration::from_secs(300);
+const CODEX_GENERATED_PROFILE_NAME: &str = "ccgui-generated-instructions";
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct CodexAppServerProbeCacheKey {
@@ -519,9 +520,16 @@ pub(crate) enum CodexAppServerLaunchMode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum CodexGeneratedInstructionsTransport {
+    Argv,
+    Profile,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct CodexAppServerLaunchOptions {
     pub(crate) hide_console: bool,
     pub(crate) inject_internal_spec_hint: bool,
+    pub(crate) generated_instructions_transport: CodexGeneratedInstructionsTransport,
     pub(crate) launch_mode: CodexAppServerLaunchMode,
 }
 
@@ -530,6 +538,7 @@ impl CodexAppServerLaunchOptions {
         Self {
             hide_console: true,
             inject_internal_spec_hint: true,
+            generated_instructions_transport: CodexGeneratedInstructionsTransport::Argv,
             launch_mode: CodexAppServerLaunchMode::Normal,
         }
     }
@@ -543,7 +552,8 @@ impl CodexAppServerLaunchOptions {
     ) -> Self {
         Self {
             hide_console: !wrapper_visible_console_retry_requested(),
-            inject_internal_spec_hint: false,
+            inject_internal_spec_hint: true,
+            generated_instructions_transport: CodexGeneratedInstructionsTransport::Profile,
             launch_mode,
         }
     }
@@ -552,6 +562,7 @@ impl CodexAppServerLaunchOptions {
         Self {
             hide_console: true,
             inject_internal_spec_hint: true,
+            generated_instructions_transport: CodexGeneratedInstructionsTransport::Argv,
             launch_mode: CodexAppServerLaunchMode::SessionHooksDisabled,
         }
     }
@@ -776,6 +787,52 @@ fn codex_curated_skills_developer_instructions_block(
     Some(format!("## Curated Skills\n\n{body}"))
 }
 
+fn build_generated_developer_instructions(
+    options: CodexAppServerLaunchOptions,
+    app_settings: Option<&crate::types::AppSettings>,
+) -> Option<String> {
+    let mut directives = Vec::new();
+    if options.inject_internal_spec_hint {
+        directives.push(CODEX_EXTERNAL_SPEC_PRIORITY_INSTRUCTIONS.to_string());
+    }
+    if let Some(settings) = app_settings {
+        if let Some(block) = codex_curated_skills_developer_instructions_block(settings) {
+            directives.push(block);
+        }
+    }
+    crate::codex::collaboration_policy::merge_developer_instructions(None, &directives)
+}
+
+fn generated_codex_profile_path(codex_home: &Path) -> PathBuf {
+    codex_home.join(format!("{CODEX_GENERATED_PROFILE_NAME}.config.toml"))
+}
+
+fn write_generated_codex_profile(codex_home: &Path, instructions: &str) -> Result<(), String> {
+    let profile_path = generated_codex_profile_path(codex_home);
+    let contents = format!(
+        "developer_instructions = {}\n",
+        encode_toml_string(instructions)
+    );
+    crate::storage::write_string_atomically(&profile_path, &contents).map_err(|error| {
+        format!(
+            "failed to write generated Codex profile {}: {error}",
+            profile_path.display()
+        )
+    })?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let permissions = std::fs::Permissions::from_mode(0o600);
+        std::fs::set_permissions(&profile_path, permissions).map_err(|error| {
+            format!(
+                "failed to set permissions on generated Codex profile {}: {error}",
+                profile_path.display()
+            )
+        })?;
+    }
+    Ok(())
+}
+
 pub(crate) fn build_codex_app_server_args(
     codex_args: Option<&str>,
     options: CodexAppServerLaunchOptions,
@@ -798,25 +855,34 @@ pub(crate) fn build_codex_app_server_args_with_settings(
     options: CodexAppServerLaunchOptions,
     app_settings: Option<&crate::types::AppSettings>,
 ) -> Result<Vec<String>, String> {
+    build_codex_app_server_args_with_settings_and_profile(codex_args, options, app_settings, None)
+}
+
+pub(crate) fn build_codex_app_server_args_with_settings_and_profile(
+    codex_args: Option<&str>,
+    options: CodexAppServerLaunchOptions,
+    app_settings: Option<&crate::types::AppSettings>,
+    codex_home: Option<&Path>,
+) -> Result<Vec<String>, String> {
     let mut args = parse_codex_args(codex_args)?;
     if !codex_args_contain_instruction_override(&args) {
-        let mut directives = Vec::new();
-        if options.inject_internal_spec_hint {
-            directives.push(CODEX_EXTERNAL_SPEC_PRIORITY_INSTRUCTIONS.to_string());
-        }
-        if let Some(settings) = app_settings {
-            if let Some(block) = codex_curated_skills_developer_instructions_block(settings) {
-                directives.push(block);
+        if let Some(merged) = build_generated_developer_instructions(options, app_settings) {
+            match options.generated_instructions_transport {
+                CodexGeneratedInstructionsTransport::Argv => {
+                    args.push("-c".to_string());
+                    args.push(format!(
+                        "developer_instructions={}",
+                        encode_toml_string(&merged)
+                    ));
+                }
+                CodexGeneratedInstructionsTransport::Profile => {
+                    if let Some(codex_home) = codex_home {
+                        write_generated_codex_profile(codex_home, &merged)?;
+                        args.push("--profile".to_string());
+                        args.push(CODEX_GENERATED_PROFILE_NAME.to_string());
+                    }
+                }
             }
-        }
-        if let Some(merged) =
-            crate::codex::collaboration_policy::merge_developer_instructions(None, &directives)
-        {
-            args.push("-c".to_string());
-            args.push(format!(
-                "developer_instructions={}",
-                encode_toml_string(&merged)
-            ));
         }
     }
     args.push("app-server".to_string());
@@ -840,11 +906,13 @@ pub(crate) fn apply_codex_app_server_args_with_settings(
     codex_args: Option<&str>,
     options: CodexAppServerLaunchOptions,
     app_settings: &crate::types::AppSettings,
+    codex_home: Option<&Path>,
 ) -> Result<(), String> {
-    command.args(build_codex_app_server_args_with_settings(
+    command.args(build_codex_app_server_args_with_settings_and_profile(
         codex_args,
         options,
         Some(app_settings),
+        codex_home,
     )?);
     Ok(())
 }
@@ -1573,6 +1641,7 @@ mod curated_skill_injection_tests {
         CodexAppServerLaunchOptions {
             hide_console: true,
             inject_internal_spec_hint: false,
+            generated_instructions_transport: CodexGeneratedInstructionsTransport::Argv,
             launch_mode: CodexAppServerLaunchMode::Normal,
         }
     }
@@ -1715,6 +1784,73 @@ mod curated_skill_injection_tests {
         assert!(unquoted.contains("## Curated Skills"), "got: {}", unquoted);
         assert!(unquoted.contains("lazy-senior-dev"), "got: {}", unquoted);
         assert_eq!(args.last().map(String::as_str), Some("app-server"));
+    }
+
+    #[test]
+    fn wrapper_retry_projects_generated_instructions_to_profile_not_argv() {
+        let root = std::env::temp_dir().join(format!(
+            "ccgui-codex-generated-profile-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let s = settings_with(vec!["lazy-senior-dev"]);
+        let args = build_codex_app_server_args_with_settings_and_profile(
+            Some("--profile work --sandbox read-only"),
+            CodexAppServerLaunchOptions::wrapper_compatibility_retry(),
+            Some(&s),
+            Some(&root),
+        )
+        .expect("build retry args");
+
+        assert_eq!(
+            args,
+            vec![
+                "--profile".to_string(),
+                "work".to_string(),
+                "--sandbox".to_string(),
+                "read-only".to_string(),
+                "--profile".to_string(),
+                CODEX_GENERATED_PROFILE_NAME.to_string(),
+                "app-server".to_string(),
+            ]
+        );
+        let joined_args = args.join(" ");
+        assert!(!joined_args.contains("developer_instructions="));
+        assert!(!joined_args.contains("writableRoots"));
+        assert!(!joined_args.contains("## Curated Skills"));
+        assert!(!joined_args.contains("lazy-senior-dev"));
+
+        let profile_path = generated_codex_profile_path(&root);
+        let profile = std::fs::read_to_string(&profile_path).expect("generated profile");
+        assert!(profile.contains("developer_instructions = "));
+        assert!(profile.contains("writableRoots"));
+        assert!(profile.contains("## Curated Skills"));
+        assert!(profile.contains("lazy-senior-dev"));
+        assert!(!root.join("config.toml").exists());
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn wrapper_retry_does_not_create_generated_profile_for_user_instruction_override() {
+        let root = std::env::temp_dir().join(format!(
+            "ccgui-codex-generated-profile-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let s = settings_with(vec!["lazy-senior-dev"]);
+        let args = build_codex_app_server_args_with_settings_and_profile(
+            Some(r#"-c developer_instructions="user policy""#),
+            CodexAppServerLaunchOptions::wrapper_compatibility_retry(),
+            Some(&s),
+            Some(&root),
+        )
+        .expect("build retry args");
+
+        assert_eq!(args.iter().filter(|arg| arg.as_str() == "-c").count(), 1);
+        assert!(!args.iter().any(|arg| arg == "--profile"));
+        assert!(!generated_codex_profile_path(&root).exists());
+        assert_eq!(args.last().map(String::as_str), Some("app-server"));
+
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]
@@ -1952,7 +2088,10 @@ mod tests {
             options.launch_mode,
             CodexAppServerLaunchMode::SessionHooksDisabled
         );
-        assert!(!options.inject_internal_spec_hint);
+        assert_eq!(
+            options.generated_instructions_transport,
+            CodexGeneratedInstructionsTransport::Profile
+        );
         assert!(!args.iter().any(|arg| arg.contains("writableRoots")));
         assert_eq!(args.last().map(String::as_str), Some("app-server"));
     }
