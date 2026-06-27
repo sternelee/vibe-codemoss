@@ -2,6 +2,40 @@
 
 ---
 
+##### **2026年6月27日（v0.6.0）**
+
+中文：
+
+✨ Features
+- 升级应用版本号到 `0.6.0`，同步前端包配置、lockfile 与 Tauri 打包配置
+
+🔧 Improvements
+- `fix(messages)`: 稳定长对话 streaming 时间线滚动，保留已水合的 heavy row，并减少虚拟列表与底部跟随滚动之间的拉扯
+- `fix(messages)`: 文件链接右键菜单改为浮到页面顶层渲染，避免被消息容器或 composer 遮挡
+- `fix(skills)`: 修复打包内置技能加载链路，确保精选技能资源能随应用正确分发
+- `docs(trellis)`: 记录内置技能加载修复会话，补齐本轮修复的工作记录
+
+🐛 Fixes
+- `fix(markdown)`: 移除全局行内代码复制入口，修复版本记录等 Markdown 阅读面出现大量复制按钮的 UI 回归
+- 修复 `0.6` 非 SemVer 版本号导致 Tauri 打包失败的问题，统一使用 `0.6.0`
+
+English:
+
+✨ Features
+- Bump the app version to `0.6.0` across frontend package metadata, lockfile, and Tauri bundle configuration
+
+🔧 Improvements
+- `fix(messages)`: stabilize long-conversation streaming timeline scrolling by retaining hydrated heavy rows and reducing virtualizer/bottom-follow scroll contention
+- `fix(messages)`: render file-link context menus at the page top layer so they are not clipped by message containers or the composer
+- `fix(skills)`: fix packaged curated-skill loading so bundled skill resources ship and load correctly
+- `docs(trellis)`: record the curated-skill loading fix session for traceability
+
+🐛 Fixes
+- `fix(markdown)`: remove the global inline-code copy affordance that polluted Markdown reading surfaces such as Release Notes with excessive copy buttons
+- Fix Tauri packaging failures caused by the non-SemVer `0.6` version string by standardizing on `0.6.0`
+
+---
+
 ##### **2026年6月26日（v0.5.13）**
 
 中文：
