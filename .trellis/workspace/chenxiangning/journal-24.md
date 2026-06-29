@@ -1506,3 +1506,36 @@ Windows Codex app-server wrapper fallback 改为通过 provider/default CODEX_HO
 ### Next Steps
 
 - None - task complete
+
+
+## Session 958: 优化 Mermaid 卡片操作按钮
+
+**Date**: 2026-06-29
+**Task**: 优化 Mermaid 卡片操作按钮
+**Branch**: `ui-refactoring`
+
+### Summary
+
+将幕布 Mermaid 卡片右上角文字操作改为稳定图标按钮，补充 Source/Preview i18n；兼容性复核深层 lucide import、按钮尺寸、copied/disabled/accessibility 状态，并通过 typecheck、lint 和 focused Mermaid tests。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ba7bae44` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
