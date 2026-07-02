@@ -626,6 +626,7 @@ export function useSessionRadarFeed(input: UseSessionRadarFeedInput): SessionRad
     workspaces,
   ]);
 
+  const lastPersistedRecentSignatureRef = useRef<string | null>(null);
   useEffect(() => {
     const persistedRecentRefs: PersistedRecentSessionRef[] =
       mergedRecentFeed.recentCompletedSessions.map((entry) => ({
@@ -641,6 +642,15 @@ export function useSessionRadarFeed(input: UseSessionRadarFeedInput): SessionRad
         completedAt: entry.completedAt ?? entry.updatedAt,
         durationMs: entry.durationMs,
       }));
+    // The recentCompletedSessions reference churns on every deferred settle while a turn
+    // streams, but its persisted content rarely changes mid-stream. Skip the redundant
+    // immediate disk writes (which bypass the 300ms debounce and contend with streaming IPC)
+    // when the serialized content is unchanged.
+    const persistedRecentSignature = JSON.stringify(persistedRecentRefs);
+    if (persistedRecentSignature === lastPersistedRecentSignatureRef.current) {
+      return;
+    }
+    lastPersistedRecentSignatureRef.current = persistedRecentSignature;
     writeClientStoreValue(RADAR_STORE_NAME, SESSION_RADAR_RECENT_STORAGE_KEY, persistedRecentRefs, {
       immediate: true,
     });

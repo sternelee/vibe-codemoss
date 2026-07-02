@@ -12,6 +12,7 @@ import {
   type ProfilerOnRenderCallback,
   type ReactNode,
 } from "react";
+import { useEventCallback } from "../../../utils/useEventCallback";
 import { useDeferredFrameAccumulator } from "./useDeferredFrameAccumulator";
 import { useTranslation } from "react-i18next";
 import { Sidebar } from "../../app/components/Sidebar";
@@ -1094,6 +1095,32 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
   const rewindWorkspaceGitState = deriveRewindWorkspaceGitState(
     options.gitStatus,
   );
+  // Stabilize the composer branch-control object and diff-path handler so they
+  // don't recreate a new reference on every render (which would defeat the
+  // memoized Composer). Behavior is identical to the previous inline literals.
+  const composerBranchControl = useMemo(
+    () =>
+      options.activeWorkspace && options.branchName
+        ? {
+            branchName: options.branchName,
+            branches: options.branches,
+            onCheckout: options.onCheckoutBranch,
+            onCreate: options.onCreateBranch,
+            disabled: options.isWorktreeWorkspace,
+          }
+        : null,
+    [
+      options.activeWorkspace,
+      options.branchName,
+      options.branches,
+      options.onCheckoutBranch,
+      options.onCreateBranch,
+      options.isWorktreeWorkspace,
+    ],
+  );
+  const handleComposerOpenDiffPath = useEventCallback((path: string) =>
+    options.onOpenFile(path),
+  );
 
   const renderComposerNode = (
     showStatusPanelToggleOverride?: boolean,
@@ -1238,23 +1265,13 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
           activeWorkspaceId={options.activeWorkspaceId}
           activeWorkspaceName={options.activeWorkspace?.name ?? null}
           activeWorkspacePath={options.activeWorkspace?.path ?? null}
-          branchControl={
-            branchControlEnabled && options.activeWorkspace && options.branchName
-              ? {
-                  branchName: options.branchName,
-                  branches: options.branches,
-                  onCheckout: options.onCheckoutBranch,
-                  onCreate: options.onCreateBranch,
-                  disabled: options.isWorktreeWorkspace,
-                }
-              : null
-          }
+          branchControl={branchControlEnabled ? composerBranchControl : null}
           // 首页（branchControlEnabled=false）的分支/指示器行由 HomeChat 自行渲染
           footerUsageIndicatorEnabled={branchControlEnabled}
           rewindWorkspaceGitState={rewindWorkspaceGitState}
           plan={options.plan}
           isPlanMode={options.isPlanMode}
-          onOpenDiffPath={(path) => options.onOpenFile(path)}
+          onOpenDiffPath={handleComposerOpenDiffPath}
           showStatusPanelToggleOverride={showStatusPanelToggleOverride}
           statusPanelExpandedOverride={showBottomStatusPanel}
           onToggleStatusPanelOverride={
@@ -1331,17 +1348,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
       onAddWorkspace={options.onAddWorkspace}
       composerNode={homeComposerNode}
       selectedEngine={options.selectedEngine}
-      branchControl={
-        options.activeWorkspace && options.branchName
-          ? {
-              branchName: options.branchName,
-              branches: options.branches,
-              onCheckout: options.onCheckoutBranch,
-              onCreate: options.onCreateBranch,
-              disabled: options.isWorktreeWorkspace,
-            }
-          : null
-      }
+      branchControl={composerBranchControl}
     />
   );
 

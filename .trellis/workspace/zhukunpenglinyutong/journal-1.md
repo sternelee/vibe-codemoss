@@ -442,3 +442,40 @@
 ### Next Steps
 
 - 工作区仍有未提交改动:`src-tauri/src/engine/claude/lifecycle.rs`、`tests_core.rs`、`TokenIndicator.test.tsx`,待后续整理提交
+
+## Session 10: 提交新增 agent skills
+
+**Date**: 2026-07-02
+**Task**: 只提交暂存区中新增的 skills 代码,排除优化代码
+**Branch**: `feat/ui-refactoring`
+
+### Summary
+
+用户暂存区混有两类改动:新增 skills 与渲染优化代码。按要求先将 4 个优化相关的 src 文件移出暂存区,只提交 skills 部分:`vercel-optimize`(157 文件,含 gates/scanners/sanitizers/scripts/reference playbooks)与 `writing-guidelines` 两个 skill,以及 `.claude/skills` 下的软链接和 `skills-lock.json` 注册表更新。
+
+### Main Changes
+
+| 模块 | 变更 |
+|------|------|
+| skills | 新增 `.agents/skills/vercel-optimize/**`、`.agents/skills/writing-guidelines/SKILL.md` |
+| 接线 | `.claude/skills/vercel-optimize`、`.claude/skills/writing-guidelines` 软链接指向 `.agents/skills`;`skills-lock.json` 注册表同步 |
+
+**Updated Files**: 160 files (+19075/-16);commit `5b49eb12`
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5b49eb12` | feat(skills): add vercel-optimize and writing-guidelines agent skills |
+
+### Testing
+
+- 未运行(仅提交第三方 skill 资产,无运行时代码变更)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 工作区仍保留未提交的优化代码:`useResizablePanels.ts`、`useSessionRadarFeed.ts`、`useEventCallback.ts(.test.ts)`,待用户后续整理提交
