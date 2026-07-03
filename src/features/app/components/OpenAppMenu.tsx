@@ -196,7 +196,7 @@ export function OpenAppMenu({
         </TooltipIconButton>
         {openMenuOpen && (
           <div className="open-app-command-menu popover-surface" role="menu">
-            {resolvedOpenTargets.map((target, index) => (
+            {resolvedOpenTargets.map((target) => (
               <div
                 key={target.id}
                 className={`open-app-command-option${
@@ -216,14 +216,11 @@ export function OpenAppMenu({
                     <img className="open-app-icon" src={target.icon} alt="" />
                   </span>
                   <span className="open-app-command-label">{target.label}</span>
-                  <span className="open-app-command-shortcut" aria-hidden>
-                    {index + 1}
-                  </span>
                 </button>
                 {renderPinCheckbox(target.id)}
               </div>
             ))}
-            {extraActions.map((action, index) => (
+            {extraActions.map((action) => (
               <div
                 key={action.id}
                 className={`open-app-command-option${action.active ? " is-active" : ""}`}
@@ -239,9 +236,6 @@ export function OpenAppMenu({
                     {action.icon}
                   </span>
                   <span className="open-app-command-label">{action.label}</span>
-                  <span className="open-app-command-shortcut" aria-hidden>
-                    {resolvedOpenTargets.length + index + 1}
-                  </span>
                 </button>
                 {renderPinCheckbox(action.id, action.pinnable !== false)}
               </div>
