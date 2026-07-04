@@ -162,7 +162,7 @@ export function ReleaseNotesModal({
         <footer className="release-notes-modal-footer">
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             size="icon-sm"
             className="release-notes-modal-nav"
             aria-label={t("update.releaseNotesPrev")}
@@ -179,7 +179,7 @@ export function ReleaseNotesModal({
           </div>
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             size="icon-sm"
             className="release-notes-modal-nav"
             aria-label={t("update.releaseNotesNext")}

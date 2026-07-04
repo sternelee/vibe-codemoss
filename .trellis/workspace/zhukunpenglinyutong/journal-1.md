@@ -521,3 +521,107 @@
 - 第二批(已获用户同意开工):时间线 userActionNode 稳定化 + content-visibility + 行级诊断 effect 门控;常驻轮询统一可见性门控(CuratedSkillIndicator/task stores/runtime dock/blank watchdog);生产剥离 React Profiler 与 reactComponentName 插件
 - 已知残留:<24 字符空白改写的头部重发不再去重;2048 以下预热区仍付 collapseRepeatedParagraph 回溯正则(~7ms/delta)
 - 人工验证待做:真实长回复流式体感 + 终端面板首开(xterm 懒加载后)
+
+
+## Session 9: 优化快捷键录入交互并统一供应商面板配色
+
+**Date**: 2026-07-04
+**Task**: 优化快捷键录入交互并统一供应商面板配色
+**Branch**: `feat/ui-refactoring`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| 模块 | 变更 |
+|------|------|
+| settings/shortcuts | 快捷键输入框改点击录制:聚焦清空并提示"请按快捷键",录制成功后自动 blur 回显;清除按钮改"重置为默认",已是默认值时禁用淡出 |
+| settings/vendor | 供应商面板复用基础设置配色令牌(surface/border/divider/control),count 徽章与实心按钮改用原生 shadcn primary |
+| styles | 新增快捷键输入框 hover/focus 样式(pointer + tint + focus ring) |
+| i18n | 新增 pressShortcutPrompt / resetToDefault 中英文案 |
+
+**Updated Files**: 6 files (+105/-24)
+- `src/features/settings/components/SettingsView.tsx`
+- `src/features/settings/components/settings-view/sections/ShortcutsSection.tsx`
+- `src/i18n/locales/en.part1.ts`
+- `src/i18n/locales/zh.part1.ts`
+- `src/styles/settings.part1.vendor-panels.css`
+- `src/styles/settings.part2.css`
+
+**Status**: [OK] Completed(已提交,人工验证待做:快捷键录制回显与重置按钮交互)
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `01805ddc` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 10: 压制长对话流式渲染的 O(L²) 与全历史开销
+
+**Date**: 2026-07-04
+**Task**: 压制长对话流式渲染的 O(L²) 与全历史开销
+**Branch**: `feat/ui-refactoring`
+
+### Summary
+
+针对越聊越卡的一组 P1 复合根因,走现成窗口/缓存机器收窄流式期规模:快照增长快路径消除 O(L²) 合并、流式期裁到 live 尾窗、content-visibility 收窄到 live 行、Sidebar 子代理引用缓存、删除 backgroundActivityByThread 死代码
+
+### Main Changes
+
+| 模块 | 变更 |
+|------|------|
+| threads/textMerge | INGEST-1:mergeAgentMessageText 新增快照增长快路径,delta 恰以 existing 为前缀且后缀不跨段落、不回显头部时直接追加,长回复整段去重从多趟 O(L) 累计 O(L²) 降到近线性;新增 suffixReplaysLeadingSnapshot 回显护栏 |
+| messages/window | SCALE-1:流式期(isThinking)改用 STREAMING_VISIBLE_WINDOW=60 裁到 live 尾窗,每帧渲染/协调/DOM 从 O(全历史) 压到 O(尾窗);idle/展开态仍走 VISIBLE_MESSAGE_WINDOW 全量 |
+| styles/messages | claude-render-safe 的 content-visibility:visible 收窄到仅 .is-live-streaming 行,已完成屏外历史恢复 content-visibility:auto,避免全历史每帧参与 style/layout |
+| layout/shellSummary | Sidebar 子代理工具项加单槽引用缓存,纯文本 token 逐个 === 相等时复用旧数组引用,不再击穿 Sidebar memo |
+| threads/useThreads | FANOUT-2:删除未被消费的 backgroundActivityByThread projection 死代码 |
+
+**Updated Files**: 9 files (+172/-21)
+- `src/features/threads/hooks/threadReducerTextMerge.ts` (+test)
+- `src/features/messages/components/Messages.tsx`
+- `src/features/messages/components/messagesRenderUtils.ts` (+messagesLiveWindow.test)
+- `src/styles/messages.part1.css`
+- `src/features/layout/hooks/layoutShellSummary.ts` (+test)
+- `src/features/threads/hooks/useThreads.ts`
+
+**Status**: [OK] Completed(已提交 5f7ac804);人工验证待做:真机长对话流式「开始/结束」瞬间 bottom-follow 自动跟随不跳动、「显示更早」可展开;Windows/macOS 打包版回归 claude-render-safe 收窄后无白屏/闪烁
+
+### Testing
+
+- 单测覆盖:快照快路径近线性(<250ms)、段落边界回退、Sidebar 引用缓存复用/失配、SCALE-1 流式裁窗契约
+- [!] 真机体感与打包版渲染守卫回归待人工执行
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5f7ac804` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

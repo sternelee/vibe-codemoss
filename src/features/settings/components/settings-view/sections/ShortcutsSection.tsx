@@ -1,4 +1,4 @@
-import type { KeyboardEvent } from "react";
+import { useState, type KeyboardEvent } from "react";
 import type { LucideIcon } from "lucide-react";
 import Archive from "lucide-react/dist/esm/icons/archive";
 import Bug from "lucide-react/dist/esm/icons/bug";
@@ -106,6 +106,9 @@ export function ShortcutsSection({
   handleShortcutKeyDown,
   updateShortcut,
 }: ShortcutsSectionProps) {
+  const [focusedSetting, setFocusedSetting] =
+    useState<ShortcutSettingKey | null>(null);
+
   if (!active) {
     return null;
   }
@@ -138,37 +141,69 @@ export function ShortcutsSection({
               {group.items.map((item) => {
                 const Icon = shortcutIconByActionId[item.id] ?? Settings;
                 const defaultShortcut = resolveDefaultShortcut(item);
+                const label = t(item.labelKey);
+                const isFocused = focusedSetting === item.setting;
+                const currentValue = formatShortcutForPlatform(
+                  shortcutDrafts[item.draftKey],
+                );
+                const isDefault =
+                  (shortcutDrafts[item.draftKey] ?? "") ===
+                  (defaultShortcut ?? "");
                 return (
                   <div className="settings-shortcuts-item" key={item.setting}>
-                    <div className="settings-shortcuts-item-heading">
-                      <span className="settings-shortcuts-item-icon" aria-hidden="true">
+                    <div className="settings-shortcuts-item-main">
+                      <span
+                        className="settings-shortcuts-item-icon"
+                        aria-hidden="true"
+                      >
                         <Icon size={15} strokeWidth={2.1} />
                       </span>
-                      <div className="settings-shortcuts-item-title">
-                        {t(item.labelKey)}
+                      <div className="settings-shortcuts-item-text">
+                        <div className="settings-shortcuts-item-title">
+                          {label}
+                        </div>
+                        <div className="settings-shortcuts-item-default">
+                          {t(item.defaultLabelKey ?? "settings.defaultColon")}{" "}
+                          {formatShortcutForPlatform(defaultShortcut)}
+                        </div>
                       </div>
                     </div>
-                    <input
-                      className="settings-input settings-input--shortcut settings-shortcuts-item-input"
-                      value={formatShortcutForPlatform(shortcutDrafts[item.draftKey])}
-                      onKeyDown={(event) =>
-                        handleShortcutKeyDown(event, item.setting)
-                      }
-                      placeholder={t("settings.typeShortcut")}
-                      aria-label={`${t(item.labelKey)} ${t("settings.typeShortcut")}`}
-                      readOnly
-                    />
-                    <div className="settings-shortcuts-item-footer">
-                      <span className="settings-shortcuts-item-default">
-                        {t(item.defaultLabelKey ?? "settings.defaultColon")}{" "}
-                        {formatShortcutForPlatform(defaultShortcut)}
-                      </span>
+                    <div className="settings-shortcuts-item-control">
+                      <input
+                        className="settings-input settings-input--shortcut settings-shortcuts-item-input"
+                        value={isFocused ? "" : currentValue}
+                        onKeyDown={(event) =>
+                          handleShortcutKeyDown(event, item.setting)
+                        }
+                        onFocus={() => setFocusedSetting(item.setting)}
+                        onBlur={() =>
+                          setFocusedSetting((prev) =>
+                            prev === item.setting ? null : prev,
+                          )
+                        }
+                        placeholder={
+                          isFocused
+                            ? t("settings.pressShortcutPrompt")
+                            : t("settings.typeShortcut")
+                        }
+                        aria-label={`${label} ${t("settings.typeShortcut")}`}
+                        readOnly
+                      />
                       <button
                         type="button"
-                        className="ghost settings-button-compact settings-shortcuts-item-clear"
-                        onClick={() => void updateShortcut(item.setting, null)}
+                        className="settings-shortcuts-item-reset"
+                        onClick={() =>
+                          void updateShortcut(item.setting, defaultShortcut)
+                        }
+                        title={t("settings.resetToDefault")}
+                        aria-label={`${t("settings.resetToDefault")} ${label}`}
+                        disabled={isDefault}
                       >
-                        {t("settings.clear")}
+                        <RotateCcw
+                          size={13}
+                          strokeWidth={2.2}
+                          aria-hidden="true"
+                        />
                       </button>
                     </div>
                   </div>

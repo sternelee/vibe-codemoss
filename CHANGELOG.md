@@ -2,6 +2,226 @@
 
 ---
 
+##### **2026年7月4日（v0.6.5）**
+
+中文：
+
+✨ Features
+- 升级应用版本号到 `0.6.5`，同步前端包配置与 Tauri 打包配置
+- `feat(settings)`: 优化快捷键录入交互，并统一供应商面板配色
+- `feat(sidebar)`: 侧栏底部新增可点击的版本号标签
+
+🔧 Improvements
+- `refactor(app-shell)`: 从主顶栏移除分支切换与 worktree 重命名 UI
+- `refactor`: 重设计设置面板，并稳定空闲轮询渲染
+- `perf(conversation)`: 压制长对话流式渲染的 O(L²) 与全历史开销
+- `perf(markdown)`: 轻量流式 / 纯代码块跳过 heavy-islands 的每 token 重扫
+- `refactor(ui)`: 精修搜索面板、设置导航与侧栏视觉细节
+- `refactor(release-notes)`: 重构版本记录弹窗头部与导航按钮样式
+- `refactor(search)`: 移除搜索面板右侧的项目图标
+- `refactor(diff)`: 收敛面板强调蓝到主题令牌，并压平多余内阴影
+
+🐛 Fixes
+- `fix(claude)`: 收到 result 后按宽限期结算回合，并强杀残留进程组
+- `fix`: 加固实时回合生命周期，并精修设置样式
+- `fix(panel-tabs)`: 面板不再因 live 状态强制外显，仅按激活 / 勾选常驻
+- `fix(toolbar)`: 顶栏图标放不下时，按优先级裁进「更多」菜单
+
+English:
+
+✨ Features
+- Bump the app version to `0.6.5` across frontend package metadata and Tauri bundle configuration
+- `feat(settings)`: refine the shortcut-recording interaction and unify provider panel colors
+- `feat(sidebar)`: add a clickable version tag at the bottom of the sidebar
+
+🔧 Improvements
+- `refactor(app-shell)`: remove the branch switcher and worktree rename UI from the MainHeader
+- `refactor`: redesign the settings panel and stabilize idle polling renders
+- `perf(conversation)`: suppress O(L²) and full-history overhead in long-conversation streaming rendering
+- `perf(markdown)`: skip the per-token heavy-islands re-scan for lightweight streaming / pure code blocks
+- `refactor(ui)`: refine the search panel, settings navigation, and sidebar visuals
+- `refactor(release-notes)`: rework the release-notes modal header and navigation button styles
+- `refactor(search)`: remove the project icon on the right of the search panel
+- `refactor(diff)`: converge the panel accent blue to theme tokens and flatten redundant inner shadows
+
+🐛 Fixes
+- `fix(claude)`: settle the turn after receiving result within a grace period and force-kill leftover process groups
+- `fix`: harden the realtime turn lifecycle and refine settings styling
+- `fix(panel-tabs)`: stop panels from force-showing on live state; keep them resident only when active/checked
+- `fix(toolbar)`: move overflowing toolbar icons into the “More” menu by priority
+
+---
+
+##### **2026年7月3日（v0.6.4）**
+
+中文：
+
+✨ Features
+- 升级应用版本号到 `0.6.4`，同步前端包配置与 Tauri 打包配置
+- 重做文件树面板，并新增可固定的右侧面板标签页
+- 点击即可在灯箱中打开延迟加载的 Claude 图片
+- 支持将「打开应用」类操作固定到工具栏
+- 合并同段思考片段，并优化阅读体验
+- 新增锚点导航栏，用于在用户消息间快速跳转
+
+🐛 Fixes
+- 计划面板默认折叠，并在切换线程时保持折叠
+- 修复 `contain: strict` 导致滚动视口塌陷为 0px 的问题
+
+English:
+
+✨ Features
+- Bump the app version to `0.6.4` across frontend package metadata and Tauri bundle configuration
+- rework file tree panel and add pinnable right-panel tabs
+- open deferred Claude images in the lightbox on click
+- let users pin open-app actions to the toolbar
+- merge same-segment thinking runs and refine reading UX
+- add anchor rail for jumping between user messages
+
+🐛 Fixes
+- keep the plan panel collapsed by default and on thread switch
+- stop `contain: strict` from collapsing scroll viewports to 0px
+
+---
+
+##### **2026年7月3日（v0.6.3）**
+
+中文：
+
+✨ Features
+- 升级应用版本号到 `0.6.3`，同步前端包配置与 Tauri 打包配置
+- `feat(models)`: 新增内置 Claude 模型目录，并支持覆盖优先级
+- `feat`: 以 ai-elements 风格重做上下文用量指示器
+- `feat(composer)`: 按引擎持久化 Composer 偏好设置
+- `feat(skills)`: 新增 vercel-optimize 与 writing-guidelines 两个 agent 技能
+
+🔧 Improvements
+- `perf`: 暂停后台轮询，消除 idle 空闲渲染风暴
+- `perf`: 消除 O(L²) 流式合并开销，并保持重型依赖懒加载
+- `perf`: app-shell 根渲染时不再牵动重型子树重渲染
+- `perf`: 将 Composer 状态移出 app-shell 根，收敛渲染风暴
+
+🐛 Fixes
+- `fix(timeline)`: 改为重测已挂载行而非清空虚拟化尺寸缓存，减少时间线跳动
+
+English:
+
+✨ Features
+- Bump the app version to `0.6.3` across frontend package metadata and Tauri bundle configuration
+- `feat(models)`: add a builtin Claude model catalog with override precedence
+- `feat`: rework the context-usage indicator with an ai-elements style
+- `feat(composer)`: persist per-engine composer preferences
+- `feat(skills)`: add the vercel-optimize and writing-guidelines agent skills
+
+🔧 Improvements
+- `perf`: pause background polling to cut idle render storms
+- `perf`: eliminate O(L²) streaming-merge overhead and keep heavy vendors lazy
+- `perf`: stop heavy subtrees from re-rendering on every app-shell root render
+- `perf`: move composer state out of the app-shell root to tame render storms
+
+🐛 Fixes
+- `fix(timeline)`: remeasure mounted rows instead of wiping the virtualizer size cache to reduce timeline jumpiness
+
+---
+
+##### **2026年7月1日（v0.6.2）**
+
+中文：
+
+✨ Features
+- 升级应用版本号到 `0.6.2`，同步前端包配置与 Tauri 打包配置
+- `feat(ui)`: 迁移到 shadcn 默认 zinc 主题并统一组件库到 Radix，消息、Composer 与设置面板整体换肤
+- `feat(composer)`: 新增分支徽章，并打磨输入框与消息时间线观感
+- `feat(perf)`: 接入 react-scan 渲染诊断面板并支持设置页开关，按运行时闸门启用 web-vitals
+- `feat(messages)`: 为 Claude 启用轻量流式渲染，并接入掉帧归因
+- `feat(threads)`: 子代理树默认折叠并重排线程列表
+- `feat(menu)`: 新增“切换开发者工具”菜单项
+
+🔧 Improvements
+- `refactor(messages)`: 工具块整体迁移到 shadcn Marker 折叠外壳，turn boundary 改用 Marker 分隔条，尺寸对齐官方规格
+- `refactor(messages)`: 抽取代码块语言徽标与复制按钮为共享组件，文件变更统一渲染为每文件紧凑行
+- `refactor(composer)`: 将权限模式与推理深度上提到主行，工具表面统一收纳进“+”下拉菜单，重构 composer 选择器并移除首页虚拟化
+- `refactor(typography)`: UI 字体改用 SF Pro、Markdown 引入 Geist，统一字号与文档观感
+- `refactor(ui)`: 提取 ClaudeContextCard 并精简 composer / messages 外壳
+- `refactor(messages)`: 将消息锚点栏重做为可折叠大纲
+- `refactor(claude)`: 移除 `/context` 命令用量探测
+- `refactor(i18n)`: 拆分 browserAgent 语言包到 zh.part8
+
+🐛 Fixes
+- `fix(build)`: 将 DMG 卷名改为 `ccgui`，修复 macOS 26 打包 EPERM 报错
+- `fix(markdown)`: 补齐 HTML 序列化依赖声明
+- `fix(messages)`: 优化 Mermaid 卡片操作按钮
+- `ci`: 停止在 Pull Request 上运行工作流
+
+English:
+
+✨ Features
+- Bump the app version to `0.6.2` across frontend package metadata and Tauri bundle configuration
+- `feat(ui)`: migrate to the shadcn default zinc theme and unify the component library on Radix, re-skinning messages, the composer, and settings panels
+- `feat(composer)`: add a branch badge and polish the input box and message timeline
+- `feat(perf)`: add a react-scan render-diagnostics panel with a settings toggle, and gate web-vitals behind a runtime switch
+- `feat(messages)`: enable lightweight streaming rendering for Claude with frame-drop attribution
+- `feat(threads)`: collapse subagent trees by default and reorder the thread list
+- `feat(menu)`: add a “Toggle Developer Tools” menu item
+
+🔧 Improvements
+- `refactor(messages)`: migrate tool blocks to the shadcn Marker collapsible shell, switch turn boundaries to a Marker divider, and align sizing with the official spec
+- `refactor(messages)`: extract the code-block language badge and copy button into shared components, and render file changes as compact per-file rows
+- `refactor(composer)`: surface permission mode and reasoning depth in the primary row, consolidate tool surfaces into a “+” dropdown menu, and rework the composer selector while removing home-page virtualization
+- `refactor(typography)`: switch the UI font to SF Pro, introduce Geist for Markdown, and unify font sizes and document feel
+- `refactor(ui)`: extract ClaudeContextCard and slim down composer / messages chrome
+- `refactor(messages)`: rework the message anchor rail into a collapsible outline
+- `refactor(claude)`: remove the `/context` command usage probe
+- `refactor(i18n)`: split the browserAgent locale into zh.part8
+
+🐛 Fixes
+- `fix(build)`: rename the DMG volume to `ccgui` to fix EPERM packaging failures on macOS 26
+- `fix(markdown)`: add the missing HTML serialization dependency declaration
+- `fix(messages)`: refine the Mermaid card action buttons
+- `ci`: stop running workflows on pull requests
+
+---
+
+##### **2026年6月28日（v0.6.1）**
+
+中文：
+
+✨ Features
+- 升级应用版本号到 `0.6.1`，同步前端包配置与 Tauri 打包配置
+
+🔧 Improvements
+- `feat(windows)`: 修复 Windows 平台 Claude / Codex 内置技能的 argv 传输边界，消除注入链路历史污染，让内置技能注入与命令包装在 Windows 下更稳定
+- `refactor(codex)`: 将 `resolve_default_codex_home` 收敛到 home 子模块，理清 Codex home 解析路径
+- `fix(codex)`: 收敛磁盘会话失效提示，减少无谓的失效告警
+
+🐛 Fixes
+- `fix(claude)`: 修复 Windows 下 stream-json 空 prompt 占位问题，避免空提示导致的流式启动异常
+- `fix(stream)`: 修复 Windows 对话流式输出回归
+- `fix(codex)`: 修复 Windows 内置技能启动回退
+- `fix(messages)`: 修复流式渲染更新深度崩溃
+- `fix(messages)`: 隔离幕布渲染场景作用域，避免跨场景渲染串扰
+- `fix(threads)`: 保留会话目录分页游标，避免翻页后游标丢失
+
+English:
+
+✨ Features
+- Bump the app version to `0.6.1` across frontend package metadata and Tauri bundle configuration
+
+🔧 Improvements
+- `feat(windows)`: fix the argv transport boundary for Claude / Codex curated skills on Windows, removing injection-chain history pollution so curated-skill injection and command wrapping stay reliable on Windows
+- `refactor(codex)`: move `resolve_default_codex_home` into the home submodule to clarify Codex home resolution
+- `fix(codex)`: converge disk-session invalidation notices to reduce noisy staleness warnings
+
+🐛 Fixes
+- `fix(claude)`: fix the stream-json empty-prompt placeholder on Windows so empty prompts no longer break streaming startup
+- `fix(stream)`: fix a Windows conversation streaming-output regression
+- `fix(codex)`: fix Windows curated-skill startup fallback
+- `fix(messages)`: fix a streaming-render update-depth crash
+- `fix(messages)`: scope canvas rendering per scenario to avoid cross-scenario render bleed
+- `fix(threads)`: preserve the session-directory pagination cursor so it is no longer lost after paging
+
+---
+
 ##### **2026年6月27日（v0.6.0）**
 
 中文：

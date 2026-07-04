@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import projectIconUrl from "../../../../icon.png";
+import SearchIcon from "lucide-react/dist/esm/icons/search";
 import { isComposingEvent } from "../../../utils/keys";
 import { loadSearchPaletteStyles } from "../../../styles/featureStyleLoaders";
 import { useFeatureStylesReady } from "../../../styles/useFeatureStylesReady";
@@ -208,11 +208,8 @@ export function SearchPalette({
         aria-label="Search"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="search-palette-top-accent" />
         <div className="search-palette-input-row">
-          <span className="search-palette-search-icon" aria-hidden="true">
-            ⌕
-          </span>
+          <SearchIcon className="search-palette-search-icon" aria-hidden="true" />
           <input
             ref={inputRef}
             className="search-palette-input"
@@ -229,13 +226,6 @@ export function SearchPalette({
               flushQuery(sanitizeSearchQueryInput(event.currentTarget.value));
             }}
           />
-          <span className="search-palette-project-icon-box" aria-hidden="true">
-            <img
-              className="search-palette-project-icon"
-              src={projectIconUrl}
-              alt=""
-            />
-          </span>
         </div>
         <div className="search-palette-scope">
           <span className="search-palette-scope-label">{t("searchPalette.scope")}</span>
