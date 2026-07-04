@@ -570,3 +570,58 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 10: 压制长对话流式渲染的 O(L²) 与全历史开销
+
+**Date**: 2026-07-04
+**Task**: 压制长对话流式渲染的 O(L²) 与全历史开销
+**Branch**: `feat/ui-refactoring`
+
+### Summary
+
+针对越聊越卡的一组 P1 复合根因,走现成窗口/缓存机器收窄流式期规模:快照增长快路径消除 O(L²) 合并、流式期裁到 live 尾窗、content-visibility 收窄到 live 行、Sidebar 子代理引用缓存、删除 backgroundActivityByThread 死代码
+
+### Main Changes
+
+| 模块 | 变更 |
+|------|------|
+| threads/textMerge | INGEST-1:mergeAgentMessageText 新增快照增长快路径,delta 恰以 existing 为前缀且后缀不跨段落、不回显头部时直接追加,长回复整段去重从多趟 O(L) 累计 O(L²) 降到近线性;新增 suffixReplaysLeadingSnapshot 回显护栏 |
+| messages/window | SCALE-1:流式期(isThinking)改用 STREAMING_VISIBLE_WINDOW=60 裁到 live 尾窗,每帧渲染/协调/DOM 从 O(全历史) 压到 O(尾窗);idle/展开态仍走 VISIBLE_MESSAGE_WINDOW 全量 |
+| styles/messages | claude-render-safe 的 content-visibility:visible 收窄到仅 .is-live-streaming 行,已完成屏外历史恢复 content-visibility:auto,避免全历史每帧参与 style/layout |
+| layout/shellSummary | Sidebar 子代理工具项加单槽引用缓存,纯文本 token 逐个 === 相等时复用旧数组引用,不再击穿 Sidebar memo |
+| threads/useThreads | FANOUT-2:删除未被消费的 backgroundActivityByThread projection 死代码 |
+
+**Updated Files**: 9 files (+172/-21)
+- `src/features/threads/hooks/threadReducerTextMerge.ts` (+test)
+- `src/features/messages/components/Messages.tsx`
+- `src/features/messages/components/messagesRenderUtils.ts` (+messagesLiveWindow.test)
+- `src/styles/messages.part1.css`
+- `src/features/layout/hooks/layoutShellSummary.ts` (+test)
+- `src/features/threads/hooks/useThreads.ts`
+
+**Status**: [OK] Completed(已提交 5f7ac804);人工验证待做:真机长对话流式「开始/结束」瞬间 bottom-follow 自动跟随不跳动、「显示更早」可展开;Windows/macOS 打包版回归 claude-render-safe 收窄后无白屏/闪烁
+
+### Testing
+
+- 单测覆盖:快照快路径近线性(<250ms)、段落边界回退、Sidebar 引用缓存复用/失配、SCALE-1 流式裁窗契约
+- [!] 真机体感与打包版渲染守卫回归待人工执行
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5f7ac804` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
