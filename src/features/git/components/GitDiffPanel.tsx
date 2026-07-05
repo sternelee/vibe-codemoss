@@ -12,8 +12,6 @@ import ArrowLeftRight from "lucide-react/dist/esm/icons/arrow-left-right";
 import Check from "lucide-react/dist/esm/icons/check";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
-import ChevronsDownUp from "lucide-react/dist/esm/icons/chevrons-down-up";
-import ChevronsUpDown from "lucide-react/dist/esm/icons/chevrons-up-down";
 import FolderTree from "lucide-react/dist/esm/icons/folder-tree";
 import GitPullRequest from "lucide-react/dist/esm/icons/git-pull-request";
 import HardDrive from "lucide-react/dist/esm/icons/hard-drive";
@@ -881,7 +879,6 @@ export function GitDiffPanel({
   const deferredCommitLanguageMenuTimerRef = useRef<number | null>(null);
   const gitStatusRefreshSpinTimerRef = useRef<number | null>(null);
   const gitStatusRefreshSpinRafRef = useRef<number | null>(null);
-  const [isCommitSectionCollapsed, setIsCommitSectionCollapsed] = useState(false);
   const [isGitStatusRefreshing, setIsGitStatusRefreshing] = useState(false);
   const [previewFile, setPreviewFile] = useState<(DiffFile & { section: "staged" | "unstaged" }) | null>(
     null,
@@ -1753,27 +1750,6 @@ export function GitDiffPanel({
     <aside className="diff-panel diff-panel--floating-git-actions" ref={panelRef}>
       <div className="git-panel-header git-panel-header--hover-actions">
         <div className="git-panel-actions" role="group" aria-label="Git panel">
-          {mode === "diff" && showGenerateCommitMessage ? (
-            <button
-              type="button"
-              className={`diff-list-view-collapse-toggle ${!isCommitSectionCollapsed ? "active" : ""}`}
-              onClick={() => setIsCommitSectionCollapsed((value) => !value)}
-              aria-label={t("git.toggleCommitSection")}
-              aria-expanded={!isCommitSectionCollapsed}
-              title={
-                isCommitSectionCollapsed
-                  ? t("git.expandCommitSection")
-                  : t("git.collapseCommitSection")
-              }
-            >
-              {isCommitSectionCollapsed ? (
-                <ChevronsUpDown size={13} aria-hidden />
-              ) : (
-                <ChevronsDownUp size={13} aria-hidden />
-              )}
-              <span>{t("git.commit")}</span>
-            </button>
-          ) : null}
           <div className="git-panel-select">
             <button
               ref={modeTriggerRef}
@@ -2067,7 +2043,7 @@ export function GitDiffPanel({
               )}
             </div>
           )}
-          {showGenerateCommitMessage && !isCommitSectionCollapsed && (
+          {showGenerateCommitMessage && (
             <div className="commit-message-section">
               <div className="commit-message-input-wrapper">
                 <textarea

@@ -161,9 +161,10 @@
   pointer-events: auto;
 }
 
-/* 顶栏工具组常驻显示（不再依赖 hover 面板才浮现） */
+/* 顶栏工具组常驻显示（不再依赖 hover 面板才浮现），差异Diff 入口靠右对齐 */
 .git-panel-header--hover-actions .git-panel-actions {
   flex-wrap: nowrap;
+  width: 100%;
   max-width: 100%;
   opacity: 1;
   pointer-events: auto;
@@ -370,8 +371,9 @@
   margin-bottom: 4px;
 }
 
+/* 临时隐藏 Git 仓库根「路径 + 切换」入口：保留 JSX 与逻辑，恢复时把 display 改回 flex */
 .git-root-current {
-  display: flex;
+  display: none;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
@@ -773,34 +775,6 @@
   color: var(--foreground);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.03);
   font-weight: 600;
-}
-
-/* 提交开关：独立 shadcn ghost 按钮（与 差异Diff 语言一致） */
-.diff-list-view-collapse-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  border: 1px solid transparent;
-  border-radius: var(--diff-radius-md);
-  min-height: 26px;
-  padding: 4px 8px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--muted-foreground);
-  background: transparent;
-  cursor: pointer;
-  transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
-}
-
-.diff-list-view-collapse-toggle:hover {
-  background: var(--accent);
-  color: var(--accent-foreground);
-}
-
-.diff-list-view-collapse-toggle.active {
-  background: var(--accent);
-  color: var(--accent-foreground);
 }
 
 /* HUB / 历史：shadcn ghost 按钮（去掉唯一的大写 + 下划线，与差异Diff 语言统一） */

@@ -633,7 +633,7 @@
   flex: 1;
   min-width: 0;
   font-size: var(--sidebar-content-font-size);
-  font-weight: 340;
+  font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
