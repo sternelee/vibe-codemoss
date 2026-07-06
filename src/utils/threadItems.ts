@@ -41,11 +41,19 @@ import {
   stripModeFallbackBlock,
   stripSharedSessionContextSyncBlock,
 } from "./threadItemsUserMessage";
+import {
+  extractAssistantFinalFlag,
+  extractFinalCompletedAtMs,
+  extractFinalDurationMs,
+  extractHistoryItemTimestampMs,
+  parseTimestampLikeMs,
+} from "./threadItemsTiming";
 export type { ClaudeApprovalResumeEntry } from "./threadItemsAssistantText";
 export {
   extractClaudeApprovalResumeEntries,
   stripClaudeApprovalResumeArtifacts,
 } from "./threadItemsAssistantText";
+export { getThreadTimestamp } from "./threadItemsTiming";
 
 export const MAX_ITEM_TEXT = 20000;
 const TOOL_OUTPUT_RECENT_ITEMS = 12;
@@ -188,25 +196,6 @@ function asNumber(value: unknown) {
   if (typeof value === "string") {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
-}
-
-function asBoolean(value: unknown): boolean | null {
-  if (typeof value === "boolean") {
-    return value;
-  }
-  if (typeof value === "number") {
-    return value === 1 ? true : value === 0 ? false : null;
-  }
-  if (typeof value === "string") {
-    const normalized = value.trim().toLowerCase();
-    if (normalized === "true" || normalized === "1" || normalized === "yes") {
-      return true;
-    }
-    if (normalized === "false" || normalized === "0" || normalized === "no") {
-      return false;
-    }
   }
   return null;
 }
@@ -877,31 +866,6 @@ export function upsertItem(list: ConversationItem[], item: ConversationItem) {
   return next;
 }
 
-export function getThreadTimestamp(thread: Record<string, unknown>) {
-  const raw =
-    (thread.updatedAt ?? thread.updated_at ?? thread.createdAt ?? thread.created_at) ??
-    0;
-  let numeric: number;
-  if (typeof raw === "string") {
-    const asNumber = Number(raw);
-    if (Number.isFinite(asNumber)) {
-      numeric = asNumber;
-    } else {
-      const parsed = Date.parse(raw);
-      if (!Number.isFinite(parsed)) {
-        return 0;
-      }
-      numeric = parsed;
-    }
-  } else {
-    numeric = Number(raw);
-  }
-  if (!Number.isFinite(numeric) || numeric <= 0) {
-    return 0;
-  }
-  return numeric < 1_000_000_000_000 ? numeric * 1000 : numeric;
-}
-
 export function previewThreadName(text: string, fallback: string) {
   const strippedAgentPrompt = stripAgentPromptBlockFromTail(text);
   const strippedModeFallback = stripModeFallbackBlock(strippedAgentPrompt);
@@ -915,148 +879,6 @@ export function previewThreadName(text: string, fallback: string) {
   }
   const clipped = clipByChars(collapsed, MAX_DEFAULT_THREAD_TITLE_CHARS).trim();
   return clipped || fallback;
-}
-
-function extractAssistantFinalFlag(item: Record<string, unknown>): boolean | undefined {
-  const candidates: unknown[] = [
-    item.isFinal,
-    item.is_final,
-    item.final,
-    item.isFinalMessage,
-    item.is_final_message,
-  ];
-  const metadata =
-    item.metadata && typeof item.metadata === "object" && !Array.isArray(item.metadata)
-      ? (item.metadata as Record<string, unknown>)
-      : null;
-  if (metadata) {
-    candidates.push(
-      metadata.isFinal,
-      metadata.is_final,
-      metadata.final,
-      metadata.isFinalMessage,
-      metadata.is_final_message,
-    );
-  }
-  for (const candidate of candidates) {
-    const parsed = asBoolean(candidate);
-    if (parsed !== null) {
-      return parsed;
-    }
-  }
-  return undefined;
-}
-
-function parseTimestampLikeMs(value: unknown): number | undefined {
-  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
-    return value < 1_000_000_000_000 ? value * 1000 : value;
-  }
-  if (typeof value !== "string") {
-    return undefined;
-  }
-  const normalized = value.trim();
-  if (!normalized) {
-    return undefined;
-  }
-  const numeric = Number(normalized);
-  if (Number.isFinite(numeric) && numeric > 0) {
-    return numeric < 1_000_000_000_000 ? numeric * 1000 : numeric;
-  }
-  const parsed = Date.parse(normalized);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return undefined;
-  }
-  return parsed;
-}
-
-function extractFinalCompletedAtMs(item: Record<string, unknown>): number | undefined {
-  const metadata =
-    item.metadata && typeof item.metadata === "object" && !Array.isArray(item.metadata)
-      ? (item.metadata as Record<string, unknown>)
-      : null;
-  const candidates: unknown[] = [
-    item.finalCompletedAt,
-    item.final_completed_at,
-    item.completedAt,
-    item.completed_at,
-  ];
-  if (metadata) {
-    candidates.push(
-      metadata.finalCompletedAt,
-      metadata.final_completed_at,
-      metadata.completedAt,
-      metadata.completed_at,
-    );
-  }
-  for (const candidate of candidates) {
-    const parsed = parseTimestampLikeMs(candidate);
-    if (typeof parsed === "number") {
-      return parsed;
-    }
-  }
-  return undefined;
-}
-
-function extractFinalDurationMs(item: Record<string, unknown>): number | undefined {
-  const metadata =
-    item.metadata && typeof item.metadata === "object" && !Array.isArray(item.metadata)
-      ? (item.metadata as Record<string, unknown>)
-      : null;
-  const candidates: unknown[] = [
-    item.finalDurationMs,
-    item.final_duration_ms,
-    item.durationMs,
-    item.duration_ms,
-  ];
-  if (metadata) {
-    candidates.push(
-      metadata.finalDurationMs,
-      metadata.final_duration_ms,
-      metadata.durationMs,
-      metadata.duration_ms,
-    );
-  }
-  for (const candidate of candidates) {
-    const parsed = asNumber(candidate);
-    if (parsed !== null && parsed >= 0) {
-      return parsed;
-    }
-  }
-  return undefined;
-}
-
-function extractHistoryItemTimestampMs(item: Record<string, unknown>): number | undefined {
-  const metadata =
-    item.metadata && typeof item.metadata === "object" && !Array.isArray(item.metadata)
-      ? (item.metadata as Record<string, unknown>)
-      : null;
-  const candidates: unknown[] = [
-    item.timestamp,
-    item.timestamp_ms,
-    item.timestampMs,
-    item.createdAt,
-    item.created_at,
-    item.updatedAt,
-    item.updated_at,
-  ];
-  if (metadata) {
-    candidates.push(
-      metadata.timestamp,
-      metadata.timestamp_ms,
-      metadata.timestampMs,
-      metadata.createdAt,
-      metadata.created_at,
-      metadata.updatedAt,
-      metadata.updated_at,
-    );
-  }
-  for (const candidate of candidates) {
-    const parsed = parseTimestampLikeMs(candidate);
-    if (typeof parsed === "number") {
-      return parsed;
-    }
-  }
-  return undefined;
 }
 
 export function buildConversationItem(
