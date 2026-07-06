@@ -6,6 +6,11 @@ import enPart4 from "./en.part4";
 import enPart5 from "./en.part5";
 import enPart6 from "./en.part6";
 import enPart7 from "./en.part7";
+import enRuntimeNotice from "./en.runtimeNotice";
+import enApproval from "./en.approval";
+import enEngineTaskOutput from "./en.engineTaskOutput";
+import enModes from "./en.modes";
+import enModels from "./en.models";
 
 const enPart2Settings =
   (enPart2 as { settings?: Partial<typeof enPart1.settings> }).settings ?? {};
@@ -26,10 +31,15 @@ const en = {
   ...enPart1Base,
   ...enPart1,
   ...enPart2,
+  ...enRuntimeNotice,
+  ...enApproval,
+  ...enEngineTaskOutput,
   ...enPart3,
   ...enPart4,
   ...enPart5,
   ...enPart6,
+  ...enModes,
+  ...enModels,
   messages: {
     ...enPart1.messages,
     ...enPart7Messages,

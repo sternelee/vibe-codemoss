@@ -56,6 +56,7 @@ function parseArgs(argv) {
     baselineOutput: null,
     jsonOutput: null,
     baselineFile: null,
+    newFileBaselineFile: null,
     policyFile: null,
     root: process.cwd(),
     scope: "fail",
@@ -101,6 +102,11 @@ function parseArgs(argv) {
       index += 1;
       continue;
     }
+    if (token === "--new-file-baseline-file") {
+      config.newFileBaselineFile = readOptionValue(argv, index, "--new-file-baseline-file");
+      index += 1;
+      continue;
+    }
     if (token === "--policy-file") {
       config.policyFile = readOptionValue(argv, index, "--policy-file");
       index += 1;
@@ -114,7 +120,7 @@ function parseArgs(argv) {
     }
     if (token === "--scope") {
       const value = readOptionValue(argv, index, "--scope");
-      if (!["warn", "fail"].includes(value)) {
+      if (!["warn", "fail", "new-file"].includes(value)) {
         throw new Error(`Invalid --scope value: ${value ?? "<missing>"}`);
       }
       config.scope = value;
@@ -257,6 +263,12 @@ function validatePolicyConfig(policyConfig, policyFile) {
   if (!Array.isArray(policyConfig.policies) || !policyConfig.defaultPolicy) {
     throw new Error(`Invalid large-file policy config: ${policyFile}`);
   }
+  if (policyConfig.newFileFailThreshold != null) {
+    const newFileFailThreshold = Number(policyConfig.newFileFailThreshold);
+    if (!Number.isFinite(newFileFailThreshold) || newFileFailThreshold < 0) {
+      throw new Error(`Invalid newFileFailThreshold in large-file policy config: ${policyFile}`);
+    }
+  }
 
   for (const [index, policy] of policyConfig.policies.entries()) {
     validatePolicy(policy, `${policyFile}.policies[${index}]`, { requireMatch: true });
@@ -395,6 +407,17 @@ export function determineHardDebtStatus(lineCount, baselineEntry, hasBaseline) {
   return "reduced";
 }
 
+function resolveNewFileFailThreshold(policyConfig) {
+  if (policyConfig?.newFileFailThreshold == null) {
+    return null;
+  }
+  const newFileFailThreshold = Number(policyConfig.newFileFailThreshold);
+  if (!Number.isFinite(newFileFailThreshold)) {
+    return null;
+  }
+  return newFileFailThreshold;
+}
+
 function classifyLegacyFile(relativePath, extension, lineCount, threshold) {
   if (lineCount <= threshold) {
     return null;
@@ -414,7 +437,15 @@ function classifyLegacyFile(relativePath, extension, lineCount, threshold) {
   };
 }
 
-function classifyPolicyFile(relativePath, extension, lineCount, policyConfig, scope, baselineMap) {
+function classifyPolicyFile(
+  relativePath,
+  extension,
+  lineCount,
+  policyConfig,
+  scope,
+  baselineMap,
+  newFileBaselineMap,
+) {
   const policy = resolvePolicy(relativePath, policyConfig);
   if (!policy) {
     return null;
@@ -426,20 +457,64 @@ function classifyPolicyFile(relativePath, extension, lineCount, policyConfig, sc
     throw new Error(`Invalid thresholds in policy ${policy.id}`);
   }
 
-  if (scope === "warn" && lineCount <= warnThreshold) {
-    return null;
+  const newFileFailThreshold = resolveNewFileFailThreshold(policyConfig);
+  if (scope === "new-file") {
+    if (newFileFailThreshold == null) {
+      throw new Error("Policy config must define newFileFailThreshold for --scope new-file");
+    }
+    if (lineCount <= newFileFailThreshold) {
+      return null;
+    }
+
+    const baselineEntry = newFileBaselineMap?.get(relativePath) ?? null;
+    const status = determineHardDebtStatus(lineCount, baselineEntry, newFileBaselineMap != null);
+    const baselineLines = baselineEntry?.lines ?? null;
+    const delta = baselineLines == null ? null : lineCount - baselineLines;
+
+    return {
+      path: relativePath,
+      lines: lineCount,
+      type: detectType(relativePath, extension),
+      priority: policy.priority ?? "P1",
+      policyId: policy.id,
+      warnThreshold,
+      failThreshold: newFileFailThreshold,
+      severity: "fail",
+      status,
+      baselineLines,
+      delta,
+      thresholdSource: "new-file-ratchet",
+    };
   }
-  if (scope === "fail" && lineCount <= failThreshold) {
+
+  if (scope === "warn" && lineCount <= warnThreshold) {
     return null;
   }
 
   const baselineEntry = baselineMap?.get(relativePath) ?? null;
-  const isHardDebt = lineCount > failThreshold;
-  const status = isHardDebt
+  const isPolicyHardDebt = lineCount > failThreshold;
+  const isNewFileRatchetDebt =
+    scope === "fail" &&
+    newFileBaselineMap != null &&
+    newFileFailThreshold != null &&
+    lineCount > newFileFailThreshold &&
+    !newFileBaselineMap.has(relativePath);
+
+  if (scope === "fail" && !isPolicyHardDebt && !isNewFileRatchetDebt) {
+    return null;
+  }
+
+  const isHardDebt = isPolicyHardDebt || isNewFileRatchetDebt;
+  const status = isPolicyHardDebt
     ? determineHardDebtStatus(lineCount, baselineEntry, baselineMap != null)
+    : isNewFileRatchetDebt
+      ? "new"
     : "watch";
-  const baselineLines = baselineEntry?.lines ?? null;
+  const baselineLines = isPolicyHardDebt ? baselineEntry?.lines ?? null : null;
   const delta = baselineLines == null ? null : lineCount - baselineLines;
+  const effectiveFailThreshold = isNewFileRatchetDebt && !isPolicyHardDebt
+    ? newFileFailThreshold
+    : failThreshold;
 
   return {
     path: relativePath,
@@ -448,18 +523,24 @@ function classifyPolicyFile(relativePath, extension, lineCount, policyConfig, sc
     priority: policy.priority ?? "P1",
     policyId: policy.id,
     warnThreshold,
-    failThreshold,
+    failThreshold: effectiveFailThreshold,
     severity: isHardDebt ? "fail" : "warn",
     status,
     baselineLines,
     delta,
+    thresholdSource: isNewFileRatchetDebt && !isPolicyHardDebt ? "new-file-ratchet" : "policy",
   };
 }
 
 export async function scanLargeFiles(options) {
   const policyConfig = await loadPolicyConfig(options.root, options.policyFile);
   const baseline = await loadBaseline(options.root, options.baselineFile);
+  const newFileBaseline = await loadBaseline(options.root, options.newFileBaselineFile);
+  if (policyConfig && newFileBaseline && resolveNewFileFailThreshold(policyConfig) == null) {
+    throw new Error("Policy config must define newFileFailThreshold when --new-file-baseline-file is used");
+  }
   const baselineMap = buildBaselineMap(baseline);
+  const newFileBaselineMap = buildBaselineMap(newFileBaseline);
 
   const allFiles = await walkDirectory(options.root);
   const sourceFiles = allFiles.filter((absolutePath) => TEXT_EXTENSIONS.has(path.extname(absolutePath)));
@@ -471,7 +552,15 @@ export async function scanLargeFiles(options) {
     const relativePath = toRepoPath(path.relative(options.root, absolutePath));
     const extension = path.extname(relativePath);
     const item = policyConfig
-      ? classifyPolicyFile(relativePath, extension, lineCount, policyConfig, options.scope, baselineMap)
+      ? classifyPolicyFile(
+          relativePath,
+          extension,
+          lineCount,
+          policyConfig,
+          options.scope,
+          baselineMap,
+          newFileBaselineMap,
+        )
       : classifyLegacyFile(relativePath, extension, lineCount, options.threshold);
     if (item) {
       results.push(item);
@@ -487,6 +576,7 @@ export async function scanLargeFiles(options) {
     policyVersion: policyConfig?.version ?? null,
     results,
     baselineLoaded: baseline != null,
+    newFileBaselineLoaded: newFileBaseline != null,
   };
 }
 
@@ -517,6 +607,9 @@ function formatConsoleMessage(item) {
   if (item.severity) {
     parts.push(`severity=${item.severity}`);
   }
+  if (item.thresholdSource) {
+    parts.push(`threshold=${item.thresholdSource}`);
+  }
   if (item.status) {
     parts.push(`status=${item.status}`);
   }
@@ -533,6 +626,8 @@ function buildMarkdownReport(scan, generatedAt) {
     ? "Large File Near-Threshold Watchlist"
     : scan.scope === "fail"
       ? "Large File Hard-Debt Baseline"
+      : scan.scope === "new-file"
+        ? "Large File New-File Ratchet Baseline"
       : "Large File Baseline";
 
   const lines = [];
@@ -573,6 +668,7 @@ function buildBaselineJson(scan, generatedAt) {
         priority: item.priority,
         warnThreshold: item.warnThreshold,
         failThreshold: item.failThreshold,
+        thresholdSource: item.thresholdSource,
       })),
     },
     null,
@@ -592,6 +688,7 @@ function buildStructuredReportJson(scan, generatedAt) {
       scope: scan.scope,
       policyVersion: scan.policyVersion,
       baselineLoaded: scan.baselineLoaded,
+      newFileBaselineLoaded: scan.newFileBaselineLoaded,
       findingCount: scan.results.length,
       blockingCount: blockingItems.length,
       results: scan.results,

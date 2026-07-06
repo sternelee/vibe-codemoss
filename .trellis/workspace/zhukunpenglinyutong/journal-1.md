@@ -678,3 +678,776 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 12: 大文件拆分首批收口
+
+**Date**: 2026-07-06
+**Task**: 大文件拆分首批收口
+**Branch**: `feat/ui-refactoring`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| Area | Summary |
+|------|---------|
+| app-shell | 将 composer prefs persistence、access mode sync、desktop chrome、model settings action 拆入 `src/app-shell-parts/*`，使 `src/app-shell.tsx` 降到 2600 行 gate 以下。 |
+| tauri bridge | 将 `src/services/tauri.ts` 收口为 facade barrel，把 inline wrapper 按领域拆入 `src/services/tauri/*`，公共 import path 与 invoke payload 保持不变。 |
+| large-file governance | `src/services/tauri.ts` 降到 537 行；新增 tauri 子模块均低于 800 行；`app-shell.tsx` 降到 2597 行。 |
+
+**验证**:
+- `npm run typecheck`
+- `npm run check:large-files:gate`
+- `node node_modules/vitest/vitest.mjs run --maxWorkers 1 --minWorkers 1 src/services/tauri.test.ts src/app-shell-parts/appShellDomainContexts.test.ts src/app-shell-parts/composerEnginePrefs.test.ts src/app-shell-parts/useAppShellLayoutNodesSection.test.ts src/app-shell-parts/useAppShellSearchAndComposerSection.test.tsx`
+- `npm run lint`（0 errors；保留既有 `MessagesRows.tsx` warning）
+
+**后续建议**:
+- 下一刀适合进入 `src/types.ts` barrel 化；它是纯 type export，风险低且调用面大。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a21ed6d1` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 13: 拆分全局类型桶
+
+**Date**: 2026-07-06
+**Task**: 拆分全局类型桶
+**Branch**: `feat/ui-refactoring`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| Area | Summary |
+|------|---------|
+| type facade | 将 `src/types.ts` 收口为 14 行 `export type *` barrel，保留 `src/types` / `@/types` 公共导入路径。 |
+| domain split | 新增 `src/types/workspace.ts`、`engine.ts`、`conversation.ts`、`settings.ts`、`computerUse.ts`、`email.ts`、`runtime.ts`、`diagnostics.ts`、`interaction.ts`、`git.ts`、`usage.ts`、`planning.ts`、`catalog.ts`、`misc.ts`。 |
+| large-file governance | 原 `src/types.ts` 2295 行降到 14 行；最大新类型文件 `conversation.ts` 371 行，所有 type domain 文件均低于 800 行。 |
+
+**验证**:
+- `npm run typecheck`
+- `npm run check:large-files:gate`
+- `node node_modules/vitest/vitest.mjs run --maxWorkers 1 --minWorkers 1 src/services/tauri.test.ts src/features/settings/hooks/useAppSettings.test.ts src/services/events.test.ts src/features/context-ledger/cost/costProjection.test.ts src/utils/threadItems.test.ts`
+- `npm run lint`（0 errors；保留既有 `MessagesRows.tsx` warning）
+
+**后续建议**:
+- 下一刀可按计划进入 i18n namespace 重切，或先做治理棘轮“新文件 800 行 fail”以防新 debt 反弹。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6d532993` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 14: Large-file 新增文件 800 行棘轮
+
+**Date**: 2026-07-06
+**Task**: Large-file 新增文件 800 行棘轮
+**Branch**: `feat/ui-refactoring`
+
+### Summary
+
+新增 large-file new-file ratchet baseline，后续缺席快照且超过 800 行的 governed 文件会在 gate 中失败。
+
+### Main Changes
+
+## 完成本轮目标
+
+- 新增 `newFileFailThreshold: 800`，并把 large-file scanner 扩展为双账本：
+  - `docs/architecture/large-file-baseline.*` 继续记录 legacy hard-debt（当前 0 entries）。
+  - `docs/architecture/large-file-new-file-baseline.*` 记录当前 276 个 800+ governed files，作为新增文件 ratchet 快照。
+- `npm run check:large-files` / `check:large-files:ci` / `check:large-files:gate` 加载 `--new-file-baseline-file`，缺席快照且超过 800 行的文件会输出 `status=new, threshold=new-file-ratchet` 并阻断 gate。
+- 新增 `npm run check:large-files:new-file-baseline` 用于有意刷新 ratchet 快照。
+- 新增 OpenSpec change `ratchet-large-file-new-files`，同步 playbook 与 parser tests。
+
+## 验证
+
+- `node --test scripts/check-large-files.test.mjs` — 18 tests pass。
+- `npm run check:large-files:new-file-baseline` — generated 276-entry ratchet baseline。
+- `npm run check:large-files` — found=0。
+- `npm run check:large-files:gate` — found=0。
+- `npm run check:large-files:near-threshold` — 39 advisory warnings, non-blocking。
+- `npm run typecheck` — pass。
+- `npm run lint` — 0 errors, 1 existing `react-hooks/exhaustive-deps` warning in `src/features/messages/components/MessagesRows.tsx:914`。
+- `openspec validate ratchet-large-file-new-files --strict --no-interactive` — pass。
+
+## 注意
+
+- 不要随手刷新 `large-file-new-file-baseline.*` 来接纳新的 800+ 文件；只有明确治理例外、重命名/移动或阈值策略变化时才更新。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e8a203c9` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 15: 修复聊天滚动回顶与 Windows 拖拽滞后
+
+**Date**: 2026-07-06
+**Task**: 修复聊天滚动回顶与 Windows 拖拽滞后
+**Branch**: `feat/ui-refactoring`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+## 本次完成
+
+- 修复长回复 / 大模型输出结束后，聊天视图可能自动定位到首条历史消息的问题。
+- 修复 Windows frameless titlebar 拖拽存在固定延迟，导致窗口不跟手的问题。
+- 为两个不可稳定复现的用户反馈补充回归测试和 OpenSpec 行为约束。
+
+## 根因
+
+- `Messages.tsx` 在 `isThinking` / `isWorking` 的 streaming tail 阶段提前消费 `initialBottomPinScopeRef`，导致完整历史恢复后跳过首次 bottom pin。
+- `useWindowDrag.ts` Windows path 使用固定 `140ms` timer 才触发 `startDragging()`，用户会感知为鼠标拖动一段时间后窗口才移动。
+
+## 验证
+
+- `npx vitest run src/features/messages/components/Messages.live-behavior.test.tsx src/features/layout/hooks/useWindowDrag.test.tsx --maxWorkers 1 --minWorkers 1`
+- `openspec validate harden-conversation-rendering-for-large-history --strict --no-interactive`
+- `openspec validate fix-windows-titlebar-drag-latency --strict --no-interactive`
+- `npm run typecheck`
+- `npm run lint`
+- `npm run check:large-files`
+- `git diff --check`
+- `git diff --cached --check`
+
+## 剩余风险
+
+- 自动化已覆盖触发逻辑，但 Windows/Tauri packaged build 的真实拖拽手感仍建议在 Windows 环境手测一次。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b20cf0cc` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 16: AppShell 编辑器布局 section 拆分
+
+**Date**: 2026-07-06
+**Task**: AppShell 编辑器布局 section 拆分
+**Branch**: `feat/ui-refactoring`
+
+### Summary
+
+抽出 useAppShellEditorLayoutSection，降低 app-shell P0 大文件压力。
+
+### Main Changes
+
+## 本次推进
+- 从 `src/app-shell.tsx` 抽出 editor layout / file reference mode / live edit preview / git history resize / solo split reset 编排。
+- 新增 `src/app-shell-parts/useAppShellEditorLayoutSection.ts`，保持 AppShell 下游 context 字段名与 setter 合约不变。
+- 新增 focused hook test，覆盖打开编辑器时切换 horizontal layout、取消 maximized，以及 solo split reset 按 `.main` 宽度折半。
+
+## 验证
+- `npx vitest run src/app-shell.startup.test.tsx src/app-shell-parts/useAppShellEditorLayoutSection.test.ts`
+- `npm run check:app-shell:runtime-contract`
+- `npm run check:large-files`
+- `npm run check:large-files:gate`
+- `npm run typecheck`
+- `npm run lint` 通过但保留既有 warning：`src/features/messages/components/MessagesRows.tsx:914 react-hooks/exhaustive-deps`
+
+## 风险与后续
+- 未做 full app manual UI smoke test。
+- `src/app-shell.tsx` 仍接近 P0 fail threshold，下一步应继续拆下游 prop/context 装配附近的稳定 section hook。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e6fe8634` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 17: AppShell 低风险 section 继续拆分
+
+**Date**: 2026-07-06
+**Task**: AppShell 低风险 section 继续拆分
+**Branch**: `feat/ui-refactoring`
+
+### Summary
+
+继续拆出 search palette、Claude thinking 和 latest agent radar 纯派生，遇到 worktree/effect/layout 中风险点后停止。
+
+### Main Changes
+
+## 本次推进
+- 继续按大文件拆分目标处理 `src/app-shell.tsx`，只做低风险、行为不变拆分。
+- 新增 `useAppShellSearchPaletteSection`，承接 search palette 本地 state 与 setter contract。
+- 新增 `useAppShellClaudeThinkingSection`，承接 Claude thinking 常开语义和 no-op resolved callback。
+- 新增 `latestAgentRuns` pure helper，承接 recent agent radar runs 与 loading boolean 派生。
+- `src/app-shell.tsx` 从本轮开始的 2580 行降到 2546 行。
+
+## 验证
+- `npx vitest run src/app-shell.startup.test.tsx src/app-shell-parts/latestAgentRuns.test.ts src/app-shell-parts/useAppShellSearchPaletteSection.test.ts src/app-shell-parts/useAppShellClaudeThinkingSection.test.ts src/app-shell-parts/useAppShellSearchAndComposerSection.test.tsx src/app-shell-parts/useAppShellSearchRadarSection.test.tsx`
+- `npm run check:app-shell:runtime-contract`
+- `npm run check:large-files`
+- `npm run check:large-files:gate`
+- `npm run typecheck`
+- `npm run lint` 通过但保留既有 warning：`src/features/messages/components/MessagesRows.tsx:914 react-hooks/exhaustive-deps`
+
+## 停点 / 后续
+- 已遇到下一阶段中风险点：继续拆 `AppShell` 需要动 worktree rename 状态组装、responsive effects，或 `useAppShellLayoutNodesSection` 的大范围渲染参数。
+- 建议下一轮先讨论这三个候选的优先级与验证范围，再继续拆。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2e0b3658` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 18: Markdown 纯 helper 低风险拆分
+
+**Date**: 2026-07-06
+**Task**: Markdown 纯 helper 低风险拆分
+**Branch**: `feat/ui-refactoring`
+
+### Summary
+
+抽出 Markdown 文本 normalizer 与 code/pre 解析 helper，停在 image runtime 和 React 子组件中风险边界。
+
+### Main Changes
+
+## 本次推进
+- 避开上一轮 `app-shell.tsx` 的中风险后续，改选 `src/features/messages/components/Markdown.tsx` 中的低风险纯 helper。
+- 新增 `markdownTextNormalizers.ts`，承接 list indentation、inline ordered marker、GitHub blockquote alert、fragmented paragraph/line normalization。
+- 新增 `markdownCodeBlockHelpers.ts`，承接 language tag、markdown/latex/mermaid fenced content、pre node code extraction、link-only pre block detection。
+- 新增 focused unit tests 锁住 pure helper 输入输出。
+- `Markdown.tsx` 从 2142 行降到 1591 行。
+
+## 验证
+- `npx vitest run src/features/messages/components/markdownTextNormalizers.test.ts src/features/messages/components/markdownCodeBlockHelpers.test.ts src/features/messages/components/Markdown.list-rendering.test.tsx src/features/messages/components/Markdown.file-links.test.tsx src/features/messages/components/Markdown.codeblock-rendering.test.tsx src/features/messages/components/Markdown.math-rendering.test.tsx src/features/messages/components/Markdown.tool-call.test.tsx src/features/messages/components/Markdown.outline-streaming.test.tsx src/features/messages/components/Markdown.image-fullscreen.test.tsx src/features/messages/components/Markdown.lazy-runtime.test.ts`
+- `npm run typecheck`
+- `npm run lint` 通过但保留既有 warning：`src/features/messages/components/MessagesRows.tsx:914 react-hooks/exhaustive-deps`
+- `npm run check:large-files`
+- `npm run check:large-files:gate`
+
+## 停点 / 后续
+- 已遇到下一阶段中风险点：继续拆 `Markdown.tsx` 需要动 image URL/runtime conversion (`convertFileSrc`)、React child components、table/alert node recursion、lazy runtime 或 markdown precompute effect。
+- 建议下一轮先讨论是继续拆 Markdown 的 UI 子组件，还是切换到另一个第一批低风险文件。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `cd5ca733` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 19: 抽出 threadItems 用户消息清理工具
+
+**Date**: 2026-07-06
+**Task**: 抽出 threadItems 用户消息清理工具
+**Branch**: `feat/ui-refactoring`
+
+### Summary
+
+将 threadItems.ts 中用户消息清理、模式兜底、Agent prompt 元数据解析和 fallback payload helper 迁移到 threadItemsUserMessage.ts，并新增直接单测；targeted tests、typecheck、lint、large-file gate 与 diff check 已通过，完整 npm run test 停在既有 Sidebar 顺序断言失败。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `65c3ce5d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 20: 抽出 threadItems 时间元数据工具
+
+**Date**: 2026-07-06
+**Task**: 抽出 threadItems 时间元数据工具
+**Branch**: `feat/ui-refactoring`
+
+### Summary
+
+将 threadItems.ts 中 thread timestamp、assistant final flag、final completed/duration 与 history item timestamp pure helper 迁移到 threadItemsTiming.ts，并保持 getThreadTimestamp 从 threadItems.ts re-export；新增 threadItemsTiming.test.ts，相关 targeted tests、typecheck、lint、large-file gate 与 diff check 已通过，完整 npm run test 仍停在无关 Sidebar 顺序断言失败。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0e9c132c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 21: 归并 threadItems 用户消息模式工具
+
+**Date**: 2026-07-06
+**Task**: 归并 threadItems 用户消息模式工具
+**Branch**: `feat/ui-refactoring`
+
+### Summary
+
+将 userMessage 专属 collaborationMode metadata 解析与 previewThreadName 默认标题清理逻辑归并到 threadItemsUserMessage.ts，并保持 previewThreadName 从 threadItems.ts re-export；targeted tests、typecheck、lint、large-file gate 与 diff check 已通过，full npm run test 的已知 Sidebar 顺序断言失败仍未在本轮处理。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4b77a338` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 22: 抽出 threadItems 生成图片条目工具
+
+**Date**: 2026-07-06
+**Task**: 抽出 threadItems 生成图片条目工具
+**Branch**: `feat/ui-refactoring`
+
+### Summary
+
+将 native generated image item type 识别、ID fallback 和 generatedImage ConversationItem 构造迁移到 threadItemsGeneratedImages.ts，并新增直接单测；targeted tests、typecheck、lint、large-file gate 与 diff check 已通过，full npm run test 的已知 Sidebar 顺序断言失败仍未在本轮处理。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0964db3c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 23: 抽出 threadItems 计划条目工具
+
+**Date**: 2026-07-06
+**Task**: 抽出 threadItems 计划条目工具
+**Branch**: `feat/ui-refactoring`
+
+### Summary
+
+将 plan/planImplementation 分支的步骤格式化与 action id 提取 pure helper 迁移到 threadItemsPlan.ts，并新增直接单测；相关 targeted tests、typecheck、lint、large-file gate 与 diff check 已通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ebc53145` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 24: 抽出 i18n 模型文案命名空间
+
+**Date**: 2026-07-06
+**Task**: 抽出 i18n 模型文案命名空间
+**Branch**: `feat/ui-refactoring`
+
+### Summary
+
+低风险拆分 i18n locale：将 en/zh 的顶层 models 文案从 part2 文件抽到独立 en.models.ts 与 zh.models.ts，并保持入口 merge 顺序；已通过 targeted i18n tests、typecheck、lint、large-file gates 与 diff check。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `75adc037` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 25: 抽出 i18n 权限模式文案命名空间
+
+**Date**: 2026-07-06
+**Task**: 抽出 i18n 权限模式文案命名空间
+**Branch**: `feat/ui-refactoring`
+
+### Summary
+
+低风险拆分 i18n locale：将 en/zh 的 modes、claudeModes、codexModes 从 part2 文件抽到独立 en.modes.ts 与 zh.modes.ts，并保持入口 top-level spread 语义；已通过 targeted i18n tests、typecheck、lint、large-file gates 与 diff check。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7d2e2807` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 26: 抽出 i18n 运行时提示文案命名空间
+
+**Date**: 2026-07-06
+**Task**: 抽出 i18n 运行时提示文案命名空间
+**Branch**: `feat/ui-refactoring`
+
+### Summary
+
+低风险拆分 i18n locale：将 en/zh 的 runtimeNotice 从 part2 文件抽到独立 en.runtimeNotice.ts 与 zh.runtimeNotice.ts，入口在 part2 后继续 top-level spread；已通过 i18n tests、runtime notice 相关 tests、typecheck、lint、large-file gates 与 diff check。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d0933bd7` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 27: 抽出 i18n 审批提问文案命名空间
+
+**Date**: 2026-07-06
+**Task**: 抽出 i18n 审批提问文案命名空间
+**Branch**: `feat/ui-refactoring`
+
+### Summary
+
+低风险拆分 i18n locale：将 en/zh 的 debug、approval、askUserQuestion 从 part2 文件抽到独立 en.approval.ts 与 zh.approval.ts，保持 top-level key shape；已通过 i18n tests、审批/提问组件目标 tests、typecheck、lint、large-file gates 与 diff check。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c11ae71f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 28: 抽出 i18n 任务输出文案命名空间
+
+**Date**: 2026-07-06
+**Task**: 抽出 i18n 任务输出文案命名空间
+**Branch**: `feat/ui-refactoring`
+
+### Summary
+
+收尾提交 i18n locale 拆分：将 en/zh 的 threadCompletion 与 engineTaskOutput 从 part2 文件抽到独立 en.engineTaskOutput.ts 与 zh.engineTaskOutput.ts，保持 top-level key shape；已通过 i18n tests、StatusPanel/Messages/SearchRadar/EngineTaskOutput 目标 tests、typecheck、lint、large-file gates 与 cached diff check。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2e70ec60` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 29: 汇总 Trellis 会话记录
+
+**Date**: 2026-07-06
+**Task**: 汇总 Trellis 会话记录
+
+### Summary
+
+整理本地 feat/ui-refactoring 历史：保留所有 refactor 提交，合并本地多个 chore(trellis): 记录会话 提交为单个会话记录提交；源代码树保持不变，仅整理 Trellis workspace journal/index 历史。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `33e7c9b7` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 30: 记录 v0.6.7 版本发布内容
+
+**Date**: 2026-07-06
+**Task**: 记录 v0.6.7 版本发布内容
+**Branch**: `feat/ui-refactoring`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| Area | Summary |
+|------|---------|
+| Release notes | Added a new `v0.6.7` bilingual changelog entry based on PR #788 commit/file metadata and local branch history. |
+| Version metadata | Updated `package.json`, `package-lock.json`, and `src-tauri/tauri.conf.json` to `0.6.7`. |
+| Preservation | Kept the existing `v0.6.6` changelog entry as historical release content instead of overwriting it. |
+
+**Updated Files**:
+- `CHANGELOG.md`
+- `package.json`
+- `package-lock.json`
+- `src-tauri/tauri.conf.json`
+
+**Verification**:
+- `npm run typecheck`
+- `npm run lint` (0 errors; existing `MessagesRows.tsx` hook dependency warning remains)
+- `git diff --check`
+- JSON metadata parse confirmed all release metadata equals `0.6.7`
+
+**Not Run**:
+- Full `npm run test`; this change was limited to release documentation and version metadata.
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2bdcc33d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

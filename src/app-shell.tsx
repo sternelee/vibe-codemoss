@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useWorkspaceDropZone } from "./features/workspaces/hooks/useWorkspaceDropZone";
 import { useThreads } from "./features/threads/hooks/useThreads";
-import { useWindowDrag } from "./features/layout/hooks/useWindowDrag";
 import { useGitPanelController } from "./features/app/hooks/useGitPanelController";
 import { useGitRemote } from "./features/git/hooks/useGitRemote";
 import { useGitRepoScan } from "./features/git/hooks/useGitRepoScan";
@@ -20,11 +19,8 @@ import { useWorkspaceRefreshOnFocus } from "./features/workspaces/hooks/useWorks
 import { useWorkspaceRestore } from "./features/workspaces/hooks/useWorkspaceRestore";
 import { useOpenPaths } from "./features/workspaces/hooks/useOpenPaths";
 import { useLayoutController } from "./features/app/hooks/useLayoutController";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { isMacPlatform, isWindowsPlatform } from "./utils/platform";
 import { useAppSettingsController } from "./features/app/hooks/useAppSettingsController";
 import { useUpdaterController } from "./features/app/hooks/useUpdaterController";
-import { useGitHistoryPanelResize } from "./features/app/hooks/useGitHistoryPanelResize";
 import { useReleaseNotes } from "./features/update/hooks/useReleaseNotes";
 import { useErrorToasts } from "./features/notifications/hooks/useErrorToasts";
 import { useComposerEditorState } from "./features/composer/hooks/useComposerEditorState";
@@ -48,7 +44,6 @@ import { useCopyThread } from "./features/threads/hooks/useCopyThread";
 import { useKanbanStore } from "./features/kanban/hooks/useKanbanStore";
 import { useGitCommitController } from "./features/app/hooks/useGitCommitController";
 import { forceRefreshAgents } from "./features/composer/components/ChatInputBox/providers";
-import type { SearchContentFilter, SearchScope } from "./features/search/types";
 import {
   normalizeFsPath,
   resolveWorkspaceRelativePath,
@@ -57,26 +52,16 @@ import {
   buildDetachedFileExplorerSession,
   openOrFocusDetachedFileExplorer,
 } from "./features/files/detachedFileExplorer";
-import { pickWorkspacePath, updateAppSettings } from "./services/tauri";
+import { pickWorkspacePath } from "./services/tauri";
 import type {
-  AccessMode,
   AppMode,
   ComposerEditorSettings,
-  ComposerEnginePrefs,
-  EngineType,
 } from "./types";
-import { resolveRestoredAccessMode } from "./app-shell-parts/composerEnginePrefs";
 import { resolveThreadEngine } from "./app-shell-parts/selectedComposerSession";
-import {
-  getComposerEnginePrefForEngine,
-  getComposerEnginePrefsSnapshot,
-  seedComposerEnginePrefs,
-  setComposerEnginePref,
-} from "./features/composer/hooks/composerEnginePrefsStore";
+import { getComposerEnginePrefForEngine } from "./features/composer/hooks/composerEnginePrefsStore";
 import { useCodeCssVars } from "./features/app/hooks/useCodeCssVars";
 import { useAccountSwitching } from "./features/app/hooks/useAccountSwitching";
 import { pushErrorToast } from "./services/toasts";
-import { requestVendorModelManager } from "./features/vendors/modelManagerRequest";
 import {
   extractPlanFromTimelineItems,
   resolveThreadScopedCollaborationModeSync,
@@ -109,21 +94,24 @@ import {
   reuseStableAppShellDomainContexts,
   type AppShellDomainContexts,
 } from "./app-shell-parts/appShellDomainContexts";
+import { useAppShellComposerPrefsPersistence } from "./app-shell-parts/useAppShellComposerPrefsPersistence";
+import { useAppShellAccessModeSection } from "./app-shell-parts/useAppShellAccessModeSection";
+import { useAppShellDesktopChrome } from "./app-shell-parts/useAppShellDesktopChrome";
+import { useAppShellModelSettingsAction } from "./app-shell-parts/useAppShellModelSettingsAction";
+import { useAppShellEditorLayoutSection } from "./app-shell-parts/useAppShellEditorLayoutSection";
+import { useAppShellSearchPaletteSection } from "./app-shell-parts/useAppShellSearchPaletteSection";
+import { useAppShellClaudeThinkingSection } from "./app-shell-parts/useAppShellClaudeThinkingSection";
+import {
+  buildLatestAgentRuns,
+  resolveLatestAgentFeedLoading,
+} from "./app-shell-parts/latestAgentRuns";
 
 export function AppShell() {
   const { t } = useTranslation();
-  // ponytail: 思考过程写死为常开、不可关闭。
-  // claudeThinkingVisible 是「发送端是否注入 CLAUDE_CODE_DISABLE_THINKING」与
-  // 「显示端是否隐藏思考块」的共同中枢开关。恒定 true 可确保 Claude 的思考既不被
-  // 前端强制禁用、也不被隐藏；并忽略下游上报的可见性，避免设置读取时机/供应商配置
-  // 把它翻成 false 而重现「开了设置却没有思考过程」的问题。
-  const claudeThinkingVisible = true;
-  const handleResolvedClaudeThinkingVisibleChange = useCallback(
-    (_enabled: boolean) => {
-      // 思考写死常开，忽略上报的可见性变化。
-    },
-    [],
-  );
+  const {
+    claudeThinkingVisible,
+    handleResolvedClaudeThinkingVisibleChange,
+  } = useAppShellClaudeThinkingSection();
 
   const {
     appSettings,
@@ -142,80 +130,14 @@ export function AppShell() {
     queueSaveSettings,
   } = useAppSettingsController();
   useCodeCssVars(appSettings);
-  // Keep the latest full settings for the debounced prefs writer below, which persists
-  // to disk imperatively (no setState) and therefore needs the other settings fields.
-  const appSettingsRef = useRef(appSettings);
-  useEffect(() => {
-    appSettingsRef.current = appSettings;
-  }, [appSettings]);
-
-  // Durable per-engine composer preferences (model / effort / permission / plan mode)
-  // so a brand-new conversation reopens with the user's last choices after restart.
-  // These live in an external store (composerEnginePrefsStore) so a switch-button click
-  // never re-renders the 2600-line app-shell root. Disk persistence still goes through
-  // AppSettings (the backend replaces the whole file), so we debounce a write that
-  // overlays the live snapshot onto the current settings — WITHOUT setSettings, which
-  // would re-render the root a second time. saveSettings applies the same overlay so
-  // unrelated settings saves cannot clobber newer prefs on disk.
-  const prefsPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const flushPersistEnginePrefs = useCallback(() => {
-    void updateAppSettings({
-      ...appSettingsRef.current,
-      lastComposerPrefsByEngine: getComposerEnginePrefsSnapshot(),
-    }).catch(() => undefined);
-  }, []);
-  const schedulePersistEnginePrefs = useCallback(() => {
-    if (prefsPersistTimerRef.current) {
-      clearTimeout(prefsPersistTimerRef.current);
-    }
-    prefsPersistTimerRef.current = setTimeout(() => {
-      prefsPersistTimerRef.current = null;
-      flushPersistEnginePrefs();
-    }, 400);
-  }, [flushPersistEnginePrefs]);
-  useEffect(
-    () => () => {
-      if (prefsPersistTimerRef.current) {
-        clearTimeout(prefsPersistTimerRef.current);
-        flushPersistEnginePrefs();
-      }
-    },
-    [flushPersistEnginePrefs],
-  );
-  const persistComposerEnginePref = useCallback(
-    (engine: EngineType, patch: Partial<ComposerEnginePrefs>) => {
-      if (!setComposerEnginePref(engine, patch)) {
-        return;
-      }
-      schedulePersistEnginePrefs();
-    },
-    [schedulePersistEnginePrefs],
-  );
-  const activeEngineRef = useRef<EngineType>("claude");
-  const persistClaudeCollaborationMode = useCallback(
-    (modeId: string | null) => {
-      if (activeEngineRef.current !== "claude") {
-        return;
-      }
-      persistComposerEnginePref("claude", {
-        collaborationModeId: modeId === "plan" ? "plan" : "code",
-      });
-    },
-    [persistComposerEnginePref],
-  );
-
-  // Seed the per-engine prefs store once, after settings finish loading. The reads below
-  // (access-mode restore, new-session default selection, claude plan/code default) pull
-  // from the store imperatively, so this effect is declared before them to seed first on
-  // the load-complete commit.
-  const prefsSeededRef = useRef(false);
-  useEffect(() => {
-    if (appSettingsLoading || prefsSeededRef.current) {
-      return;
-    }
-    seedComposerEnginePrefs(appSettings.lastComposerPrefsByEngine);
-    prefsSeededRef.current = true;
-  }, [appSettingsLoading, appSettings.lastComposerPrefsByEngine]);
+  const {
+    activeEngineRef,
+    persistClaudeCollaborationMode,
+    persistComposerEnginePref,
+  } = useAppShellComposerPrefsPersistence({
+    appSettings,
+    appSettingsLoading,
+  });
   const {
     dictationModel,
     dictationState,
@@ -242,8 +164,6 @@ export function AppShell() {
     reduceTransparency,
     onDebug: addDebugEntry,
   });
-  const [accessMode, setAccessMode] = useState<AccessMode>("full-access");
-  const claudeAccessModeRef = useRef<AccessMode>("full-access");
   const [activeTab, setActiveTab] = useState<
     "projects" | "codex" | "spec" | "git" | "log"
   >("codex");
@@ -334,46 +254,29 @@ export function AppShell() {
   const [appMode, setAppMode] = useState<AppMode>("chat");
   const [agentTaskScrollRequest, setAgentTaskScrollRequest] =
     useState<AgentTaskScrollRequest | null>(null);
-  const [activeEditorLineRange, setActiveEditorLineRange] = useState<{
-    startLine: number;
-    endLine: number;
-  } | null>(null);
-  const [fileReferenceMode, setFileReferenceMode] = useState<"path" | "none">(
-    "none",
-  );
-  const [editorSplitLayout, setEditorSplitLayout] = useState<
-    "vertical" | "horizontal"
-  >("vertical");
-  const [isEditorFileMaximized, setIsEditorFileMaximized] = useState(false);
-  const [liveEditPreviewEnabled, setLiveEditPreviewEnabled] = useState(false);
-  const requestEditorOpenLayout = useCallback(() => {
-    collapseSidebar();
-    setEditorSplitLayout((current) =>
-      current === "horizontal" ? current : "horizontal",
-    );
-    setIsEditorFileMaximized((current) => (current ? false : current));
-  }, [collapseSidebar]);
-  const appRootRef = useRef<HTMLDivElement | null>(null);
   const {
+    activeEditorLineRange,
+    appRootRef,
+    editorSplitLayout,
+    fileReferenceMode,
     gitHistoryPanelHeight,
     gitHistoryPanelHeightRef,
+    isEditorFileMaximized,
+    liveEditPreviewEnabled,
     onGitHistoryPanelResizeStart,
+    requestEditorOpenLayout,
+    resetSoloSplitToHalf,
+    setActiveEditorLineRange,
+    setEditorSplitLayout,
+    setFileReferenceMode,
     setGitHistoryPanelHeight,
-  } = useGitHistoryPanelResize({
-    appRootRef,
-    onClosePanel: () => {
-      setAppMode("chat");
-    },
+    setIsEditorFileMaximized,
+    setLiveEditPreviewEnabled,
+  } = useAppShellEditorLayoutSection({
+    collapseSidebar,
+    setAppMode,
+    setRightPanelWidth,
   });
-
-  const resetSoloSplitToHalf = useCallback(() => {
-    window.requestAnimationFrame(() => {
-      const appRoot = appRootRef.current;
-      const main = appRoot?.querySelector<HTMLElement>(".main");
-      const mainWidth = main?.clientWidth ?? window.innerWidth;
-      setRightPanelWidth(Math.floor(mainWidth / 2));
-    });
-  }, [setRightPanelWidth]);
 
   const {
     settingsOpen,
@@ -395,31 +298,15 @@ export function AppShell() {
     t,
   });
 
-  const handleOpenModelSettings = useCallback(
-    (providerId?: string) => {
-      const target =
-        providerId === "codex"
-          ? "codex"
-          : providerId === "gemini"
-            ? "gemini"
-            : "claude";
-      requestVendorModelManager({ target, addMode: true });
-      openSettings("providers");
-    },
-    [openSettings],
-  );
+  const handleOpenModelSettings = useAppShellModelSettingsAction(openSettings);
 
-  const [isSearchPaletteOpen, setIsSearchPaletteOpen] = useState(false);
-  const [searchScope, setSearchScope] =
-    useState<SearchScope>("active-workspace");
-  const [searchContentFilters, setSearchContentFilters] = useState<
-    SearchContentFilter[]
-  >(["all"]);
-  const [searchPaletteQuery, setSearchPaletteQuery] = useState("");
-  const [searchPaletteSelectedIndex, setSearchPaletteSelectedIndex] =
-    useState(0);
-  const [globalSearchFilesByWorkspace, setGlobalSearchFilesByWorkspace] =
-    useState<Record<string, string[]>>({});
+  const {
+    globalSearchFilesByWorkspace, isSearchPaletteOpen, searchContentFilters,
+    searchPaletteQuery, searchPaletteSelectedIndex, searchScope,
+    setGlobalSearchFilesByWorkspace, setIsSearchPaletteOpen,
+    setSearchContentFilters, setSearchPaletteQuery, setSearchPaletteSelectedIndex,
+    setSearchScope,
+  } = useAppShellSearchPaletteSection();
   const {
     isPanelLocked,
     setIsPanelLocked,
@@ -560,7 +447,11 @@ export function AppShell() {
       setActiveEditorLineRange(null);
       setIsEditorFileMaximized(false);
     }
-  }, [activeEditorFilePath]);
+  }, [
+    activeEditorFilePath,
+    setActiveEditorLineRange,
+    setIsEditorFileMaximized,
+  ]);
 
   const shouldLoadGitHubPanelData =
     gitPanelMode === "issues" ||
@@ -651,6 +542,17 @@ export function AppShell() {
     onDebug: addDebugEntry,
   });
   activeEngineRef.current = activeEngine;
+  const {
+    accessMode,
+    claudeAccessModeRef,
+    handleSetAccessMode,
+    setAccessMode,
+  } = useAppShellAccessModeSection({
+    activeEngine,
+    appSettingsLoading,
+    defaultAccessMode: appSettings.defaultAccessMode,
+    persistComposerEnginePref,
+  });
   const { handleRefreshModelConfig, isModelConfigRefreshing } =
     useModelConfigRefresh({
       activeEngine,
@@ -692,47 +594,6 @@ export function AppShell() {
     deleteTask: kanbanDeleteTask,
     reorderTask: kanbanReorderTask,
   } = useKanbanStore(workspaces);
-
-  // Sync accessMode when switching engines. Codex forces full-access; non-codex
-  // engines restore the permission the user last chose for that engine (persisted
-  // across restart), falling back to the configured defaultAccessMode.
-  useEffect(() => {
-    if (activeEngine === "codex") {
-      setAccessMode((prev) => {
-        if (prev !== "full-access") {
-          claudeAccessModeRef.current = prev;
-        }
-        return "full-access";
-      });
-      return;
-    }
-    const storedAccessMode =
-      getComposerEnginePrefForEngine(activeEngine).accessMode;
-    const restored = resolveRestoredAccessMode(
-      activeEngine,
-      storedAccessMode,
-      appSettings.defaultAccessMode,
-    );
-    claudeAccessModeRef.current = restored;
-    setAccessMode(restored);
-  }, [
-    activeEngine,
-    appSettingsLoading,
-    appSettings.defaultAccessMode,
-  ]);
-
-  // Remember the permission the user picks on a non-codex engine so future
-  // conversations (and app restarts) reopen with the same access mode.
-  const handleSetAccessMode = useCallback(
-    (mode: AccessMode) => {
-      setAccessMode(mode);
-      if (activeEngine !== "codex") {
-        claudeAccessModeRef.current = mode;
-        persistComposerEnginePref(activeEngine, { accessMode: mode });
-      }
-    },
-    [activeEngine, persistComposerEnginePref],
-  );
 
   const {
     prompts,
@@ -1278,57 +1139,26 @@ export function AppShell() {
     setSelectedDiffPath,
   });
 
-  const latestAgentRuns = useMemo(() => {
-    const entries: Array<{
-      threadId: string;
-      message: string;
-      timestamp: number;
-      projectName: string;
-      groupName?: string | null;
-      workspaceId: string;
-      isProcessing: boolean;
-    }> = [];
-    workspaces.forEach((workspace) => {
-      const threads = threadsByWorkspace[workspace.id] ?? [];
-      threads.forEach((thread) => {
-        const entry = lastAgentMessageByThread[thread.id];
-        if (entry) {
-          entries.push({
-            threadId: thread.id,
-            message: entry.text,
-            timestamp: entry.timestamp,
-            projectName: workspace.name,
-            groupName: getWorkspaceGroupName(workspace.id),
-            workspaceId: workspace.id,
-            isProcessing: threadStatusById[thread.id]?.isProcessing ?? false,
-          });
-        } else if (thread.id.startsWith("claude:")) {
-          entries.push({
-            threadId: thread.id,
-            message: thread.name,
-            timestamp: thread.updatedAt,
-            projectName: workspace.name,
-            groupName: getWorkspaceGroupName(workspace.id),
-            workspaceId: workspace.id,
-            isProcessing: false,
-          });
-        }
-      });
-    });
-    return entries.sort((a, b) => b.timestamp - a.timestamp).slice(0, 3);
-  }, [
-    lastAgentMessageByThread,
-    getWorkspaceGroupName,
-    threadStatusById,
-    threadsByWorkspace,
-    workspaces,
-  ]);
+  const latestAgentRuns = useMemo(
+    () =>
+      buildLatestAgentRuns({
+        getWorkspaceGroupName,
+        lastAgentMessageByThread,
+        threadStatusById,
+        threadsByWorkspace,
+        workspaces,
+      }),
+    [
+      getWorkspaceGroupName,
+      lastAgentMessageByThread,
+      threadStatusById,
+      threadsByWorkspace,
+      workspaces,
+    ],
+  );
   const isLoadingLatestAgents = useMemo(
     () =>
-      !hasLoaded ||
-      workspaces.some(
-        (workspace) => threadListLoadingByWorkspace[workspace.id] ?? false,
-      ),
+      resolveLatestAgentFeedLoading({ hasLoaded, threadListLoadingByWorkspace, workspaces }),
     [hasLoaded, threadListLoadingByWorkspace, workspaces],
   );
 
@@ -1846,21 +1676,8 @@ export function AppShell() {
     }
   }, [activeTab, isTablet]);
 
-  useWindowDrag("titlebar");
-
-  const isWindowsDesktop = useMemo(() => isWindowsPlatform(), []);
-  const isMacDesktop = useMemo(() => isMacPlatform(), []);
-
-  useEffect(() => {
-    const title = activeWorkspace ? `ccgui - ${activeWorkspace.name}` : "ccgui";
-    try {
-      void getCurrentWindow()
-        .setTitle(title)
-        .catch(() => {});
-    } catch {
-      // 普通浏览器没有 Tauri window internals，dev-server 预览时跳过窗口标题同步。
-    }
-  }, [activeWorkspace]);
+  const { isMacDesktop, isWindowsDesktop } =
+    useAppShellDesktopChrome(activeWorkspace);
 
   useWorkspaceRestore({
     workspaces,
