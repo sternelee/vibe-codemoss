@@ -6,6 +6,11 @@ import zhPart5 from "./zh.part5";
 import zhPart6 from "./zh.part6";
 import zhPart7 from "./zh.part7";
 import zhPart8 from "./zh.part8";
+import zhRuntimeNotice from "./zh.runtimeNotice";
+import zhApproval from "./zh.approval";
+import zhEngineTaskOutput from "./zh.engineTaskOutput";
+import zhModes from "./zh.modes";
+import zhModels from "./zh.models";
 
 const zhPart2Settings =
   (zhPart2 as { settings?: Partial<typeof zhPart1.settings> }).settings ?? {};
@@ -21,11 +26,16 @@ const zhPart7Messages =
 const zh = {
   ...zhPart1,
   ...zhPart2,
+  ...zhRuntimeNotice,
+  ...zhApproval,
+  ...zhEngineTaskOutput,
   ...zhPart3,
   ...zhPart4,
   ...zhPart5,
   ...zhPart6,
   ...zhPart8,
+  ...zhModes,
+  ...zhModels,
   messages: {
     ...zhPart1.messages,
     ...zhPart7Messages,

@@ -1,7 +1,6 @@
 import type { ConversationItem, IntentCanvasContextSendAttachment } from "../types";
 import { parseIntentCanvasContextSummaries } from "../features/intent-canvas/utils/messageContext";
 import { findEquivalentReasoningObservationIndex } from "../features/threads/assembly/conversationNormalization";
-import { normalizeAgentIcon } from "./agentIcons";
 import {
   formatCollabAgentStates,
   normalizeCollabAgentStatusMap,
@@ -26,28 +25,44 @@ import {
   isGeneratedImageToolName,
   resolveGeneratedImageArtifact,
 } from "./generatedImageArtifacts";
+import {
+  buildGeneratedImageConversationItem,
+  isNativeGeneratedImageItemType,
+  resolveConversationItemId,
+} from "./threadItemsGeneratedImages";
 import { normalizeAskUserQuestionHistoryItems } from "./threadItemsAskUserQuestion";
+import {
+  extractCollaborationModeFromUserMessageItem,
+  extractFallbackUserMessagePayload,
+  extractModeFallbackMode,
+  extractSelectedAgentIconFromUserMessageItem,
+  extractSelectedAgentNameFromUserMessageItem,
+  normalizeUserMessageText,
+} from "./threadItemsUserMessage";
+import {
+  extractAssistantFinalFlag,
+  extractFinalCompletedAtMs,
+  extractFinalDurationMs,
+  extractHistoryItemTimestampMs,
+  parseTimestampLikeMs,
+} from "./threadItemsTiming";
+import {
+  extractImplementPlanActionId,
+  formatPlanSteps,
+} from "./threadItemsPlan";
 export type { ClaudeApprovalResumeEntry } from "./threadItemsAssistantText";
 export {
   extractClaudeApprovalResumeEntries,
   stripClaudeApprovalResumeArtifacts,
 } from "./threadItemsAssistantText";
+export { getThreadTimestamp } from "./threadItemsTiming";
+export { previewThreadName } from "./threadItemsUserMessage";
 
 export const MAX_ITEM_TEXT = 20000;
 const TOOL_OUTPUT_RECENT_ITEMS = 12;
 const NO_TRUNCATE_TOOL_OUTPUT_RECENT_ITEMS = 4;
 const NO_TRUNCATE_TOOL_TYPES = new Set(["fileChange", "commandExecution"]);
 let prepareThreadItemsCallCountForTests = 0;
-const MAX_DEFAULT_THREAD_TITLE_CHARS = 10;
-const USER_INPUT_BLOCK_MARKER_REGEX = /\[User Input\]\s*/g;
-const AGENT_PROMPT_BLOCK_AT_TAIL_REGEX =
-  /(?:\r?\n){2}##\s*Agent Role and Instructions\s*(?:\r?\n){2}([\s\S]*)$/;
-const AGENT_PROMPT_NAME_LINE_REGEX =
-  /^(?:agent\s*name|selected\s*agent|智能体(?:名称|标题)?|agent)\s*[:：]\s*(.+)$/i;
-const AGENT_PROMPT_ICON_LINE_REGEX =
-  /^(?:agent\s*icon|selected\s*agent\s*icon|智能体图标|agent\s*icon\s*id)\s*[:：]\s*(.+)$/i;
-const TITLE_INJECTED_LINE_PREFIX_REGEX =
-  /^\[(?:System|Session Spec Link|Spec Root Priority|Skill Prompt|Commons Prompt)\][^\n]*(?:\r?\n|$)/i;
 const EDIT_TOOL_TYPE_HINTS = new Set([
   "edit",
   "edit_file",
@@ -63,138 +78,9 @@ const EDIT_TOOL_TYPE_HINTS = new Set([
   "notebookedit",
   "create_file",
 ]);
-const PROJECT_MEMORY_BLOCK_REGEX = /^<project-memory\b[\s\S]*?<\/project-memory>\s*/i;
-const PROJECT_MEMORY_LINE_PREFIX_REGEX =
-  /^\[(?:已知问题|技术决策|项目上下文|对话记录|笔记|记忆)\]\s+/;
-const MODE_FALLBACK_PREFIX_REGEX =
-  /^(?:collaboration mode:\s*code\.|execution policy \(default mode\):|execution policy \(plan mode\):)/i;
-const MODE_FALLBACK_MARKER_REGEX = /User request\s*:\s*/i;
-const SHARED_SESSION_SYNC_PREFIX_REGEX =
-  /^Shared session context sync\.\s*Continue from these recent turns before answering the new request:\s*/i;
-const SHARED_SESSION_CURRENT_REQUEST_MARKER_REGEX =
-  /(?:\r?\n){1,2}Current user request:\s*(?:\r?\n)?/i;
-const MAX_INJECTED_MEMORY_LINES = 12;
-const MESSAGE_PARAGRAPH_BREAK_SPLIT_REGEX = /\r?\n[^\S\r\n]*\r?\n+/;
 
 function asString(value: unknown) {
   return typeof value === "string" ? value : value ? String(value) : "";
-}
-
-function normalizeConversationItemType(value: string) {
-  return value.trim().toLowerCase();
-}
-
-function isNativeGeneratedImageItemType(value: string) {
-  const normalized = normalizeConversationItemType(value);
-  return (
-    normalized === "generatedimage" ||
-    normalized === "generated_image" ||
-    normalized === "image_generation_call" ||
-    normalized === "imagegenerationcall" ||
-    normalized === "image_generation_end" ||
-    normalized === "imagegenerationend"
-  );
-}
-
-function resolveConversationItemId(type: string, item: Record<string, unknown>) {
-  const directId = asString(item.id ?? "").trim();
-  if (directId) {
-    return directId;
-  }
-  if (!isNativeGeneratedImageItemType(type)) {
-    return "";
-  }
-  return asString(
-    item.call_id ?? item.callId ?? item.item_id ?? item.itemId ?? "",
-  ).trim();
-}
-
-function buildGeneratedImageConversationItem(
-  id: string,
-  type: string,
-  item: Record<string, unknown>,
-): Extract<ConversationItem, { kind: "generatedImage" }> {
-  const artifact = resolveGeneratedImageArtifact(
-    asString(item.status ?? ""),
-    item.arguments ?? item.input ?? item,
-    item,
-  );
-  const sourceToolName = asString(item.tool ?? item.name ?? type).trim() || type;
-  return {
-    id,
-    kind: "generatedImage",
-    status: artifact.status,
-    sourceToolName,
-    promptText: artifact.promptText,
-    fallbackText: artifact.fallbackText,
-    images: artifact.images,
-  };
-}
-
-function normalizeCollaborationMode(value: unknown): "plan" | "code" | null {
-  if (typeof value !== "string") {
-    return null;
-  }
-  const normalized = value.trim().toLowerCase();
-  if (normalized === "default") {
-    return "code";
-  }
-  return normalized === "plan" || normalized === "code"
-    ? normalized
-    : null;
-}
-function parseCollaborationModeValue(value: unknown): "plan" | "code" | null {
-  const direct = normalizeCollaborationMode(value);
-  if (direct) {
-    return direct;
-  }
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return null;
-  }
-  const record = value as Record<string, unknown>;
-  return (
-    normalizeCollaborationMode(record.mode) ??
-    normalizeCollaborationMode(record.id) ??
-    normalizeCollaborationMode(record.name) ??
-    null
-  );
-}
-
-function extractModeFallbackMode(text: string): "plan" | "code" | null {
-  const trimmed = text.trimStart();
-  if (!MODE_FALLBACK_PREFIX_REGEX.test(trimmed)) {
-    return null;
-  }
-  return /^execution policy \(plan mode\):/i.test(trimmed) ? "plan" : "code";
-}
-
-function extractCollaborationModeFromUserMessageItem(
-  item: Record<string, unknown>,
-  fallbackMode: "plan" | "code" | null,
-): "plan" | "code" | null {
-  const metadata =
-    item.metadata && typeof item.metadata === "object" && !Array.isArray(item.metadata)
-      ? (item.metadata as Record<string, unknown>)
-      : null;
-  const candidates: unknown[] = [
-    item.collaborationMode,
-    item.collaboration_mode,
-    item.selectedUiMode,
-    item.selected_ui_mode,
-    item.effectiveUiMode,
-    item.effective_ui_mode,
-    item.mode,
-    metadata?.collaborationMode,
-    metadata?.collaboration_mode,
-    metadata?.mode,
-  ];
-  for (const candidate of candidates) {
-    const mode = parseCollaborationModeValue(candidate);
-    if (mode) {
-      return mode;
-    }
-  }
-  return fallbackMode;
 }
 
 function asNumber(value: unknown) {
@@ -206,73 +92,6 @@ function asNumber(value: unknown) {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
-}
-
-function asBoolean(value: unknown): boolean | null {
-  if (typeof value === "boolean") {
-    return value;
-  }
-  if (typeof value === "number") {
-    return value === 1 ? true : value === 0 ? false : null;
-  }
-  if (typeof value === "string") {
-    const normalized = value.trim().toLowerCase();
-    if (normalized === "true" || normalized === "1" || normalized === "yes") {
-      return true;
-    }
-    if (normalized === "false" || normalized === "0" || normalized === "no") {
-      return false;
-    }
-  }
-  return null;
-}
-
-function formatPlanSteps(value: unknown) {
-  if (!Array.isArray(value)) {
-    return "";
-  }
-  const lines = value
-    .map((entry) => {
-      if (!entry || typeof entry !== "object") {
-        return "";
-      }
-      const record = entry as Record<string, unknown>;
-      const step = asString(record.step ?? record.title ?? record.text ?? "").trim();
-      if (!step) {
-        return "";
-      }
-      const status = asString(record.status ?? "").trim();
-      return status ? `- [${status}] ${step}` : `- ${step}`;
-    })
-    .filter(Boolean);
-  return lines.join("\n");
-}
-
-function extractImplementPlanActionId(item: Record<string, unknown>) {
-  const direct = asString(item.actionId ?? item.action_id ?? "").trim();
-  if (direct) {
-    return direct;
-  }
-  const action =
-    item.action && typeof item.action === "object" && !Array.isArray(item.action)
-      ? (item.action as Record<string, unknown>)
-      : null;
-  const fromAction = asString(action?.id ?? action?.actionId ?? action?.action_id ?? "").trim();
-  if (fromAction) {
-    return fromAction;
-  }
-  const actions = Array.isArray(item.actions) ? item.actions : [];
-  for (const entry of actions) {
-    if (!entry || typeof entry !== "object") {
-      continue;
-    }
-    const record = entry as Record<string, unknown>;
-    const id = asString(record.id ?? record.actionId ?? record.action_id ?? "").trim();
-    if (id) {
-      return id;
-    }
-  }
-  return "";
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -893,188 +712,6 @@ export function upsertItem(list: ConversationItem[], item: ConversationItem) {
   return next;
 }
 
-export function getThreadTimestamp(thread: Record<string, unknown>) {
-  const raw =
-    (thread.updatedAt ?? thread.updated_at ?? thread.createdAt ?? thread.created_at) ??
-    0;
-  let numeric: number;
-  if (typeof raw === "string") {
-    const asNumber = Number(raw);
-    if (Number.isFinite(asNumber)) {
-      numeric = asNumber;
-    } else {
-      const parsed = Date.parse(raw);
-      if (!Number.isFinite(parsed)) {
-        return 0;
-      }
-      numeric = parsed;
-    }
-  } else {
-    numeric = Number(raw);
-  }
-  if (!Number.isFinite(numeric) || numeric <= 0) {
-    return 0;
-  }
-  return numeric < 1_000_000_000_000 ? numeric * 1000 : numeric;
-}
-
-export function previewThreadName(text: string, fallback: string) {
-  const strippedAgentPrompt = stripAgentPromptBlockFromTail(text);
-  const strippedModeFallback = stripModeFallbackBlock(strippedAgentPrompt);
-  const strippedMemory = stripInjectedProjectMemoryBlock(strippedModeFallback);
-  const strippedSharedSync = stripSharedSessionContextSyncBlock(strippedMemory);
-  const extractedUserInput = extractLatestUserInputTextPreserveFormatting(strippedSharedSync);
-  const strippedInjectedPrefix = stripInjectedPrefixLines(extractedUserInput);
-  const collapsed = strippedInjectedPrefix.replace(/\s+/g, " ").trim();
-  if (!collapsed) {
-    return fallback;
-  }
-  const clipped = clipByChars(collapsed, MAX_DEFAULT_THREAD_TITLE_CHARS).trim();
-  return clipped || fallback;
-}
-
-function extractAssistantFinalFlag(item: Record<string, unknown>): boolean | undefined {
-  const candidates: unknown[] = [
-    item.isFinal,
-    item.is_final,
-    item.final,
-    item.isFinalMessage,
-    item.is_final_message,
-  ];
-  const metadata =
-    item.metadata && typeof item.metadata === "object" && !Array.isArray(item.metadata)
-      ? (item.metadata as Record<string, unknown>)
-      : null;
-  if (metadata) {
-    candidates.push(
-      metadata.isFinal,
-      metadata.is_final,
-      metadata.final,
-      metadata.isFinalMessage,
-      metadata.is_final_message,
-    );
-  }
-  for (const candidate of candidates) {
-    const parsed = asBoolean(candidate);
-    if (parsed !== null) {
-      return parsed;
-    }
-  }
-  return undefined;
-}
-
-function parseTimestampLikeMs(value: unknown): number | undefined {
-  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
-    return value < 1_000_000_000_000 ? value * 1000 : value;
-  }
-  if (typeof value !== "string") {
-    return undefined;
-  }
-  const normalized = value.trim();
-  if (!normalized) {
-    return undefined;
-  }
-  const numeric = Number(normalized);
-  if (Number.isFinite(numeric) && numeric > 0) {
-    return numeric < 1_000_000_000_000 ? numeric * 1000 : numeric;
-  }
-  const parsed = Date.parse(normalized);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return undefined;
-  }
-  return parsed;
-}
-
-function extractFinalCompletedAtMs(item: Record<string, unknown>): number | undefined {
-  const metadata =
-    item.metadata && typeof item.metadata === "object" && !Array.isArray(item.metadata)
-      ? (item.metadata as Record<string, unknown>)
-      : null;
-  const candidates: unknown[] = [
-    item.finalCompletedAt,
-    item.final_completed_at,
-    item.completedAt,
-    item.completed_at,
-  ];
-  if (metadata) {
-    candidates.push(
-      metadata.finalCompletedAt,
-      metadata.final_completed_at,
-      metadata.completedAt,
-      metadata.completed_at,
-    );
-  }
-  for (const candidate of candidates) {
-    const parsed = parseTimestampLikeMs(candidate);
-    if (typeof parsed === "number") {
-      return parsed;
-    }
-  }
-  return undefined;
-}
-
-function extractFinalDurationMs(item: Record<string, unknown>): number | undefined {
-  const metadata =
-    item.metadata && typeof item.metadata === "object" && !Array.isArray(item.metadata)
-      ? (item.metadata as Record<string, unknown>)
-      : null;
-  const candidates: unknown[] = [
-    item.finalDurationMs,
-    item.final_duration_ms,
-    item.durationMs,
-    item.duration_ms,
-  ];
-  if (metadata) {
-    candidates.push(
-      metadata.finalDurationMs,
-      metadata.final_duration_ms,
-      metadata.durationMs,
-      metadata.duration_ms,
-    );
-  }
-  for (const candidate of candidates) {
-    const parsed = asNumber(candidate);
-    if (parsed !== null && parsed >= 0) {
-      return parsed;
-    }
-  }
-  return undefined;
-}
-
-function extractHistoryItemTimestampMs(item: Record<string, unknown>): number | undefined {
-  const metadata =
-    item.metadata && typeof item.metadata === "object" && !Array.isArray(item.metadata)
-      ? (item.metadata as Record<string, unknown>)
-      : null;
-  const candidates: unknown[] = [
-    item.timestamp,
-    item.timestamp_ms,
-    item.timestampMs,
-    item.createdAt,
-    item.created_at,
-    item.updatedAt,
-    item.updated_at,
-  ];
-  if (metadata) {
-    candidates.push(
-      metadata.timestamp,
-      metadata.timestamp_ms,
-      metadata.timestampMs,
-      metadata.createdAt,
-      metadata.created_at,
-      metadata.updatedAt,
-      metadata.updated_at,
-    );
-  }
-  for (const candidate of candidates) {
-    const parsed = parseTimestampLikeMs(candidate);
-    if (typeof parsed === "number") {
-      return parsed;
-    }
-  }
-  return undefined;
-}
-
 export function buildConversationItem(
   item: Record<string, unknown>,
 ): ConversationItem | null {
@@ -1488,338 +1125,6 @@ function extractImageInputValue(input: Record<string, unknown>) {
     asString(input.data ?? "") ||
     asString(input.source ?? "");
   return value.trim();
-}
-
-function stripInjectedProjectMemoryBlock(text: string) {
-  if (!text) {
-    return "";
-  }
-  let normalized = text;
-  let changed = false;
-  let trimmedLeading = normalized.trimStart();
-  while (PROJECT_MEMORY_BLOCK_REGEX.test(trimmedLeading)) {
-    normalized = trimmedLeading.replace(PROJECT_MEMORY_BLOCK_REGEX, "");
-    changed = true;
-    trimmedLeading = normalized.trimStart();
-  }
-
-  const blocks = normalized.trimStart().split(MESSAGE_PARAGRAPH_BREAK_SPLIT_REGEX);
-  if (blocks.length >= 2) {
-    const firstBlock = blocks[0] ?? "";
-    const firstBlockLines = firstBlock
-      .split(/\r?\n+/)
-      .map((line) => line.trim())
-      .filter(Boolean);
-    const looksLikeInjectedMemoryLines =
-      firstBlockLines.length > 0 &&
-      firstBlockLines.length <= MAX_INJECTED_MEMORY_LINES &&
-      firstBlockLines.every((line) => PROJECT_MEMORY_LINE_PREFIX_REGEX.test(line));
-    if (looksLikeInjectedMemoryLines) {
-      normalized = blocks.slice(1).join("\n\n");
-      changed = true;
-    }
-  }
-  if (!changed) {
-    return text;
-  }
-  return normalized.trimStart();
-}
-
-function stripModeFallbackBlock(text: string) {
-  if (!extractModeFallbackMode(text)) {
-    return text;
-  }
-  const marker = MODE_FALLBACK_MARKER_REGEX.exec(text);
-  if (!marker || marker.index < 0) {
-    return text;
-  }
-  const extracted = text.slice(marker.index + marker[0].length).trim();
-  return extracted || text;
-}
-
-function stripSharedSessionContextSyncBlock(text: string) {
-  if (!SHARED_SESSION_SYNC_PREFIX_REGEX.test(text.trimStart())) {
-    return text;
-  }
-  const marker = SHARED_SESSION_CURRENT_REQUEST_MARKER_REGEX.exec(text);
-  if (!marker || marker.index < 0) {
-    return text;
-  }
-  const extractedRaw = text.slice(marker.index + marker[0].length);
-  const extracted = extractedRaw.replace(/^\r?\n/, "").replace(/^ /, "");
-  return extracted.trim().length > 0 ? extracted : text;
-}
-
-function extractLatestUserInputTextPreserveFormatting(text: string): string {
-  const userInputMatches = [...text.matchAll(USER_INPUT_BLOCK_MARKER_REGEX)];
-  if (userInputMatches.length === 0) {
-    return text;
-  }
-  const lastMatch = userInputMatches[userInputMatches.length - 1];
-  if (!lastMatch) {
-    return text;
-  }
-  const markerIndex = lastMatch.index ?? -1;
-  if (markerIndex < 0) {
-    return text;
-  }
-  const markerLength = lastMatch[0]?.length ?? 0;
-  const extractedRaw = text.slice(markerIndex + markerLength);
-  const extracted = extractedRaw.replace(/^\r?\n/, "").replace(/^ /, "");
-  return extracted.trim().length > 0 ? extracted : text;
-}
-
-function stripAgentPromptBlockFromTail(text: string): string {
-  const match = AGENT_PROMPT_BLOCK_AT_TAIL_REGEX.exec(text);
-  if (!match || typeof match.index !== "number" || match.index < 0) {
-    return text;
-  }
-  const baseText = text.slice(0, match.index).replace(/\s+$/, "");
-  return baseText || text;
-}
-
-function normalizeSelectedAgentName(value: unknown): string | null {
-  const text = asString(value).trim();
-  if (!text) {
-    return null;
-  }
-  const normalized = text.replace(/^#+\s*/, "").trim();
-  return normalized || null;
-}
-
-function extractAgentNameFromPromptLine(value: string | null): string | null {
-  const normalized = normalizeSelectedAgentName(value);
-  if (!normalized) {
-    return null;
-  }
-  const namedMatch = AGENT_PROMPT_NAME_LINE_REGEX.exec(normalized);
-  if (namedMatch?.[1]) {
-    return normalizeSelectedAgentName(namedMatch[1]);
-  }
-  const firstClause = normalized.split(/[,:，；;：。！？!?]/)[0]?.trim() ?? "";
-  if (firstClause && firstClause.length <= 24) {
-    return firstClause;
-  }
-  return null;
-}
-
-function extractSelectedAgentNameFromPromptText(text: string): string | null {
-  const match = AGENT_PROMPT_BLOCK_AT_TAIL_REGEX.exec(text);
-  if (!match) {
-    return null;
-  }
-  const tailText = match[1] ?? "";
-  if (!tailText.trim()) {
-    return null;
-  }
-  const firstLine =
-    tailText
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .find((line) => line.length > 0) ?? null;
-  return extractAgentNameFromPromptLine(firstLine);
-}
-
-function extractSelectedAgentIconFromPromptText(text: string): string | null {
-  const match = AGENT_PROMPT_BLOCK_AT_TAIL_REGEX.exec(text);
-  if (!match) {
-    return null;
-  }
-  const tailText = match[1] ?? "";
-  if (!tailText.trim()) {
-    return null;
-  }
-  for (const line of tailText.split(/\r?\n/)) {
-    const trimmedLine = line.trim();
-    if (!trimmedLine) {
-      continue;
-    }
-    const iconMatch = AGENT_PROMPT_ICON_LINE_REGEX.exec(trimmedLine);
-    if (!iconMatch?.[1]) {
-      continue;
-    }
-    const normalized = normalizeAgentIcon(iconMatch[1]);
-    if (normalized) {
-      return normalized;
-    }
-  }
-  return null;
-}
-
-function extractRawUserMessageTextCandidates(item: Record<string, unknown>): string[] {
-  const candidates: string[] = [];
-  const directText = asString(item.text);
-  if (directText.trim()) {
-    candidates.push(directText);
-  }
-  const content = Array.isArray(item.content) ? item.content : [];
-  for (const entry of content) {
-    const record = asRecord(entry);
-    if (!record) {
-      continue;
-    }
-    const text = asString(record.text ?? record.value ?? record.content ?? "");
-    if (text.trim()) {
-      candidates.push(text);
-    }
-  }
-  return candidates;
-}
-
-function extractSelectedAgentNameFromUserMessageItem(
-  item: Record<string, unknown>,
-  text: string,
-): string | null {
-  const metadata = asRecord(item.metadata);
-  const explicitNameCandidates: unknown[] = [
-    item.selectedAgentName,
-    item.selected_agent_name,
-    item.agentName,
-    item.agent_name,
-    asRecord(item.selectedAgent)?.name,
-    asRecord(item.selected_agent)?.name,
-    metadata?.selectedAgentName,
-    metadata?.selected_agent_name,
-    metadata?.agentName,
-    metadata?.agent_name,
-  ];
-  for (const candidate of explicitNameCandidates) {
-    const normalized = normalizeSelectedAgentName(candidate);
-    if (normalized) {
-      return normalized;
-    }
-  }
-  const promptTextCandidates = [text, ...extractRawUserMessageTextCandidates(item)];
-  for (const candidate of promptTextCandidates) {
-    const extracted = extractSelectedAgentNameFromPromptText(candidate);
-    if (extracted) {
-      return extracted;
-    }
-  }
-  return null;
-}
-
-function extractSelectedAgentIconFromUserMessageItem(
-  item: Record<string, unknown>,
-  text: string,
-): string | null {
-  const metadata = asRecord(item.metadata);
-  const explicitIconCandidates: unknown[] = [
-    item.selectedAgentIcon,
-    item.selected_agent_icon,
-    item.agentIcon,
-    item.agent_icon,
-    asRecord(item.selectedAgent)?.icon,
-    asRecord(item.selected_agent)?.icon,
-    metadata?.selectedAgentIcon,
-    metadata?.selected_agent_icon,
-    metadata?.agentIcon,
-    metadata?.agent_icon,
-  ];
-  for (const candidate of explicitIconCandidates) {
-    const normalized = normalizeAgentIcon(candidate);
-    if (normalized) {
-      return normalized;
-    }
-  }
-  const promptTextCandidates = [text, ...extractRawUserMessageTextCandidates(item)];
-  for (const candidate of promptTextCandidates) {
-    const extracted = extractSelectedAgentIconFromPromptText(candidate);
-    if (extracted) {
-      return extracted;
-    }
-  }
-  return null;
-}
-
-function stripInjectedPrefixLines(text: string): string {
-  let normalized = text.trimStart();
-  while (TITLE_INJECTED_LINE_PREFIX_REGEX.test(normalized)) {
-    normalized = normalized.replace(TITLE_INJECTED_LINE_PREFIX_REGEX, "").trimStart();
-  }
-  return normalized;
-}
-
-function clipByChars(text: string, maxChars: number): string {
-  return Array.from(text).slice(0, maxChars).join("");
-}
-
-function normalizeUserMessageText(text: string): string {
-  return stripSharedSessionContextSyncBlock(
-    stripModeFallbackBlock(stripInjectedProjectMemoryBlock(text)),
-  );
-}
-
-function collectUserMessageFallbackImages(item: Record<string, unknown>): string[] {
-  const collect = (value: unknown): string[] => {
-    if (!Array.isArray(value)) {
-      return [];
-    }
-    return value
-      .map((entry) => {
-        if (typeof entry === "string") {
-          return entry.trim();
-        }
-        const record = asRecord(entry);
-        if (!record) {
-          return "";
-        }
-        return asString(
-          record.url ??
-            record.path ??
-            record.src ??
-            record.image ??
-            record.imageUrl ??
-            "",
-        ).trim();
-      })
-      .filter(Boolean);
-  };
-
-  const direct = collect(item.images);
-  if (direct.length > 0) {
-    return direct;
-  }
-  const urlStyle = collect(item.imageUrls);
-  if (urlStyle.length > 0) {
-    return urlStyle;
-  }
-  return collect(item.image_urls);
-}
-
-function extractFallbackUserMessagePayload(item: Record<string, unknown>): {
-  text: string;
-  collaborationMode: "plan" | "code" | null;
-  images: string[];
-} {
-  const contentRecord = asRecord(item.content);
-  const rawTextCandidates: unknown[] = [
-    item.text,
-    item.inputText,
-    item.input_text,
-    item.prompt,
-    item.message,
-    typeof item.content === "string" ? item.content : null,
-    contentRecord?.text,
-    contentRecord?.value,
-    contentRecord?.content,
-  ];
-  const fallbackImages = collectUserMessageFallbackImages(item);
-  for (const candidate of rawTextCandidates) {
-    if (typeof candidate !== "string") {
-      continue;
-    }
-    const normalizedText = normalizeUserMessageText(candidate).trim();
-    if (!normalizedText) {
-      continue;
-    }
-    return {
-      text: normalizedText,
-      collaborationMode: extractModeFallbackMode(candidate),
-      images: fallbackImages,
-    };
-  }
-  return { text: "", collaborationMode: null, images: fallbackImages };
 }
 
 function parseUserInputs(inputs: Array<Record<string, unknown>>) {
