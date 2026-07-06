@@ -1398,3 +1398,56 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 30: 记录 v0.6.7 版本发布内容
+
+**Date**: 2026-07-06
+**Task**: 记录 v0.6.7 版本发布内容
+**Branch**: `feat/ui-refactoring`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| Area | Summary |
+|------|---------|
+| Release notes | Added a new `v0.6.7` bilingual changelog entry based on PR #788 commit/file metadata and local branch history. |
+| Version metadata | Updated `package.json`, `package-lock.json`, and `src-tauri/tauri.conf.json` to `0.6.7`. |
+| Preservation | Kept the existing `v0.6.6` changelog entry as historical release content instead of overwriting it. |
+
+**Updated Files**:
+- `CHANGELOG.md`
+- `package.json`
+- `package-lock.json`
+- `src-tauri/tauri.conf.json`
+
+**Verification**:
+- `npm run typecheck`
+- `npm run lint` (0 errors; existing `MessagesRows.tsx` hook dependency warning remains)
+- `git diff --check`
+- JSON metadata parse confirmed all release metadata equals `0.6.7`
+
+**Not Run**:
+- Full `npm run test`; this change was limited to release documentation and version metadata.
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2bdcc33d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
