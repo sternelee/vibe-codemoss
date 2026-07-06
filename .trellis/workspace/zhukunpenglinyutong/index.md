@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 14
+- **Total Sessions**: 15
 - **Last Active**: 2026-07-06
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~830 | Active |
+| `journal-1.md` | ~888 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 15 | 2026-07-06 | 修复聊天滚动回顶与 Windows 拖拽滞后 | `b20cf0cc` | `feat/ui-refactoring` |
 | 14 | 2026-07-06 | Large-file 新增文件 800 行棘轮 | `e8a203c9` | `feat/ui-refactoring` |
 | 13 | 2026-07-06 | 拆分全局类型桶 | `6d532993` | `feat/ui-refactoring` |
 | 12 | 2026-07-06 | 大文件拆分首批收口 | `a21ed6d1` | `feat/ui-refactoring` |

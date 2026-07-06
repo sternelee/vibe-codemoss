@@ -828,3 +828,61 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 15: 修复聊天滚动回顶与 Windows 拖拽滞后
+
+**Date**: 2026-07-06
+**Task**: 修复聊天滚动回顶与 Windows 拖拽滞后
+**Branch**: `feat/ui-refactoring`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+## 本次完成
+
+- 修复长回复 / 大模型输出结束后，聊天视图可能自动定位到首条历史消息的问题。
+- 修复 Windows frameless titlebar 拖拽存在固定延迟，导致窗口不跟手的问题。
+- 为两个不可稳定复现的用户反馈补充回归测试和 OpenSpec 行为约束。
+
+## 根因
+
+- `Messages.tsx` 在 `isThinking` / `isWorking` 的 streaming tail 阶段提前消费 `initialBottomPinScopeRef`，导致完整历史恢复后跳过首次 bottom pin。
+- `useWindowDrag.ts` Windows path 使用固定 `140ms` timer 才触发 `startDragging()`，用户会感知为鼠标拖动一段时间后窗口才移动。
+
+## 验证
+
+- `npx vitest run src/features/messages/components/Messages.live-behavior.test.tsx src/features/layout/hooks/useWindowDrag.test.tsx --maxWorkers 1 --minWorkers 1`
+- `openspec validate harden-conversation-rendering-for-large-history --strict --no-interactive`
+- `openspec validate fix-windows-titlebar-drag-latency --strict --no-interactive`
+- `npm run typecheck`
+- `npm run lint`
+- `npm run check:large-files`
+- `git diff --check`
+- `git diff --cached --check`
+
+## 剩余风险
+
+- 自动化已覆盖触发逻辑，但 Windows/Tauri packaged build 的真实拖拽手感仍建议在 Windows 环境手测一次。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b20cf0cc` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
