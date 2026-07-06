@@ -11,19 +11,25 @@ This playbook governs large-file growth with a domain-aware, baseline-aware poli
 - Hard-debt baseline:
   - Machine-readable: `docs/architecture/large-file-baseline.json`
   - Human-readable: `docs/architecture/large-file-baseline.md`
+- New-file ratchet baseline:
+  - Machine-readable: `docs/architecture/large-file-new-file-baseline.json`
+  - Human-readable: `docs/architecture/large-file-new-file-baseline.md`
 - Near-threshold watchlist:
   - Human-readable: `docs/architecture/large-file-near-threshold-watchlist.md`
 
 ## Policy Groups
 
-| Policy | Scope | Warn | Fail | Priority |
-|---|---|---:|---:|---|
-| `bridge-runtime-critical` | `src/services/tauri.ts`, `src/app-shell.tsx`, `src-tauri/src/{backend,engine,git,runtime,codex}/**` | 2200 | 2600 | P0 |
-| `feature-hotpath` | `threads/messages/composer/git-history/settings/spec/workspaces/shared-session` + `src/utils/threadItems.ts` | 2400 | 2800 | P1 |
-| `styles` | `src/styles/**` | 2200 | 2800 | P1 |
-| `test-files` | `src/test/**`, `*.test.*` | 2600 | 3000 | P2 |
-| `i18n` | `src/i18n/locales/**` | 2600 | 3000 | P2 |
-| `default-source` | other source files | 2600 | 3000 | P1 |
+All policy groups share an additional new-file fail threshold of `800` lines. Files already captured in
+`docs/architecture/large-file-new-file-baseline.json` keep the legacy policy fail threshold below.
+
+| Policy | Scope | Warn | Legacy Fail | New-File Fail | Priority |
+|---|---|---:|---:|---:|---|
+| `bridge-runtime-critical` | `src/services/tauri.ts`, `src/app-shell.tsx`, `src-tauri/src/{backend,engine,git,runtime,codex}/**` | 2200 | 2600 | 800 | P0 |
+| `feature-hotpath` | `threads/messages/composer/git-history/settings/spec/workspaces/shared-session` + `src/utils/threadItems.ts` | 2400 | 2800 | 800 | P1 |
+| `styles` | `src/styles/**` | 2200 | 2800 | 800 | P1 |
+| `test-files` | `src/test/**`, `*.test.*` | 2600 | 3000 | 800 | P2 |
+| `i18n` | `src/i18n/locales/**` | 2600 | 3000 | 800 | P2 |
+| `default-source` | other source files | 2600 | 3000 | 800 | P1 |
 
 ## Semantics
 
@@ -45,9 +51,19 @@ This playbook governs large-file growth with a domain-aware, baseline-aware poli
   - `reduced`: file is above fail threshold but smaller than baseline
   - `captured`: baseline generation run without loading a prior baseline
 
+### New-File Ratchet
+
+- `npm run check:large-files:new-file-baseline` captures the current set of governed files above `800` lines.
+- `npm run check:large-files:gate` loads that ratchet baseline with `--new-file-baseline-file`.
+- Files above `800` lines that are absent from the ratchet baseline are reported as `severity=fail, status=new, threshold=new-file-ratchet`.
+- Files already present in the ratchet baseline are not blocked by the 800-line ratchet unless they also cross the matched legacy fail threshold.
+- Do not regenerate the ratchet baseline to accept new 800+ files unless the governance decision is intentional and documented.
+
 ### Hard Gate
 
-- `npm run check:large-files:gate` fails only for `new` or `regressed` hard debt.
+- `npm run check:large-files:gate` fails for:
+  - policy hard-debt status `new` or `regressed`
+  - new-file ratchet status `new`
 - Retained or reduced debt remains visible but non-blocking.
 - Remediation must happen in the same PR: split the file or reduce it back to/below baseline.
 
@@ -55,6 +71,7 @@ This playbook governs large-file growth with a domain-aware, baseline-aware poli
 
 ```bash
 npm run check:large-files:baseline
+npm run check:large-files:new-file-baseline
 npm run check:large-files:near-threshold:baseline
 npm run check:large-files
 npm run check:large-files:near-threshold
@@ -73,6 +90,10 @@ npm run check:large-files:gate
 - Update `docs/architecture/large-file-baseline.json` only when one of the following is true:
   - policy thresholds changed intentionally
   - a large-file refactor permanently reduced or reorganized current debt
+- Update `docs/architecture/large-file-new-file-baseline.json` only when one of the following is true:
+  - a ratchet threshold change is intentionally accepted
+  - a pre-existing file is renamed or moved without changing ownership
+  - a new 800+ file has an explicit governance exception recorded in the change
 - Do not regenerate baseline casually to hide regressions.
 - When baseline changes, regenerate the markdown report in the same PR and explain why in the PR description.
 
