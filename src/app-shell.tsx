@@ -44,7 +44,6 @@ import { useCopyThread } from "./features/threads/hooks/useCopyThread";
 import { useKanbanStore } from "./features/kanban/hooks/useKanbanStore";
 import { useGitCommitController } from "./features/app/hooks/useGitCommitController";
 import { forceRefreshAgents } from "./features/composer/components/ChatInputBox/providers";
-import type { SearchContentFilter, SearchScope } from "./features/search/types";
 import {
   normalizeFsPath,
   resolveWorkspaceRelativePath,
@@ -100,21 +99,19 @@ import { useAppShellAccessModeSection } from "./app-shell-parts/useAppShellAcces
 import { useAppShellDesktopChrome } from "./app-shell-parts/useAppShellDesktopChrome";
 import { useAppShellModelSettingsAction } from "./app-shell-parts/useAppShellModelSettingsAction";
 import { useAppShellEditorLayoutSection } from "./app-shell-parts/useAppShellEditorLayoutSection";
+import { useAppShellSearchPaletteSection } from "./app-shell-parts/useAppShellSearchPaletteSection";
+import { useAppShellClaudeThinkingSection } from "./app-shell-parts/useAppShellClaudeThinkingSection";
+import {
+  buildLatestAgentRuns,
+  resolveLatestAgentFeedLoading,
+} from "./app-shell-parts/latestAgentRuns";
 
 export function AppShell() {
   const { t } = useTranslation();
-  // ponytail: 思考过程写死为常开、不可关闭。
-  // claudeThinkingVisible 是「发送端是否注入 CLAUDE_CODE_DISABLE_THINKING」与
-  // 「显示端是否隐藏思考块」的共同中枢开关。恒定 true 可确保 Claude 的思考既不被
-  // 前端强制禁用、也不被隐藏；并忽略下游上报的可见性，避免设置读取时机/供应商配置
-  // 把它翻成 false 而重现「开了设置却没有思考过程」的问题。
-  const claudeThinkingVisible = true;
-  const handleResolvedClaudeThinkingVisibleChange = useCallback(
-    (_enabled: boolean) => {
-      // 思考写死常开，忽略上报的可见性变化。
-    },
-    [],
-  );
+  const {
+    claudeThinkingVisible,
+    handleResolvedClaudeThinkingVisibleChange,
+  } = useAppShellClaudeThinkingSection();
 
   const {
     appSettings,
@@ -303,17 +300,13 @@ export function AppShell() {
 
   const handleOpenModelSettings = useAppShellModelSettingsAction(openSettings);
 
-  const [isSearchPaletteOpen, setIsSearchPaletteOpen] = useState(false);
-  const [searchScope, setSearchScope] =
-    useState<SearchScope>("active-workspace");
-  const [searchContentFilters, setSearchContentFilters] = useState<
-    SearchContentFilter[]
-  >(["all"]);
-  const [searchPaletteQuery, setSearchPaletteQuery] = useState("");
-  const [searchPaletteSelectedIndex, setSearchPaletteSelectedIndex] =
-    useState(0);
-  const [globalSearchFilesByWorkspace, setGlobalSearchFilesByWorkspace] =
-    useState<Record<string, string[]>>({});
+  const {
+    globalSearchFilesByWorkspace, isSearchPaletteOpen, searchContentFilters,
+    searchPaletteQuery, searchPaletteSelectedIndex, searchScope,
+    setGlobalSearchFilesByWorkspace, setIsSearchPaletteOpen,
+    setSearchContentFilters, setSearchPaletteQuery, setSearchPaletteSelectedIndex,
+    setSearchScope,
+  } = useAppShellSearchPaletteSection();
   const {
     isPanelLocked,
     setIsPanelLocked,
@@ -1146,57 +1139,26 @@ export function AppShell() {
     setSelectedDiffPath,
   });
 
-  const latestAgentRuns = useMemo(() => {
-    const entries: Array<{
-      threadId: string;
-      message: string;
-      timestamp: number;
-      projectName: string;
-      groupName?: string | null;
-      workspaceId: string;
-      isProcessing: boolean;
-    }> = [];
-    workspaces.forEach((workspace) => {
-      const threads = threadsByWorkspace[workspace.id] ?? [];
-      threads.forEach((thread) => {
-        const entry = lastAgentMessageByThread[thread.id];
-        if (entry) {
-          entries.push({
-            threadId: thread.id,
-            message: entry.text,
-            timestamp: entry.timestamp,
-            projectName: workspace.name,
-            groupName: getWorkspaceGroupName(workspace.id),
-            workspaceId: workspace.id,
-            isProcessing: threadStatusById[thread.id]?.isProcessing ?? false,
-          });
-        } else if (thread.id.startsWith("claude:")) {
-          entries.push({
-            threadId: thread.id,
-            message: thread.name,
-            timestamp: thread.updatedAt,
-            projectName: workspace.name,
-            groupName: getWorkspaceGroupName(workspace.id),
-            workspaceId: workspace.id,
-            isProcessing: false,
-          });
-        }
-      });
-    });
-    return entries.sort((a, b) => b.timestamp - a.timestamp).slice(0, 3);
-  }, [
-    lastAgentMessageByThread,
-    getWorkspaceGroupName,
-    threadStatusById,
-    threadsByWorkspace,
-    workspaces,
-  ]);
+  const latestAgentRuns = useMemo(
+    () =>
+      buildLatestAgentRuns({
+        getWorkspaceGroupName,
+        lastAgentMessageByThread,
+        threadStatusById,
+        threadsByWorkspace,
+        workspaces,
+      }),
+    [
+      getWorkspaceGroupName,
+      lastAgentMessageByThread,
+      threadStatusById,
+      threadsByWorkspace,
+      workspaces,
+    ],
+  );
   const isLoadingLatestAgents = useMemo(
     () =>
-      !hasLoaded ||
-      workspaces.some(
-        (workspace) => threadListLoadingByWorkspace[workspace.id] ?? false,
-      ),
+      resolveLatestAgentFeedLoading({ hasLoaded, threadListLoadingByWorkspace, workspaces }),
     [hasLoaded, threadListLoadingByWorkspace, workspaces],
   );
 
