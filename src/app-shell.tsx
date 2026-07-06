@@ -21,7 +21,6 @@ import { useOpenPaths } from "./features/workspaces/hooks/useOpenPaths";
 import { useLayoutController } from "./features/app/hooks/useLayoutController";
 import { useAppSettingsController } from "./features/app/hooks/useAppSettingsController";
 import { useUpdaterController } from "./features/app/hooks/useUpdaterController";
-import { useGitHistoryPanelResize } from "./features/app/hooks/useGitHistoryPanelResize";
 import { useReleaseNotes } from "./features/update/hooks/useReleaseNotes";
 import { useErrorToasts } from "./features/notifications/hooks/useErrorToasts";
 import { useComposerEditorState } from "./features/composer/hooks/useComposerEditorState";
@@ -100,6 +99,7 @@ import { useAppShellComposerPrefsPersistence } from "./app-shell-parts/useAppShe
 import { useAppShellAccessModeSection } from "./app-shell-parts/useAppShellAccessModeSection";
 import { useAppShellDesktopChrome } from "./app-shell-parts/useAppShellDesktopChrome";
 import { useAppShellModelSettingsAction } from "./app-shell-parts/useAppShellModelSettingsAction";
+import { useAppShellEditorLayoutSection } from "./app-shell-parts/useAppShellEditorLayoutSection";
 
 export function AppShell() {
   const { t } = useTranslation();
@@ -257,46 +257,29 @@ export function AppShell() {
   const [appMode, setAppMode] = useState<AppMode>("chat");
   const [agentTaskScrollRequest, setAgentTaskScrollRequest] =
     useState<AgentTaskScrollRequest | null>(null);
-  const [activeEditorLineRange, setActiveEditorLineRange] = useState<{
-    startLine: number;
-    endLine: number;
-  } | null>(null);
-  const [fileReferenceMode, setFileReferenceMode] = useState<"path" | "none">(
-    "none",
-  );
-  const [editorSplitLayout, setEditorSplitLayout] = useState<
-    "vertical" | "horizontal"
-  >("vertical");
-  const [isEditorFileMaximized, setIsEditorFileMaximized] = useState(false);
-  const [liveEditPreviewEnabled, setLiveEditPreviewEnabled] = useState(false);
-  const requestEditorOpenLayout = useCallback(() => {
-    collapseSidebar();
-    setEditorSplitLayout((current) =>
-      current === "horizontal" ? current : "horizontal",
-    );
-    setIsEditorFileMaximized((current) => (current ? false : current));
-  }, [collapseSidebar]);
-  const appRootRef = useRef<HTMLDivElement | null>(null);
   const {
+    activeEditorLineRange,
+    appRootRef,
+    editorSplitLayout,
+    fileReferenceMode,
     gitHistoryPanelHeight,
     gitHistoryPanelHeightRef,
+    isEditorFileMaximized,
+    liveEditPreviewEnabled,
     onGitHistoryPanelResizeStart,
+    requestEditorOpenLayout,
+    resetSoloSplitToHalf,
+    setActiveEditorLineRange,
+    setEditorSplitLayout,
+    setFileReferenceMode,
     setGitHistoryPanelHeight,
-  } = useGitHistoryPanelResize({
-    appRootRef,
-    onClosePanel: () => {
-      setAppMode("chat");
-    },
+    setIsEditorFileMaximized,
+    setLiveEditPreviewEnabled,
+  } = useAppShellEditorLayoutSection({
+    collapseSidebar,
+    setAppMode,
+    setRightPanelWidth,
   });
-
-  const resetSoloSplitToHalf = useCallback(() => {
-    window.requestAnimationFrame(() => {
-      const appRoot = appRootRef.current;
-      const main = appRoot?.querySelector<HTMLElement>(".main");
-      const mainWidth = main?.clientWidth ?? window.innerWidth;
-      setRightPanelWidth(Math.floor(mainWidth / 2));
-    });
-  }, [setRightPanelWidth]);
 
   const {
     settingsOpen,
@@ -471,7 +454,11 @@ export function AppShell() {
       setActiveEditorLineRange(null);
       setIsEditorFileMaximized(false);
     }
-  }, [activeEditorFilePath]);
+  }, [
+    activeEditorFilePath,
+    setActiveEditorLineRange,
+    setIsEditorFileMaximized,
+  ]);
 
   const shouldLoadGitHubPanelData =
     gitPanelMode === "issues" ||
