@@ -33,6 +33,14 @@ const workspace: WorkspaceInfo = {
   settings: { sidebarCollapsed: false },
 };
 
+const secondaryWorkspace: WorkspaceInfo = {
+  id: "workspace-2",
+  name: "docs",
+  path: "/tmp/docs",
+  connected: true,
+  settings: { sidebarCollapsed: false },
+};
+
 function makeProps(overrides?: Partial<Parameters<typeof useGitPanelController>[0]>) {
   return {
     activeWorkspace: workspace,
@@ -478,5 +486,76 @@ describe("useGitPanelController editor tabs", () => {
 
     expect(result.current.openFileTabs).toEqual(["src/App.tsx"]);
     expect(result.current.activeEditorFilePath).toBe("src/App.tsx");
+  });
+
+  it("restores open file tabs when switching back to a workspace", () => {
+    const { result, rerender } = renderHook(
+      ({ activeWorkspace }: { activeWorkspace: WorkspaceInfo }) =>
+        useGitPanelController(makeProps({ activeWorkspace })),
+      { initialProps: { activeWorkspace: workspace } },
+    );
+
+    act(() => {
+      result.current.handleOpenFile("src/App.tsx");
+      result.current.handleOpenFile("src/main.tsx");
+    });
+
+    expect(result.current.openFileTabs).toEqual(["src/App.tsx", "src/main.tsx"]);
+    expect(result.current.activeEditorFilePath).toBe("src/main.tsx");
+
+    act(() => {
+      rerender({ activeWorkspace: secondaryWorkspace });
+    });
+
+    expect(result.current.openFileTabs).toEqual([]);
+    expect(result.current.activeEditorFilePath).toBeNull();
+    expect(result.current.centerMode).toBe("chat");
+
+    act(() => {
+      result.current.handleOpenFile("README.md");
+    });
+
+    expect(result.current.openFileTabs).toEqual(["README.md"]);
+    expect(result.current.activeEditorFilePath).toBe("README.md");
+
+    act(() => {
+      rerender({ activeWorkspace: workspace });
+    });
+
+    expect(result.current.openFileTabs).toEqual(["src/App.tsx", "src/main.tsx"]);
+    expect(result.current.activeEditorFilePath).toBe("src/main.tsx");
+    expect(result.current.centerMode).toBe("editor");
+  });
+
+  it("clears only the active workspace tabs when closing all files", () => {
+    const { result, rerender } = renderHook(
+      ({ activeWorkspace }: { activeWorkspace: WorkspaceInfo }) =>
+        useGitPanelController(makeProps({ activeWorkspace })),
+      { initialProps: { activeWorkspace: workspace } },
+    );
+
+    act(() => {
+      result.current.handleOpenFile("src/App.tsx");
+      result.current.handleOpenFile("src/main.tsx");
+    });
+
+    act(() => {
+      rerender({ activeWorkspace: secondaryWorkspace });
+    });
+
+    act(() => {
+      result.current.handleOpenFile("README.md");
+      result.current.handleCloseAllFileTabs();
+    });
+
+    expect(result.current.openFileTabs).toEqual([]);
+    expect(result.current.activeEditorFilePath).toBeNull();
+
+    act(() => {
+      rerender({ activeWorkspace: workspace });
+    });
+
+    expect(result.current.openFileTabs).toEqual(["src/App.tsx", "src/main.tsx"]);
+    expect(result.current.activeEditorFilePath).toBe("src/main.tsx");
   });
 });

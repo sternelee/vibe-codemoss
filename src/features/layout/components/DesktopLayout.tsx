@@ -117,7 +117,8 @@ export function DesktopLayout({
     centerMode !== "projectMap" &&
     centerMode !== "intentCanvas" &&
     !shouldPlaceComposerInChatColumn &&
-    !isEditorSplitProjectMapVisible;
+    !isEditorSplitProjectMapVisible &&
+    !isEditorFileMaximized;
 
   useEffect(() => {
     const diffLayer = diffLayerRef.current;
