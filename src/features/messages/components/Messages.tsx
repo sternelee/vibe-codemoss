@@ -2185,6 +2185,16 @@ export const Messages = memo(function Messages({
     }
   }, [revealAllHistoryItems, scrollToAnchor, showAllHistoryItems]);
 
+  const requestScrollToBottom = useCallback(() => {
+    autoScrollRef.current = true;
+    setPendingJumpMessageId(null);
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    const latestAnchorId = messageAnchors[messageAnchors.length - 1]?.id ?? null;
+    if (latestAnchorId) {
+      commitActiveAnchorId(latestAnchorId, "sync");
+    }
+  }, [commitActiveAnchorId, messageAnchors]);
+
   const handlePendingJumpTargetReady = useCallback((messageId: string) => {
     if (pendingJumpMessageId !== messageId) {
       return;
@@ -2229,8 +2239,10 @@ export const Messages = memo(function Messages({
         activeAnchorId={activeAnchorId}
         anchors={messageAnchors}
         anchorNavigationLabel={t("messages.anchorNavigation")}
+        scrollToBottomLabel={t("messages.scrollToBottom")}
         getFallbackTitle={(index) => t("messages.anchorUserTitle", { index: index + 1 })}
         onScrollToAnchor={requestScrollToAnchor}
+        onScrollToBottom={requestScrollToBottom}
       />
       <div
         className="messages"
