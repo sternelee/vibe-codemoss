@@ -1451,3 +1451,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 31: 降低客户端存储写入和诊断空转开销
+
+**Date**: 2026-07-07
+**Task**: 降低客户端存储写入和诊断空转开销
+**Branch**: `feat/ui-refactoring`
+
+### Summary
+
+提交 client store 性能修复：Rust client_storage 增加进程内缓存、compact JSON 与 no-op patch 跳过；启动后清理 diagnostics/customNames legacy 存量；Kanban base64 image 改为落盘保存路径；renderer diagnostics 与 live assistant shadow transcript 降低 idle/high-frequency durable writes。验证包含 lint/typecheck、两个 OpenSpec strict validate、focused Vitest、client_storage Rust tests；full npm test 仍被既有 Sidebar runtime notice ordering 断言阻塞。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5210c72509f180b5183ed9a97b1085ff4be0d3b2` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
