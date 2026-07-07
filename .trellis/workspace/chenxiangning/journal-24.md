@@ -1572,3 +1572,51 @@ Windows Codex app-server wrapper fallback 改为通过 provider/default CODEX_HO
 ### Next Steps
 
 - None - task complete
+
+
+## Session 960: 修复编辑器最大化布局与工作区文件标签记忆
+
+**Date**: 2026-07-07
+**Task**: 修复编辑器最大化布局与工作区文件标签记忆
+**Branch**: `ui-refactoring`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+本次完成桌面编辑器两个关联问题的实现、验证与提交。
+
+| Area | Summary |
+|------|---------|
+| Editor layout | `DesktopLayout` 在文件最大化态隐藏外层 composer，文件查看区可占满中间区域。 |
+| Workspace tabs | `useGitPanelController` 将打开文件 tabs 和 active file 变为 workspace-scoped state，切换工作区后可恢复各自打开文件。 |
+| Cleanup behavior | close tab、close all、exit editor 只清理当前 workspace 的文件标签状态，避免影响其他 workspace。 |
+| OpenSpec | 新增 `fix-editor-file-maximize-and-workspace-file-tabs` change，记录 proposal、design、tasks 与 spec delta。 |
+| Tests | 增加/更新 DesktopLayout 与 useGitPanelController 回归测试。 |
+
+验证已执行：
+- `npx vitest run src/features/layout/components/DesktopLayout.test.tsx src/features/app/hooks/useGitPanelController.test.tsx`
+- `npx vitest run src/features/app/hooks/useWorkspaceCycling.test.tsx`
+- `npm run typecheck`
+- `npm run lint`（仅有既有 `MessagesRows.tsx:914` warning，不属于本次变更）
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9194ad26` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
