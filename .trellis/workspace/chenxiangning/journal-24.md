@@ -1701,3 +1701,53 @@ Windows Codex app-server wrapper fallback 改为通过 provider/default CODEX_HO
 ### Next Steps
 
 - None - task complete
+
+
+## Session 963: 修复焦点跟随重新开启滚底
+
+**Date**: 2026-07-07
+**Task**: 修复焦点跟随重新开启滚底
+**Branch**: `ui-refactoring`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+Goal: 修复消息幕布中“焦点跟随”重新开启后当前幕布不自动滚到底部的问题，并补充 OpenSpec 提案记录。
+
+Changes:
+- 在 `Messages` 的 live controls event handler 中，当 `liveAutoFollowEnabled: true` 且当前会话正在 working 时，显式 re-arm `autoScrollRef` 并滚动到底部 sentinel。
+- 新增 `Messages.live-behavior.test.tsx` 回归测试，覆盖用户滚离底部后重新开启焦点跟随会立即回到底部，并允许后续 live 输出继续跟随。
+- 新增 OpenSpec change `fix-live-auto-follow-rearm-scroll`，包含 proposal/design/spec delta/tasks。
+
+Validation:
+- `npx vitest run src/features/messages/components/Messages.live-behavior.test.tsx src/features/messages/components/Messages.test.tsx`
+- `openspec validate --changes fix-live-auto-follow-rearm-scroll --strict`
+- `npm run typecheck`
+- `npx eslint src/features/messages/components/Messages.tsx src/features/messages/components/Messages.live-behavior.test.tsx`
+- `git diff --check`
+
+Review:
+- 未发现阻断问题。
+- 风险点：只在 active working 状态下 re-arm，避免静态 history 更新误触发滚底；继续保留手动上滚暂停跟随的保护。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8ad0eff7` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
