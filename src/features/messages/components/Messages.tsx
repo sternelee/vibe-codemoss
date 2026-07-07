@@ -601,6 +601,11 @@ export const Messages = memo(function Messages({
     bottomRef.current.scrollIntoView({ behavior: "instant", block: "end" });
   }, [isWorking, liveAutoFollowEnabled]);
 
+  const rearmAutoFollowToBottom = useCallback(() => {
+    autoScrollRef.current = true;
+    bottomRef.current?.scrollIntoView({ behavior: "instant", block: "end" });
+  }, []);
+
   const scrollToAgentTaskCard = useCallback((request: AgentTaskScrollRequest | null) => {
     if (!request) {
       return;
@@ -742,6 +747,9 @@ export const Messages = memo(function Messages({
       }
       if (typeof detail.liveAutoFollowEnabled === "boolean") {
         setLiveAutoFollowEnabled(detail.liveAutoFollowEnabled);
+        if (detail.liveAutoFollowEnabled && isWorking) {
+          rearmAutoFollowToBottom();
+        }
       }
       if (typeof detail.collapseLiveMiddleStepsEnabled === "boolean") {
         setCollapseLiveMiddleStepsEnabled(detail.collapseLiveMiddleStepsEnabled);
@@ -773,7 +781,7 @@ export const Messages = memo(function Messages({
       );
       window.removeEventListener("storage", handleStorage);
     };
-  }, []);
+  }, [isWorking, rearmAutoFollowToBottom]);
   useEffect(() => {
     if (!liveAutoFollowEnabled || !isWorking) {
       return;
