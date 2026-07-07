@@ -1620,3 +1620,44 @@ Windows Codex app-server wrapper fallback 改为通过 provider/default CODEX_HO
 ### Next Steps
 
 - None - task complete
+
+
+## Session 961: 新增工作区文件对比工具
+
+**Date**: 2026-07-07
+**Task**: 新增工作区文件对比工具
+**Branch**: `ui-refactoring`
+
+### Summary
+
+完成文件树多选与顶部入口触发的文件对比功能，并收口 OpenSpec、实现、测试和样式。
+
+### Main Changes
+
+- 新增 OpenSpec change `add-workspace-file-compare-tool`，覆盖 proposal、design、tasks 和行为 delta。
+- 新增 `fileCompare` center mode，接入 app-shell、layout nodes、desktop layout 和 header actions。
+- 新增 `WorkspaceFileComparePanel`，支持 workspace 文件对比和 scratch 文本对比。
+- 文件树右键菜单在选中 2 到 4 个文件时显示“文件对比”，超过 4 个文件提示缩小选择范围。
+- 复用现有 CodeMirror 编辑器能力，支持行级差异高亮、差异导航、保存、只读限制和轻量同步滚动。
+- 新增 `fileCompareDiff` helper 与测试，提供基于首列 anchor 的轻量行对齐和 visual gap 数据。
+- 验证结果：typecheck 通过；lint 0 error，保留既有 `MessagesRows.tsx` hook warning；文件对比相关 97 个测试通过；OpenSpec strict 通过；git diff --check 通过；large-file gate 通过。
+- 全量 `npm run test` 在非本次 diff 文件 `src/features/app/components/Sidebar.test.tsx` 的既有 bottom action 顺序断言处失败，已单独复跑确认，未扩散处理。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `cb2fd0ea` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
