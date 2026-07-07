@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { recordHotspotSample } from "./services/perfBaseline/hotspotTracker";
 import { preloadClientStores } from "./services/clientStorage";
 import { runClientStoreMaintenance } from "./services/clientStoreMaintenance";
 import {
@@ -221,9 +222,19 @@ async function bootstrap() {
   const root = resolveRootElement();
   ReactDOM.createRoot(root).render(
     <React.StrictMode>
-      <ErrorBoundary>
-        <App />
-      </ErrorBoundary>
+      {/* 根 Profiler:把每次 React commit 的 actualDuration 记入 hotspotTracker,
+          掉帧现场可回答"这段时间 React 渲染花了多少毫秒"。生产版 react-dom 的
+          Profiler onRender 是 no-op,零开销;dev 下仅记录 ≥4ms 的 commit。 */}
+      <React.Profiler
+        id="app-root"
+        onRender={(_id, phase, actualDuration) => {
+          recordHotspotSample("react-commit", actualDuration, phase);
+        }}
+      >
+        <ErrorBoundary>
+          <App />
+        </ErrorBoundary>
+      </React.Profiler>
     </React.StrictMode>,
   );
   appendRendererDiagnostic("bootstrap/render-committed");

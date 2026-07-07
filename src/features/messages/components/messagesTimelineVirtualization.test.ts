@@ -27,6 +27,7 @@ import {
   TIMELINE_VIRTUALIZER_STABILITY_MAX_REMEASURE_COUNT,
   TIMELINE_VIRTUALIZATION_MIN_RENDER_WEIGHT,
   TIMELINE_VIRTUALIZATION_MIN_ROWS,
+  TIMELINE_VIRTUALIZATION_STREAMING_MIN_ROWS,
 } from "./messagesTimelineVirtualization";
 import { createHeavyHistoryFixture } from "./messagesHeavyHistoryFixture.test-support";
 import type { TimelineProjectionRow } from "./messagesTimelineProjection";
@@ -37,7 +38,7 @@ describe("messagesTimelineVirtualization", () => {
     globalThis.localStorage.removeItem(TIMELINE_RENDER_WEIGHT_BASELINE_FLAG_KEY);
   });
 
-  it("enables virtualization only for long stable timelines", () => {
+  it("enables virtualization for stable timelines at the lowered row threshold", () => {
     expect(shouldVirtualizeTimelineRows({
       isThinking: false,
       rowCount: TIMELINE_VIRTUALIZATION_MIN_ROWS,
@@ -48,18 +49,54 @@ describe("messagesTimelineVirtualization", () => {
     })).toBe(false);
   });
 
-  it("keeps active streaming timelines in static flow to avoid bottom-follow jumps", () => {
+  it("virtualizes streaming timelines once the streaming row threshold is reached", () => {
+    expect(shouldVirtualizeTimelineRows({
+      isThinking: true,
+      rowCount: TIMELINE_VIRTUALIZATION_STREAMING_MIN_ROWS,
+    })).toBe(true);
+    expect(shouldVirtualizeTimelineRows({
+      isThinking: true,
+      rowCount: TIMELINE_VIRTUALIZATION_STREAMING_MIN_ROWS - 1,
+    })).toBe(false);
+  });
+
+  it("uses the streaming row threshold while the timeline is still working", () => {
+    expect(shouldVirtualizeTimelineRows({
+      isThinking: false,
+      isWorking: true,
+      rowCount: TIMELINE_VIRTUALIZATION_STREAMING_MIN_ROWS,
+    })).toBe(true);
+    expect(shouldVirtualizeTimelineRows({
+      isThinking: false,
+      isWorking: true,
+      rowCount: TIMELINE_VIRTUALIZATION_STREAMING_MIN_ROWS - 1,
+    })).toBe(false);
+  });
+
+  it("virtualizes moderate active streaming timelines before static rows dominate commits", () => {
     expect(shouldVirtualizeTimelineRows({
       isThinking: true,
       rowCount: 1_000,
-    })).toBe(false);
+    })).toBe(true);
     expect(shouldVirtualizeTimelineRows({
       isThinking: true,
       rowCount: 200,
-    })).toBe(false);
+    })).toBe(true);
     expect(shouldVirtualizeTimelineRows({
       isThinking: true,
       rowCount: 50,
+    })).toBe(true);
+    expect(shouldVirtualizeTimelineRows({
+      isThinking: true,
+      rowCount: 24,
+    })).toBe(true);
+    expect(shouldVirtualizeTimelineRows({
+      isThinking: true,
+      rowCount: 20,
+    })).toBe(true);
+    expect(shouldVirtualizeTimelineRows({
+      isThinking: true,
+      rowCount: 8,
     })).toBe(false);
   });
 

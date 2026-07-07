@@ -9,6 +9,7 @@ import {
   mergeNearDuplicateParagraphVariants,
 } from "../../../utils/assistantDuplicateParagraphs";
 import { getMarkdownInlineCodeInfo } from "../../../utils/markdownCodeRegions";
+import { longestSuffixPrefixOverlap } from "../../../utils/stringOverlap";
 import {
   normalizeItem,
   stripClaudeApprovalResumeArtifacts,
@@ -46,11 +47,11 @@ export function mergeStreamingText(existing: string, delta: string) {
   if (existing.startsWith(delta)) {
     return existing;
   }
-  const maxOverlap = Math.min(existing.length, delta.length);
-  for (let length = maxOverlap; length > 0; length -= 1) {
-    if (existing.endsWith(delta.slice(0, length))) {
-      return `${existing}${delta.slice(length)}`;
-    }
+  // KMP 线性重叠检测：旧实现从 maxOverlap 逐字符递减 slice+endsWith，
+  // 对 MiB 级 tool output / 长快照是 O(n²)，每次 delta flush 都会命中。
+  const overlapLength = longestSuffixPrefixOverlap(existing, delta);
+  if (overlapLength > 0) {
+    return `${existing}${delta.slice(overlapLength)}`;
   }
   return `${existing}${delta}`;
 }
@@ -874,15 +875,17 @@ function appendReasoningTextWithoutReplacement(existing: string, incoming: strin
   if (comparableExistingIsFull && comparableExisting === comparableIncoming) {
     return existing;
   }
-  const maxOverlap = Math.min(
-    comparableExisting.length,
-    comparableIncoming.length,
-    REASONING_APPEND_OVERLAP_SCAN_LIMIT_CHARS,
+  // KMP 线性重叠检测（保留 SCAN_LIMIT 截断语义）：对截断后的输入求最长
+  // 「existing 后缀 = incoming 前缀」，替代逐字符递减 endsWith 的二次扫描。
+  const overlapLength = longestSuffixPrefixOverlap(
+    comparableExisting.length > REASONING_APPEND_OVERLAP_SCAN_LIMIT_CHARS
+      ? comparableExisting.slice(-REASONING_APPEND_OVERLAP_SCAN_LIMIT_CHARS)
+      : comparableExisting,
+    comparableIncoming.length > REASONING_APPEND_OVERLAP_SCAN_LIMIT_CHARS
+      ? comparableIncoming.slice(0, REASONING_APPEND_OVERLAP_SCAN_LIMIT_CHARS)
+      : comparableIncoming,
   );
-  for (let overlapLength = maxOverlap; overlapLength > 0; overlapLength -= 1) {
-    if (!comparableExisting.endsWith(comparableIncoming.slice(0, overlapLength))) {
-      continue;
-    }
+  if (overlapLength > 0) {
     const suffix = sliceByCompactStreamingLength(incoming, overlapLength);
     return suffix ? `${existing}${suffix}` : existing;
   }

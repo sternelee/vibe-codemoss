@@ -34,6 +34,7 @@ import {
   noteRealtimeCoalescedFlush,
   noteThreadReducerWorkMeasured,
 } from "../utils/streamLatencyDiagnostics";
+import { recordHotspotSample } from "../../../services/perfBaseline/hotspotTracker";
 
 const CLAUDE_STREAM_DEBUG_FLAG_KEY = "ccgui.debug.claude.stream";
 
@@ -202,8 +203,11 @@ type RealtimeDeltaOperation =
       turnId?: string | null;
     };
 
-const REALTIME_DELTA_BATCH_FLUSH_MS = 12;
-const NORMALIZED_REALTIME_BATCH_FLUSH_MS = 12;
+// 32ms (~30 flush/s)：12ms 时顶层 thread reducer 每秒最高 dispatch ~83 次，
+// 每次 flush 都触发 app-shell 大子树 re-render，是流式卡顿的放大器。
+// 视觉平滑度由 Markdown streaming throttle + progressive reveal 保证。
+const REALTIME_DELTA_BATCH_FLUSH_MS = 32;
+const NORMALIZED_REALTIME_BATCH_FLUSH_MS = 32;
 
 type PendingNormalizedRealtimeOperation = {
   event: NormalizedThreadEvent;
@@ -611,9 +615,12 @@ export function useThreadItemEvents({
       return;
     }
     isFlushingRealtimeDeltaOpsRef.current = true;
+    const flushStartedAt = readHighResolutionNowMs();
+    let flushedOpCount = 0;
     try {
       const bufferedOps = pendingRealtimeDeltaOpsRef.current;
       pendingRealtimeDeltaOpsRef.current = [];
+      flushedOpCount = bufferedOps.length;
       const ensuredThreads = new Set<string>();
       const markedProcessingThreads = new Set<string>();
       for (const operation of bufferedOps) {
@@ -625,6 +632,11 @@ export function useThreadItemEvents({
       safeMessageActivity();
     } finally {
       isFlushingRealtimeDeltaOpsRef.current = false;
+      recordHotspotSample(
+        "realtime-delta-flush",
+        readHighResolutionNowMs() - flushStartedAt,
+        `ops=${flushedOpCount}`,
+      );
     }
   }, [applyRealtimeDeltaOperation, safeMessageActivity]);
 
@@ -830,9 +842,12 @@ export function useThreadItemEvents({
       return;
     }
     isFlushingNormalizedRealtimeOpsRef.current = true;
+    const flushStartedAt = readHighResolutionNowMs();
+    let flushedOpCount = 0;
     try {
       const bufferedOps = Array.from(pendingNormalizedRealtimeOpsRef.current.values());
       pendingNormalizedRealtimeOpsRef.current.clear();
+      flushedOpCount = bufferedOps.length;
       const ensuredThreads = new Set<string>();
       const markedProcessingThreads = new Set<string>();
       for (const operation of bufferedOps) {
@@ -846,6 +861,11 @@ export function useThreadItemEvents({
       safeMessageActivity();
     } finally {
       isFlushingNormalizedRealtimeOpsRef.current = false;
+      recordHotspotSample(
+        "normalized-realtime-flush",
+        readHighResolutionNowMs() - flushStartedAt,
+        `ops=${flushedOpCount}`,
+      );
     }
   }, [applyNormalizedRealtimeEventNow, safeMessageActivity]);
 
@@ -871,7 +891,7 @@ export function useThreadItemEvents({
             batchStart = event.timestampMs;
           }
         }
-        const routeStartedAt = Date.now();
+        const routeStartedAt = readHighResolutionNowMs();
         for (const event of flush.events) {
           const useTransitionForDispatch =
             flush.reason !== "terminal" &&
@@ -889,7 +909,12 @@ export function useThreadItemEvents({
             },
           );
         }
-        const routeEndedAt = Date.now();
+        const routeEndedAt = readHighResolutionNowMs();
+        recordHotspotSample(
+          "codex-batcher-flush",
+          routeEndedAt - routeStartedAt,
+          `${flush.reason} events=${flush.events.length}`,
+        );
         noteRealtimeCoalescedFlush({
           reason: flush.reason,
           eventCount: flush.events.length,
@@ -900,8 +925,8 @@ export function useThreadItemEvents({
           itemKind: operation.event.itemKind,
           startedAt: batchStart,
           endedAt: flushEndedAt,
-          routeStartedAt,
-          routeEndedAt,
+          routeStartedAt: Math.round(routeStartedAt),
+          routeEndedAt: Math.round(routeEndedAt),
           queueDepthAfter: 0,
         });
       }

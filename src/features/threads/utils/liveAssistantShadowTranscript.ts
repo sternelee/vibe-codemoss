@@ -1,5 +1,6 @@
 import { getClientStoreSync, writeClientStoreValue } from "../../../services/clientStorage";
 import type { EngineType } from "../../../types";
+import { longestSuffixPrefixOverlap } from "../../../utils/stringOverlap";
 
 const STORE_KEY = "liveAssistantShadowTranscripts";
 const MAX_ENTRY_CHARS = 120_000;
@@ -103,11 +104,10 @@ function mergeShadowSnapshotText(existingText: string, snapshotText: string) {
   if (existingText.startsWith(snapshotText)) {
     return existingText;
   }
-  const maxOverlap = Math.min(existingText.length, snapshotText.length);
-  for (let length = maxOverlap; length > 0; length -= 1) {
-    if (existingText.endsWith(snapshotText.slice(0, length))) {
-      return `${existingText}${snapshotText.slice(length)}`;
-    }
+  // KMP 线性重叠检测，替代逐字符递减 endsWith 的 O(n²) 扫描。
+  const overlapLength = longestSuffixPrefixOverlap(existingText, snapshotText);
+  if (overlapLength > 0) {
+    return `${existingText}${snapshotText.slice(overlapLength)}`;
   }
   return `${existingText}${snapshotText}`;
 }

@@ -527,6 +527,13 @@ describe("useThreads UX integration", () => {
         result.current.setActiveThreadId("thread-late-normalized");
       });
 
+      // 先消化线程切换触发的 24ms lazy-resume 定时器，
+      // 避免后续 advanceTimersByTime(40) 时 resume 把本地 items 清空。
+      await act(async () => {
+        vi.advanceTimersByTime(30);
+        await Promise.resolve();
+      });
+
       await act(async () => {
         handlers?.onTurnStarted?.("ws-1", "thread-late-normalized", "turn-1");
         handlers?.onAgentMessageCompleted?.({
@@ -576,7 +583,7 @@ describe("useThreads UX integration", () => {
       });
 
       await act(async () => {
-        vi.advanceTimersByTime(20);
+        vi.advanceTimersByTime(40);
         await Promise.resolve();
       });
 

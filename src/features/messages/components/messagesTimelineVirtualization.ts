@@ -6,7 +6,10 @@ import {
   type MessagesEngine,
 } from "./messagesRenderUtils";
 
-export const TIMELINE_VIRTUALIZATION_MIN_ROWS = 200;
+/** 稳定态 timeline 虚拟化门槛；从 200 降到 48，覆盖典型长对话（~56 可见行）idle 卡顿。 */
+export const TIMELINE_VIRTUALIZATION_MIN_ROWS = 48;
+/** 流式期虚拟化门槛；20+ static rows 已在 DMG 复现 250ms+ commits。 */
+export const TIMELINE_VIRTUALIZATION_STREAMING_MIN_ROWS = 16;
 export const TIMELINE_VIRTUALIZATION_MIN_RENDER_WEIGHT = 96;
 export const TIMELINE_VIRTUALIZATION_HEAVY_ROW_WEIGHT = 16;
 export const TIMELINE_CANVAS_STABLE_OVERSCAN = 12;
@@ -45,11 +48,10 @@ export type TimelineRenderWeightSummary = {
 };
 
 /**
- * Keep active streaming timelines in static flow. Live rows change height while
- * auto-follow scrolls to the tail; virtualizer offset correction can otherwise
- * fight bottom-follow and produce rapid up/down jumps in long conversations.
+ * 流式期启用虚拟化：DMG 实测 static 全量 DOM（~56 行）+ 每 token 重跑 timeline
+ * 是 240–760ms 掉帧主因；active-live-row 与 stability recovery 已覆盖 tail 高度变化。
  */
-export const TIMELINE_VIRTUALIZATION_DURING_STREAMING_ENABLED = false;
+export const TIMELINE_VIRTUALIZATION_DURING_STREAMING_ENABLED = true;
 
 function canReadBaselineFlag() {
   if (typeof globalThis === "undefined") {
@@ -76,12 +78,13 @@ export function isTimelineRenderWeightGateEnabled() {
 
 export function shouldVirtualizeTimelineRows(input: {
   isThinking: boolean;
+  isWorking?: boolean;
   rowCount: number;
   renderWeight?: number;
 }) {
-  if (input.isThinking) {
+  if (input.isThinking || input.isWorking) {
     return TIMELINE_VIRTUALIZATION_DURING_STREAMING_ENABLED &&
-      input.rowCount >= TIMELINE_VIRTUALIZATION_MIN_ROWS;
+      input.rowCount >= TIMELINE_VIRTUALIZATION_STREAMING_MIN_ROWS;
   }
   const renderWeightGateEnabled = isTimelineRenderWeightGateEnabled();
   const hasHighRenderDensity = renderWeightGateEnabled &&

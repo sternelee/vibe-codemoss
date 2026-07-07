@@ -402,11 +402,16 @@ function getStreamLatencyThresholds() {
   };
 }
 
+/**
+ * stream-latency trace 必须显式 opt-in（localStorage flag 或 perf baseline 构建）。
+ * 历史上 DEV 模式默认开启，导致每个 delta dispatch 都触发 per-delta 诊断 append，
+ * 是对话流式期间主线程被诊断链路拖垮（5 FPS）的直接根因之一。
+ */
 export function isStreamLatencyTraceEnabled() {
   if (streamLatencyTraceEnabledCache === null) {
     const env = (import.meta.env ?? {}) as Record<string, string | boolean | undefined>;
     streamLatencyTraceEnabledCache = readBooleanDebugFlag(STREAM_LATENCY_TRACE_FLAG_KEY)
-      || (env.MODE !== "test" && (env.DEV === true || env.VITE_ENABLE_PERF_BASELINE === "1"));
+      || (env.MODE !== "test" && env.VITE_ENABLE_PERF_BASELINE === "1");
   }
   return streamLatencyTraceEnabledCache;
 }

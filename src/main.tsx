@@ -1,4 +1,3 @@
-import { startApp } from "./bootstrapApp";
 import { installRendererLifecycleDiagnostics } from "./services/rendererDiagnostics";
 import {
   isReactScanStartupEnabled,
@@ -7,15 +6,15 @@ import {
 
 installRendererLifecycleDiagnostics();
 
-// react-scan render-profiling overlay. It can be toggled from the settings page and is
-// persisted; the dev env var VITE_ENABLE_REACT_SCAN also auto-enables it. When enabled,
-// load + start the overlay before the first render so it instruments cleanly, then start
-// the app regardless of whether react-scan finished loading. When disabled, the normal
-// startup path stays synchronous and unchanged.
-if (isReactScanStartupEnabled()) {
-  void startReactScanOverlay().finally(() => {
-    void startApp();
-  });
-} else {
-  void startApp();
+// react-scan 必须在 React 首次 import 之前完成 instrumentation，否则生产版
+// 会报 "Must import React Scan before React runs" 且 topRenders 恒空。
+// bootstrapApp 顶层静态 import React，因此这里只能动态 import startApp。
+async function boot() {
+  if (isReactScanStartupEnabled()) {
+    await startReactScanOverlay();
+  }
+  const { startApp } = await import("./bootstrapApp");
+  await startApp();
 }
+
+void boot();

@@ -59,20 +59,23 @@ function shouldMergeFragmentedParagraph(value: string) {
 }
 
 function joinFragmentedParagraphs(segments: string[]) {
-  return segments.reduce((combined, segment) => {
+  // 数组 push + 一次 join，避免 reduce 内字符串累积的 O(k²) 拷贝。
+  const parts: string[] = [];
+  let previousChar = "";
+  for (const segment of segments) {
     if (!segment) {
-      return combined;
+      continue;
     }
-    if (!combined) {
-      return segment;
+    if (parts.length > 0) {
+      const nextChar = segment[0] ?? "";
+      if (/[A-Za-z0-9]/.test(previousChar) && /[A-Za-z0-9]/.test(nextChar)) {
+        parts.push(" ");
+      }
     }
-    const previousChar = combined[combined.length - 1] ?? "";
-    const nextChar = segment[0] ?? "";
-    const shouldInsertSpace =
-      /[A-Za-z0-9]/.test(previousChar) &&
-      /[A-Za-z0-9]/.test(nextChar);
-    return shouldInsertSpace ? `${combined} ${segment}` : `${combined}${segment}`;
-  }, "");
+    parts.push(segment);
+    previousChar = segment[segment.length - 1] ?? "";
+  }
+  return parts.join("");
 }
 
 function extractBlockquoteParagraphText(paragraph: string) {

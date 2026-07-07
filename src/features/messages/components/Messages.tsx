@@ -505,7 +505,7 @@ export const Messages = memo(function Messages({
         isThinking,
         showAllHistoryItems,
         // 流式期裁到 live 尾窗（buildLiveTailWorkingSet 仅在 isThinking 时裁剪）；
-        // idle/展开态该函数直接返回全部条目，故对静止长对话的可见集零影响。
+        // show all 只在 idle 恢复全量，避免展开历史后每个 token 都重跑完整 timeline。
         visibleWindow: STREAMING_VISIBLE_WINDOW,
         enableCollaborationBadge,
       }),

@@ -1,4 +1,5 @@
 import type { ConversationItem } from "../../../types";
+import { longestSuffixPrefixOverlap } from "../../../utils/stringOverlap";
 import type { ConversationEngine } from "../../threads/contracts/conversationCurtainContracts";
 
 const PARAGRAPH_BREAK_SPLIT_REGEX = /\r?\n[^\S\r\n]*\r?\n+/;
@@ -17,12 +18,29 @@ function compactReasoningText(value: string) {
   return value.replace(/\s+/g, "");
 }
 
+// streaming 期间同一段 reasoning 文本会被反复 compact（每次 delta flush 都要跑 5 个全文正则），
+// 用有界缓存把重复输入的成本降为一次 Map 查找。
+const COMPACT_CACHE_MAX_ENTRIES = 256;
+const compactComparableCache = new Map<string, string>();
+
 export function compactComparableReasoningText(value: string) {
-  return compactReasoningText(value)
+  if (value.length === 0) {
+    return "";
+  }
+  const cached = compactComparableCache.get(value);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const result = compactReasoningText(value)
     .replace(/[！!]/g, "!")
     .replace(/[？?]/g, "?")
     .replace(/[，,]/g, ",")
     .replace(/[。．.]/g, ".");
+  if (compactComparableCache.size >= COMPACT_CACHE_MAX_ENTRIES) {
+    compactComparableCache.clear();
+  }
+  compactComparableCache.set(value, result);
+  return result;
 }
 
 function sliceByComparableLength(text: string, targetLength: number) {
@@ -140,9 +158,12 @@ function dedupeAdjacentReasoningParagraphs(value: string) {
     if (trimmed.length < 12) {
       return trimmed;
     }
-    const directRepeat = trimmed.match(/^([\s\S]{6,}?)\s+\1$/);
-    if (directRepeat?.[1]) {
-      return directRepeat[1].trim();
+    // 回溯型正则对长段落是 O(n²)：超过阈值时跳过（下方 compact 半折检查覆盖整段重复场景）。
+    if (trimmed.length <= 4096) {
+      const directRepeat = trimmed.match(/^([\s\S]{6,}?)\s+\1$/);
+      if (directRepeat?.[1]) {
+        return directRepeat[1].trim();
+      }
     }
     const compact = compactReasoningText(trimmed);
     if (compact.length >= 12 && compact.length % 2 === 0) {
@@ -243,7 +264,22 @@ export type ParsedReasoning = {
   workingLabel: string | null;
 };
 
+// reducer 对 item 做不可变更新：引用不变 => summary/content 不变。
+// 按引用缓存解析结果，除了避免全量重算，还让下游 memo 组件（如 ReasoningRow 的 parsed prop）
+// 在 item 未变化时拿到稳定引用，从而跳过重渲染。
+const parsedReasoningCache = new WeakMap<ReasoningConversationItem, ParsedReasoning>();
+
 export function parseReasoning(item: ReasoningConversationItem): ParsedReasoning {
+  const cached = parsedReasoningCache.get(item);
+  if (cached) {
+    return cached;
+  }
+  const parsed = parseReasoningUncached(item);
+  parsedReasoningCache.set(item, parsed);
+  return parsed;
+}
+
+function parseReasoningUncached(item: ReasoningConversationItem): ParsedReasoning {
   const summary = item.summary ?? "";
   const content = item.content ?? "";
   const hasSummary = summary.trim().length > 0 && !isGenericReasoningTitle(summary);
@@ -403,11 +439,8 @@ export function appendReasoningRunText(existing: string, incoming: string) {
   if (compactExisting === compactIncoming) {
     return chooseBetterReasoningText(normalizedExisting, normalizedIncoming);
   }
-  const maxOverlap = Math.min(compactExisting.length, compactIncoming.length);
-  for (let overlapLength = maxOverlap; overlapLength > 0; overlapLength -= 1) {
-    if (!compactExisting.endsWith(compactIncoming.slice(0, overlapLength))) {
-      continue;
-    }
+  const overlapLength = longestSuffixPrefixOverlap(compactExisting, compactIncoming);
+  if (overlapLength > 0) {
     const suffix = sliceByComparableLength(normalizedIncoming, overlapLength).trimStart();
     return suffix ? `${normalizedExisting}${suffix}` : normalizedExisting;
   }

@@ -81,7 +81,7 @@ import { appendRendererDiagnostic } from "../../../services/rendererDiagnostics"
 import { isWebServiceRuntime } from "../../../services/tauri/runtimeMode";
 import {
   loadSidebarSnapshot,
-  saveSidebarSnapshotThreads,
+  saveSidebarSnapshotAllThreads,
 } from "../utils/sidebarSnapshot";
 import {
   generateThreadTitle,
@@ -289,7 +289,12 @@ export function useThreads({
   const sharedSessionSyncTimerByThreadRef = useRef<
     Record<string, ReturnType<typeof setTimeout> | null>
   >({});
-  const sharedSessionLastSignatureByThreadRef = useRef<Record<string, string>>({});
+  // 以「引用相等」代替 JSON.stringify 全量序列化做变更检测：reducer 对 items
+  // 做不可变更新，引用不变 => 内容不变；避免每次 flush 对全部 shared thread
+  // 的整段对话做 O(序列化体积) 的深比较。
+  const sharedSessionLastSignatureByThreadRef = useRef<
+    Record<string, { selectedEngine: string; items: unknown }>
+  >({});
   const {
     customNamesRef,
     threadActivityRef,
@@ -536,6 +541,17 @@ export function useThreads({
     itemsByThreadRef.current = state.itemsByThread;
     activeTurnIdByThreadRef.current = state.activeTurnIdByThread;
     threadsByWorkspaceRef.current = state.threadsByWorkspace;
+  }, [
+    state.activeThreadIdByWorkspace,
+    state.threadStatusById,
+    state.itemsByThread,
+    state.activeTurnIdByThread,
+    state.threadsByWorkspace,
+  ]);
+
+  // 派生表是 O(所有线程) 的循环，只依赖 threadsByWorkspace/threadStatusById；
+  // 与上面的 ref 同步拆开，避免 itemsByThread 每次 delta flush（~32ms）都全量重算。
+  useEffect(() => {
     const nextThreadWorkspaceById: Record<string, string> = {};
     const nextThreadCodexCandidateById: Record<string, boolean> = {};
     const nextProcessingCodexThreadIdsByWorkspace: Record<string, Set<string>> =
@@ -565,18 +581,10 @@ export function useThreads({
     immediateThreadCodexCandidateByIdRef.current = nextThreadCodexCandidateById;
     immediateProcessingCodexThreadIdsByWorkspaceRef.current =
       nextProcessingCodexThreadIdsByWorkspace;
-  }, [
-    state.activeThreadIdByWorkspace,
-    state.threadStatusById,
-    state.itemsByThread,
-    state.activeTurnIdByThread,
-    state.threadsByWorkspace,
-  ]);
+  }, [state.threadStatusById, state.threadsByWorkspace]);
 
   useEffect(() => {
-    Object.entries(state.threadsByWorkspace).forEach(([workspaceId, threads]) => {
-      saveSidebarSnapshotThreads(workspaceId, threads);
-    });
+    saveSidebarSnapshotAllThreads(state.threadsByWorkspace);
   }, [state.threadsByWorkspace]);
 
   useEffect(() => {
@@ -2222,14 +2230,18 @@ export function useThreads({
           thread.selectedEngine ?? thread.engineSource ?? "claude",
         );
         const items = state.itemsByThread[thread.id] ?? [];
-        const signature = JSON.stringify({
-          selectedEngine,
-          items,
-        });
-        if (sharedSessionLastSignatureByThreadRef.current[thread.id] === signature) {
+        const lastSynced = sharedSessionLastSignatureByThreadRef.current[thread.id];
+        if (
+          lastSynced &&
+          lastSynced.selectedEngine === selectedEngine &&
+          lastSynced.items === items
+        ) {
           return;
         }
-        sharedSessionLastSignatureByThreadRef.current[thread.id] = signature;
+        sharedSessionLastSignatureByThreadRef.current[thread.id] = {
+          selectedEngine,
+          items,
+        };
         const existingTimer = sharedSessionSyncTimerByThreadRef.current[thread.id];
         if (existingTimer) {
           clearTimeout(existingTimer);

@@ -14,6 +14,7 @@ import {
 } from "react";
 import { useEventCallback } from "../../../utils/useEventCallback";
 import { useDeferredFrameAccumulator } from "./useDeferredFrameAccumulator";
+import { useSidebarThreadStatusProjection } from "../../threads/hooks/useSidebarThreadStatusProjection";
 import { useTranslation } from "react-i18next";
 import { Sidebar } from "../../app/components/Sidebar";
 import { HomeChat } from "../../home/components/HomeChat";
@@ -450,6 +451,10 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
   const deferredThreadStatusById = backgroundRenderGatingEnabled
     ? deferredThreadStatusByIdValue
     : options.threadStatusById;
+  // 仅暴露三个布尔位且引用稳定：heartbeat/continuation pulse 不再击穿 Sidebar/topbar tabs 的 memo。
+  const sidebarThreadStatusById = useSidebarThreadStatusProjection(
+    options.threadStatusById,
+  );
   const conversationState = useMemo<ConversationState>(
     () => ({
       items: conversationItems,
@@ -587,7 +592,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
       isPhone: options.isPhone,
       isTablet: options.isTablet,
       showTopSessionTabs,
-      threadStatusById: options.threadStatusById,
+      threadStatusById: sidebarThreadStatusById,
       threadsByWorkspace: options.threadsByWorkspace,
       t,
       onSelectThread: options.onSelectThread,
@@ -627,7 +632,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
         threadsByWorkspace={options.threadsByWorkspace}
         activeItems={sidebarActiveItems}
         threadParentById={options.threadParentById}
-        threadStatusById={options.threadStatusById}
+        threadStatusById={sidebarThreadStatusById}
         runningSessionCountByWorkspaceId={
           options.runningSessionCountByWorkspaceId
         }

@@ -117,7 +117,7 @@ describe("useThreadItemEvents first-token reasoning dispatch", () => {
     expect(dispatch).toHaveBeenCalledTimes(2);
 
     act(() => {
-      vi.advanceTimersByTime(20);
+      vi.advanceTimersByTime(40);
     });
 
     expect(queuedTransitions).toHaveLength(1);

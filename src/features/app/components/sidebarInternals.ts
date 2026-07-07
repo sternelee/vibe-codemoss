@@ -223,6 +223,20 @@ function isCompletedToolStatus(status: string | undefined, output: string | unde
   return Boolean(output) || normalized === "completed" || normalized === "success";
 }
 
+/**
+ * 从对话 items 中筛出 Claude live subagent 投影唯一关心的 agent tool 条目。
+ * Sidebar 用它把 `getProjectedThreads` 的依赖从「每个 token 换引用的 activeItems」
+ * 收窄为这份小得多、且流式文本 delta 期间引用稳定的子集，避免每个 token
+ * 击穿全部 workspace 的线程树排序。
+ */
+export function filterClaudeLiveSubagentSourceItems(
+  items: ConversationItem[],
+): ConversationItem[] {
+  return items.filter(
+    (item) => item.kind === "tool" && isClaudeAgentTool(item),
+  );
+}
+
 export function buildClaudeLiveSubagentRows(
   threads: ThreadSummary[],
   workspaceId: string,

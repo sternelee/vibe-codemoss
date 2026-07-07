@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
@@ -12,6 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { hydrateClaudeDeferredImage } from "../../../services/tauri";
 import { appendMessageRowRenderBudgetDiagnostic } from "../../../services/rendererDiagnostics";
+import { trackHotspot } from "../../../services/perfBaseline/hotspotTracker";
+import { useRenderHotspot } from "../../../services/perfBaseline/useRenderHotspot";
 import {
   createOwnedObjectUrl,
   revokeOwnedObjectUrl,
@@ -147,6 +149,10 @@ type DeferredImageState = {
   transient?: boolean;
   error?: string;
 };
+
+const EMPTY_DEFERRED_IMAGE_ITEMS: NonNullable<
+  Extract<ConversationItem, { kind: "message" }>["deferredImages"]
+> = [];
 
 function deferredImageKey(
   image: NonNullable<Extract<ConversationItem, { kind: "message" }>["deferredImages"]>[number],
@@ -378,6 +384,13 @@ function shouldUsePlainTextStreamingSurface(
   );
 }
 
+/**
+ * staged streaming 引擎（claude / codex）的流式 assistant 消息自首个非空 token
+ * 起统一走 lightweight markdown。历史上早期阶段（<260 chars 且非结构化）仍走
+ * full react-markdown，每次 48ms throttled 更新都触发全量重解析 + Prism 同步
+ * 高亮，是对话页 5 FPS / 单组件 225ms 的主因之一；settle 后由 full markdown
+ * 渲染最终内容，视觉结果不变。
+ */
 function shouldUseLightweightStreamingMarkdown(
   item: Extract<ConversationItem, { kind: "message" }>,
   isStreaming: boolean,
@@ -395,13 +408,7 @@ function shouldUseLightweightStreamingMarkdown(
   if (!useStagedMarkdownThrottle) {
     return false;
   }
-  if (!complexity.trimmedText) {
-    return false;
-  }
-  return (
-    complexity.isStructuredHeavy ||
-    complexity.isMedium
-  );
+  return complexity.trimmedText.length > 0;
 }
 
 function shouldUseLongFoldedMarkdownStreamingSurface(
@@ -825,6 +832,12 @@ export const MessageRow = memo(function MessageRow({
     : item.role === "assistant"
       ? "assistant"
       : "user";
+  // 流式 delta 到达时的紧急渲染先复用上一帧文本（memo 全部命中、DOM 不变，
+  // 几乎零开销），昂贵的 markdown/复杂度计算被推到后台的 deferred 渲染中，
+  // 避免每个 token 都同步阻塞主线程。非流式或历史消息文本不变，等价于直通。
+  const deferredDisplayText = useDeferredValue(displayText);
+  const streamingDisplayText =
+    item.role === "assistant" && isStreaming ? deferredDisplayText : displayText;
   useEffect(() => {
     appendMessageRowRenderBudgetDiagnostic({
       threadId,
@@ -837,6 +850,11 @@ export const MessageRow = memo(function MessageRow({
       textLength: displayText.length,
     });
   });
+  useRenderHotspot(
+    "message-row-render",
+    `${messageRowSubtype}:${displayText.length}ch:${isStreaming ? "stream" : "idle"}`,
+    isStreaming,
+  );
   const selectedAgentName = userMessagePresentation?.selectedAgentName ?? null;
   const selectedAgentIcon = userMessagePresentation?.selectedAgentIcon ?? null;
   const hasInjectedAgentPromptBlock =
@@ -911,7 +929,7 @@ export const MessageRow = memo(function MessageRow({
       })
       .filter(Boolean) as MessageImage[];
   }, [item.images, noteCardImagePathSet]);
-  const deferredImageItems = item.deferredImages ?? [];
+  const deferredImageItems = item.deferredImages ?? EMPTY_DEFERRED_IMAGE_ITEMS;
   const loadedDeferredImages = useMemo(
     () =>
       deferredImageItems
@@ -1055,39 +1073,41 @@ export const MessageRow = memo(function MessageRow({
         streamingMarkdownComplexityCacheRef.current = null;
         return EMPTY_STREAMING_MARKDOWN_COMPLEXITY;
       }
-      const previousCache = streamingMarkdownComplexityCacheRef.current;
-      if (previousCache) {
-        // chat-stream-render-isolation-2026-06 task 3.1: prefer the delta
-        // path when displayText strictly extends the cached prefix, so
-        // long streaming bursts avoid re-scanning the full prefix.
-        if (displayText === previousCache.value) {
-          return previousCache.complexity;
+      return trackHotspot("markdown-complexity", `${streamingDisplayText.length}ch`, () => {
+        const previousCache = streamingMarkdownComplexityCacheRef.current;
+        if (previousCache) {
+          // chat-stream-render-isolation-2026-06 task 3.1: prefer the delta
+          // path when displayText strictly extends the cached prefix, so
+          // long streaming bursts avoid re-scanning the full prefix.
+          if (streamingDisplayText === previousCache.value) {
+            return previousCache.complexity;
+          }
+          if (streamingDisplayText.startsWith(previousCache.value)) {
+            const deltaText = streamingDisplayText.slice(previousCache.value.length);
+            const nextComplexity = analyzeStreamingMarkdownComplexityDelta(
+              previousCache.complexity,
+              previousCache.value,
+              deltaText,
+            );
+            streamingMarkdownComplexityCacheRef.current = {
+              value: streamingDisplayText,
+              complexity: nextComplexity,
+            };
+            return nextComplexity;
+          }
+          if (previousCache.complexity.isHuge) {
+            return previousCache.complexity;
+          }
         }
-        if (displayText.startsWith(previousCache.value)) {
-          const deltaText = displayText.slice(previousCache.value.length);
-          const nextComplexity = analyzeStreamingMarkdownComplexityDelta(
-            previousCache.complexity,
-            previousCache.value,
-            deltaText,
-          );
-          streamingMarkdownComplexityCacheRef.current = {
-            value: displayText,
-            complexity: nextComplexity,
-          };
-          return nextComplexity;
-        }
-        if (previousCache.complexity.isHuge) {
-          return previousCache.complexity;
-        }
-      }
-      const nextComplexity = analyzeStreamingMarkdownComplexity(displayText);
-      streamingMarkdownComplexityCacheRef.current = {
-        value: displayText,
-        complexity: nextComplexity,
-      };
-      return nextComplexity;
+        const nextComplexity = analyzeStreamingMarkdownComplexity(streamingDisplayText);
+        streamingMarkdownComplexityCacheRef.current = {
+          value: streamingDisplayText,
+          complexity: nextComplexity,
+        };
+        return nextComplexity;
+      });
     },
-    [displayText, isStreaming, item.role, useStagedMarkdownThrottle],
+    [streamingDisplayText, isStreaming, item.role, useStagedMarkdownThrottle],
   );
   const usePlainTextStreamingSurface = shouldUsePlainTextStreamingSurface(
     item,
@@ -1099,7 +1119,7 @@ export const MessageRow = memo(function MessageRow({
     item,
     isStreaming,
     activeEngine,
-    displayText,
+    streamingDisplayText,
   );
   const useLightweightStreamingMarkdown = !usePlainTextStreamingSurface && (
     useLongFoldedMarkdownStreamingSurface ||
@@ -1116,23 +1136,23 @@ export const MessageRow = memo(function MessageRow({
     if (!useLongFoldedMarkdownStreamingSurface) {
       return 0;
     }
-    const omitted = displayText.length - (
+    const omitted = streamingDisplayText.length - (
       STREAMING_PLAIN_TEXT_HEAD_CHARS + STREAMING_PLAIN_TEXT_TAIL_CHARS
     );
     return Math.max(omitted, 0);
-  }, [displayText.length, useLongFoldedMarkdownStreamingSurface]);
+  }, [streamingDisplayText.length, useLongFoldedMarkdownStreamingSurface]);
   const liveFoldedStreamingSurfaceText = useMemo(() => {
     if (!useLongFoldedMarkdownStreamingSurface || streamingPlainTextCollapsedOmittedChars <= 0) {
-      return displayText;
+      return streamingDisplayText;
     }
     return resolveStreamingPlainTextCollapsedView({
-      text: displayText,
+      text: streamingDisplayText,
       omittedChars: streamingPlainTextCollapsedOmittedChars,
       marker: t("messages.streamingPlainTextCollapsed", {
         omittedChars: streamingPlainTextCollapsedOmittedChars,
       }),
     });
-  }, [displayText, streamingPlainTextCollapsedOmittedChars, t, useLongFoldedMarkdownStreamingSurface]);
+  }, [streamingDisplayText, streamingPlainTextCollapsedOmittedChars, t, useLongFoldedMarkdownStreamingSurface]);
   const handleRenderedAssistantValue = useCallback(
     (visibleText: string) => {
       if (item.role !== "assistant" || !isStreaming) {
@@ -1148,18 +1168,18 @@ export const MessageRow = memo(function MessageRow({
   const handleMarkdownRenderedAssistantValue = useCallback(
     (visibleText: string) => {
       handleRenderedAssistantValue(
-        useLongFoldedMarkdownStreamingSurface ? displayText : visibleText,
+        useLongFoldedMarkdownStreamingSurface ? streamingDisplayText : visibleText,
       );
     },
-    [displayText, handleRenderedAssistantValue, useLongFoldedMarkdownStreamingSurface],
+    [streamingDisplayText, handleRenderedAssistantValue, useLongFoldedMarkdownStreamingSurface],
   );
   useEffect(() => {
     if (!usePlainTextStreamingSurface) {
       return;
     }
-    handleRenderedAssistantValue(displayText);
+    handleRenderedAssistantValue(streamingDisplayText);
   }, [
-    displayText,
+    streamingDisplayText,
     handleRenderedAssistantValue,
     usePlainTextStreamingSurface,
   ]);
@@ -1167,9 +1187,9 @@ export const MessageRow = memo(function MessageRow({
     if (usePlainTextStreamingSurface || !useLightweightStreamingMarkdown) {
       return;
     }
-    handleRenderedAssistantValue(displayText);
+    handleRenderedAssistantValue(streamingDisplayText);
   }, [
-    displayText,
+    streamingDisplayText,
     handleRenderedAssistantValue,
     useLightweightStreamingMarkdown,
     usePlainTextStreamingSurface,
@@ -1389,11 +1409,11 @@ export const MessageRow = memo(function MessageRow({
           />
         ) : suppressRuntimeReconnectText ? null : usePlainTextStreamingSurface ? (
           <div className={livePlainTextClassName}>
-            {useLongFoldedMarkdownStreamingSurface ? liveFoldedStreamingSurfaceText : displayText}
+            {useLongFoldedMarkdownStreamingSurface ? liveFoldedStreamingSurfaceText : streamingDisplayText}
           </div>
         ) : (
           <Markdown
-            value={useLongFoldedMarkdownStreamingSurface ? liveFoldedStreamingSurfaceText : displayText}
+            value={useLongFoldedMarkdownStreamingSurface ? liveFoldedStreamingSurfaceText : streamingDisplayText}
             className={resolvedMarkdownClassName}
             workspaceId={workspaceId}
             codeBlockStyle="message"
@@ -1409,9 +1429,11 @@ export const MessageRow = memo(function MessageRow({
             onOpenFileLink={onOpenFileLink}
             onOpenFileLinkMenu={onOpenFileLinkMenu}
             liveRenderMode={useLightweightStreamingMarkdown ? "lightweight" : "full"}
-            progressiveReveal={useLightweightStreamingMarkdown}
+            progressiveReveal={
+              useLightweightStreamingMarkdown && streamingMarkdownComplexity.isMedium
+            }
             onRenderedValueChange={handleMarkdownRenderedAssistantValue}
-            onOutlineReady={onOutlineReady}
+            onOutlineReady={isStreaming ? undefined : onOutlineReady}
           />
         )
       )}
@@ -1717,7 +1739,17 @@ export const ReasoningRow = memo(function ReasoningRow({
   const thinkingText = shouldPreferRawClaudeContent
     ? item.content
     : bodyText || item.content || item.summary || "";
-  if (activeEngine === "codex" && thinkingText.trim() === "Encrypted reasoning") {
+  // live reasoning delta 同样走 deferred：紧急渲染复用旧文本，重解析推后台。
+  const deferredThinkingText = useDeferredValue(thinkingText);
+  const renderThinkingText = isLive ? deferredThinkingText : thinkingText;
+  const isEncryptedCodexReasoning =
+    activeEngine === "codex" && thinkingText.trim() === "Encrypted reasoning";
+  useRenderHotspot(
+    "message-row-render",
+    `reasoning:${thinkingText.length}ch:${isLive ? "stream" : "idle"}`,
+    isLive && !isEncryptedCodexReasoning,
+  );
+  if (isEncryptedCodexReasoning) {
     return null;
   }
   const title = activeEngine === "claude"
@@ -1752,8 +1784,13 @@ export const ReasoningRow = memo(function ReasoningRow({
       >
         {thinkingText ? (
           <div className="reasoning-markdown-surface">
+            {/*
+              live 阶段走 lightweight markdown：reasoning delta 更新频繁，即使
+              折叠（display: none）也会执行完整 react-markdown 重解析，是流式
+              期间的隐藏 CPU 大头；settle 后切回 full markdown 渲染最终内容。
+            */}
             <Markdown
-              value={thinkingText}
+              value={renderThinkingText}
               className={`markdown reasoning-markdown${isLive ? " markdown-live-streaming" : ""}`}
               workspaceId={workspaceId}
               codeBlockStyle="message"
@@ -1762,6 +1799,7 @@ export const ReasoningRow = memo(function ReasoningRow({
                 streamMitigationProfile,
                 presentationProfile,
               )}
+              liveRenderMode={isLive ? "lightweight" : "full"}
               onOpenFileLink={onOpenFileLink}
               onOpenFileLinkMenu={onOpenFileLinkMenu}
             />
