@@ -21,7 +21,7 @@ use std::net::SocketAddr;
 use std::sync::{Arc, OnceLock};
 
 use axum::extract::{Path, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use axum::routing::post;
 use axum::{Json, Router};
@@ -58,12 +58,16 @@ pub fn global() -> Option<&'static AskUserMcpServer> {
 #[derive(Clone)]
 struct McpServerState {
     claude_manager: Arc<ClaudeSessionManager>,
+    /// Random per-process bearer token; every request must present it (set in `start`).
+    token: Arc<str>,
 }
 
 /// A running in-process AskUserQuestion MCP server. Holds the bound port so the
-/// CLI spawn wiring can build the per-workspace `--mcp-config` URL.
+/// CLI spawn wiring can build the per-workspace `--mcp-config` URL, plus the bearer
+/// token injected into that config's headers and required on every request.
 pub struct AskUserMcpServer {
     port: u16,
+    token: Arc<str>,
 }
 
 impl AskUserMcpServer {
@@ -79,7 +83,14 @@ impl AskUserMcpServer {
             .map_err(|err| format!("failed to read MCP server addr: {err}"))?
             .port();
 
-        let state = McpServerState { claude_manager };
+        // Unguessable per-process token: our CLI spawn carries it via the injected
+        // `--mcp-config` Authorization header; any other local process that finds the
+        // loopback port cannot forge it.
+        let token: Arc<str> = Arc::from(uuid::Uuid::new_v4().simple().to_string());
+        let state = McpServerState {
+            claude_manager,
+            token: Arc::clone(&token),
+        };
         let router = Router::new()
             .route("/mcp/:workspace_id", post(handle_mcp))
             .with_state(state);
@@ -91,7 +102,7 @@ impl AskUserMcpServer {
         });
 
         log::info!("AskUserQuestion MCP server listening on 127.0.0.1:{port}");
-        Ok(Self { port })
+        Ok(Self { port, token })
     }
 
     /// The `--mcp-config` inline JSON registering this server for a given
@@ -102,6 +113,7 @@ impl AskUserMcpServer {
                 MCP_SERVER_NAME: {
                     "type": "http",
                     "url": format!("http://127.0.0.1:{}/mcp/{}", self.port, workspace_id),
+                    "headers": { "Authorization": format!("Bearer {}", self.token) },
                 }
             }
         })
@@ -166,6 +178,7 @@ fn rpc_error(id: Value, code: i64, message: &str) -> Value {
 enum McpResponse {
     Json(Value),
     Accepted,
+    Unauthorized,
 }
 
 impl IntoResponse for McpResponse {
@@ -173,15 +186,32 @@ impl IntoResponse for McpResponse {
         match self {
             McpResponse::Json(value) => (StatusCode::OK, Json(value)).into_response(),
             McpResponse::Accepted => StatusCode::ACCEPTED.into_response(),
+            McpResponse::Unauthorized => StatusCode::UNAUTHORIZED.into_response(),
         }
     }
+}
+
+/// Whether the request carries the injected `Authorization: Bearer <token>`.
+fn authorized(headers: &HeaderMap, token: &str) -> bool {
+    headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.strip_prefix("Bearer "))
+        .map(|presented| presented == token)
+        .unwrap_or(false)
 }
 
 async fn handle_mcp(
     Path(workspace_id): Path<String>,
     State(state): State<McpServerState>,
+    headers: HeaderMap,
     Json(msg): Json<Value>,
 ) -> McpResponse {
+    // The loopback port is reachable by any local process; only our CLI spawn carries
+    // the injected bearer token, so reject everything else before touching a session.
+    if !authorized(&headers, &state.token) {
+        return McpResponse::Unauthorized;
+    }
     let id = msg.get("id").cloned().unwrap_or(Value::Null);
     let method = msg.get("method").and_then(Value::as_str).unwrap_or("");
 
@@ -259,7 +289,10 @@ mod tests {
     use super::*;
 
     fn server_at(port: u16) -> AskUserMcpServer {
-        AskUserMcpServer { port }
+        AskUserMcpServer {
+            port,
+            token: Arc::from("test-token"),
+        }
     }
 
     #[test]
@@ -268,6 +301,7 @@ mod tests {
         let server = &config["mcpServers"][MCP_SERVER_NAME];
         assert_eq!(server["type"], "http");
         assert_eq!(server["url"], "http://127.0.0.1:4899/mcp/ws-42");
+        assert_eq!(server["headers"]["Authorization"], "Bearer test-token");
         // Must NOT request strict mode — that would drop the user's own servers.
         assert!(config.get("strict").is_none());
     }
