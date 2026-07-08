@@ -62,9 +62,12 @@ use approval::{
 #[cfg(test)]
 #[path = "claude/tests_stream.rs"]
 mod tests_stream;
-pub use askuser_mcp::{
-    global as askuser_mcp_global, init_global as init_askuser_mcp_global, AskUserMcpServer,
-};
+pub use askuser_mcp::{global as askuser_mcp_global, AskUserMcpServer};
+// `init_global` is re-exported for the Tauri lib entrypoint (lib.rs) and tests; the
+// cc_gui_daemon binary compiles this module but never starts the askuser MCP server,
+// so the re-export is unused in that build — allow it rather than trip `-D warnings`.
+#[allow(unused_imports)]
+pub use askuser_mcp::init_global as init_askuser_mcp_global;
 pub use manager::ClaudeSessionManager;
 #[cfg(test)]
 use stream_helpers::extract_text_from_content;
