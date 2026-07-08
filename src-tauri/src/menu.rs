@@ -73,7 +73,7 @@ const LABELS_ZH: MenuLabels = MenuLabels {
     cycle_collaboration: "切换协作模式",
     view: "视图",
     toggle_projects_sidebar: "切换项目侧边栏",
-    toggle_git_sidebar: "切换 Git 侧边栏",
+    toggle_git_sidebar: "切换右侧边栏",
     toggle_global_search: "切换全局搜索",
     toggle_debug_panel: "切换调试面板",
     toggle_terminal: "切换终端",
