@@ -1855,3 +1855,36 @@ Review:
 ### Next Steps
 
 - None - task complete
+
+
+## Session 966: 修复 Hub Git 文件列表选择 UI
+
+**Date**: 2026-07-09
+**Task**: 修复 Hub Git 文件列表选择 UI
+**Branch**: `feature/ui-reactoring-2`
+
+### Summary
+
+恢复 Hub Git 文件列表提交复选框，将文件行对齐外部 Git worktree 的 status/icon/path/meta 四列结构，修复 tree/flat 列表中状态字母换行问题，并在 frontend component spec 中固化 Git file list selection surface 契约。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a0706b04` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
