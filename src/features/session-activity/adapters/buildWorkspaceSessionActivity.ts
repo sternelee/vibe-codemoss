@@ -18,6 +18,7 @@ import {
   parseLineMarkersFromDiff,
 } from "../../files/utils/gitLineMarkers";
 import { parseCollabFallbackLink } from "../../../utils/collabToolParsing";
+import { longestSuffixPrefixOverlap } from "../../../utils/stringOverlap";
 import { getThreadTimestamp } from "../../../utils/threadItems";
 import type {
   SessionActivityEvent,
@@ -603,11 +604,9 @@ function appendReasoningRunText(existing: string, incoming: string) {
   if (compactExisting === compactIncoming) {
     return chooseBetterReasoningText(normalizedExisting, normalizedIncoming);
   }
-  const maxOverlap = Math.min(compactExisting.length, compactIncoming.length);
-  for (let overlapLength = maxOverlap; overlapLength > 0; overlapLength -= 1) {
-    if (!compactExisting.endsWith(compactIncoming.slice(0, overlapLength))) {
-      continue;
-    }
+  // KMP 线性重叠检测，替代逐字符递减 endsWith 的 O(n²) 扫描。
+  const overlapLength = longestSuffixPrefixOverlap(compactExisting, compactIncoming);
+  if (overlapLength > 0) {
     const suffix = sliceByComparableLength(normalizedIncoming, overlapLength).trimStart();
     return suffix ? `${normalizedExisting}${suffix}` : normalizedExisting;
   }

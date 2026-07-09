@@ -1,4 +1,5 @@
 import { Fragment, memo, useMemo, useRef, type ReactNode } from "react";
+import { trackHotspot } from "../../../services/perfBaseline/hotspotTracker";
 
 export const PROGRESSIVE_REVEAL_STEP_MS = 28;
 export const PROGRESSIVE_REVEAL_CHUNK_CHARS = 360;
@@ -178,32 +179,34 @@ export function LightweightMarkdown({
     blocks: [],
   });
   const blocks = useMemo(() => {
-    const normalizedValue = value.replace(/\r\n/g, "\n");
-    const previousCache = parsedBlocksCacheRef.current;
-    if (
-      previousCache.blocks.length > 1 &&
-      normalizedValue.length > previousCache.value.length &&
-      normalizedValue.startsWith(previousCache.value)
-    ) {
-      const reusableBlocks = previousCache.blocks.slice(0, -1);
-      const resumeOffset = reusableBlocks.at(-1)?.endOffset ?? 0;
-      const reparsedTailBlocks = parseLightweightMarkdownBlocks(
-        normalizedValue.slice(resumeOffset),
-        resumeOffset,
-      );
-      const mergedBlocks = [...reusableBlocks, ...reparsedTailBlocks];
+    return trackHotspot("markdown-lightweight-parse", `${value.length}ch`, () => {
+      const normalizedValue = value.replace(/\r\n/g, "\n");
+      const previousCache = parsedBlocksCacheRef.current;
+      if (
+        previousCache.blocks.length > 1 &&
+        normalizedValue.length > previousCache.value.length &&
+        normalizedValue.startsWith(previousCache.value)
+      ) {
+        const reusableBlocks = previousCache.blocks.slice(0, -1);
+        const resumeOffset = reusableBlocks.at(-1)?.endOffset ?? 0;
+        const reparsedTailBlocks = parseLightweightMarkdownBlocks(
+          normalizedValue.slice(resumeOffset),
+          resumeOffset,
+        );
+        const mergedBlocks = [...reusableBlocks, ...reparsedTailBlocks];
+        parsedBlocksCacheRef.current = {
+          value: normalizedValue,
+          blocks: mergedBlocks,
+        };
+        return mergedBlocks;
+      }
+      const parsedBlocks = parseLightweightMarkdownBlocks(normalizedValue);
       parsedBlocksCacheRef.current = {
         value: normalizedValue,
-        blocks: mergedBlocks,
+        blocks: parsedBlocks,
       };
-      return mergedBlocks;
-    }
-    const parsedBlocks = parseLightweightMarkdownBlocks(normalizedValue);
-    parsedBlocksCacheRef.current = {
-      value: normalizedValue,
-      blocks: parsedBlocks,
-    };
-    return parsedBlocks;
+      return parsedBlocks;
+    });
   }, [value]);
   return (
     <>

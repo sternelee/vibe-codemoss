@@ -128,19 +128,33 @@ describe("messages live window", () => {
     expect(workingSet.omittedBeforeWorkingSetCount).toBeGreaterThan(0);
   });
 
-  it("keeps full history when show all is enabled", () => {
-    const items = Array.from({ length: 80 }, (_, index) =>
-      assistantMessage(`assistant-${index}`, `回复 ${index}`),
-    );
+  it("bounds streaming history even when show all is enabled, then restores full idle history", () => {
+    const items: ConversationItem[] = [
+      userMessage("user-latest", "最新问题"),
+      ...Array.from({ length: 80 }, (_, index) =>
+        assistantMessage(`assistant-${index}`, `回复 ${index}`),
+      ),
+    ];
 
-    const workingSet = buildLiveTailWorkingSet(items, {
+    const streaming = buildLiveTailWorkingSet(items, {
       isThinking: true,
       showAllHistoryItems: true,
       visibleWindow: 30,
     });
 
-    expect(workingSet.items).toBe(items);
-    expect(workingSet.omittedBeforeWorkingSetCount).toBe(0);
+    expect(streaming.items).not.toBe(items);
+    expect(streaming.items.length).toBeLessThan(items.length);
+    expect(streaming.items.some((item) => item.id === "user-latest")).toBe(true);
+    expect(streaming.omittedBeforeWorkingSetCount).toBeGreaterThan(0);
+
+    const idle = buildLiveTailWorkingSet(items, {
+      isThinking: false,
+      showAllHistoryItems: true,
+      visibleWindow: 30,
+    });
+
+    expect(idle.items).toBe(items);
+    expect(idle.omittedBeforeWorkingSetCount).toBe(0);
   });
 
   it("adds omitted prefix count to rendered collapsed history count", () => {

@@ -63,6 +63,7 @@ import {
   EMPTY_MESSAGE_MARKDOWN_HEAVY_ISLAND_SUMMARY,
 } from "../../markdown/messageMarkdownHeavyIslands";
 import { appendMarkdownPrecomputeDiagnostic } from "../../../services/rendererDiagnostics";
+import { useRenderHotspot } from "../../../services/perfBaseline/useRenderHotspot";
 import {
   extractCodeFromPre,
   extractLanguageTag,
@@ -1114,6 +1115,12 @@ export const Markdown = memo(function Markdown({
 
   const renderValue = progressiveReveal ? progressiveValue : throttledValue;
 
+  useRenderHotspot(
+    "markdown-render",
+    `${liveRenderMode}:${renderValue.length}ch`,
+    liveRenderMode === "lightweight" || progressiveReveal,
+  );
+
   useEffect(() => {
     onRenderedValueChange?.(renderValue);
   }, [onRenderedValueChange, renderValue]);
@@ -1351,7 +1358,9 @@ export const Markdown = memo(function Markdown({
     workspaceId,
   ]);
 
-  const hasMathContent = useMemo(() => detectMathContent(value), [value]);
+  // keyed 在节流后的 renderValue 上：流式期间每个 token 的紧急渲染不再全文重扫，
+  // 数学检测跟随实际渲染内容（KaTeX 只为渲染出的内容加载）。
+  const hasMathContent = useMemo(() => detectMathContent(renderValue), [renderValue]);
   const markdownPrecomputeOptionsHash = useMemo(() => createMessageMarkdownOptionsHash({
     codexLeadEnhanced: enableCodexLeadEnhancement,
     codeBlockStyle,

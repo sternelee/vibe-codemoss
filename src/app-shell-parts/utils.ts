@@ -170,14 +170,19 @@ function normalizeTimelinePlanStepStatus(raw: string): TurnPlanStepStatus {
 }
 
 export function extractPlanFromTimelineItems(items: ConversationItem[]): TurnPlan | null {
-  const latestPlanItem = [...items]
-    .reverse()
-    .find(
-      (item) =>
-        item.kind === "tool" &&
-        (item.toolType === "proposed-plan" || item.toolType === "plan-implementation"),
-    );
-  if (!latestPlanItem || latestPlanItem.kind !== "tool") {
+  // 从尾部反向遍历，避免每个 streaming token 都对全量 items 做拷贝 + reverse。
+  let latestPlanItem: Extract<ConversationItem, { kind: "tool" }> | null = null;
+  for (let index = items.length - 1; index >= 0; index -= 1) {
+    const item = items[index];
+    if (
+      item?.kind === "tool" &&
+      (item.toolType === "proposed-plan" || item.toolType === "plan-implementation")
+    ) {
+      latestPlanItem = item;
+      break;
+    }
+  }
+  if (!latestPlanItem) {
     return null;
   }
   const output = (latestPlanItem.output ?? "").trim();

@@ -1451,3 +1451,85 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 31: 降低客户端存储写入和诊断空转开销
+
+**Date**: 2026-07-07
+**Task**: 降低客户端存储写入和诊断空转开销
+**Branch**: `feat/ui-refactoring`
+
+### Summary
+
+提交 client store 性能修复：Rust client_storage 增加进程内缓存、compact JSON 与 no-op patch 跳过；启动后清理 diagnostics/customNames legacy 存量；Kanban base64 image 改为落盘保存路径；renderer diagnostics 与 live assistant shadow transcript 降低 idle/high-frequency durable writes。验证包含 lint/typecheck、两个 OpenSpec strict validate、focused Vitest、client_storage Rust tests；full npm test 仍被既有 Sidebar runtime notice ordering 断言阻塞。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5210c72509f180b5183ed9a97b1085ff4be0d3b2` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 32: 修复对话流式输出卡顿
+
+**Date**: 2026-07-07
+**Task**: 修复对话流式输出卡顿
+**Branch**: `feat/ui-refactoring`
+
+### Summary
+
+节流诊断落盘、关闭 DEV 默认 trace、流式 lightweight markdown 与 delta flush 降频，并补充虚拟化与 hotspot 观测。
+
+### Main Changes
+
+### Main Changes
+
+- `rendererDiagnostics`：append 改为内存 pending buffer + 2s 节流落盘，pagehide/visibilitychange 时立即冲刷
+- `streamLatencyDiagnostics`：DEV 下不再默认开启 trace，需显式 opt-in
+- `MessagesRows` / `messagesReasoning`：流式 assistant 与 ReasoningRow live 统一走 lightweight markdown
+- `useThreadItemEvents`：realtime delta flush 12ms → 32ms
+- 新增 timeline 流式虚拟化、hotspotTracker、useSidebarThreadStatusProjection 等观测与侧边栏优化
+- 新增 OpenSpec change `fix-streaming-conversation-jank` 及对应 spec/tasks
+
+### Testing
+
+- 相关单元测试与集成测试已同步更新（56 files changed）
+
+### Status
+
+[OK] **Completed**
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ce1bc01a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

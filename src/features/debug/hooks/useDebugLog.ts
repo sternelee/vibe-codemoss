@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { DebugEntry } from "../../../types";
 import {
   getClientStoreSync,
@@ -14,7 +14,10 @@ const MAX_DEBUG_ENTRIES = 200;
 const THREAD_SESSION_LOG_KEY = "diagnostics.threadSessionLog";
 const THREAD_SESSION_LOG_STORE = "diagnostics";
 const LEGACY_THREAD_SESSION_LOG_STORE = "app";
-const MAX_THREAD_SESSION_LOG_ENTRIES = 400;
+export const MAX_THREAD_SESSION_LOG_ENTRIES = 400;
+// 单条 payload 序列化体积上限：防止单个巨型 payload 把 diagnostics store 再次撑爆。
+export const MAX_THREAD_SESSION_LOG_PAYLOAD_CHARS = 8_000;
+const TRUNCATED_PAYLOAD_PREVIEW_CHARS = 2_000;
 
 type ThreadSessionLogEntry = {
   timestamp: number;
@@ -23,18 +26,27 @@ type ThreadSessionLogEntry = {
   payload: unknown;
 };
 
-function normalizePayload(payload: unknown): unknown {
+export function normalizeThreadSessionLogPayload(payload: unknown): unknown {
   if (payload == null) {
     return payload;
   }
   if (typeof payload === "string") {
-    return payload.length > 2000 ? `${payload.slice(0, 2000)}...(truncated)` : payload;
+    return payload.length > TRUNCATED_PAYLOAD_PREVIEW_CHARS
+      ? `${payload.slice(0, TRUNCATED_PAYLOAD_PREVIEW_CHARS)}...(truncated)`
+      : payload;
   }
   if (typeof payload !== "object") {
     return payload;
   }
   try {
-    return JSON.parse(JSON.stringify(payload));
+    const serialized = JSON.stringify(payload);
+    if (typeof serialized !== "string") {
+      return String(payload);
+    }
+    if (serialized.length > MAX_THREAD_SESSION_LOG_PAYLOAD_CHARS) {
+      return `${serialized.slice(0, TRUNCATED_PAYLOAD_PREVIEW_CHARS)}...(truncated ${serialized.length} chars)`;
+    }
+    return JSON.parse(serialized);
   } catch {
     return String(payload);
   }
@@ -54,6 +66,45 @@ function shouldMirrorThreadSessionLog(entry: DebugEntry): boolean {
   );
 }
 
+/** 高频/巨型 payload 的 label 黑名单：新增条目拒绝，startup maintenance 用同一判定清理存量。 */
+export function isBlockedThreadSessionLogLabel(label: string): boolean {
+  const normalized = label.toLowerCase();
+  return (
+    normalized === "thread/session:turn-diagnostic:codex-no-progress-watchdog-scheduled" ||
+    normalized === "thread/list response" ||
+    normalized === "thread/list older response"
+  );
+}
+
+function shouldPersistThreadSessionLogEntry(entry: DebugEntry): boolean {
+  if (isBlockedThreadSessionLogLabel(entry.label)) {
+    return false;
+  }
+  return shouldMirrorThreadSessionLog(entry);
+}
+
+function appendDebugEntryToList(
+  prev: DebugEntry[],
+  entry: DebugEntry,
+  nextCounter: () => number,
+): DebugEntry[] {
+  const trimmedId = entry.id.trim();
+  const baseId =
+    trimmedId.length > 0
+      ? trimmedId
+      : `debug-${entry.timestamp}-${nextCounter()}`;
+
+  let resolvedId = baseId;
+  while (prev.some((existing) => existing.id === resolvedId)) {
+    resolvedId = `${baseId}-${nextCounter()}`;
+  }
+
+  const nextEntry =
+    resolvedId === entry.id ? entry : { ...entry, id: resolvedId };
+
+  return [...prev, nextEntry].slice(-MAX_DEBUG_ENTRIES);
+}
+
 export function useDebugLog() {
   const [debugOpen, setDebugOpenState] = useState(false);
   const [debugEntries, setDebugEntries] = useState<DebugEntry[]>([]);
@@ -61,6 +112,38 @@ export function useDebugLog() {
   const [debugPinned, setDebugPinned] = useState(false);
   const debugEntryIdCounterRef = useRef(0);
   const threadSessionLogCacheRef = useRef<ThreadSessionLogEntry[] | null>(null);
+  // 面板关闭期间日志只进内存缓冲，不写 React state。本 hook 挂在 AppShell 根，
+  // setDebugEntries 是数组追加型 setState（必换引用、无法做 same-value 守卫），
+  // 对话/Agent 期间每条引擎日志都会触发一次 100ms+ 的根渲染。打开面板时缓冲
+  // 一次性灌入；磁盘侧 threadSessionLog / clientErrorLog 不受影响，始终完整。
+  const debugOpenRef = useRef(false);
+  const pendingDebugEntriesRef = useRef<DebugEntry[]>([]);
+  const nextDebugEntryCounter = useCallback(
+    () => debugEntryIdCounterRef.current++,
+    [],
+  );
+
+  const flushPendingDebugEntries = useCallback(() => {
+    const pending = pendingDebugEntriesRef.current;
+    if (pending.length === 0) {
+      return;
+    }
+    pendingDebugEntriesRef.current = [];
+    setDebugEntries((prev) => {
+      let next = prev;
+      for (const entry of pending) {
+        next = appendDebugEntryToList(next, entry, nextDebugEntryCounter);
+      }
+      return next;
+    });
+  }, [nextDebugEntryCounter]);
+
+  useEffect(() => {
+    debugOpenRef.current = debugOpen;
+    if (debugOpen) {
+      flushPendingDebugEntries();
+    }
+  }, [debugOpen, flushPendingDebugEntries]);
 
   const shouldLogEntry = useCallback((entry: DebugEntry) => {
     if (entry.source === "error" || entry.source === "stderr") {
@@ -91,7 +174,7 @@ export function useDebugLog() {
 
   const addDebugEntry = useCallback(
     (entry: DebugEntry) => {
-      if (shouldMirrorThreadSessionLog(entry)) {
+      if (shouldPersistThreadSessionLogEntry(entry)) {
         const cachedLogs =
           threadSessionLogCacheRef.current ??
           (getClientStoreSync<ThreadSessionLogEntry[]>(
@@ -107,7 +190,7 @@ export function useDebugLog() {
           timestamp: entry.timestamp,
           source: entry.source,
           label: entry.label,
-          payload: normalizePayload(entry.payload),
+          payload: normalizeThreadSessionLogPayload(entry.payload),
         };
         const nextLogs = [...cachedLogs, nextEntry].slice(
           -MAX_THREAD_SESSION_LOG_ENTRIES,
@@ -125,26 +208,22 @@ export function useDebugLog() {
       if (!shouldLogEntry(entry)) {
         return;
       }
+      // setHasDebugAlerts(true) 在已为 true 时会被 React same-value bailout，
+      // 最多只引发一次根渲染，保留它以维持「有告警」红点提示。
       setHasDebugAlerts(true);
-      setDebugEntries((prev) => {
-        const trimmedId = entry.id.trim();
-        const baseId =
-          trimmedId.length > 0
-            ? trimmedId
-            : `debug-${entry.timestamp}-${debugEntryIdCounterRef.current++}`;
-
-        let resolvedId = baseId;
-        while (prev.some((existing) => existing.id === resolvedId)) {
-          resolvedId = `${baseId}-${debugEntryIdCounterRef.current++}`;
+      if (!debugOpenRef.current) {
+        const pending = pendingDebugEntriesRef.current;
+        pending.push(entry);
+        if (pending.length > MAX_DEBUG_ENTRIES) {
+          pending.splice(0, pending.length - MAX_DEBUG_ENTRIES);
         }
-
-        const nextEntry =
-          resolvedId === entry.id ? entry : { ...entry, id: resolvedId };
-
-        return [...prev, nextEntry].slice(-MAX_DEBUG_ENTRIES);
-      });
+        return;
+      }
+      setDebugEntries((prev) =>
+        appendDebugEntryToList(prev, entry, nextDebugEntryCounter),
+      );
     },
-    [shouldLogEntry],
+    [nextDebugEntryCounter, shouldLogEntry],
   );
 
   const handleCopyDebug = useCallback(async () => {
@@ -168,6 +247,7 @@ export function useDebugLog() {
   }, [debugEntries]);
 
   const clearDebugEntries = useCallback(() => {
+    pendingDebugEntriesRef.current = [];
     setDebugEntries([]);
     setHasDebugAlerts(false);
   }, []);

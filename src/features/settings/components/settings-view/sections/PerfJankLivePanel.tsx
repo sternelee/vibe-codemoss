@@ -9,8 +9,10 @@ import { Button } from "@/components/ui/button";
 import {
   clearRendererDiagnostics,
   exportRendererDiagnostics,
+  getRendererDiagnosticsRevision,
 } from "@/services/rendererDiagnostics";
 import { SUSPEND_GAP_MS } from "@/services/perfBaseline/frameDropMonitor";
+import { recordHotspotSample } from "@/services/perfBaseline/hotspotTracker";
 
 const REFRESH_INTERVAL_MS = 1_000;
 const MAX_VISIBLE_ROWS = 40;
@@ -26,6 +28,18 @@ type JankRow = {
   lastInteractionLabel: string | null;
   lastInteractionAgoMs: number | null;
   topRenders: Array<{ name: string; count: number }>;
+  hotspots: Array<{
+    category: string;
+    count: number;
+    totalMs: number;
+    maxMs: number;
+    maxDetail: string | null;
+  }>;
+};
+
+type JankSnapshot = {
+  revision: number;
+  rows: JankRow[];
 };
 
 function asFiniteNumber(value: unknown): number | null {
@@ -46,7 +60,41 @@ function asTopRenders(value: unknown): Array<{ name: string; count: number }> {
     .filter((item): item is { name: string; count: number } => item !== null);
 }
 
-function collectJankRows(): JankRow[] {
+function asHotspots(value: unknown): JankRow["hotspots"] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((item) => {
+    const record = item as {
+      category?: unknown;
+      count?: unknown;
+      totalMs?: unknown;
+      maxMs?: unknown;
+      maxDetail?: unknown;
+    };
+    if (typeof record?.category !== "string") {
+      return [];
+    }
+    return [
+      {
+        category: record.category,
+        count: asFiniteNumber(record.count) ?? 0,
+        totalMs: asFiniteNumber(record.totalMs) ?? 0,
+        maxMs: asFiniteNumber(record.maxMs) ?? 0,
+        maxDetail:
+          typeof record.maxDetail === "string" ? record.maxDetail : null,
+      },
+    ];
+  });
+}
+
+function nowMs(): number {
+  return typeof performance !== "undefined" ? performance.now() : Date.now();
+}
+
+function collectJankSnapshot(): JankSnapshot {
+  const startedAt = nowMs();
+  const revision = getRendererDiagnosticsRevision();
   const rows: JankRow[] = [];
   for (const entry of exportRendererDiagnostics()) {
     if (entry.label !== "perf.frame-drop" && entry.label !== "perf.longtask") {
@@ -54,7 +102,9 @@ function collectJankRows(): JankRow[] {
     }
     const payload = entry.payload ?? {};
     const durationMs =
-      asFiniteNumber(payload.deltaMs) ?? asFiniteNumber(payload.durationMs) ?? 0;
+      asFiniteNumber(payload.deltaMs) ??
+      asFiniteNumber(payload.durationMs) ??
+      0;
     if (durationMs <= 0 || durationMs >= SUSPEND_GAP_MS) {
       // 挂起/睡眠恢复的天文数字与空值不属于"卡顿",不进列表。
       continue;
@@ -76,10 +126,16 @@ function collectJankRows(): JankRow[] {
           : null,
       lastInteractionAgoMs: asFiniteNumber(payload.lastInteractionAgoMs),
       topRenders: asTopRenders(payload.topRenders),
+      hotspots: asHotspots(payload.hotspots),
     });
   }
   rows.sort((left, right) => right.timestamp - left.timestamp);
-  return rows;
+  recordHotspotSample(
+    "perf-jank-live-collect",
+    nowMs() - startedAt,
+    `rows=${rows.length}`,
+  );
+  return { revision, rows };
 }
 
 function formatClockTime(timestamp: number): string {
@@ -90,19 +146,19 @@ function formatClockTime(timestamp: number): string {
 
 export function PerfJankLivePanel() {
   const { t } = useTranslation();
-  const [rows, setRows] = useState<JankRow[]>(() => collectJankRows());
+  const [snapshot, setSnapshot] = useState<JankSnapshot>(() =>
+    collectJankSnapshot(),
+  );
   const [clearedMessage, setClearedMessage] = useState<string | null>(null);
+  const rows = snapshot.rows;
 
   const refresh = useCallback(() => {
-    setRows((previous) => {
-      const next = collectJankRows();
-      if (
-        previous.length === next.length &&
-        previous[0]?.key === next[0]?.key
-      ) {
+    setSnapshot((previous) => {
+      const revision = getRendererDiagnosticsRevision();
+      if (revision === previous.revision) {
         return previous;
       }
-      return next;
+      return collectJankSnapshot();
     });
   }, []);
 
@@ -115,7 +171,7 @@ export function PerfJankLivePanel() {
 
   const handleClear = useCallback(() => {
     clearRendererDiagnostics();
-    setRows([]);
+    setSnapshot({ revision: getRendererDiagnosticsRevision(), rows: [] });
     setClearedMessage(t("settings.perfJankLiveCleared"));
   }, [t]);
 
@@ -153,7 +209,10 @@ export function PerfJankLivePanel() {
               style={{ listStyle: "none", margin: "8px 0 0", paddingLeft: 8 }}
             >
               {visibleRows.map((row) => (
-                <li key={row.key} className="flex flex-wrap items-baseline gap-x-2">
+                <li
+                  key={row.key}
+                  className="flex flex-wrap items-baseline gap-x-2"
+                >
                   <span className="text-muted-foreground">
                     {formatClockTime(row.timestamp)}
                   </span>
@@ -180,12 +239,20 @@ export function PerfJankLivePanel() {
                     </span>
                   ) : null}
                   <span className="min-w-0 flex-1 truncate">
-                    {row.topRenders.length > 0
-                      ? row.topRenders
+                    {row.hotspots.length > 0
+                      ? row.hotspots
                           .slice(0, 3)
-                          .map((render) => `${render.name}×${render.count}`)
-                          .join(", ")
-                      : t("settings.perfJankLiveNoRenders")}
+                          .map(
+                            (hotspot) =>
+                              `${hotspot.category}=${hotspot.totalMs}ms(max ${hotspot.maxMs}${hotspot.maxDetail ? ` ${hotspot.maxDetail}` : ""})`,
+                          )
+                          .join(" ")
+                      : row.topRenders.length > 0
+                        ? row.topRenders
+                            .slice(0, 3)
+                            .map((render) => `${render.name}×${render.count}`)
+                            .join(", ")
+                        : t("settings.perfJankLiveNoRenders")}
                   </span>
                 </li>
               ))}

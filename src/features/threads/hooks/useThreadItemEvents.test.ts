@@ -8,6 +8,8 @@ import {
 import { buildConversationItem } from "../../../utils/threadItems";
 import {
   buildLiveAssistantShadowTranscriptId,
+  flushLiveAssistantShadowTranscriptsNow,
+  resetLiveAssistantShadowTranscriptsForTests,
 } from "../utils/liveAssistantShadowTranscript";
 import { useThreadItemEvents } from "./useThreadItemEvents";
 import {
@@ -106,6 +108,7 @@ describe("useThreadItemEvents", () => {
     vi.clearAllMocks();
     window.localStorage.removeItem("ccgui.perf.realtimeBatching");
     vi.mocked(buildConversationItem).mockReturnValue(convertedItem);
+    resetLiveAssistantShadowTranscriptsForTests();
   });
 
   it("dispatches item updates and marks review mode on item start", () => {
@@ -437,7 +440,7 @@ describe("useThreadItemEvents", () => {
     });
 
     act(() => {
-      vi.advanceTimersByTime(20);
+      vi.advanceTimersByTime(40);
     });
 
     expect(queuedTransitions).toHaveLength(0);
@@ -502,7 +505,7 @@ describe("useThreadItemEvents", () => {
     expect(safeMessageActivity).not.toHaveBeenCalled();
 
     act(() => {
-      vi.advanceTimersByTime(20);
+      vi.advanceTimersByTime(40);
     });
 
     expect(dispatch).toHaveBeenNthCalledWith(1, {
@@ -580,7 +583,7 @@ describe("useThreadItemEvents", () => {
     expect(safeMessageActivity).not.toHaveBeenCalled();
 
     act(() => {
-      vi.advanceTimersByTime(20);
+      vi.advanceTimersByTime(40);
     });
 
     expect(dispatch).toHaveBeenNthCalledWith(1, {
@@ -721,6 +724,7 @@ describe("useThreadItemEvents", () => {
       }),
     );
     expect(safeMessageActivity).toHaveBeenCalled();
+    flushLiveAssistantShadowTranscriptsNow();
     const shadowStore = getClientStoreSync<Record<string, { text?: string }>>(
       "threads",
       "liveAssistantShadowTranscripts",
@@ -751,6 +755,7 @@ describe("useThreadItemEvents", () => {
       threadId: "claude:session-1",
       itemId: "assistant-1",
     });
+    flushLiveAssistantShadowTranscriptsNow();
     const shadowStore = getClientStoreSync<Record<string, { text?: string }>>(
       "threads",
       "liveAssistantShadowTranscripts",
@@ -861,7 +866,7 @@ describe("useThreadItemEvents", () => {
     expect(markProcessing).not.toHaveBeenCalled();
 
     act(() => {
-      vi.advanceTimersByTime(20);
+      vi.advanceTimersByTime(40);
     });
 
     expect(dispatch).not.toHaveBeenCalledWith(
@@ -1284,7 +1289,7 @@ describe("useThreadItemEvents", () => {
     expect(safeMessageActivity).not.toHaveBeenCalled();
 
     act(() => {
-      vi.advanceTimersByTime(20);
+      vi.advanceTimersByTime(40);
     });
 
     expect(dispatch).toHaveBeenNthCalledWith(1, {
@@ -1521,7 +1526,7 @@ describe("useThreadItemEvents", () => {
     expect(safeMessageActivity).not.toHaveBeenCalled();
 
     act(() => {
-      vi.advanceTimersByTime(20);
+      vi.advanceTimersByTime(40);
     });
 
     expect(dispatch).toHaveBeenNthCalledWith(1, {

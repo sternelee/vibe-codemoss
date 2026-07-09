@@ -4,6 +4,7 @@ import type { PresentationProfile } from "../presentation/presentationProfile";
 import type { MessagesEngine } from "./messagesRenderUtils";
 
 export const LIVE_ASSISTANT_MARKDOWN_THROTTLE_MS = 48;
+const CODEX_TINY_STREAMING_THROTTLE_MS = 72;
 
 const CODEX_MEDIUM_STREAMING_THROTTLE_MS = 80;
 const CODEX_LARGE_STREAMING_THROTTLE_MS = 120;
@@ -31,6 +32,11 @@ export type StreamingMarkdownComplexity = {
   isLarge: boolean;
   isHuge: boolean;
   isStructuredHeavy: boolean;
+  /**
+   * 全文扫描结束时是否仍处于 fenced code block 内。
+   * delta 路径靠它继承状态，避免每次 flush 重放整个前缀（O(n²) 累积）。
+   */
+  insideCodeFence: boolean;
 };
 
 export const EMPTY_STREAMING_MARKDOWN_COMPLEXITY: StreamingMarkdownComplexity = {
@@ -45,6 +51,7 @@ export const EMPTY_STREAMING_MARKDOWN_COMPLEXITY: StreamingMarkdownComplexity = 
   isLarge: false,
   isHuge: false,
   isStructuredHeavy: false,
+  insideCodeFence: false,
 };
 
 export function analyzeStreamingMarkdownComplexity(
@@ -86,6 +93,35 @@ export function analyzeStreamingMarkdownComplexity(
     }
   }
 
+  return finalizeStreamingMarkdownComplexity({
+    trimmedText,
+    lineCount,
+    headingCount,
+    listItemCount,
+    fencedCodeBlockCount,
+    fencedCodeLineCount,
+    insideCodeFence,
+  });
+}
+
+function finalizeStreamingMarkdownComplexity(counts: {
+  trimmedText: string;
+  lineCount: number;
+  headingCount: number;
+  listItemCount: number;
+  fencedCodeBlockCount: number;
+  fencedCodeLineCount: number;
+  insideCodeFence: boolean;
+}): StreamingMarkdownComplexity {
+  const {
+    trimmedText,
+    lineCount,
+    headingCount,
+    listItemCount,
+    fencedCodeBlockCount,
+    fencedCodeLineCount,
+    insideCodeFence,
+  } = counts;
   const isMedium =
     trimmedText.length >= CODEX_MEDIUM_STREAMING_MIN_LENGTH ||
     lineCount >= CODEX_MEDIUM_STREAMING_MIN_LINES;
@@ -115,6 +151,7 @@ export function analyzeStreamingMarkdownComplexity(
     isLarge,
     isHuge,
     isStructuredHeavy,
+    insideCodeFence,
   };
 }
 
@@ -175,7 +212,7 @@ export function resolveAssistantMessageStreamingThrottleMs(
   if (complexity.isStructuredHeavy || complexity.isMedium) {
     return CODEX_MEDIUM_STREAMING_THROTTLE_MS;
   }
-  return baselineThrottleMs;
+  return CODEX_TINY_STREAMING_THROTTLE_MS;
 }
 
 export function resolveReasoningStreamingThrottleMs(
@@ -223,80 +260,105 @@ export function analyzeStreamingMarkdownComplexityDelta(
   if (!trimmedText) {
     return EMPTY_STREAMING_MARKDOWN_COMPLEXITY;
   }
+  const counts = {
+    headingCount: prev.headingCount,
+    listItemCount: prev.listItemCount,
+    fencedCodeBlockCount: prev.fencedCodeBlockCount,
+    fencedCodeLineCount: prev.fencedCodeLineCount,
+  };
+  // fenced-code 状态直接从 prev 继承，不再重放整个前缀（旧实现每次 flush 扫
+  // O(全文) 行，流式累积成 O(n²)）。
+  let insideCodeFence = prev.insideCodeFence;
+  let lineCount = prev.lineCount;
+  let deltaLines: string[];
+
   const joinsExistingLine =
     prevText.length > 0 &&
     !/[\r\n]$/.test(prevText) &&
     !/^[\r\n]/.test(deltaText);
   if (joinsExistingLine) {
-    return analyzeStreamingMarkdownComplexity(nextText);
-  }
-  // Inherit fenced-code state by replaying all fence toggles on
-  // prevText and stopping at the final state.
-  let insideCodeFence = false;
-  for (const rawLine of prevText.split(/\r?\n/)) {
-    if (rawLine.trim().startsWith("```")) {
-      insideCodeFence = !insideCodeFence;
+    // token 常 append 在同一行末尾：撤销旧末行的计数贡献，把「旧末行 + delta
+    // 首段」当作一条新行重新分类，剩余 delta 行照常增量处理。旧实现在此分支
+    // 直接全文重扫，恰好是流式最频繁的路径。
+    const lastBreakIndex = Math.max(
+      prevText.lastIndexOf("\n"),
+      prevText.lastIndexOf("\r"),
+    );
+    const prevLastLine = prevText.slice(lastBreakIndex + 1);
+    const prevLastTrimmed = prevLastLine.trim();
+    let stateBeforeLastLine = insideCodeFence;
+    if (prevLastTrimmed.startsWith("```")) {
+      stateBeforeLastLine = !stateBeforeLastLine;
+    }
+    applyLineContribution(counts, prevLastTrimmed, stateBeforeLastLine, -1);
+    insideCodeFence = stateBeforeLastLine;
+    const deltaParts = deltaText.split(/\r?\n/);
+    deltaParts[0] = prevLastLine + (deltaParts[0] ?? "");
+    deltaLines = deltaParts;
+    lineCount += deltaParts.length - 1;
+  } else {
+    deltaLines = trimmedDelta.split(/\r?\n/);
+    for (const line of deltaLines) {
+      if (line.length > 0) {
+        lineCount += 1;
+      }
     }
   }
-  const deltaLines = trimmedDelta.split(/\r?\n/);
-  let headingCount = prev.headingCount;
-  let listItemCount = prev.listItemCount;
-  let fencedCodeBlockCount = prev.fencedCodeBlockCount;
-  let fencedCodeLineCount = prev.fencedCodeLineCount;
-  let newLineCount = 0;
+
   for (const line of deltaLines) {
-    if (line.length > 0) {
-      newLineCount += 1;
-    }
     const normalizedLine = line.trim();
     if (!normalizedLine) {
       continue;
     }
     if (normalizedLine.startsWith("```")) {
-      fencedCodeBlockCount += insideCodeFence ? 0 : 1;
+      counts.fencedCodeBlockCount += insideCodeFence ? 0 : 1;
       insideCodeFence = !insideCodeFence;
       continue;
     }
-    if (insideCodeFence) {
-      fencedCodeLineCount += 1;
-      continue;
-    }
-    if (/^#{1,6}\s+/.test(normalizedLine)) {
-      headingCount += 1;
-      continue;
-    }
-    if (/^(?:[-*+]|\d+[.)])\s+/.test(normalizedLine)) {
-      listItemCount += 1;
-    }
+    applyLineContribution(counts, normalizedLine, insideCodeFence, 1);
   }
-  const lineCount = prev.lineCount + newLineCount;
-  const isMedium =
-    trimmedText.length >= CODEX_MEDIUM_STREAMING_MIN_LENGTH ||
-    lineCount >= CODEX_MEDIUM_STREAMING_MIN_LINES;
-  const isLarge =
-    trimmedText.length >= CODEX_LARGE_STREAMING_MIN_LENGTH ||
-    lineCount >= CODEX_LARGE_STREAMING_MIN_LINES;
-  const isHuge =
-    trimmedText.length >= CODEX_HUGE_STREAMING_MIN_LENGTH ||
-    lineCount >= CODEX_HUGE_STREAMING_MIN_LINES;
-  const structuredBlockCount =
-    headingCount + listItemCount + fencedCodeBlockCount + fencedCodeLineCount;
-  const isStructuredHeavy =
-    headingCount >= CODEX_STRUCTURED_STREAMING_MIN_HEADINGS ||
-    listItemCount >= CODEX_STRUCTURED_STREAMING_MIN_LIST_ITEMS ||
-    fencedCodeLineCount >= CODEX_STRUCTURED_STREAMING_MIN_CODE_LINES ||
-    (fencedCodeBlockCount > 0 && structuredBlockCount >= CODEX_MEDIUM_STREAMING_MIN_LINES);
-  return {
+  if (lineCount < 1 && trimmedText) {
+    lineCount = 1;
+  }
+  return finalizeStreamingMarkdownComplexity({
     trimmedText,
     lineCount,
-    headingCount,
-    listItemCount,
-    fencedCodeBlockCount,
-    fencedCodeLineCount,
-    structuredBlockCount,
-    isMedium,
-    isLarge,
-    isHuge,
-    isStructuredHeavy,
-  };
+    ...counts,
+    insideCodeFence,
+  });
+}
+
+/**
+ * 统计单行对 heading/list/code-line 计数的贡献（sign=+1 增加、-1 撤销）。
+ * fence 开合行的计数与状态切换由调用方处理。
+ */
+function applyLineContribution(
+  counts: {
+    headingCount: number;
+    listItemCount: number;
+    fencedCodeBlockCount: number;
+    fencedCodeLineCount: number;
+  },
+  normalizedLine: string,
+  insideCodeFence: boolean,
+  sign: 1 | -1,
+) {
+  if (!normalizedLine) {
+    return;
+  }
+  if (normalizedLine.startsWith("```")) {
+    counts.fencedCodeBlockCount += insideCodeFence ? 0 : sign;
+    return;
+  }
+  if (insideCodeFence) {
+    counts.fencedCodeLineCount += sign;
+    return;
+  }
+  if (/^#{1,6}\s+/.test(normalizedLine)) {
+    counts.headingCount += sign;
+    return;
+  }
+  if (/^(?:[-*+]|\d+[.)])\s+/.test(normalizedLine)) {
+    counts.listItemCount += sign;
+  }
 }

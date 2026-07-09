@@ -34,6 +34,10 @@ import {
 } from "./frameDropMonitor";
 import { buildDiagnosticsReportText } from "./diagnosticsReport";
 import {
+  __resetHotspotTrackerForTests,
+  recordHotspotSample,
+} from "./hotspotTracker";
+import {
   __resetReactScanRenderLogForTests,
   getRecentReactScanRenderSummary,
   recordReactScanRender,
@@ -116,6 +120,8 @@ describe("frameDropMonitor", () => {
       streamActivityPhase: "generating",
       visibleRowCount: 7,
     });
+    __resetHotspotTrackerForTests();
+    recordHotspotSample("realtime-delta-flush", 45, "ops=12");
     startFrameDropMonitor();
     advance(0); // first tick seeds lastFrameTime
     advance(120); // 120ms frame → severe drop
@@ -128,6 +134,15 @@ describe("frameDropMonitor", () => {
       streamActivityPhase: "generating",
       visibleRowCount: 7,
     });
+    // 掉帧现场必须附带主线程 hotspot 归因(WKWebView 无 longtask 的替代信号)。
+    const hotspots = (call?.[1] as { hotspots?: unknown }).hotspots;
+    expect(hotspots).toEqual([
+      expect.objectContaining({
+        category: "realtime-delta-flush",
+        totalMs: 45,
+        maxDetail: "ops=12",
+      }),
+    ]);
   });
 
   it("does not report normal ~16ms frames", () => {

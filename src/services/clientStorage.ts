@@ -5,6 +5,7 @@ import {
   serializeClientStoreSnapshot,
   type ClientStoreName,
 } from "./clientStorageSchema";
+import { recordHotspotSample } from "./perfBaseline/hotspotTracker";
 
 const cache: Partial<Record<ClientStoreName, Record<string, unknown>>> = {};
 
@@ -148,17 +149,29 @@ function flushStoreWrite(store: ClientStoreName): void {
   const fullDataSnapshot = shouldFullReplace ? { ...cacheSnapshot } : null;
 
   const nextWrite = async () => {
+    // 只统计同步部分(序列化 + IPC marshaling),这才是占用主线程、可能造成掉帧的开销;
+    // await 之后的等待发生在 Rust 侧,不阻塞渲染。
+    const syncStartedAt =
+      typeof performance !== "undefined" ? performance.now() : Date.now();
+    let pendingInvoke: Promise<unknown>;
     if (shouldFullReplace && fullDataSnapshot) {
-      await invoke("client_store_write", {
+      pendingInvoke = invoke("client_store_write", {
         store,
         data: serializeClientStoreSnapshot(fullDataSnapshot),
       });
     } else {
-      await invoke("client_store_patch", {
+      pendingInvoke = invoke("client_store_patch", {
         store,
         patch: serializeClientStoreSnapshot(valueSnapshot),
       });
     }
+    recordHotspotSample(
+      "client-store-write",
+      (typeof performance !== "undefined" ? performance.now() : Date.now()) -
+        syncStartedAt,
+      `${store}:${shouldFullReplace ? "full" : [...dirtySnapshot].slice(0, 3).join(",")}`,
+    );
+    await pendingInvoke;
   };
 
   writeChainByStore[store] = (writeChainByStore[store] ?? Promise.resolve())

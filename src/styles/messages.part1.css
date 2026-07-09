@@ -46,7 +46,9 @@
     display: none;
   }
 
-  .message {
+  .message,
+  .thinking-block,
+  .item-card {
     content-visibility: visible;
   }
 }
@@ -1905,6 +1907,10 @@
   margin-bottom: 12px;
   background: var(--surface-card);
   color: var(--text-stronger);
+  /* review/diff 等卡片屏幕外跳过渲染/绘制；72px 仅为首次渲染前的
+     占位估值，渲染过后由 auto 缓存真实高度。 */
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 72px;
 }
 
 .item-card.review {

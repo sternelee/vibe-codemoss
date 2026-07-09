@@ -11,6 +11,8 @@ import {
   type RefObject,
 } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { trackHotspot } from "../../../services/perfBaseline/hotspotTracker";
+import { useRenderHotspot } from "../../../services/perfBaseline/useRenderHotspot";
 import { useTranslation } from "react-i18next";
 import Check from "lucide-react/dist/esm/icons/check";
 import Copy from "lucide-react/dist/esm/icons/copy";
@@ -117,11 +119,36 @@ const TIMELINE_LIVE_ROW_BOTTOM_PROXIMITY_PX = 720;
 const TIMELINE_SCROLL_DIAGNOSTIC_MIN_INTERVAL_MS = 250;
 const TIMELINE_SCROLL_DIAGNOSTIC_MIN_DELTA_PX = 24;
 
+function TimelineActiveRowRenderProbe({
+  children,
+  detail,
+  enabled,
+}: {
+  children: ReactNode;
+  detail: string;
+  enabled: boolean;
+}) {
+  useRenderHotspot("timeline-active-row-render", detail, enabled);
+  return <>{children}</>;
+}
+
 type TimelineScrollDiagnosticSnapshot = {
   clientHeight: number;
   distanceFromBottom: number;
   scrollHeight: number;
   scrollTop: number;
+};
+
+type TimelineScrollDiagnosticContext = {
+  activeLiveRowCount: number;
+  isThinking: boolean;
+  isWorking: boolean;
+  renderWeight: number;
+  rowCount: number;
+  shouldVirtualizeTimeline: boolean;
+  threadId: string | null;
+  virtualItemCount: number;
+  workspaceId: string | null;
 };
 
 function collectTimelineScrollDiagnosticSnapshot(
@@ -243,6 +270,43 @@ function resolveNormalizedRenderKind(item: ConversationItem): NormalizedRenderKi
   return item.kind;
 }
 
+// 合并结果按 (timeline item, live item) 引用缓存：两者引用都没变时（同一 flush 内的多次
+// render、以及 urgent/deferred 双通道渲染），直接复用上次结果，避免在 render 路径上
+// 反复对全文做 compact/includes/append（长 thinking 文本时这是数百毫秒的同步成本）。
+type LiveReasoningItem = Extract<ConversationItem, { kind: "reasoning" }>;
+const liveReasoningMergeCache = new WeakMap<
+  ConversationItem,
+  { live: LiveReasoningItem; result: ConversationItem }
+>();
+
+function resolveLiveReasoningRenderItem(
+  item: LiveReasoningItem,
+  liveReasoningItem: LiveReasoningItem,
+) {
+  const cached = liveReasoningMergeCache.get(item);
+  if (cached && cached.live === liveReasoningItem) {
+    return cached.result;
+  }
+  // timeline 条目可能是同段相邻思考的合并块；直播原始条目只有最后一段，
+  // 直接替换会把前段文本顶掉。检测到前缀缺失时保留合并前缀、只刷新直播尾段。
+  const compactTimeline = compactComparableReasoningText(
+    item.content || item.summary || "",
+  );
+  const compactLive = compactComparableReasoningText(
+    liveReasoningItem.content || liveReasoningItem.summary || "",
+  );
+  const result: ConversationItem =
+    compactTimeline && !compactLive.includes(compactTimeline)
+      ? {
+          ...liveReasoningItem,
+          summary: appendReasoningRunText(item.summary, liveReasoningItem.summary),
+          content: appendReasoningRunText(item.content, liveReasoningItem.content),
+        }
+      : liveReasoningItem;
+  liveReasoningMergeCache.set(item, { live: liveReasoningItem, result });
+  return result;
+}
+
 function resolveLiveRenderItem(
   item: ConversationItem,
   liveAssistantItem: Extract<ConversationItem, { kind: "message" }> | null,
@@ -256,22 +320,7 @@ function resolveLiveRenderItem(
     if (!preserveMergedReasoningPrefix) {
       return liveReasoningItem;
     }
-    // timeline 条目可能是同段相邻思考的合并块；直播原始条目只有最后一段，
-    // 直接替换会把前段文本顶掉。检测到前缀缺失时保留合并前缀、只刷新直播尾段。
-    const compactTimeline = compactComparableReasoningText(
-      item.content || item.summary || "",
-    );
-    const compactLive = compactComparableReasoningText(
-      liveReasoningItem.content || liveReasoningItem.summary || "",
-    );
-    if (compactTimeline && !compactLive.includes(compactTimeline)) {
-      return {
-        ...liveReasoningItem,
-        summary: appendReasoningRunText(item.summary, liveReasoningItem.summary),
-        content: appendReasoningRunText(item.content, liveReasoningItem.content),
-      };
-    }
-    return liveReasoningItem;
+    return resolveLiveReasoningRenderItem(item, liveReasoningItem);
   }
   return item;
 }
@@ -525,6 +574,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
   const effectiveConversationLightweightMode = conversationLightweightModeState.active;
   const shouldVirtualizeTimelineByWeight = shouldVirtualizeTimelineRows({
     isThinking,
+    isWorking,
     rowCount: timelineProjectionRows.length,
     renderWeight: timelineRenderWeightSummary.renderWeight,
   });
@@ -610,10 +660,67 @@ export const MessagesTimeline = memo(function MessagesTimeline({
     }),
   });
   const virtualTimelineRows = timelineVirtualizer.getVirtualItems();
+  const timelineVirtualizerRef = useRef(timelineVirtualizer);
+  timelineVirtualizerRef.current = timelineVirtualizer;
+  const timelineMeasureContextRef = useRef({
+    rowCount: timelineProjectionRows.length,
+  });
+  timelineMeasureContextRef.current = {
+    rowCount: timelineProjectionRows.length,
+  };
+  const measureTimelineVirtualRowElement = useCallback((node: HTMLDivElement | null) => {
+    if (!node) {
+      return;
+    }
+    const detail = [
+      node.dataset.timelineRowKind ?? "unknown",
+      node.dataset.activeLiveRow === "true" ? "active" : "static",
+      `index=${node.dataset.index ?? "?"}`,
+      `size=${node.dataset.virtualRowSize ?? "?"}`,
+      `rows=${timelineMeasureContextRef.current.rowCount}`,
+    ].join(":");
+    trackHotspot("timeline-row-measure", detail, () => {
+      timelineVirtualizerRef.current.measureElement(node);
+    });
+  }, []);
+  useRenderHotspot(
+    "timeline-list-render",
+    [
+      shouldVirtualizeTimeline ? "virtual" : "static",
+      `${timelineProjectionRows.length}rows`,
+      `visible=${shouldVirtualizeTimeline ? virtualTimelineRows.length : timelineProjectionRows.length}`,
+      `active=${activeLiveTimelineRowKeys.length}`,
+      isThinking ? "thinking" : isWorking ? "working" : "idle",
+      `weight=${timelineRenderWeightSummary.renderWeight}`,
+    ].join(":"),
+    isThinking || isWorking,
+  );
   const virtualTimelineRowKeys = useMemo(
     () => virtualTimelineRows.map((row) => row.key),
     [virtualTimelineRows],
   );
+  const timelineScrollDiagnosticContextRef = useRef<TimelineScrollDiagnosticContext>({
+    activeLiveRowCount: activeLiveTimelineRowKeys.length,
+    isThinking,
+    isWorking,
+    renderWeight: timelineRenderWeightSummary.renderWeight,
+    rowCount: timelineProjectionRows.length,
+    shouldVirtualizeTimeline,
+    threadId,
+    virtualItemCount: virtualTimelineRowKeys.length,
+    workspaceId: workspaceId ?? null,
+  });
+  timelineScrollDiagnosticContextRef.current = {
+    activeLiveRowCount: activeLiveTimelineRowKeys.length,
+    isThinking,
+    isWorking,
+    renderWeight: timelineRenderWeightSummary.renderWeight,
+    rowCount: timelineProjectionRows.length,
+    shouldVirtualizeTimeline,
+    threadId,
+    virtualItemCount: virtualTimelineRowKeys.length,
+    workspaceId: workspaceId ?? null,
+  };
 
   useEffect(() => {
     const scrollElement = scrollElementRef.current;
@@ -647,18 +754,19 @@ export const MessagesTimeline = memo(function MessagesTimeline({
         return;
       }
       lastTimelineScrollDiagnosticRef.current = { at: now, eventKind, snapshot };
+      const diagnosticContext = timelineScrollDiagnosticContextRef.current;
       appendRendererDiagnostic("messages/timeline-scroll-behavior", {
         component: "MessagesTimeline",
         eventKind,
-        threadId,
-        workspaceId: workspaceId ?? null,
-        isThinking,
-        isWorking,
-        shouldVirtualizeTimeline,
-        rowCount: timelineProjectionRows.length,
-        renderWeight: timelineRenderWeightSummary.renderWeight,
-        virtualItemCount: virtualTimelineRowKeys.length,
-        activeLiveRowCount: activeLiveTimelineRowKeys.length,
+        threadId: diagnosticContext.threadId,
+        workspaceId: diagnosticContext.workspaceId,
+        isThinking: diagnosticContext.isThinking,
+        isWorking: diagnosticContext.isWorking,
+        shouldVirtualizeTimeline: diagnosticContext.shouldVirtualizeTimeline,
+        rowCount: diagnosticContext.rowCount,
+        renderWeight: diagnosticContext.renderWeight,
+        virtualItemCount: diagnosticContext.virtualItemCount,
+        activeLiveRowCount: diagnosticContext.activeLiveRowCount,
         scrollTopDelta: Math.round(scrollTopDelta),
         distanceFromBottomDelta: Math.round(distanceFromBottomDelta),
         ...snapshot,
@@ -685,18 +793,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
       scrollElement.removeEventListener("wheel", handleWheel);
       scrollElement.removeEventListener("scrollend", handleScrollEnd);
     };
-  }, [
-    activeLiveTimelineRowKeys.length,
-    isThinking,
-    isWorking,
-    scrollElementRef,
-    shouldVirtualizeTimeline,
-    threadId,
-    timelineProjectionRows.length,
-    timelineRenderWeightSummary.renderWeight,
-    virtualTimelineRowKeys.length,
-    workspaceId,
-  ]);
+  }, [scrollElementRef]);
 
   const visibleTimelineRowKeySet = useMemo(
     () => new Set(virtualTimelineRowKeys.map(String)),
@@ -732,7 +829,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
       presentationProfile?.preferCommandSummary,
     ],
   );
-  const retainedHydratedTimelineRowScopeKey = `${virtualizedTimelineScopeKey} ${timelineRendererOptionsKey}`;
+  const retainedHydratedTimelineRowScopeKey = `${virtualizedTimelineScopeKey}\u0000${timelineRendererOptionsKey}`;
   const retainedHydratedTimelineRowKeys = useMemo(() => {
     const retained = retainedHydratedTimelineRowKeysRef.current;
     if (retained.scopeKey !== retainedHydratedTimelineRowScopeKey) {
@@ -1954,6 +2051,13 @@ export const MessagesTimeline = memo(function MessagesTimeline({
               estimatedSize: estimatedRowSize,
               lightweight: isLightweightTimelineRow,
             });
+        const activeRowProbeDetail = [
+          row?.kind ?? "missing",
+          isLightweightTimelineRow ? "lightweight" : "hydrated",
+          `index=${virtualRow.index}`,
+          `rows=${timelineProjectionRows.length}`,
+          `key=${String(virtualRow.key).slice(0, 80)}`,
+        ].join(":");
         return (
           <div
             key={virtualRow.key}
@@ -1972,7 +2076,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
             }
             // 空行不挂 measureElement：避免内层残留内容/margin 穿透被测成非 0
             // 高度，扰乱后续行的 translateY 累加（重叠 + 测量回路闪动的根因）。
-            ref={isEmptyTimelineRow ? undefined : timelineVirtualizer.measureElement}
+            ref={isEmptyTimelineRow ? undefined : measureTimelineVirtualRowElement}
             style={{
               left: 0,
               height: isEmptyTimelineRow ? 0 : undefined,
@@ -1987,7 +2091,14 @@ export const MessagesTimeline = memo(function MessagesTimeline({
               width: "100%",
             }}
           >
-            {isEmptyTimelineRow ? null : renderProjectionRowWithBoundary(row)}
+            {isEmptyTimelineRow ? null : (
+              <TimelineActiveRowRenderProbe
+                detail={activeRowProbeDetail}
+                enabled={(isThinking || isWorking) && isActiveLiveTimelineRow}
+              >
+                {renderProjectionRowWithBoundary(row)}
+              </TimelineActiveRowRenderProbe>
+            )}
           </div>
         );
       })}
