@@ -3,6 +3,7 @@ import {
   isPreloaded,
   writeClientStoreValue,
 } from "./clientStorage";
+import { recordHotspotSample } from "./perfBaseline/hotspotTracker";
 import type {
   RendererHeartbeatInput,
   RendererSupportState,
@@ -21,18 +22,31 @@ const MAX_RENDERER_DIAGNOSTICS = 200;
 const MAX_PERF_ENTRIES = 1000;
 const MAX_REALTIME_TURN_SUMMARIES = 100;
 const MAX_STREAM_LATENCY_ENTRIES = 600;
+const MAX_COMPOSER_RENDER_DIAGNOSTIC_SIGNATURES = 80;
+const COMPOSER_RENDER_DIAGNOSTIC_MIN_INTERVAL_MS = 5_000;
+const COMPOSER_RENDER_DIAGNOSTIC_RENDER_COUNT_STEP = 20;
 const MAX_MESSAGE_ROW_RENDER_DIAGNOSTIC_SIGNATURES = 400;
 const MESSAGE_ROW_RENDER_DIAGNOSTIC_MIN_INTERVAL_MS = 5_000;
 const MESSAGE_ROW_RENDER_DIAGNOSTIC_RENDER_COUNT_STEP = 20;
-const EARLY_RENDERER_DIAGNOSTICS_STORAGE_KEY = "ccgui.bootstrapRendererDiagnostics";
+const EARLY_RENDERER_DIAGNOSTICS_STORAGE_KEY =
+  "ccgui.bootstrapRendererDiagnostics";
 const DEFAULT_BLANK_WATCHDOG_INTERVAL_MS = 1_500;
 const DEFAULT_BLANK_WATCHDOG_MIN_CONSECUTIVE_SAMPLES = 2;
 const DEFAULT_BLANK_WATCHDOG_MAX_REPORTS = 6;
 const DEFAULT_RENDERER_HEARTBEAT_INTERVAL_MS = 15_000;
 const MAX_HEARTBEAT_FAILURE_REPORTS = 3;
+// 高频 append（流式期间可达每秒数十次）不允许逐次触发全量 read-merge-write，
+// 统一进内存 pending buffer，按该间隔 leading+trailing 节流合并落盘。
+const DIAGNOSTICS_PERSIST_THROTTLE_MS = 2_000;
+const MAX_PENDING_DIAGNOSTIC_ENTRIES = 2_000;
 
 let installed = false;
 let bufferedEntries: RendererDiagnosticEntry[] = [];
+let pendingPersistEntries: RendererDiagnosticEntry[] = [];
+let diagnosticsPersistTimer: ReturnType<typeof setTimeout> | null = null;
+let lastDiagnosticsPersistAt = Number.NEGATIVE_INFINITY;
+let diagnosticsFlushHooksInstalled = false;
+let diagnosticsRevision = 0;
 let blankWatchdogTimer: number | null = null;
 let blankWatchdogConsecutiveSamples = 0;
 let blankWatchdogReports = 0;
@@ -40,10 +54,20 @@ let rendererHeartbeatTimer: number | null = null;
 let rendererHeartbeatInFlight = false;
 let rendererHeartbeatSequence = 0;
 let rendererHeartbeatFailureReports = 0;
-const messageRowRenderDiagnosticSamples = new Map<string, {
-  lastAt: number;
-  renderCount: number;
-}>();
+const messageRowRenderDiagnosticSamples = new Map<
+  string,
+  {
+    lastAt: number;
+    renderCount: number;
+  }
+>();
+const composerRenderDiagnosticSamples = new Map<
+  string,
+  {
+    lastAt: number;
+    renderCount: number;
+  }
+>();
 
 type BlankScreenWatchdogOptions = {
   rootId?: string;
@@ -77,10 +101,15 @@ function trimDiagnostics(entries: RendererDiagnosticEntry[]) {
     }
   }
   return [
-    ...regularEntries.slice(Math.max(0, regularEntries.length - MAX_RENDERER_DIAGNOSTICS)),
+    ...regularEntries.slice(
+      Math.max(0, regularEntries.length - MAX_RENDERER_DIAGNOSTICS),
+    ),
     ...perfEntries.slice(Math.max(0, perfEntries.length - MAX_PERF_ENTRIES)),
     ...realtimeTurnSummaryEntries.slice(
-      Math.max(0, realtimeTurnSummaryEntries.length - MAX_REALTIME_TURN_SUMMARIES),
+      Math.max(
+        0,
+        realtimeTurnSummaryEntries.length - MAX_REALTIME_TURN_SUMMARIES,
+      ),
     ),
     ...streamLatencyEntries.slice(
       Math.max(0, streamLatencyEntries.length - MAX_STREAM_LATENCY_ENTRIES),
@@ -110,12 +139,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function normalizeDiagnosticEntry(value: unknown): RendererDiagnosticEntry | null {
+function normalizeDiagnosticEntry(
+  value: unknown,
+): RendererDiagnosticEntry | null {
   if (!isRecord(value)) {
     return null;
   }
   const { timestamp, label, payload } = value;
-  if (typeof timestamp !== "number" || !Number.isFinite(timestamp) || typeof label !== "string") {
+  if (
+    typeof timestamp !== "number" ||
+    !Number.isFinite(timestamp) ||
+    typeof label !== "string"
+  ) {
     return null;
   }
   return {
@@ -159,7 +194,8 @@ function collectWindowSnapshot(extra: Record<string, unknown> = {}) {
   return {
     visibilityState: document.visibilityState,
     readyState: document.readyState,
-    hasFocus: typeof document.hasFocus === "function" ? document.hasFocus() : null,
+    hasFocus:
+      typeof document.hasFocus === "function" ? document.hasFocus() : null,
     href: window.location.href,
     ...extra,
   };
@@ -206,7 +242,9 @@ function collectRendererBlankScreenSnapshot(rootId: string) {
     root: rootSnapshot,
     body: bodySnapshot,
     activeElementTag:
-      activeElement instanceof HTMLElement ? activeElement.tagName.toLowerCase() : null,
+      activeElement instanceof HTMLElement
+        ? activeElement.tagName.toLowerCase()
+        : null,
   });
 }
 
@@ -241,11 +279,18 @@ function isBlankRendererSnapshot(snapshot: Record<string, unknown> | null) {
 }
 
 function persistDiagnostics(entries: RendererDiagnosticEntry[]) {
-  writeClientStoreValue(RENDERER_DIAGNOSTICS_STORE, RENDERER_DIAGNOSTICS_KEY, entries);
+  writeClientStoreValue(
+    RENDERER_DIAGNOSTICS_STORE,
+    RENDERER_DIAGNOSTICS_KEY,
+    entries,
+  );
 }
 
 function canUseLocalStorage() {
-  return typeof globalThis !== "undefined" && typeof globalThis.localStorage !== "undefined";
+  return (
+    typeof globalThis !== "undefined" &&
+    typeof globalThis.localStorage !== "undefined"
+  );
 }
 
 function readEarlyPersistedDiagnostics(): RendererDiagnosticEntry[] {
@@ -253,7 +298,9 @@ function readEarlyPersistedDiagnostics(): RendererDiagnosticEntry[] {
     return [];
   }
   try {
-    const raw = globalThis.localStorage.getItem(EARLY_RENDERER_DIAGNOSTICS_STORAGE_KEY);
+    const raw = globalThis.localStorage.getItem(
+      EARLY_RENDERER_DIAGNOSTICS_STORAGE_KEY,
+    );
     if (!raw) {
       return [];
     }
@@ -270,7 +317,9 @@ function persistEarlyDiagnostics(entries: RendererDiagnosticEntry[]) {
   }
   try {
     if (entries.length === 0) {
-      globalThis.localStorage.removeItem(EARLY_RENDERER_DIAGNOSTICS_STORAGE_KEY);
+      globalThis.localStorage.removeItem(
+        EARLY_RENDERER_DIAGNOSTICS_STORAGE_KEY,
+      );
       return;
     }
     globalThis.localStorage.setItem(
@@ -280,6 +329,14 @@ function persistEarlyDiagnostics(entries: RendererDiagnosticEntry[]) {
   } catch {
     // Ignore localStorage failures, diagnostics are best effort.
   }
+}
+
+function readNowMs(): number {
+  return typeof performance !== "undefined" ? performance.now() : Date.now();
+}
+
+function bumpDiagnosticsRevision(): void {
+  diagnosticsRevision += 1;
 }
 
 function readPersistedDiagnostics() {
@@ -300,9 +357,30 @@ function readPersistedDiagnostics() {
 
 /**
  * 导出合并后的诊断条目(只读),供设置页「复制卡顿现场」等外部消费。
+ * pending buffer 中尚未落盘的条目一并合入，避免节流窗口内丢失最新现场。
  */
 export function exportRendererDiagnostics(): RendererDiagnosticEntry[] {
-  return readPersistedDiagnostics();
+  const startedAt = readNowMs();
+  const entries = mergeDiagnostics(
+    readPersistedDiagnostics(),
+    bufferedEntries,
+    pendingPersistEntries,
+  );
+  recordHotspotSample(
+    "diagnostics-export",
+    readNowMs() - startedAt,
+    `entries=${entries.length}`,
+  );
+  return entries;
+}
+
+/**
+ * Cheap change counter for live diagnostic UIs. Exporting diagnostics may merge
+ * and stringify many entries, so polling surfaces should check this before doing
+ * a full export.
+ */
+export function getRendererDiagnosticsRevision(): number {
+  return diagnosticsRevision;
 }
 
 /**
@@ -312,9 +390,90 @@ export function exportRendererDiagnostics(): RendererDiagnosticEntry[] {
  */
 export function clearRendererDiagnostics(): void {
   bufferedEntries = [];
+  pendingPersistEntries = [];
+  if (diagnosticsPersistTimer !== null) {
+    clearTimeout(diagnosticsPersistTimer);
+    diagnosticsPersistTimer = null;
+  }
   persistEarlyDiagnostics([]);
   persistDiagnostics([]);
-  writeClientStoreValue(LEGACY_RENDERER_DIAGNOSTICS_STORE, RENDERER_DIAGNOSTICS_KEY, []);
+  writeClientStoreValue(
+    LEGACY_RENDERER_DIAGNOSTICS_STORE,
+    RENDERER_DIAGNOSTICS_KEY,
+    [],
+  );
+  bumpDiagnosticsRevision();
+}
+
+/**
+ * 将 legacy `app` store 里的 renderer lifecycle 日志合并进当前 diagnostics store
+ * 并清空 legacy key。存量死数据会一直被 readPersistedDiagnostics 反复 merge +
+ * JSON.stringify 签名去重，白白消耗 CPU，迁移后即可停付这笔开销。
+ */
+export function migrateLegacyRendererDiagnostics(): void {
+  const legacyStored = getClientStoreSync<unknown>(
+    LEGACY_RENDERER_DIAGNOSTICS_STORE,
+    RENDERER_DIAGNOSTICS_KEY,
+  );
+  if (!Array.isArray(legacyStored) || legacyStored.length === 0) {
+    return;
+  }
+  persistDiagnostics(readPersistedDiagnostics());
+  writeClientStoreValue(
+    LEGACY_RENDERER_DIAGNOSTICS_STORE,
+    RENDERER_DIAGNOSTICS_KEY,
+    [],
+  );
+}
+
+function persistPendingDiagnostics() {
+  if (diagnosticsPersistTimer !== null) {
+    clearTimeout(diagnosticsPersistTimer);
+    diagnosticsPersistTimer = null;
+  }
+  if (pendingPersistEntries.length === 0 && bufferedEntries.length === 0) {
+    return;
+  }
+  const persistStartedAt =
+    typeof performance !== "undefined" ? performance.now() : Date.now();
+  lastDiagnosticsPersistAt = Date.now();
+  const existing = readPersistedDiagnostics();
+  const nextEntries = mergeDiagnostics(
+    existing,
+    bufferedEntries,
+    pendingPersistEntries,
+  );
+  bufferedEntries = [];
+  pendingPersistEntries = [];
+  persistEarlyDiagnostics([]);
+  persistDiagnostics(nextEntries);
+  recordHotspotSample(
+    "diagnostics-persist",
+    (typeof performance !== "undefined" ? performance.now() : Date.now()) -
+      persistStartedAt,
+    `entries=${nextEntries.length}`,
+  );
+}
+
+function installDiagnosticsFlushHooks() {
+  if (
+    diagnosticsFlushHooksInstalled ||
+    typeof window === "undefined" ||
+    typeof document === "undefined" ||
+    typeof window.addEventListener !== "function" ||
+    typeof document.addEventListener !== "function"
+  ) {
+    return;
+  }
+  diagnosticsFlushHooksInstalled = true;
+  window.addEventListener("pagehide", () => {
+    persistPendingDiagnostics();
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      persistPendingDiagnostics();
+    }
+  });
 }
 
 export function appendRendererDiagnostic(
@@ -330,14 +489,31 @@ export function appendRendererDiagnostic(
   if (!isPreloaded()) {
     bufferedEntries = trimDiagnostics([...bufferedEntries, entry]);
     persistEarlyDiagnostics(bufferedEntries);
+    bumpDiagnosticsRevision();
     return;
   }
 
-  const existing = readPersistedDiagnostics();
-  const nextEntries = mergeDiagnostics(existing, bufferedEntries, [entry]);
-  bufferedEntries = [];
-  persistEarlyDiagnostics([]);
-  persistDiagnostics(nextEntries);
+  pendingPersistEntries.push(entry);
+  if (pendingPersistEntries.length > MAX_PENDING_DIAGNOSTIC_ENTRIES) {
+    pendingPersistEntries = trimDiagnostics(pendingPersistEntries);
+  }
+  bumpDiagnosticsRevision();
+  installDiagnosticsFlushHooks();
+  const now = Date.now();
+  const elapsedSincePersist = now - lastDiagnosticsPersistAt;
+  if (elapsedSincePersist >= DIAGNOSTICS_PERSIST_THROTTLE_MS) {
+    persistPendingDiagnostics();
+    return;
+  }
+  if (diagnosticsPersistTimer === null) {
+    diagnosticsPersistTimer = setTimeout(
+      () => {
+        diagnosticsPersistTimer = null;
+        persistPendingDiagnostics();
+      },
+      Math.max(0, DIAGNOSTICS_PERSIST_THROTTLE_MS - elapsedSincePersist),
+    );
+  }
 }
 
 export function appendRendererPerfDiagnostic(
@@ -441,7 +617,11 @@ export type MarkdownPrecomputeDiagnosticInput = {
 };
 
 export type WorkspaceFileListingBudgetDiagnosticInput = {
-  surfaceId: "initial-listing" | "subtree-listing" | "fallback-full-listing" | "shared-index";
+  surfaceId:
+    | "initial-listing"
+    | "subtree-listing"
+    | "fallback-full-listing"
+    | "shared-index";
   workspaceId?: string | null;
   durationMs?: number | null;
   returnedEntries: number;
@@ -482,7 +662,9 @@ function toBoundedDiagnosticString(value: string | null | undefined) {
   return trimmed ? trimmed.slice(0, 120) : null;
 }
 
-function toBoundedDiagnosticCountRecord(value: Record<string, number> | null | undefined) {
+function toBoundedDiagnosticCountRecord(
+  value: Record<string, number> | null | undefined,
+) {
   if (!value) {
     return null;
   }
@@ -511,13 +693,20 @@ function shouldAppendMessageRowRenderBudgetDiagnostic(
   const shouldAppend =
     !previous ||
     now - previous.lastAt >= MESSAGE_ROW_RENDER_DIAGNOSTIC_MIN_INTERVAL_MS ||
-    renderCount - previous.renderCount >= MESSAGE_ROW_RENDER_DIAGNOSTIC_RENDER_COUNT_STEP;
+    renderCount - previous.renderCount >=
+      MESSAGE_ROW_RENDER_DIAGNOSTIC_RENDER_COUNT_STEP;
   if (!shouldAppend) {
     return false;
   }
   messageRowRenderDiagnosticSamples.delete(signature);
-  messageRowRenderDiagnosticSamples.set(signature, { lastAt: now, renderCount });
-  while (messageRowRenderDiagnosticSamples.size > MAX_MESSAGE_ROW_RENDER_DIAGNOSTIC_SIGNATURES) {
+  messageRowRenderDiagnosticSamples.set(signature, {
+    lastAt: now,
+    renderCount,
+  });
+  while (
+    messageRowRenderDiagnosticSamples.size >
+    MAX_MESSAGE_ROW_RENDER_DIAGNOSTIC_SIGNATURES
+  ) {
     const oldestKey = messageRowRenderDiagnosticSamples.keys().next().value;
     if (typeof oldestKey !== "string") {
       break;
@@ -527,9 +716,50 @@ function shouldAppendMessageRowRenderBudgetDiagnostic(
   return true;
 }
 
+function shouldAppendComposerRenderBudgetDiagnostic(
+  input: ComposerRenderBudgetDiagnosticInput,
+) {
+  const signature = [
+    input.surfaceId,
+    input.workspaceId ?? "workspace:unknown",
+    input.streamActivityPhase ?? "phase:unknown",
+    input.isProcessing ? "processing" : "not-processing",
+    input.disabled ? "disabled" : "enabled",
+  ].join(":");
+  const now = Date.now();
+  const previous = composerRenderDiagnosticSamples.get(signature);
+  const renderCount = toFiniteDiagnosticNumber(input.renderCount) ?? 0;
+  const shouldAppend =
+    !previous ||
+    renderCount < previous.renderCount ||
+    now - previous.lastAt >= COMPOSER_RENDER_DIAGNOSTIC_MIN_INTERVAL_MS ||
+    renderCount - previous.renderCount >=
+      COMPOSER_RENDER_DIAGNOSTIC_RENDER_COUNT_STEP;
+  if (!shouldAppend) {
+    return false;
+  }
+  composerRenderDiagnosticSamples.delete(signature);
+  composerRenderDiagnosticSamples.set(signature, { lastAt: now, renderCount });
+  while (
+    composerRenderDiagnosticSamples.size >
+    MAX_COMPOSER_RENDER_DIAGNOSTIC_SIGNATURES
+  ) {
+    const oldestKey = composerRenderDiagnosticSamples.keys().next().value;
+    if (typeof oldestKey !== "string") {
+      break;
+    }
+    composerRenderDiagnosticSamples.delete(oldestKey);
+  }
+  return true;
+}
+
 function isPerfDiagnosticCollectionEnabled() {
-  const env = (import.meta.env ?? {}) as Record<string, string | boolean | undefined>;
-  const nodeEnv = typeof process === "undefined" ? undefined : process.env?.NODE_ENV;
+  const env = (import.meta.env ?? {}) as Record<
+    string,
+    string | boolean | undefined
+  >;
+  const nodeEnv =
+    typeof process === "undefined" ? undefined : process.env?.NODE_ENV;
   return (
     env.DEV === true ||
     env.VITE_ENABLE_PERF_BASELINE === "1" ||
@@ -557,7 +787,10 @@ function getNavigatorPlatform() {
 
 function getAppVersion() {
   const env = (import.meta.env ?? {}) as Record<string, string | undefined>;
-  return (env.VITE_APP_VERSION || env.PACKAGE_VERSION || "unknown").slice(0, 80);
+  return (env.VITE_APP_VERSION || env.PACKAGE_VERSION || "unknown").slice(
+    0,
+    80,
+  );
 }
 
 function getLongTaskSupportState(): RendererSupportState {
@@ -567,7 +800,9 @@ function getLongTaskSupportState(): RendererSupportState {
   const observer = PerformanceObserver as typeof PerformanceObserver & {
     supportedEntryTypes?: readonly string[];
   };
-  return toSupportState(Boolean(observer.supportedEntryTypes?.includes("longtask")));
+  return toSupportState(
+    Boolean(observer.supportedEntryTypes?.includes("longtask")),
+  );
 }
 
 function getMemorySnapshot() {
@@ -579,13 +814,15 @@ function getMemorySnapshot() {
       jsHeapSizeLimit: null,
     };
   }
-  const memory = (performance as Performance & {
-    memory?: {
-      usedJSHeapSize?: number;
-      totalJSHeapSize?: number;
-      jsHeapSizeLimit?: number;
-    };
-  }).memory;
+  const memory = (
+    performance as Performance & {
+      memory?: {
+        usedJSHeapSize?: number;
+        totalJSHeapSize?: number;
+        jsHeapSizeLimit?: number;
+      };
+    }
+  ).memory;
   return {
     memorySupportState: "supported" as RendererSupportState,
     usedJsHeapSize: toFiniteDiagnosticNumber(memory?.usedJSHeapSize),
@@ -639,7 +876,8 @@ async function sendRendererHeartbeat(options: RendererHeartbeatOptions) {
   }
   rendererHeartbeatInFlight = true;
   try {
-    const { recordRendererHeartbeat } = await import("./tauri/rendererStability");
+    const { recordRendererHeartbeat } =
+      await import("./tauri/rendererStability");
     await recordRendererHeartbeat(buildRendererHeartbeatPayload(options));
     rendererHeartbeatFailureReports = 0;
   } catch (error) {
@@ -680,6 +918,16 @@ export function appendComposerRenderBudgetDiagnostic(
   input: ComposerRenderBudgetDiagnosticInput,
 ) {
   if (!isPerfDiagnosticCollectionEnabled()) {
+    return;
+  }
+  if (
+    !input.isProcessing &&
+    input.streamActivityPhase === "idle" &&
+    toFiniteDiagnosticNumber(input.textLength) === 0
+  ) {
+    return;
+  }
+  if (!shouldAppendComposerRenderBudgetDiagnostic(input)) {
     return;
   }
   appendRendererDiagnostic("perf.composer.render-budget", {
@@ -736,7 +984,9 @@ export function appendEventBackpressureDiagnostic(
   });
 }
 
-export function appendListenerOwnerDiagnostic(input: ListenerOwnerDiagnosticInput) {
+export function appendListenerOwnerDiagnostic(
+  input: ListenerOwnerDiagnosticInput,
+) {
   if (!isPerfDiagnosticCollectionEnabled()) {
     return;
   }
@@ -775,7 +1025,9 @@ export function appendMarkdownPrecomputeDiagnostic(
     cacheState: toBoundedDiagnosticString(input.cacheState),
     fallbackReason: toBoundedDiagnosticString(input.fallbackReason),
     evidenceClass: input.evidenceClass,
-    heavyCategoryCounts: toBoundedDiagnosticCountRecord(input.heavyCategoryCounts),
+    heavyCategoryCounts: toBoundedDiagnosticCountRecord(
+      input.heavyCategoryCounts,
+    ),
     totalHeadings: toFiniteDiagnosticNumber(input.totalHeadings),
     totalHeavyBlocks: toFiniteDiagnosticNumber(input.totalHeavyBlocks),
     totalSourceLines: toFiniteDiagnosticNumber(input.totalSourceLines),
@@ -815,7 +1067,9 @@ export function appendRenderSchedulerResourceDiagnostic(
     surfaceId: toBoundedDiagnosticString(input.surfaceId),
     chunkCount: toFiniteDiagnosticNumber(input.chunkCount),
     yieldCount: toFiniteDiagnosticNumber(input.yieldCount),
-    inputPendingYieldCount: toFiniteDiagnosticNumber(input.inputPendingYieldCount),
+    inputPendingYieldCount: toFiniteDiagnosticNumber(
+      input.inputPendingYieldCount,
+    ),
     budgetMissCount: toFiniteDiagnosticNumber(input.budgetMissCount),
     idleCallbackCount: toFiniteDiagnosticNumber(input.idleCallbackCount),
     timeoutFallbackCount: toFiniteDiagnosticNumber(input.timeoutFallbackCount),
@@ -880,12 +1134,19 @@ export function startRendererBlankScreenWatchdog(
     return;
   }
   const rootId = options.rootId ?? "root";
-  const intervalMs = Math.max(250, options.intervalMs ?? DEFAULT_BLANK_WATCHDOG_INTERVAL_MS);
+  const intervalMs = Math.max(
+    250,
+    options.intervalMs ?? DEFAULT_BLANK_WATCHDOG_INTERVAL_MS,
+  );
   const minConsecutiveSamples = Math.max(
     1,
-    options.minConsecutiveSamples ?? DEFAULT_BLANK_WATCHDOG_MIN_CONSECUTIVE_SAMPLES,
+    options.minConsecutiveSamples ??
+      DEFAULT_BLANK_WATCHDOG_MIN_CONSECUTIVE_SAMPLES,
   );
-  const maxReports = Math.max(1, options.maxReports ?? DEFAULT_BLANK_WATCHDOG_MAX_REPORTS);
+  const maxReports = Math.max(
+    1,
+    options.maxReports ?? DEFAULT_BLANK_WATCHDOG_MAX_REPORTS,
+  );
   blankWatchdogConsecutiveSamples = 0;
   blankWatchdogReports = 0;
   blankWatchdogTimer = window.setInterval(() => {
@@ -917,7 +1178,11 @@ export function startRendererBlankScreenWatchdog(
 }
 
 export function flushRendererDiagnosticsBuffer() {
-  if (bufferedEntries.length === 0 && readEarlyPersistedDiagnostics().length === 0) {
+  if (
+    bufferedEntries.length === 0 &&
+    pendingPersistEntries.length === 0 &&
+    readEarlyPersistedDiagnostics().length === 0
+  ) {
     return;
   }
   if (!isPreloaded()) {
@@ -925,14 +1190,28 @@ export function flushRendererDiagnosticsBuffer() {
     return;
   }
   const existing = readPersistedDiagnostics();
-  const nextEntries = mergeDiagnostics(existing, bufferedEntries);
+  const nextEntries = mergeDiagnostics(
+    existing,
+    bufferedEntries,
+    pendingPersistEntries,
+  );
   bufferedEntries = [];
+  pendingPersistEntries = [];
+  if (diagnosticsPersistTimer !== null) {
+    clearTimeout(diagnosticsPersistTimer);
+    diagnosticsPersistTimer = null;
+  }
+  lastDiagnosticsPersistAt = Date.now();
   persistEarlyDiagnostics([]);
   persistDiagnostics(nextEntries);
 }
 
 export function installRendererLifecycleDiagnostics() {
-  if (installed || typeof window === "undefined" || typeof document === "undefined") {
+  if (
+    installed ||
+    typeof window === "undefined" ||
+    typeof document === "undefined"
+  ) {
     return;
   }
   installed = true;

@@ -536,6 +536,12 @@ export function useAppShellSearchRadarSection({
   });
   const lockLiveSessions = sessionRadarFeed.runningSessions;
 
+  // 完成态 preview 只在检测到「完成」的那一刻才需要 items；通过 ref 读取
+  // 最新快照，避免把 deferredThreadItemsByThread（流式期间高频换引用）放进
+  // completion tracker effect 的依赖里触发 W×T 全量扫描。
+  const completionPreviewItemsRef = useRef(deferredThreadItemsByThread);
+  completionPreviewItemsRef.current = deferredThreadItemsByThread;
+
   useEffect(() => {
     const previous = completionTrackerBySessionRef.current;
     const next: Record<string, CompletionTrackerSnapshot> = {};
@@ -585,7 +591,7 @@ export function useAppShellSearchRadarSection({
                 ? Math.max(0, completedAt - previousTracker.lastDurationMs)
                 : null;
           const latestUserMessage = resolveLatestUserMessage(
-            deferredThreadItemsByThread[thread.id],
+            completionPreviewItemsRef.current[thread.id],
           );
           completed.push({
             id: buildRadarCompletionId(workspace.id, thread.id),
@@ -597,7 +603,7 @@ export function useAppShellSearchRadarSection({
             preview:
               latestUserMessage ||
               resolveLockLivePreview(
-                deferredThreadItemsByThread[thread.id],
+                completionPreviewItemsRef.current[thread.id],
                 lastAgent?.text,
               ) ||
               thread.name?.trim() ||
@@ -658,7 +664,6 @@ export function useAppShellSearchRadarSection({
     completionTrackerReadyRef,
     lastAgentMessageByThread,
     t,
-    deferredThreadItemsByThread,
     threadStatusById,
     threadsByWorkspace,
     workspaces,

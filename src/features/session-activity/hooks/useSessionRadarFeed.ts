@@ -189,7 +189,9 @@ function buildLiveThreadSignature(
     String(status?.processingStartedAt ?? 0),
     String(status?.lastDurationMs ?? 0),
     String(lastAgent?.timestamp ?? 0),
-    lastAgent?.text ?? "",
+    // 只嵌长度而非全文：全文会让签名构建/比较随 agent 输出线性变贵，
+    // 且流式期间每个 token 都要重建一条 O(文本长度) 的字符串。
+    String(lastAgent?.text.length ?? 0),
     String(resolvedItems.length),
     fingerprintConversationItem(resolvedItems[0]),
     fingerprintConversationItem(previousItem),
@@ -667,5 +669,43 @@ export function useSessionRadarFeed(input: UseSessionRadarFeedInput): SessionRad
     });
   }, [mergedRecentFeed.recentCompletedSessions]);
 
-  return mergedRecentFeed;
+  // 计数记录每次重建都是新对象；Sidebar 把它们当 props，引用一变就整树重渲染。
+  // 内容未变时复用上一次的引用，让流式期间的 flush 不再击穿 Sidebar 的 memo。
+  const stableRunningCountRef = useRef<Record<string, number> | null>(null);
+  const stableRecentCountRef = useRef<Record<string, number> | null>(null);
+  const runningCountByWorkspaceId = reuseShallowEqualCountRecord(
+    stableRunningCountRef,
+    mergedRecentFeed.runningCountByWorkspaceId,
+  );
+  const recentCountByWorkspaceId = reuseShallowEqualCountRecord(
+    stableRecentCountRef,
+    mergedRecentFeed.recentCountByWorkspaceId,
+  );
+  return useMemo(
+    () => ({
+      ...mergedRecentFeed,
+      runningCountByWorkspaceId,
+      recentCountByWorkspaceId,
+    }),
+    [mergedRecentFeed, runningCountByWorkspaceId, recentCountByWorkspaceId],
+  );
+}
+
+function reuseShallowEqualCountRecord(
+  ref: { current: Record<string, number> | null },
+  next: Record<string, number>,
+): Record<string, number> {
+  const previous = ref.current;
+  if (previous) {
+    const previousKeys = Object.keys(previous);
+    const nextKeys = Object.keys(next);
+    if (
+      previousKeys.length === nextKeys.length &&
+      nextKeys.every((key) => previous[key] === next[key])
+    ) {
+      return previous;
+    }
+  }
+  ref.current = next;
+  return next;
 }

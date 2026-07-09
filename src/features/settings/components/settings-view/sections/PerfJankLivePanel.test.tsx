@@ -9,18 +9,22 @@ const diagnosticsState = vi.hoisted(() => ({
     label: string;
     payload: Record<string, unknown>;
   }>,
+  revision: 0,
 }));
 
 vi.mock("@/services/rendererDiagnostics", () => ({
   exportRendererDiagnostics: vi.fn(() => diagnosticsState.entries),
+  getRendererDiagnosticsRevision: vi.fn(() => diagnosticsState.revision),
   clearRendererDiagnostics: vi.fn(() => {
     diagnosticsState.entries = [];
+    diagnosticsState.revision += 1;
   }),
 }));
 
 import {
   clearRendererDiagnostics,
   exportRendererDiagnostics,
+  getRendererDiagnosticsRevision,
 } from "@/services/rendererDiagnostics";
 import { PerfJankLivePanel } from "./PerfJankLivePanel";
 
@@ -48,7 +52,9 @@ function frameDropEntry(
 describe("PerfJankLivePanel", () => {
   beforeEach(() => {
     diagnosticsState.entries = [];
+    diagnosticsState.revision = 0;
     vi.mocked(exportRendererDiagnostics).mockClear();
+    vi.mocked(getRendererDiagnosticsRevision).mockClear();
     vi.mocked(clearRendererDiagnostics).mockClear();
   });
 
@@ -80,18 +86,46 @@ describe("PerfJankLivePanel", () => {
     expect(rows[1]?.textContent).toContain("settings.perfJankLiveNoRenders");
   });
 
+  it("shows hotspot attribution before render counts", () => {
+    diagnosticsState.entries = [
+      frameDropEntry(2_000, 216, {
+        hotspots: [
+          {
+            category: "diagnostics-export",
+            count: 1,
+            totalMs: 34,
+            maxMs: 34,
+            maxDetail: "entries=1000",
+          },
+        ],
+      }),
+    ];
+
+    render(<PerfJankLivePanel />);
+
+    const rowText =
+      screen.getByRole("list", { name: "settings.perfJankLiveTitle" })
+        .textContent ?? "";
+    expect(rowText).toContain("diagnostics-export=34ms(max 34 entries=1000)");
+    expect(rowText).not.toContain("ActiveCanvasMessages×3");
+  });
+
   it("clears all diagnostics and shows the empty state", () => {
     diagnosticsState.entries = [frameDropEntry(1_000, 216)];
 
     render(<PerfJankLivePanel />);
-    expect(screen.getByRole("list", { name: "settings.perfJankLiveTitle" })).toBeTruthy();
+    expect(
+      screen.getByRole("list", { name: "settings.perfJankLiveTitle" }),
+    ).toBeTruthy();
 
     fireEvent.click(
       screen.getByRole("button", { name: "settings.perfJankLiveClearButton" }),
     );
 
     expect(vi.mocked(clearRendererDiagnostics)).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole("list", { name: "settings.perfJankLiveTitle" })).toBeNull();
+    expect(
+      screen.queryByRole("list", { name: "settings.perfJankLiveTitle" }),
+    ).toBeNull();
     expect(screen.getByText("settings.perfJankLiveCleared")).toBeTruthy();
   });
 
@@ -101,12 +135,30 @@ describe("PerfJankLivePanel", () => {
     expect(screen.getByText("settings.perfJankLiveEmpty")).toBeTruthy();
 
     diagnosticsState.entries = [frameDropEntry(5_000, 130)];
+    diagnosticsState.revision += 1;
     act(() => {
       vi.advanceTimersByTime(1_000);
     });
 
     expect(
-      screen.getByRole("list", { name: "settings.perfJankLiveTitle" }).textContent,
+      screen.getByRole("list", { name: "settings.perfJankLiveTitle" })
+        .textContent,
     ).toContain("130ms");
+  });
+
+  it("skips full export on refresh ticks when diagnostics are unchanged", () => {
+    vi.useFakeTimers();
+    diagnosticsState.entries = [frameDropEntry(5_000, 130)];
+    render(<PerfJankLivePanel />);
+    expect(vi.mocked(exportRendererDiagnostics)).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      vi.advanceTimersByTime(3_000);
+    });
+
+    expect(
+      vi.mocked(getRendererDiagnosticsRevision).mock.calls.length,
+    ).toBeGreaterThan(1);
+    expect(vi.mocked(exportRendererDiagnostics)).toHaveBeenCalledTimes(1);
   });
 });

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { writeClientStoreData, writeClientStoreValue } from "../../../services/clientStorage";
 import {
   loadSidebarSnapshot,
+  saveSidebarSnapshotAllThreads,
   saveSidebarSnapshotThreads,
   saveSidebarSnapshotWorkspaces,
 } from "./sidebarSnapshot";
@@ -88,6 +89,32 @@ describe("sidebarSnapshot", () => {
         "ws-1": [{ id: "thread-1", name: "Cached chat", updatedAt: 100 }],
       },
     });
+  });
+
+  it("writes all workspaces in one pass and skips degraded workspaces", () => {
+    saveSidebarSnapshotThreads("ws-1", [
+      { id: "thread-1", name: "Healthy chat", updatedAt: 100 },
+    ]);
+
+    saveSidebarSnapshotAllThreads({
+      "ws-1": [
+        {
+          id: "thread-1",
+          name: "Degraded chat",
+          updatedAt: 120,
+          isDegraded: true,
+        },
+      ],
+      "ws-2": [{ id: "thread-2", name: "Other chat", updatedAt: 130 }],
+    });
+
+    const snapshot = loadSidebarSnapshot();
+    expect(snapshot?.threadsByWorkspace["ws-1"]).toEqual([
+      { id: "thread-1", name: "Healthy chat", updatedAt: 100 },
+    ]);
+    expect(snapshot?.threadsByWorkspace["ws-2"]).toEqual([
+      { id: "thread-2", name: "Other chat", updatedAt: 130 },
+    ]);
   });
 
   it("keeps the last healthy snapshot when degraded threads are provided", () => {

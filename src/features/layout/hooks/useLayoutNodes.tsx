@@ -14,6 +14,7 @@ import {
 } from "react";
 import { useEventCallback } from "../../../utils/useEventCallback";
 import { useDeferredFrameAccumulator } from "./useDeferredFrameAccumulator";
+import { useSidebarThreadStatusProjection } from "../../threads/hooks/useSidebarThreadStatusProjection";
 import { useTranslation } from "react-i18next";
 import { Sidebar } from "../../app/components/Sidebar";
 import { HomeChat } from "../../home/components/HomeChat";
@@ -31,6 +32,7 @@ import { resolveCodexProviderLabel } from "../../app/utils/codexProviderLabel";
 import { GitDiffViewer } from "../../git/components/GitDiffViewer";
 import { buildCanonicalGitChanges } from "../../git/utils/gitChangeModel";
 import { FileTreePanel } from "../../files/components/FileTreePanel";
+import { WorkspaceFileComparePanel } from "../../files/components/WorkspaceFileComparePanel";
 import { WorkspaceSearchPanel } from "../../search/components/WorkspaceSearchPanel";
 import { PromptPanel } from "../../prompts/components/PromptPanel";
 import { ProjectMemoryPanel } from "../../project-memory/components/ProjectMemoryPanel";
@@ -450,6 +452,10 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
   const deferredThreadStatusById = backgroundRenderGatingEnabled
     ? deferredThreadStatusByIdValue
     : options.threadStatusById;
+  // 仅暴露三个布尔位且引用稳定：heartbeat/continuation pulse 不再击穿 Sidebar/topbar tabs 的 memo。
+  const sidebarThreadStatusById = useSidebarThreadStatusProjection(
+    options.threadStatusById,
+  );
   const conversationState = useMemo<ConversationState>(
     () => ({
       items: conversationItems,
@@ -587,7 +593,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
       isPhone: options.isPhone,
       isTablet: options.isTablet,
       showTopSessionTabs,
-      threadStatusById: options.threadStatusById,
+      threadStatusById: sidebarThreadStatusById,
       threadsByWorkspace: options.threadsByWorkspace,
       t,
       onSelectThread: options.onSelectThread,
@@ -627,7 +633,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
         threadsByWorkspace={options.threadsByWorkspace}
         activeItems={sidebarActiveItems}
         threadParentById={options.threadParentById}
-        threadStatusById={options.threadStatusById}
+        threadStatusById={sidebarThreadStatusById}
         runningSessionCountByWorkspaceId={
           options.runningSessionCountByWorkspaceId
         }
@@ -890,7 +896,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
         activeThreadStatus?.codexSilentSuspectedAt ?? null,
       taskRuns: taskRunStore.runs,
       threadItemsByThread: options.threadItemsByThread,
-      threadStatusById: options.threadStatusById,
+      threadStatusById: sidebarThreadStatusById,
       activeThreadStatus,
       activeTokenUsage: options.activeTokenUsage,
       activeRateLimits: options.activeRateLimits,
@@ -911,7 +917,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
       activeThreadStatus,
       taskRunStore.runs,
       options.threadItemsByThread,
-      options.threadStatusById,
+      sidebarThreadStatusById,
       options.activeTokenUsage,
       options.activeRateLimits,
     ],
@@ -1569,6 +1575,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
         onFilePanelModeChange={options.onFilePanelModeChange}
         onInsertText={options.onInsertComposerText}
         onOpenFile={options.onOpenFile}
+        onCompareFiles={options.onCompareFiles}
         openTargets={options.openAppTargets}
         openAppIconById={options.openAppIconById}
         selectedOpenAppId={options.selectedOpenAppId}
@@ -1840,6 +1847,17 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
         />
       </Suspense>
     ) : null;
+
+  const fileComparePanelNode = options.centerMode === "fileCompare" ? (
+    <WorkspaceFileComparePanel
+      session={options.fileCompareSession}
+      workspaceId={options.activeWorkspace?.id ?? null}
+      workspaceName={options.activeWorkspace?.name ?? null}
+      workspacePath={options.activeWorkspace?.path ?? null}
+      saveFileShortcut={options.saveFileShortcut}
+      onClose={options.onCloseFileCompare}
+    />
+  ) : null;
 
   const projectMapImpactInput = useMemo(
     () =>
@@ -2266,6 +2284,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
     gitDiffPanelNode,
     gitDiffViewerNode,
     fileViewPanelNode,
+    fileComparePanelNode,
     projectMapPanelNode,
     intentCanvasPanelNode,
     browserDockNode,

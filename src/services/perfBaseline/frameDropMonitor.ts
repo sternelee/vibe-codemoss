@@ -10,6 +10,7 @@
 // appendRendererDiagnostic 不受 build-time PROD 门控,故本模块在打包版天然可用。
 
 import { appendRendererDiagnostic } from "../rendererDiagnostics";
+import { getRecentHotspotSummary } from "./hotspotTracker";
 import { readPerfContext } from "./perfContextBridge";
 import { getRecentReactScanRenderSummary } from "./reactScanRenderLog";
 
@@ -48,6 +49,11 @@ function readAttributableContext(windowMs: number) {
   return { ...ctx, lastInteractionLabel: null, interactionStale: true };
 }
 
+function isDevBuild(): boolean {
+  const env = (import.meta.env ?? {}) as { DEV?: boolean; MODE?: string };
+  return env.DEV === true && env.MODE !== "test";
+}
+
 function reportFrameDrop(deltaMs: number): void {
   const at = nowMs();
   if (at - lastReportAt < MIN_REPORT_INTERVAL_MS) {
@@ -58,13 +64,32 @@ function reportFrameDrop(deltaMs: number): void {
   }
   lastReportAt = at;
   frameDropReports += 1;
+  const context = readAttributableContext(deltaMs);
+  // 掉帧前一小段时间里主线程被哪些热路径占用(WKWebView 无 longtask 的替代归因)。
+  // 窗口取掉帧时长 + 600ms:既覆盖掉帧帧本身,也覆盖紧邻其前的铺垫工作。
+  const hotspots = getRecentHotspotSummary(Math.min(3_000, deltaMs + 600));
   appendRendererDiagnostic("perf.frame-drop", {
     deltaMs: Math.round(deltaMs),
     approxFps: Math.max(1, Math.round(1000 / deltaMs)),
     level: deltaMs >= SEVERE_FRAME_MS ? "severe" : "warn",
-    ...readAttributableContext(deltaMs),
+    ...context,
     topRenders: getRecentReactScanRenderSummary(600),
+    hotspots,
   });
+  // dev 下把严重掉帧直接打进 console,便于复现时从 DevTools 一键复制现场。
+  if (isDevBuild() && deltaMs >= SEVERE_FRAME_MS && typeof console !== "undefined") {
+    const hotspotText = hotspots
+      .map((row) => `${row.category}=${row.totalMs}ms(max ${row.maxMs}${row.maxDetail ? ` ${row.maxDetail}` : ""})×${row.count}`)
+      .join(" ");
+    console.warn(
+      `[perf.frame-drop] ${Math.round(deltaMs)}ms (~${Math.max(1, Math.round(1000 / deltaMs))}fps)`
+        + ` streaming=${context.isStreaming ? context.streamActivityPhase ?? "yes" : "no"}`
+        + (context.lastInteractionLabel
+          ? ` interaction=${context.lastInteractionLabel}@${context.lastInteractionAgoMs}ms`
+          : "")
+        + (hotspotText ? ` hotspots: ${hotspotText}` : " hotspots: (none ≥1ms)"),
+    );
+  }
 }
 
 /** 启动 rAF 掉帧监视循环。幂等。 */

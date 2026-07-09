@@ -38,13 +38,28 @@ export function buildLatestAgentRuns({
   threadStatusById,
   getWorkspaceGroupName,
 }: BuildLatestAgentRunsInput): LatestAgentRun[] {
-  const entries: LatestAgentRun[] = [];
+  // 只取 top-3：单趟遍历维护有序小数组，避免全量收集 + O(N log N) 排序。
+  const LIMIT = 3;
+  const top: LatestAgentRun[] = [];
+  const insert = (candidate: LatestAgentRun) => {
+    if (top.length === LIMIT && candidate.timestamp <= (top[LIMIT - 1]?.timestamp ?? 0)) {
+      return;
+    }
+    let insertAt = top.length;
+    while (insertAt > 0 && (top[insertAt - 1]?.timestamp ?? 0) < candidate.timestamp) {
+      insertAt -= 1;
+    }
+    top.splice(insertAt, 0, candidate);
+    if (top.length > LIMIT) {
+      top.pop();
+    }
+  };
   workspaces.forEach((workspace) => {
     const threads = threadsByWorkspace[workspace.id] ?? [];
     threads.forEach((thread) => {
       const entry = lastAgentMessageByThread[thread.id];
       if (entry) {
-        entries.push({
+        insert({
           threadId: thread.id,
           message: entry.text,
           timestamp: entry.timestamp,
@@ -54,7 +69,7 @@ export function buildLatestAgentRuns({
           isProcessing: threadStatusById[thread.id]?.isProcessing ?? false,
         });
       } else if (thread.id.startsWith("claude:")) {
-        entries.push({
+        insert({
           threadId: thread.id,
           message: thread.name,
           timestamp: thread.updatedAt,
@@ -66,7 +81,7 @@ export function buildLatestAgentRuns({
       }
     });
   });
-  return entries.sort((a, b) => b.timestamp - a.timestamp).slice(0, 3);
+  return top;
 }
 
 export function resolveLatestAgentFeedLoading({

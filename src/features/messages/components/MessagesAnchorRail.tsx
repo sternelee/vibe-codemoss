@@ -23,7 +23,7 @@ export function MessagesAnchorRail({
 }: MessagesAnchorRailProps) {
   const { state, expand, scheduleCollapse } = useCollapsibleFloater();
 
-  if (anchors.length <= 1) {
+  if (anchors.length === 0) {
     return null;
   }
 

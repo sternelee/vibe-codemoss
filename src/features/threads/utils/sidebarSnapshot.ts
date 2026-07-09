@@ -296,3 +296,30 @@ export function saveSidebarSnapshotThreads(
     },
   });
 }
+
+// 批量版本：一次 load + 一次 write 覆盖所有 workspace 的线程列表。
+// 逐 workspace 调 saveSidebarSnapshotThreads 会做 N 次「读全量快照 → normalize 全量 → 写全量」，
+// 项目越多写放大越严重（perf 日志里的 client-store-write threads:sidebarSnapshot 热点）。
+// degraded 的 workspace 沿用旧语义：跳过更新、保留快照里已有的值。
+export function saveSidebarSnapshotAllThreads(
+  threadsByWorkspace: Record<string, ThreadSummary[]>,
+): void {
+  const current = buildSnapshot(loadSidebarSnapshot());
+  const nextThreadsByWorkspace = { ...current.threadsByWorkspace };
+  let changed = false;
+  for (const [workspaceId, threads] of Object.entries(threadsByWorkspace)) {
+    if (!shouldPersistSidebarThreads(threads)) {
+      continue;
+    }
+    nextThreadsByWorkspace[workspaceId] = threads;
+    changed = true;
+  }
+  if (!changed) {
+    return;
+  }
+  writeClientStoreValue("threads", SIDEBAR_SNAPSHOT_KEY, {
+    ...current,
+    updatedAt: Date.now(),
+    threadsByWorkspace: nextThreadsByWorkspace,
+  });
+}

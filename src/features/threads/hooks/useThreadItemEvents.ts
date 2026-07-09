@@ -31,11 +31,20 @@ import {
   upsertLiveAssistantShadowSnapshot,
 } from "../utils/liveAssistantShadowTranscript";
 import {
+  appendLiveAssistantText,
+  clearLiveAssistantText,
+} from "../utils/liveAssistantTextChannel";
+import { isLiveTextExternalizationEnabled } from "../utils/realtimePerfFlags";
+import {
   noteRealtimeCoalescedFlush,
   noteThreadReducerWorkMeasured,
 } from "../utils/streamLatencyDiagnostics";
+import { recordHotspotSample } from "../../../services/perfBaseline/hotspotTracker";
 
 const CLAUDE_STREAM_DEBUG_FLAG_KEY = "ccgui.debug.claude.stream";
+// A4 流式正文外部化（docs/perf/a4-live-text-externalization-plan.md）：
+// 模块加载时读一次，翻转 flag 需刷新页面（与其余 perf flag 同语义）。
+const LIVE_TEXT_EXTERNALIZATION_ENABLED = isLiveTextExternalizationEnabled();
 
 /**
  * Infer engine type from thread ID.
@@ -202,8 +211,11 @@ type RealtimeDeltaOperation =
       turnId?: string | null;
     };
 
-const REALTIME_DELTA_BATCH_FLUSH_MS = 12;
-const NORMALIZED_REALTIME_BATCH_FLUSH_MS = 12;
+// 32ms (~30 flush/s)：12ms 时顶层 thread reducer 每秒最高 dispatch ~83 次，
+// 每次 flush 都触发 app-shell 大子树 re-render，是流式卡顿的放大器。
+// 视觉平滑度由 Markdown streaming throttle + progressive reveal 保证。
+const REALTIME_DELTA_BATCH_FLUSH_MS = 32;
+const NORMALIZED_REALTIME_BATCH_FLUSH_MS = 32;
 
 type PendingNormalizedRealtimeOperation = {
   event: NormalizedThreadEvent;
@@ -611,9 +623,12 @@ export function useThreadItemEvents({
       return;
     }
     isFlushingRealtimeDeltaOpsRef.current = true;
+    const flushStartedAt = readHighResolutionNowMs();
+    let flushedOpCount = 0;
     try {
       const bufferedOps = pendingRealtimeDeltaOpsRef.current;
       pendingRealtimeDeltaOpsRef.current = [];
+      flushedOpCount = bufferedOps.length;
       const ensuredThreads = new Set<string>();
       const markedProcessingThreads = new Set<string>();
       for (const operation of bufferedOps) {
@@ -625,6 +640,11 @@ export function useThreadItemEvents({
       safeMessageActivity();
     } finally {
       isFlushingRealtimeDeltaOpsRef.current = false;
+      recordHotspotSample(
+        "realtime-delta-flush",
+        readHighResolutionNowMs() - flushStartedAt,
+        `ops=${flushedOpCount}`,
+      );
     }
   }, [applyRealtimeDeltaOperation, safeMessageActivity]);
 
@@ -830,9 +850,12 @@ export function useThreadItemEvents({
       return;
     }
     isFlushingNormalizedRealtimeOpsRef.current = true;
+    const flushStartedAt = readHighResolutionNowMs();
+    let flushedOpCount = 0;
     try {
       const bufferedOps = Array.from(pendingNormalizedRealtimeOpsRef.current.values());
       pendingNormalizedRealtimeOpsRef.current.clear();
+      flushedOpCount = bufferedOps.length;
       const ensuredThreads = new Set<string>();
       const markedProcessingThreads = new Set<string>();
       for (const operation of bufferedOps) {
@@ -846,6 +869,11 @@ export function useThreadItemEvents({
       safeMessageActivity();
     } finally {
       isFlushingNormalizedRealtimeOpsRef.current = false;
+      recordHotspotSample(
+        "normalized-realtime-flush",
+        readHighResolutionNowMs() - flushStartedAt,
+        `ops=${flushedOpCount}`,
+      );
     }
   }, [applyNormalizedRealtimeEventNow, safeMessageActivity]);
 
@@ -871,7 +899,7 @@ export function useThreadItemEvents({
             batchStart = event.timestampMs;
           }
         }
-        const routeStartedAt = Date.now();
+        const routeStartedAt = readHighResolutionNowMs();
         for (const event of flush.events) {
           const useTransitionForDispatch =
             flush.reason !== "terminal" &&
@@ -889,7 +917,12 @@ export function useThreadItemEvents({
             },
           );
         }
-        const routeEndedAt = Date.now();
+        const routeEndedAt = readHighResolutionNowMs();
+        recordHotspotSample(
+          "codex-batcher-flush",
+          routeEndedAt - routeStartedAt,
+          `${flush.reason} events=${flush.events.length}`,
+        );
         noteRealtimeCoalescedFlush({
           reason: flush.reason,
           eventCount: flush.events.length,
@@ -900,8 +933,8 @@ export function useThreadItemEvents({
           itemKind: operation.event.itemKind,
           startedAt: batchStart,
           endedAt: flushEndedAt,
-          routeStartedAt,
-          routeEndedAt,
+          routeStartedAt: Math.round(routeStartedAt),
+          routeEndedAt: Math.round(routeEndedAt),
           queueDepthAfter: 0,
         });
       }
@@ -1437,14 +1470,22 @@ export function useThreadItemEvents({
         delta: resolvedDelta,
         turnId,
       });
-      enqueueRealtimeDeltaOperation({
-        kind: "agentDelta",
-        workspaceId,
-        threadId,
-        itemId,
-        delta: resolvedDelta,
-        turnId,
-      });
+      // A4：flag 开启时，首条 delta（或 itemId 变化）仍走 reducer 建壳；
+      // 后续 delta 只累计进 live 通道（订阅的 MessageRow 小树渲染），
+      // 不再逐条 dispatch 打根。终稿由 completed 全量落地。
+      const liveTextResult = LIVE_TEXT_EXTERNALIZATION_ENABLED
+        ? appendLiveAssistantText(threadId, itemId, resolvedDelta)
+        : null;
+      if (!liveTextResult || liveTextResult.isFirst) {
+        enqueueRealtimeDeltaOperation({
+          kind: "agentDelta",
+          workspaceId,
+          threadId,
+          itemId,
+          delta: resolvedDelta,
+          turnId,
+        });
+      }
       logClaudeStream("agent-delta", {
         workspaceId,
         threadId,
@@ -1511,6 +1552,11 @@ export function useThreadItemEvents({
         timestamp,
         isActiveThread: threadId === activeThreadId,
       });
+      // A4：终稿已全量落 reducer，清 live 通道；订阅行在同一批提交内
+      // 切回读 item.text（终稿），无闪烁。
+      if (LIVE_TEXT_EXTERNALIZATION_ENABLED) {
+        clearLiveAssistantText(threadId);
+      }
       recordThreadActivity(workspaceId, threadId, timestamp);
       safeMessageActivity();
       onAgentMessageCompletedExternal?.({

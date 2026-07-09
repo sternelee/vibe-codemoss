@@ -84,7 +84,7 @@ describe("MessagesRows stream mitigation", () => {
       />,
     );
 
-    expect(screen.getByTestId("markdown").getAttribute("data-throttle")).toBe("48");
+    expect(screen.getByTestId("markdown").getAttribute("data-throttle")).toBe("72");
 
     rerender(
       <MessageRow
@@ -180,8 +180,10 @@ describe("MessagesRows stream mitigation", () => {
       />,
     );
 
+    // 流式文本变化经 useDeferredValue 拆成两次提交：紧急渲染（复用旧文本）
+    // + deferred 渲染（新文本），诊断 effect 每次提交各触发一次 → 共 3 次。
     expect(rendererDiagnosticMocks.appendMessageRowRenderBudgetDiagnostic)
-      .toHaveBeenCalledTimes(2);
+      .toHaveBeenCalledTimes(3);
   });
 
   it("uses a plain text live surface for Claude Windows visible-stream mitigation", () => {
@@ -505,7 +507,7 @@ describe("MessagesRows stream mitigation", () => {
     );
   });
 
-  it("keeps markdown live rendering for short Codex streaming output", () => {
+  it("uses lightweight markdown from the first tokens of short Codex streaming output", () => {
     const messageItem = {
       id: "assistant-codex-short",
       kind: "message" as const,
@@ -523,9 +525,9 @@ describe("MessagesRows stream mitigation", () => {
       />,
     );
 
-    expect(screen.getByTestId("markdown").getAttribute("data-throttle")).toBe("48");
+    expect(screen.getByTestId("markdown").getAttribute("data-throttle")).toBe("72");
     expect(screen.getByTestId("markdown").getAttribute("data-live-render-mode")).toBe(
-      "full",
+      "lightweight",
     );
     expect(screen.getByTestId("markdown").getAttribute("data-progressive-reveal")).toBe(
       "false",

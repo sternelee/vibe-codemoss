@@ -50,6 +50,7 @@ import {
   EMPTY_SESSION_FOLDERS,
   buildClaudeLiveSubagentRows,
   collectThreadSubtreeIds,
+  filterClaudeLiveSubagentSourceItems,
   isPendingEngineThreadId,
   isPendingSubagentThreadId,
   isSessionCatalogNotReadyError,
@@ -359,6 +360,23 @@ function SidebarImpl({
   const { collapsedGroups, toggleGroupCollapse, replaceCollapsedGroups } =
     useCollapsedGroups();
   const { getThreadRows } = useThreadRows(threadParentById);
+  // activeItems 在流式期间每个 token 都换引用，但 subagent 投影只关心 agent
+  // tool 条目；文本 delta 不改这些条目的引用，这里做「过滤 + 引用稳定化」，
+  // 让 getProjectedThreads（及下游 threadRowsByWorkspace / pinnedThreadRows
+  // 两个全 workspace 排序的 useMemo）不再随每个 token 重算。
+  const claudeAgentToolItemsRef = useRef<ConversationItem[]>([]);
+  const claudeAgentToolItems = useMemo(() => {
+    const next = filterClaudeLiveSubagentSourceItems(activeItems);
+    const previous = claudeAgentToolItemsRef.current;
+    if (
+      previous.length === next.length &&
+      next.every((item, index) => previous[index] === item)
+    ) {
+      return previous;
+    }
+    claudeAgentToolItemsRef.current = next;
+    return next;
+  }, [activeItems]);
   const getProjectedThreads = useCallback(
     (workspaceId: string) =>
       buildClaudeLiveSubagentRows(
@@ -366,9 +384,9 @@ function SidebarImpl({
         workspaceId,
         activeWorkspaceId,
         activeThreadId,
-        activeItems,
+        claudeAgentToolItems,
       ),
-    [activeItems, activeThreadId, activeWorkspaceId, threadsByWorkspace],
+    [claudeAgentToolItems, activeThreadId, activeWorkspaceId, threadsByWorkspace],
   );
   const mergeSessionFolder = useCallback((folder: WorkspaceSessionFolder) => {
     setSessionFoldersByWorkspaceId((current) => {

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConversationItem } from "../../../types";
 import type { GroupedEntry } from "../utils/groupToolItems";
@@ -11,6 +11,7 @@ const timelineSnapshots = vi.hoisted(() => ({
     threadId: string | null;
     liveAssistantIsFinal: boolean | null;
     liveAssistantText: string | null;
+    presentationMode: string;
   }>,
 }));
 
@@ -29,6 +30,7 @@ vi.mock("./MessagesTimeline", () => ({
     groupedEntries: GroupedEntry[];
     threadId: string | null;
     liveAssistantItem: Extract<ConversationItem, { kind: "message" }> | null;
+    presentationMode: string;
   }) => {
     timelineSnapshots.entries.push({
       assistantFinalBoundaryIds: Array.from(props.assistantFinalBoundarySet),
@@ -36,6 +38,7 @@ vi.mock("./MessagesTimeline", () => ({
       threadId: props.threadId,
       liveAssistantIsFinal: props.liveAssistantItem?.isFinal ?? null,
       liveAssistantText: props.liveAssistantItem?.text ?? null,
+      presentationMode: props.presentationMode,
     });
     return <div data-testid="messages-timeline-probe" />;
   },
@@ -211,5 +214,77 @@ describe("Messages streaming presentation contract", () => {
         entry.renderedTexts.some((text) => text.includes("B 会话")),
       ),
     ).toBe(true);
+  });
+
+  it("keeps expanded history bounded while streaming after a jump request", async () => {
+    const items: ConversationItem[] = [
+      {
+        id: "user-oldest",
+        kind: "message",
+        role: "user",
+        text: "最早的历史问题",
+      },
+      ...Array.from({ length: 160 }, (_, index) => ({
+        id: `assistant-history-${index + 1}`,
+        kind: "message" as const,
+        role: "assistant" as const,
+        text: `历史回复 ${index + 1}`,
+        isFinal: true,
+      })),
+      {
+        id: "user-latest",
+        kind: "message",
+        role: "user",
+        text: "最新问题",
+      },
+      {
+        id: "assistant-live",
+        kind: "message",
+        role: "assistant",
+        text: "正在生成的回复",
+        isFinal: false,
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-expanded-streaming-window"
+        workspaceId="ws-1"
+        isThinking
+        activeEngine="codex"
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    timelineSnapshots.entries = [];
+
+    act(() => {
+      document.dispatchEvent(
+        new CustomEvent<string>("ccgui:jump-to-message", {
+          detail: "user-oldest",
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(
+        timelineSnapshots.entries.some(
+          (entry) => entry.presentationMode === "realtime-expanded-history-jump",
+        ),
+      ).toBe(true);
+    });
+
+    const expandedStreamingSnapshot = timelineSnapshots.entries
+      .filter((entry) => entry.presentationMode === "realtime-expanded-history-jump")
+      .at(-1);
+
+    expect(expandedStreamingSnapshot?.renderedTexts).toContain("最新问题");
+    expect(expandedStreamingSnapshot?.renderedTexts).toContain("正在生成的回复");
+    expect(expandedStreamingSnapshot?.renderedTexts).not.toContain("最早的历史问题");
+    expect(
+      expandedStreamingSnapshot?.renderedTexts.some((text) => text === "历史回复 1"),
+    ).toBe(false);
   });
 });

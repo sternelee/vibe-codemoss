@@ -52,9 +52,18 @@ function stopMonitors(): void {
   uninstallPerfInteractionTracking();
 }
 
-/** 应用启动时调用:仅当持久化开关为开时启动采集。 */
+function isDevBuild(): boolean {
+  const env = (import.meta.env ?? {}) as { DEV?: boolean; MODE?: string };
+  return env.DEV === true && env.MODE !== "test";
+}
+
+/**
+ * 应用启动时调用:持久化开关为开时启动采集。
+ * dev 构建下无条件启动:掉帧监视器 + hotspot 归因是排查流式卡顿的第一手证据,
+ * 其常态开销只有一个 rAF 循环(上报本身有 500ms 节流 + 单会话上限)。
+ */
 export function startPerfDiagnosticsIfEnabled(): void {
-  if (isPerfDiagnosticsFlagEnabled()) {
+  if (isDevBuild() || isPerfDiagnosticsFlagEnabled()) {
     startMonitors();
   }
 }

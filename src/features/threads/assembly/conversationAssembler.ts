@@ -17,6 +17,7 @@ import {
   type ConversationFactSource,
 } from "../contracts/conversationFactContract";
 import {
+  isLowRiskStreamingAppendFragmentWithoutBoundary,
   mergeAgentMessageText,
   mergeCompletedAgentText,
   mergeReasoningSnapshotTextForThread,
@@ -285,6 +286,24 @@ function mergeAssistantSnapshot(
   existing: AssistantMessageItem,
   incoming: AssistantMessageItem,
 ) {
+  // Codex itemUpdated 每次 flush 都投递整段增长中的快照；典型形态是
+  // 「existing 全文 + 无边界短追加」。与 reducer delta 快路同一前提：无
+  // 句末/换行边界的低风险追加不会产生新的可折叠结构，直接采纳 incoming，
+  // 跳过整段快照的多趟归一化 + 等价比较（随文本增长累积成 O(n²)）。
+  if (
+    existing.text &&
+    incoming.text.length > existing.text.length &&
+    incoming.text.startsWith(existing.text) &&
+    isLowRiskStreamingAppendFragmentWithoutBoundary(
+      existing.text,
+      incoming.text.slice(existing.text.length),
+    )
+  ) {
+    return {
+      ...existing,
+      ...incoming,
+    } satisfies AssistantMessageItem;
+  }
   const normalizedIncomingText = normalizeAssistantSnapshotText(incoming.text);
   if (!normalizedIncomingText) {
     return existing;
