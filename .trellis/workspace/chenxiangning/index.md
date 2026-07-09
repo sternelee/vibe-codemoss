@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-24.md`
-- **Total Sessions**: 966
+- **Total Sessions**: 967
 - **Last Active**: 2026-07-09
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-24.md` | ~1890 | Active |
+| `journal-24.md` | ~1923 | Active |
 | `journal-23.md` | ~1965 | Archived |
 | `journal-22.md` | ~1969 | Archived |
 | `journal-21.md` | ~1970 | Archived |
@@ -52,6 +52,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 967 | 2026-07-09 | 归档实时对话渲染 OpenSpec 提案 | `de030a26` | `feature/ui-reactoring-2` |
 | 966 | 2026-07-09 | 修复 Hub Git 文件列表选择 UI | `a0706b04` | `feature/ui-reactoring-2` |
 | 965 | 2026-07-07 | 支持浏览器网页多元素点选上下文 | `1e96af3c` | `feature/ui-reactoring-2` |
 | 964 | 2026-07-07 | 修复消息流式滚动更新回环 | `5b672863` | `ui-refactoring` |

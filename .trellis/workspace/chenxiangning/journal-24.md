@@ -1888,3 +1888,36 @@ Review:
 ### Next Steps
 
 - None - task complete
+
+
+## Session 967: 归档实时对话渲染 OpenSpec 提案
+
+**Date**: 2026-07-09
+**Task**: 归档实时对话渲染 OpenSpec 提案
+**Branch**: `feature/ui-reactoring-2`
+
+### Summary
+
+补齐并归档 externalize-live-assistant-text-channel 与 fix-live-bottom-follow-scroll-control 两个 OpenSpec change，覆盖 liveAssistantTextChannel 外置正文通道、root render 降噪、floating ScrollControl 与 ResizeObserver bottom-follow 行为，并同步主 specs。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `de030a26` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
