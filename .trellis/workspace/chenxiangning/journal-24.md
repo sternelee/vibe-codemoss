@@ -1855,3 +1855,102 @@ Review:
 ### Next Steps
 
 - None - task complete
+
+
+## Session 966: 修复 Hub Git 文件列表选择 UI
+
+**Date**: 2026-07-09
+**Task**: 修复 Hub Git 文件列表选择 UI
+**Branch**: `feature/ui-reactoring-2`
+
+### Summary
+
+恢复 Hub Git 文件列表提交复选框，将文件行对齐外部 Git worktree 的 status/icon/path/meta 四列结构，修复 tree/flat 列表中状态字母换行问题，并在 frontend component spec 中固化 Git file list selection surface 契约。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a0706b04` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 967: 归档实时对话渲染 OpenSpec 提案
+
+**Date**: 2026-07-09
+**Task**: 归档实时对话渲染 OpenSpec 提案
+**Branch**: `feature/ui-reactoring-2`
+
+### Summary
+
+补齐并归档 externalize-live-assistant-text-channel 与 fix-live-bottom-follow-scroll-control 两个 OpenSpec change，覆盖 liveAssistantTextChannel 外置正文通道、root render 降噪、floating ScrollControl 与 ResizeObserver bottom-follow 行为，并同步主 specs。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `de030a26` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 968: 合并 0.6.9 版本分支
+
+**Date**: 2026-07-09
+**Task**: 合并 0.6.9 版本分支
+**Branch**: `feature/ui-reactoring-2`
+
+### Summary
+
+将 upstream/chore/bump-version-0.6.9 合并到 feature/ui-reactoring-2，保留当前分支已有 Git UI 与 OpenSpec 归档提交；本次上游变更仅同步 package.json、package-lock.json、src-tauri/tauri.conf.json 的版本号到 0.6.9。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0dda924d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
