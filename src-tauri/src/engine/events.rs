@@ -717,17 +717,29 @@ pub fn engine_event_to_app_server_event_with_turn_context(
             questions,
             completed,
             ..
-        } => json!({
-            "method": "item/tool/requestUserInput",
-            "params": {
-                "threadId": thread_id,
-                "turnId": item_id,
-                "itemId": item_id,
-                "questions": questions,
-                "completed": completed,
-            },
-            "id": request_id,
-        }),
+        } => {
+            // Anchor the ask card to its own request, not the assistant message
+            // head. resolve_claude_realtime_item_id() returns assistant_item_id
+            // for RequestUserInput, so `itemId: item_id` pinned the card to the
+            // top of the turn (it rendered right after the assistant message's
+            // first block, then got buried as the turn streamed on). A unique,
+            // non-matching itemId makes the frontend use its tail placement,
+            // where the sticky ask-card CSS pins the box above the composer; it
+            // also gives the settled ask its own item id instead of reusing the
+            // assistant message item. turnId stays as item_id for turn context.
+            let ask_item_id = format!("askuserquestion-{}", stringify_value(request_id));
+            json!({
+                "method": "item/tool/requestUserInput",
+                "params": {
+                    "threadId": thread_id,
+                    "turnId": item_id,
+                    "itemId": ask_item_id,
+                    "questions": questions,
+                    "completed": completed,
+                },
+                "id": request_id,
+            })
+        }
         EngineEvent::Raw { data, engine, .. } => {
             if matches!(engine, EngineType::Claude) {
                 if let Some(signal) = detect_claude_permission_signal(data) {
@@ -1087,6 +1099,40 @@ mod tests {
         assert_eq!(
             resolve_claude_realtime_item_id(&text_event, "assistant-item", "reasoning-item"),
             "assistant-item"
+        );
+    }
+
+    #[test]
+    fn request_user_input_anchors_item_id_to_its_own_request_not_assistant_head() {
+        // Regression: the ask card used to inherit the assistant message item id
+        // (resolve_claude_realtime_item_id falls through to assistant_item_id),
+        // which anchored it to the top of the turn. It must carry its own
+        // request-scoped itemId so the frontend renders it at the conversation
+        // tail (where the sticky ask-card CSS pins it above the composer).
+        let event = EngineEvent::RequestUserInput {
+            workspace_id: "ws-ask".to_string(),
+            request_id: json!("ask-req-1"),
+            questions: json!([{ "id": "q-0", "header": "Pick", "question": "Which?" }]),
+            completed: false,
+        };
+
+        let mapped = engine_event_to_app_server_event(&event, "thread-1", "assistant-item-9")
+            .expect("mapped event");
+
+        assert_eq!(
+            mapped.message["method"],
+            Value::String("item/tool/requestUserInput".to_string())
+        );
+        // itemId is the ask's own request-scoped id, NOT the assistant message head.
+        assert_eq!(
+            mapped.message["params"]["itemId"],
+            Value::String("askuserquestion-ask-req-1".to_string())
+        );
+        assert_ne!(mapped.message["params"]["itemId"], json!("assistant-item-9"));
+        // turnId still carries the assistant item so turn association is unchanged.
+        assert_eq!(
+            mapped.message["params"]["turnId"],
+            Value::String("assistant-item-9".to_string())
         );
     }
 
