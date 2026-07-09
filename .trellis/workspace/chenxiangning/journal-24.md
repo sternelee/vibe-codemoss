@@ -1921,3 +1921,36 @@ Review:
 ### Next Steps
 
 - None - task complete
+
+
+## Session 968: 合并 0.6.9 版本分支
+
+**Date**: 2026-07-09
+**Task**: 合并 0.6.9 版本分支
+**Branch**: `feature/ui-reactoring-2`
+
+### Summary
+
+将 upstream/chore/bump-version-0.6.9 合并到 feature/ui-reactoring-2，保留当前分支已有 Git UI 与 OpenSpec 归档提交；本次上游变更仅同步 package.json、package-lock.json、src-tauri/tauri.conf.json 的版本号到 0.6.9。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0dda924d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
