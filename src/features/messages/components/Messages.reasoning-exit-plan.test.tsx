@@ -374,6 +374,51 @@ describe("Messages reasoning visibility and exit plan handoff", () => {
     expect(screen.getAllByText("Execution Plan Ready")).toHaveLength(1);
   });
 
+  it("keeps dedupe intact across a selection-freeze recompute with a trailing duplicate", () => {
+    // 回归:effectiveItems fast path 在选区冻结触发的引用级重算时,
+    // 曾把被去重的尾部 exit-plan 条目写回结果末尾(丢真尾项、复活重复卡片)。
+    const duplicateExitPlanToolItem: ConversationItem = {
+      ...exitPlanToolItem,
+      id: "exit-plan-tool-trailing-duplicate",
+    };
+    const assistantItem: ConversationItem = {
+      id: "msg-assistant-freeze",
+      kind: "message",
+      role: "assistant",
+      text: "计划已经生成完毕。",
+    };
+
+    render(
+      <Messages
+        items={[exitPlanToolItem, assistantItem, duplicateExitPlanToolItem]}
+        threadId="thread-exit-plan-freeze"
+        workspaceId="ws-1"
+        isThinking={false}
+        activeEngine="claude"
+        openTargets={[]}
+        selectedOpenAppId=""
+        onExitPlanModeExecute={vi.fn()}
+      />,
+    );
+
+    expect(screen.getAllByText("Execution Plan Ready")).toHaveLength(1);
+    const assistantText = screen.getByText("计划已经生成完毕。");
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("expected jsdom selection");
+    }
+    const range = document.createRange();
+    range.selectNodeContents(assistantText);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    fireEvent(document, new Event("selectionchange"));
+
+    expect(screen.getByText("计划已经生成完毕。")).toBeTruthy();
+    expect(screen.getAllByText("Execution Plan Ready")).toHaveLength(1);
+    selection.removeAllRanges();
+  });
+
   it("dedupes mixed ExitPlanMode runtime variants and keeps the first card", () => {
     const duplicateRuntimeVariant: ConversationItem = {
       id: "exit-plan-tool-runtime-duplicate",

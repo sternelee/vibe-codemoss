@@ -548,8 +548,11 @@ export const Messages = memo(function Messages({
     if (cache && isTrailingMessageTextOnlyUpdate(cache.baseItems, baseItems)) {
       // dedupe 只会移除 exit-plan 工具条目,末尾的 "message" 条目必然原样透传,
       // 因此只需把结果数组的最后一项替换为最新引用,无需重新扫描整段历史。
+      // 尾项引用未变时(如选区冻结触发的引用级重算)必须原样返回缓存:此时尾项
+      // 可能是被去重掉的 exit-plan 条目,写回结果末尾会丢真尾项、复活重复项。
       const nextLast = baseItems[baseItems.length - 1];
       const result =
+        cache.baseItems[cache.baseItems.length - 1] === nextLast ||
         cache.result[cache.result.length - 1] === nextLast
           ? cache.result
           : [...cache.result.slice(0, -1), nextLast];
