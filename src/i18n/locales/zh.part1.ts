@@ -2540,6 +2540,10 @@ const zhPart1 = {
     thinkingLabel: "思考",
     thinkingProcess: "思考过程",
     finalMessageBoundary: "最终消息",
+    turnFilesChanged: {
+      title_other: "已编辑 {{count}} 个文件",
+      showMore_other: "再显示 {{count}} 个文件",
+    },
     noThinkingContent: "无思考内容",
     hiddenThinkingContent: "思考内容已按当前设置隐藏",
     generating: "生成中…",

@@ -62,6 +62,10 @@ import {
   type MessagesHistoryExpansionMode,
 } from "./messagesLiveWindow";
 import {
+  buildTurnFileChangesByBoundaryId,
+  mergeTurnFileChangesSummaries,
+} from "../utils/turnFileChanges";
+import {
   isAssistantMessageConversationItem,
   isReasoningConversationItem,
   isUserMessageConversationItem,
@@ -2240,6 +2244,12 @@ export const Messages = memo(function Messages({
   const assistantFinalBoundarySet = useMemo(() => {
     return buildAssistantFinalBoundarySet(timelinePresentationItems);
   }, [timelinePresentationItems]);
+  const turnFileChangesByBoundaryId = useMemo(() => {
+    return buildTurnFileChangesByBoundaryId(timelinePresentationItems);
+  }, [timelinePresentationItems]);
+  const sessionFileChangesSummary = useMemo(() => {
+    return mergeTurnFileChangesSummaries(turnFileChangesByBoundaryId.values());
+  }, [turnFileChangesByBoundaryId]);
   const assistantLiveTurnFinalBoundarySuppressedSet = useMemo(() => {
     const ids = new Set<string>();
     if (!liveAssistantMessageId) {
@@ -2493,6 +2503,8 @@ export const Messages = memo(function Messages({
           suppressedUserMemoryContextMessageIds={suppressedUserMemoryContextMessageIds}
           threadId={threadId}
           toggleExpanded={toggleExpanded}
+          turnFileChangesByBoundaryId={turnFileChangesByBoundaryId}
+          sessionFileChangesSummary={sessionFileChangesSummary}
           suppressedUserNoteCardContextMessageIds={suppressedUserNoteCardContextMessageIds}
           claudeHistoryTranscriptFallbackActive={claudeHistoryTranscriptFallbackActive}
           hasVisibleUserInputRequest={hasVisibleUserInputRequest}

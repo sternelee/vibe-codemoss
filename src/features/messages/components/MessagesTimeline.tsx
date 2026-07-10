@@ -43,6 +43,8 @@ import {
   WorkingIndicator,
 } from "./MessagesRows";
 import { ConversationRowErrorBoundary } from "./ConversationRowErrorBoundary";
+import { TurnFilesChangedCard } from "./TurnFilesChangedCard";
+import type { TurnFileChangesSummary } from "../utils/turnFileChanges";
 import { MessagesOutlineFloater } from "./MessagesOutlineFloater";
 import type { MarkdownOutlineEntry } from "../../markdown/fastMarkdownRenderer";
 import { useMessageOutlineActive } from "../hooks/useMessageOutlineActive";
@@ -253,6 +255,8 @@ type MessagesTimelineProps = {
   suppressedUserNoteCardContextMessageIds: Set<string>;
   threadId: string | null;
   toggleExpanded: (id: string) => void;
+  turnFileChangesByBoundaryId: Map<string, TurnFileChangesSummary>;
+  sessionFileChangesSummary: TurnFileChangesSummary | null;
   claudeHistoryTranscriptFallbackActive: boolean;
   hasVisibleUserInputRequest: boolean;
   historyExpansionActive: boolean;
@@ -396,6 +400,8 @@ export const MessagesTimeline = memo(function MessagesTimeline({
   suppressedUserNoteCardContextMessageIds,
   threadId,
   toggleExpanded,
+  turnFileChangesByBoundaryId,
+  sessionFileChangesSummary,
   claudeHistoryTranscriptFallbackActive,
   hasVisibleUserInputRequest,
   historyExpansionActive,
@@ -1427,6 +1433,12 @@ export const MessagesTimeline = memo(function MessagesTimeline({
         renderItem.isFinal === true &&
         assistantFinalBoundarySet.has(renderItem.id) &&
         !assistantLiveTurnFinalBoundarySuppressedSet.has(renderItem.id);
+      // 最后一轮的汇总由时间线末尾的会话累计卡承载，内联卡只回溯更早轮次。
+      const turnFilesChangedSummary =
+        shouldRenderFinalBoundary &&
+        renderItem.id !== latestFinalAssistantMessageId
+          ? turnFileChangesByBoundaryId.get(renderItem.id) ?? null
+          : null;
       const finalMetaParts: string[] = [];
       if (typeof renderItem.finalCompletedAt === "number" && renderItem.finalCompletedAt > 0) {
         finalMetaParts.push(formatCompletedTimeMs(renderItem.finalCompletedAt));
@@ -1620,6 +1632,9 @@ export const MessagesTimeline = memo(function MessagesTimeline({
               }
             />
           </div>
+          {turnFilesChangedSummary && (
+            <TurnFilesChangedCard summary={turnFilesChangedSummary} />
+          )}
           {shouldRenderFinalBoundary && (
             <Marker
               variant="separator"
@@ -2201,6 +2216,11 @@ export const MessagesTimeline = memo(function MessagesTimeline({
           </div>
         )}
         {shouldVirtualizeTimeline ? renderVirtualProjectionRows() : renderStaticProjectionRows()}
+        {sessionFileChangesSummary && (
+          <div className="messages-session-files-changed">
+            <TurnFilesChangedCard summary={sessionFileChangesSummary} />
+          </div>
+        )}
         <div ref={bottomRef} />
       </div>
     </div>
