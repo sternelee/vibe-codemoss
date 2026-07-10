@@ -94,7 +94,7 @@ describe("sessionLifecycleController", () => {
           ] as any,
         },
       }),
-    ).toBe("fork-Explain th");
+    ).toBe("fork-Explain the release pipeline");
   });
 
   it("creates a lifecycle starter without message runtime side effects", () => {

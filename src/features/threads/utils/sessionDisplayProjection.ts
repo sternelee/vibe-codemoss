@@ -4,6 +4,8 @@ const GENERIC_SESSION_TITLE_PATTERN =
   /^(codex session|claude session|gemini session|opencode session)$/i;
 const ORDINAL_AGENT_TITLE_PATTERN = /^agent\s+\d+$/i;
 const SHORT_HEX_TITLE_PATTERN = /^[a-f0-9]{4,8}$/i;
+// 历史遗留:斜杠命令原始记录曾被直接剪成标题(如 "<command-m"),视为无效标题
+const COMMAND_TAG_TITLE_PATTERN = /^<(?:command-|local-command-)/i;
 
 type SessionDisplayTitleStrength = 0 | 1 | 2;
 
@@ -19,7 +21,12 @@ function getSessionDisplayTitleStrength(
   value: string | null | undefined,
 ): SessionDisplayTitleStrength {
   const normalized = normalizeSessionDisplayTitle(value);
-  if (!normalized || ORDINAL_AGENT_TITLE_PATTERN.test(normalized) || SHORT_HEX_TITLE_PATTERN.test(normalized)) {
+  if (
+    !normalized
+    || ORDINAL_AGENT_TITLE_PATTERN.test(normalized)
+    || SHORT_HEX_TITLE_PATTERN.test(normalized)
+    || COMMAND_TAG_TITLE_PATTERN.test(normalized)
+  ) {
     return 0;
   }
   if (GENERIC_SESSION_TITLE_PATTERN.test(normalized)) {

@@ -1,6 +1,7 @@
+import { extractCommandMessagePromptText } from "../features/messages/utils/commandMessageTags";
 import { normalizeAgentIcon } from "./agentIcons";
 
-export const MAX_DEFAULT_THREAD_TITLE_CHARS = 10;
+export const MAX_DEFAULT_THREAD_TITLE_CHARS = 50;
 
 const USER_INPUT_BLOCK_MARKER_REGEX = /\[User Input\]\s*/g;
 const AGENT_PROMPT_BLOCK_AT_TAIL_REGEX =
@@ -353,7 +354,8 @@ export function clipByChars(text: string, maxChars: number): string {
 }
 
 export function previewThreadName(text: string, fallback: string) {
-  const strippedAgentPrompt = stripAgentPromptBlockFromTail(text);
+  const strippedCommandTags = extractCommandMessagePromptText(text);
+  const strippedAgentPrompt = stripAgentPromptBlockFromTail(strippedCommandTags);
   const strippedModeFallback = stripModeFallbackBlock(strippedAgentPrompt);
   const strippedMemory = stripInjectedProjectMemoryBlock(strippedModeFallback);
   const strippedSharedSync = stripSharedSessionContextSyncBlock(strippedMemory);
