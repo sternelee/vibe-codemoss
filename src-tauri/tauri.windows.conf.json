@@ -6,7 +6,7 @@
     "createUpdaterArtifacts": true,
     "windows": {
       "webviewInstallMode": {
-        "type": "offlineInstaller"
+        "type": "embedBootstrapper"
       }
     }
   }
