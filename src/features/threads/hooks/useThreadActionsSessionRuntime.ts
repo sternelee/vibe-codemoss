@@ -3,7 +3,15 @@ import type { Dispatch, MutableRefObject } from "react";
 
 import type { DebugEntry } from "../../../types";
 import type { AutoSessionMetadata } from "../../../services/tauri";
-import type { CodexProviderProfileOption } from "../constants/codexProviderProfiles";
+import {
+  CODEX_DISK_PROVIDER_PROFILE_ID,
+  type CodexProviderProfileOption,
+} from "../constants/codexProviderProfiles";
+import {
+  registerCodexPrewarm,
+  releaseCodexPrewarm,
+  settleCodexPrewarm,
+} from "../utils/codexPendingPrewarm";
 import {
   connectWorkspace as connectWorkspaceService,
   deleteClaudeSession as deleteClaudeSessionService,
@@ -48,9 +56,11 @@ import {
 import {
   buildClaudeForkThreadId,
   createSessionLifecycleThreadStarter,
+  extractHookSafeFallbackMetadata,
   extractProviderBindingFromStartedThread,
   extractThreadId,
   providerBindingFromSelectedProfile,
+  pushHookSafeFallbackNotice,
   resolveClaudeForkThreadName,
 } from "./sessionLifecycleController";
 
@@ -76,6 +86,11 @@ type UseThreadActionsSessionRuntimeOptions = {
   dispatch: Dispatch<ThreadAction>;
   itemsByThread: ThreadState["itemsByThread"];
   loadedThreadsRef: MutableRefObject<Record<string, boolean>>;
+  onCodexPendingThreadFinalized?: (
+    workspaceId: string,
+    pendingThreadId: string,
+    realThreadId: string,
+  ) => void;
   onDebug?: OnDebug;
   renameThreadTitleMapping: (
     workspaceId: string,
@@ -87,11 +102,18 @@ type UseThreadActionsSessionRuntimeOptions = {
   workspacePathsByIdRef: MutableRefObject<Record<string, string>>;
 };
 
+type CodexPendingStartEntry = {
+  promise: Promise<Record<string, unknown> | null>;
+  folderId: string | null;
+  finalizedThreadId?: string;
+};
+
 export function useThreadActionsSessionRuntime({
   activeThreadIdByWorkspace,
   dispatch,
   itemsByThread,
   loadedThreadsRef,
+  onCodexPendingThreadFinalized,
   onDebug,
   renameThreadTitleMapping,
   resumeThreadForWorkspace,
@@ -102,6 +124,182 @@ export function useThreadActionsSessionRuntime({
   const codexStartInFlightByKeyRef = useRef<
     Record<string, Promise<string | null> | undefined>
   >({});
+  const codexPendingStartByThreadIdRef = useRef<
+    Record<string, CodexPendingStartEntry | undefined>
+  >({});
+
+  const requestCodexThreadStart = useCallback(
+    async (workspaceId: string): Promise<Record<string, unknown> | null> => {
+      try {
+        return (await startThreadService(workspaceId)) ?? null;
+      } catch (error) {
+        if (!isWorkspaceNotConnectedError(error)) {
+          throw error;
+        }
+        onDebug?.({
+          id: `${Date.now()}-client-workspace-reconnect-before-thread-start`,
+          timestamp: Date.now(),
+          source: "client",
+          label: "workspace/reconnect before thread start",
+          payload: { workspaceId },
+        });
+        await connectWorkspaceService(workspaceId);
+        return (await startThreadService(workspaceId)) ?? null;
+      }
+    },
+    [onDebug],
+  );
+
+  const beginCodexPendingThreadStart = useCallback(
+    (workspaceId: string, pendingThreadId: string, folderId: string | null) => {
+      // Registered before the request goes out: app-server pushes its
+      // `thread/started` notification for this thread and it can land before
+      // the thread/start response does, i.e. before we know the real id.
+      registerCodexPrewarm(workspaceId, pendingThreadId);
+      const entry: CodexPendingStartEntry = {
+        promise: requestCodexThreadStart(workspaceId)
+          .catch((error) => {
+            onDebug?.({
+              id: `${Date.now()}-client-thread-start-prewarm-error`,
+              timestamp: Date.now(),
+              source: "error",
+              label: "thread/start prewarm error",
+              payload: error instanceof Error ? error.message : String(error),
+            });
+            return null;
+          })
+          .then((response) => {
+            settleCodexPrewarm(
+              pendingThreadId,
+              extractThreadId(response ?? undefined) || null,
+            );
+            return response;
+          }),
+        folderId,
+      };
+      codexPendingStartByThreadIdRef.current[pendingThreadId] = entry;
+      return entry;
+    },
+    [onDebug, requestCodexThreadStart],
+  );
+
+  /**
+   * Swap an optimistic `codex-pending-*` thread for its real backend thread.
+   * Called from the send path right before the first message goes out, which
+   * mirrors the timing of the Claude pending rebind (never mid-typing).
+   * Idempotent: concurrent callers await the same start promise and the
+   * duplicate renameThreadId no-ops in the reducer.
+   */
+  const finalizeCodexPendingThread = useCallback(
+    async (
+      workspaceId: string,
+      pendingThreadId: string,
+    ): Promise<string | null> => {
+      if (!pendingThreadId.startsWith("codex-pending-")) {
+        return pendingThreadId;
+      }
+      const existingEntry = codexPendingStartByThreadIdRef.current[pendingThreadId];
+      if (existingEntry?.finalizedThreadId) {
+        // Already finalized earlier (e.g. a caller kept the pending id
+        // around, like kanban task records): replay the resolved id.
+        return existingEntry.finalizedThreadId;
+      }
+      let entry =
+        existingEntry ??
+        beginCodexPendingThreadStart(workspaceId, pendingThreadId, null);
+      let response = await entry.promise;
+      if (!extractThreadId(response ?? undefined)) {
+        // Prewarm failed (offline, runtime restart...): retry once. The
+        // synchronous check-and-replace keeps concurrent finalize calls on
+        // one shared retry promise instead of minting duplicate threads.
+        if (codexPendingStartByThreadIdRef.current[pendingThreadId] === entry) {
+          entry = beginCodexPendingThreadStart(
+            workspaceId,
+            pendingThreadId,
+            entry.folderId,
+          );
+        } else {
+          entry = codexPendingStartByThreadIdRef.current[pendingThreadId] ?? entry;
+        }
+        response = await entry.promise;
+      }
+      const currentEntry = codexPendingStartByThreadIdRef.current[pendingThreadId];
+      if (currentEntry?.finalizedThreadId) {
+        // A concurrent finalize won the race while we awaited the start.
+        return currentEntry.finalizedThreadId;
+      }
+      if (loadedThreadsRef.current[pendingThreadId] !== true) {
+        // The pending thread was deleted while the start was in flight (the
+        // delete flow flips this flag to false). Dropping out here keeps the
+        // deleted thread from being resurrected by the dispatches below.
+        onDebug?.({
+          id: `${Date.now()}-client-thread-start-finalize-stale`,
+          timestamp: Date.now(),
+          source: "client",
+          label: "thread/start finalize skipped for deleted pending thread",
+          payload: { workspaceId, pendingThreadId },
+        });
+        return null;
+      }
+      const realThreadId = extractThreadId(response ?? undefined);
+      if (!response || !realThreadId) {
+        delete codexPendingStartByThreadIdRef.current[pendingThreadId];
+        onDebug?.({
+          id: `${Date.now()}-client-thread-start-finalize-error`,
+          timestamp: Date.now(),
+          source: "error",
+          label: "thread/start finalize failed",
+          payload: { workspaceId, pendingThreadId },
+        });
+        return null;
+      }
+      entry.finalizedThreadId = realThreadId;
+      const fallbackMetadata = extractHookSafeFallbackMetadata(response);
+      if (fallbackMetadata) {
+        pushHookSafeFallbackNotice(workspaceId, fallbackMetadata);
+      }
+      dispatch({
+        type: "renameThreadId",
+        workspaceId,
+        oldThreadId: pendingThreadId,
+        newThreadId: realThreadId,
+      });
+      dispatch({
+        type: "ensureThread",
+        workspaceId,
+        threadId: realThreadId,
+        engine: "codex",
+        ...(entry.folderId ? { folderId: entry.folderId } : {}),
+        ...extractProviderBindingFromStartedThread(
+          response,
+          providerBindingFromSelectedProfile(undefined, null),
+        ),
+      });
+      // The real thread now owns a sidebar entry, so a late `thread/started`
+      // for it is a harmless no-op ensureThread. Stop suppressing it.
+      releaseCodexPrewarm(pendingThreadId);
+      onCodexPendingThreadFinalized?.(workspaceId, pendingThreadId, realThreadId);
+      loadedThreadsRef.current[realThreadId] = true;
+      delete loadedThreadsRef.current[pendingThreadId];
+      await renameThreadTitleMapping(workspaceId, pendingThreadId, realThreadId);
+      onDebug?.({
+        id: `${Date.now()}-client-thread-start-finalized`,
+        timestamp: Date.now(),
+        source: "client",
+        label: "thread/start pending finalized",
+        payload: { workspaceId, pendingThreadId, threadId: realThreadId },
+      });
+      return realThreadId;
+    },
+    [
+      beginCodexPendingThreadStart,
+      dispatch,
+      loadedThreadsRef,
+      onCodexPendingThreadFinalized,
+      onDebug,
+      renameThreadTitleMapping,
+    ],
+  );
 
   const startThreadForWorkspace = useCallback(
     async (
@@ -174,6 +372,52 @@ export function useThreadActionsSessionRuntime({
           dispatch({ type: "setActiveThreadId", workspaceId, threadId });
         }
         loadedThreadsRef.current[threadId] = true;
+        return threadId;
+      }
+
+      // Optimistic codex create: only for plain user-visible disk-profile
+      // sessions. Auto sessions and managed-provider sessions keep the
+      // synchronous path because their metadata must be recorded against the
+      // real thread id at creation time. The explicit __disk__ selection (the
+      // sidebar new-session menu always sends it) is equivalent to passing no
+      // profile: the backend normalizes both to the disk profile.
+      const isDiskProviderSelection =
+        !providerProfileId || providerProfileId === CODEX_DISK_PROVIDER_PROFILE_ID;
+      if (!autoSession && isDiskProviderSelection) {
+        const threadId = `codex-pending-${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2, 8)}`;
+        onDebug?.({
+          id: `${Date.now()}-client-thread-start`,
+          timestamp: Date.now(),
+          source: "client",
+          label: "thread/start (codex optimistic)",
+          payload: { workspaceId, threadId },
+        });
+        dispatch({
+          type: "ensureThread",
+          workspaceId,
+          threadId,
+          engine: "codex",
+          ...(folderId ? { folderId } : {}),
+          ...selectedProviderBinding,
+        });
+        // Mirrors createSessionLifecycleThreadStarter so the pending thread
+        // survives background thread-list refreshes like a real codex thread.
+        // The source must stay "thread-start": downstream liveness checks
+        // compare against it literally (codexConversationLiveness.ts).
+        dispatch({
+          type: "markCodexAcceptedTurn",
+          threadId,
+          fact: "empty-draft",
+          source: "thread-start",
+          timestamp: Date.now(),
+        });
+        if (shouldActivate) {
+          dispatch({ type: "setActiveThreadId", workspaceId, threadId });
+        }
+        loadedThreadsRef.current[threadId] = true;
+        beginCodexPendingThreadStart(workspaceId, threadId, folderId);
         return threadId;
       }
 
@@ -263,7 +507,7 @@ export function useThreadActionsSessionRuntime({
         }
       }
     },
-    [dispatch, loadedThreadsRef, onDebug],
+    [beginCodexPendingThreadStart, dispatch, loadedThreadsRef, onDebug],
   );
 
   const startSharedSessionForWorkspace = useMemo(
@@ -318,6 +562,8 @@ export function useThreadActionsSessionRuntime({
             parentSessionId: sessionId,
           };
         } else if (threadId.startsWith("claude-pending-")) {
+          return null;
+        } else if (threadId.startsWith("codex-pending-")) {
           return null;
         } else if (
           threadId.startsWith("gemini:") ||
@@ -952,6 +1198,7 @@ export function useThreadActionsSessionRuntime({
 
   return {
     startThreadForWorkspace,
+    finalizeCodexPendingThread,
     startSharedSessionForWorkspace,
     forkThreadForWorkspace,
     forkClaudeSessionFromMessageForWorkspace,

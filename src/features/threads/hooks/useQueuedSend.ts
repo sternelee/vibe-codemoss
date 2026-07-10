@@ -371,7 +371,16 @@ export function useQueuedSend({
     }
     const isClaudeSessionTransition =
       oldThreadId.startsWith("claude-pending-") && newThreadId.startsWith("claude:");
-    if (!isClaudeSessionTransition) {
+    // Optimistic codex threads rename from `codex-pending-*` to a bare
+    // backend thread id (codex ids carry no engine prefix).
+    const isCodexSessionTransition =
+      oldThreadId.startsWith("codex-pending-") &&
+      !newThreadId.includes("-pending-") &&
+      !newThreadId.startsWith("claude:") &&
+      !newThreadId.startsWith("gemini:") &&
+      !newThreadId.startsWith("opencode:") &&
+      !newThreadId.startsWith("shared:");
+    if (!isClaudeSessionTransition && !isCodexSessionTransition) {
       return;
     }
 
