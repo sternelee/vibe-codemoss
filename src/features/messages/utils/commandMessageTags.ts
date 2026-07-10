@@ -49,3 +49,17 @@ export function extractCommandMessageDisplayText(text: string): string {
   const processed = parts.join(" ").trim();
   return processed || text;
 }
+
+// 标题/预览场景专用:真实提问(<command-args>)才是区分度所在,优先于命令名;
+// 无参数命令退化为命令描述或命令名,避免原始标签串进入会话标题。
+export function extractCommandMessagePromptText(text: string): string {
+  if (!text || !text.includes("<command-")) {
+    return text;
+  }
+  return (
+    extractTagContent(text, "command-args")
+    || extractTagContent(text, "command-message")
+    || extractTagContent(text, "command-name")
+    || text
+  );
+}

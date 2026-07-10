@@ -225,6 +225,7 @@ const zhPart6 = {
     hideExitedSessions: "隐藏已退出会话",
     showExitedSessions: "显示已退出会话",
     exitedSessionsHidden: "已隐藏 {{count}} 个已退出会话",
+    subagentTag: "子代理",
     subagentTreeExpanded: "子代理树已展开",
     subagentTreeExpand: "展开子代理树",
     subagentTreeCollapse: "折叠子代理树",

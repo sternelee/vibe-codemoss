@@ -227,7 +227,9 @@ describe("threadItems", () => {
       "[Spec Root Priority] Active external OpenSpec root: /tmp/spec. " +
       "When checking spec visibility, prioritize this root.\n" +
       "[User Input] 工作区代码做一下兼容性测试,在更新一下提案";
-    expect(previewThreadName(source, "Agent 1")).toBe("工作区代码做一下兼容");
+    expect(previewThreadName(source, "Agent 1")).toBe(
+      "工作区代码做一下兼容性测试,在更新一下提案",
+    );
   });
 
   it("uses current user request after shared-session sync wrapper for default thread title", () => {
@@ -235,11 +237,34 @@ describe("threadItems", () => {
       "Shared session context sync. Continue from these recent turns before answering the new request:\n\n" +
       "Turn 1\nUser: hello\ncodex: world\n\n" +
       "Current user request:\n帮我梳理共享会话的上下文同步链路";
-    expect(previewThreadName(source, "Agent 1")).toBe("帮我梳理共享会话的上");
+    expect(previewThreadName(source, "Agent 1")).toBe(
+      "帮我梳理共享会话的上下文同步链路",
+    );
   });
 
-  it("truncates default thread title to 10 characters", () => {
-    expect(previewThreadName("123456789012345", "Agent 1")).toBe("1234567890");
+  it("truncates default thread title to 50 characters", () => {
+    const longText = "a".repeat(60);
+    expect(previewThreadName(longText, "Agent 1")).toBe("a".repeat(50));
+  });
+
+  it("uses the slash-command question for default thread title", () => {
+    const source = [
+      "<command-message>aimax:code-review</command-message>",
+      "<command-name>/aimax:code-review</command-name>",
+      "<command-args>审查PR428，并告诉我他解决了什么问题</command-args>",
+    ].join("\n");
+    expect(previewThreadName(source, "Agent 1")).toBe(
+      "审查PR428，并告诉我他解决了什么问题",
+    );
+  });
+
+  it("falls back to the command name for argument-less slash commands", () => {
+    const source = [
+      "<command-message>clear</command-message>",
+      "<command-name>/clear</command-name>",
+      "<command-args></command-args>",
+    ].join("\n");
+    expect(previewThreadName(source, "Agent 1")).toBe("clear");
   });
 
   it("filters out assistant placeholder messages after normalization", () => {

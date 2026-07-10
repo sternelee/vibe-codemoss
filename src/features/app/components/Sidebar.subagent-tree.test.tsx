@@ -292,7 +292,8 @@ describe("Sidebar subagent tree", () => {
     expect(childRow?.classList.contains("is-active-subagent-group")).toBe(true);
     expect(childRow?.classList.contains("is-pending-subagent")).toBe(true);
     expect(childRow?.querySelector(".thread-subagent-branch")).toBeNull();
-    expect(childRow?.querySelector(".thread-subagent-badge")).toBeNull();
+    expect(childRow?.querySelector(".thread-engine-badge")).toBeNull();
+    expect(childRow?.querySelector(".thread-subagent-tag")).toBeTruthy();
 
     if (!childRow) {
       throw new Error("Missing pending child row");
@@ -352,7 +353,8 @@ describe("Sidebar subagent tree", () => {
     const childRow = screen.getByText("真实子会话").closest(".thread-row");
     expect(childRow?.classList.contains("is-subagent")).toBe(true);
     expect(childRow?.classList.contains("is-pending-subagent")).toBe(false);
-    expect(childRow?.querySelector(".thread-subagent-badge")).toBeNull();
+    expect(childRow?.querySelector(".thread-engine-badge")).toBeNull();
+    expect(childRow?.querySelector(".thread-subagent-tag")).toBeTruthy();
     expect(screen.queryByText("分析 km-chat-new-web 项目")).toBeNull();
   });
 

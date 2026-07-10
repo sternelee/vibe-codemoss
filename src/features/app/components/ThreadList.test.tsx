@@ -25,6 +25,7 @@ vi.mock("react-i18next", () => ({
         "threads.hideExitedSessions": "Hide exited sessions",
         "threads.showExitedSessions": "Show exited sessions",
         "threads.exitedSessionsHidden": "{{count}} exited hidden",
+        "threads.subagentTag": "Subagent",
         "threads.subagentTreeExpanded": "Subagent tree expanded",
         "threads.subagentTreeExpand": "Expand subagent tree",
         "threads.subagentTreeCollapse": "Collapse subagent tree",
@@ -314,7 +315,8 @@ describe("ThreadList", () => {
     expect(childRow.classList.contains("is-subagent")).toBe(true);
     expect(childRow.classList.contains("is-active-subagent-group")).toBe(true);
     expect(childRow.querySelector(".thread-subagent-branch")).toBeNull();
-    expect(childRow.querySelector(".thread-subagent-badge")).toBeNull();
+    expect(childRow.querySelector(".thread-engine-badge")).toBeNull();
+    expect(childRow.querySelector(".thread-subagent-tag")?.textContent).toBe("Subagent");
 
     fireEvent.click(childRow);
     expect(onSelectThread).toHaveBeenCalledWith("ws-1", "claude:agent-parent-agent");
@@ -408,7 +410,8 @@ describe("ThreadList", () => {
     );
     const childRow = screen.getByText("Nested Agent").closest(".thread-row");
     expect(childRow?.classList.contains("is-pending-subagent")).toBe(true);
-    expect(childRow?.querySelector(".thread-subagent-badge")).toBeNull();
+    expect(childRow?.querySelector(".thread-engine-badge")).toBeNull();
+    expect(childRow?.querySelector(".thread-subagent-tag")).toBeTruthy();
     if (!childRow) {
       throw new Error("Missing pending subagent child row");
     }

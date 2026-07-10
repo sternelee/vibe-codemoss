@@ -21,6 +21,12 @@ type UseQueuedSendOptions = {
   activeTerminalPulse?: number;
   isProcessing: boolean;
   isReviewing: boolean;
+  // True while an AskUserQuestion dialog is open for the active thread. The CLI
+  // turn is blocked awaiting the answer, so the queue must NOT flush into it —
+  // isProcessing can drop to false mid-ask, which would otherwise send queued
+  // messages as fresh turns and strand the pending answer. See handleSend +
+  // the auto-flush effect below.
+  hasPendingUserInput?: boolean;
   steerEnabled: boolean;
   activeWorkspace: WorkspaceInfo | null;
   activeEngine?: EngineType;
@@ -275,6 +281,7 @@ export function useQueuedSend({
   activeTerminalPulse = 0,
   isProcessing,
   isReviewing,
+  hasPendingUserInput = false,
   steerEnabled,
   activeWorkspace,
   activeEngine = "claude",
@@ -784,10 +791,10 @@ export function useQueuedSend({
         return;
       }
       const shouldQueueWhileProcessing =
-        isProcessing &&
-        activeThreadId &&
-        (!steerEnabled || isClaudePendingBootstrapThread);
-      if (shouldQueueWhileProcessing) {
+        isProcessing && (!steerEnabled || isClaudePendingBootstrapThread);
+      // A pending AskUserQuestion also holds the queue: the turn is alive but
+      // blocked on the answer, so a fresh send must queue rather than dispatch.
+      if (activeThreadId && (shouldQueueWhileProcessing || hasPendingUserInput)) {
         const item = buildQueuedMessage(trimmed, nextImages, options);
         enqueueMessage(activeThreadId, item);
         clearActiveImages();
@@ -803,6 +810,7 @@ export function useQueuedSend({
       clearActiveImages,
       dispatchQueuedMessage,
       enqueueMessage,
+      hasPendingUserInput,
       isClaudePendingBootstrapThread,
       isProcessing,
       isReviewing,
@@ -1143,6 +1151,14 @@ export function useQueuedSend({
     if (!activeThreadId || isProcessing || isReviewing) {
       return;
     }
+    // Hold the queue while an AskUserQuestion dialog is open: the CLI turn is
+    // blocked awaiting the answer even though isProcessing may read false, so
+    // flushing here would send the queued message as a fresh turn and strand
+    // the pending answer (→ 5-min MCP timeout). The queue drains after the
+    // dialog is settled and the turn resumes/ends.
+    if (hasPendingUserInput) {
+      return;
+    }
     if (fusionByThread[activeThreadId]) {
       return;
     }
@@ -1200,6 +1216,7 @@ export function useQueuedSend({
     activeThreadId,
     dispatchQueuedMessage,
     fusionByThread,
+    hasPendingUserInput,
     inFlightByThread,
     isProcessing,
     isReviewing,

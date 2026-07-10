@@ -4,6 +4,11 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 import {
+  Tooltip,
+  TooltipPopup,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   memo,
   useCallback,
   useEffect,
@@ -230,8 +235,9 @@ const ThreadRowItem = memo(function ThreadRowItem({
         }
       }}
     >
-      <PopoverAnchor asChild>
-          <button
+      <Tooltip>
+        <PopoverAnchor asChild>
+          <TooltipTrigger
             type="button"
             className={`thread-row ${
               isActiveThread ? "active" : ""
@@ -296,18 +302,24 @@ const ThreadRowItem = memo(function ThreadRowItem({
                 <span className="thread-pin-toggle-icon" aria-hidden />
               </span>
             )}
-            <span
-              className={`thread-engine-badge ${
-                isSharedThread ? "thread-engine-shared" : `thread-engine-${engineSource}`
-              }${isProcessing ? " is-processing" : ""}`}
-              title={engineTitle}
-            >
-              {isSharedThread ? (
-                <SharedSessionIcon size={12} />
-              ) : (
-                <EngineIcon engine={engineIconType} size={12} />
-              )}
-            </span>
+            {isSubagentThread ? (
+              <span className="thread-subagent-tag" title={engineTitle}>
+                {t("threads.subagentTag")}
+              </span>
+            ) : (
+              <span
+                className={`thread-engine-badge ${
+                  isSharedThread ? "thread-engine-shared" : `thread-engine-${engineSource}`
+                }${isProcessing ? " is-processing" : ""}`}
+                title={engineTitle}
+              >
+                {isSharedThread ? (
+                  <SharedSessionIcon size={12} />
+                ) : (
+                  <EngineIcon engine={engineIconType} size={12} />
+                )}
+              </span>
+            )}
             {showProxyBadge && (
               <ProxyStatusBadge
                 proxyUrl={systemProxyUrl}
@@ -357,8 +369,17 @@ const ThreadRowItem = memo(function ThreadRowItem({
                 <span className="thread-time">{relativeTime}</span>
               ) : null}
             </div>
-          </button>
-      </PopoverAnchor>
+          </TooltipTrigger>
+        </PopoverAnchor>
+        <TooltipPopup
+          side="top"
+          align="start"
+          sideOffset={4}
+          className="max-w-[400px] break-words"
+        >
+          {thread.name}
+        </TooltipPopup>
+      </Tooltip>
       {isDeleteConfirmOpen && (
         <PopoverContent
           side="right"

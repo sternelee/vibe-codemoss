@@ -4,6 +4,7 @@ use tauri::{AppHandle, State};
 use crate::remote_backend;
 use crate::state::AppState;
 
+mod assets_export;
 mod daemon_bootstrap;
 
 fn should_retry_after_connect_error(error: &str) -> bool {

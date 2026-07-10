@@ -1,5 +1,9 @@
 import type { GitHubPullRequest, GitLogEntry } from "../../../types";
-import type { CommitMessageEngine } from "../../../services/tauri";
+import type { CommitMessageEngine, CommitMessageLanguage } from "../../../services/tauri";
+import {
+  readLastCommitMessageConfig,
+  saveLastCommitMessageConfig,
+} from "../../../utils/commitMessage";
 import type {
   KeyboardEvent as ReactKeyboardEvent,
   MouseEvent as ReactMouseEvent,
@@ -8,6 +12,7 @@ import type {
 import { useTranslation } from "react-i18next";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { loadDiffStyles } from "../../../styles/featureStyleLoaders";
+import { useFeatureStylesReady } from "../../../styles/useFeatureStylesReady";
 import ArrowLeftRight from "lucide-react/dist/esm/icons/arrow-left-right";
 import Check from "lucide-react/dist/esm/icons/check";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
@@ -26,6 +31,7 @@ import { createPortal } from "react-dom";
 import { matchesShortcutForPlatform } from "../../../utils/shortcuts";
 import { formatRelativeTime } from "../../../utils/time";
 import FileIcon from "../../../components/FileIcon";
+import { UnsavedChangesDialog } from "../../../components/ui/UnsavedChangesDialog";
 import { CommitMessageEngineIcon } from "./CommitMessageEngineIcon";
 import {
   CommitButton,
@@ -48,6 +54,7 @@ import {
   type DiffTreeFolderNode,
 } from "../utils/diffTree";
 import { WorkspaceEditableDiffReviewSurface } from "./WorkspaceEditableDiffReviewSurface";
+import type { EditableDiffDraftActions } from "./WorkspaceEditableDiffCompare";
 import { GitDiffPanelSectionActions } from "./GitDiffPanelSectionActions";
 import {
   getFileInclusionState,
@@ -716,7 +723,16 @@ function GitLogEntryRow({
   );
 }
 
-export function GitDiffPanel({
+export function GitDiffPanel(props: GitDiffPanelProps) {
+  const stylesReady = useFeatureStylesReady(loadDiffStyles);
+  if (!stylesReady) {
+    return null;
+  }
+
+  return <GitDiffPanelImpl {...props} />;
+}
+
+function GitDiffPanelImpl({
   workspaceId = null,
   workspacePath = null,
   mode,
@@ -807,9 +823,6 @@ export function GitDiffPanel({
   onRemoveCodeAnnotation,
   codeAnnotations = [],
 }: GitDiffPanelProps) {
-  useEffect(() => {
-    void loadDiffStyles();
-  }, []);
   const { t } = useTranslation();
   // Multi-select state for file list
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
@@ -828,7 +841,11 @@ export function GitDiffPanel({
     null,
   );
   const [isPreviewModalMaximized, setIsPreviewModalMaximized] = useState(false);
+  const [isPreviewModalDirty, setIsPreviewModalDirty] = useState(false);
+  const [isPreviewSaveInFlight, setIsPreviewSaveInFlight] = useState(false);
+  const [isUnsavedCloseDialogOpen, setIsUnsavedCloseDialogOpen] = useState(false);
   const [previewHeaderControlsTarget, setPreviewHeaderControlsTarget] = useState<HTMLDivElement | null>(null);
+  const previewDraftActionsRef = useRef<EditableDiffDraftActions | null>(null);
   const [isModeMenuOpen, setIsModeMenuOpen] = useState(false);
   const [commitMessageMenuEngine, setCommitMessageMenuEngine] = useState<CommitMessageEngine>("claude");
   const [isGitRootPanelOpen, setIsGitRootPanelOpen] = useState(
@@ -880,10 +897,36 @@ export function GitDiffPanel({
     () => (previewFile ? diffEntries.find((entry) => entry.path === previewFile.path) ?? null : null),
     [diffEntries, previewFile],
   );
-  const closePreviewModal = useCallback(() => {
+  const closePreviewModalNow = useCallback(() => {
+    setIsPreviewModalDirty(false);
+    setIsPreviewSaveInFlight(false);
+    setIsUnsavedCloseDialogOpen(false);
     setPreviewFile(null);
     setIsPreviewModalMaximized(false);
   }, []);
+  const discardAndClosePreviewModal = useCallback(() => {
+    previewDraftActionsRef.current?.discard();
+    closePreviewModalNow();
+  }, [closePreviewModalNow]);
+  const closePreviewModal = useCallback(() => {
+    if (isPreviewModalDirty) {
+      setIsUnsavedCloseDialogOpen(true);
+      return;
+    }
+    closePreviewModalNow();
+  }, [closePreviewModalNow, isPreviewModalDirty]);
+  const handlePreviewDraftActionsChange = useCallback((actions: EditableDiffDraftActions | null) => {
+    previewDraftActionsRef.current = actions;
+    setIsPreviewSaveInFlight(actions?.isSaving ?? false);
+  }, []);
+  const saveAndClosePreviewModal = useCallback(async () => {
+    const saved = await previewDraftActionsRef.current?.save();
+    if (!saved) {
+      return false;
+    }
+    closePreviewModalNow();
+    return true;
+  }, [closePreviewModalNow]);
 
   const handleOpenInlinePreview = useCallback(
     (path: string) => {
@@ -895,6 +938,7 @@ export function GitDiffPanel({
   );
 
   const handleOpenFilePreview = useCallback((file: DiffFile, section: "staged" | "unstaged") => {
+    setIsPreviewModalDirty(false);
     setIsPreviewModalMaximized(false);
     setPreviewFile({ ...file, section });
   }, []);
@@ -1092,22 +1136,30 @@ export function GitDiffPanel({
     setCollapsedSections(new Set());
     setDiscardDialogPaths(null);
     setDiscardDialogSubmitting(false);
-    setPreviewFile((current) => {
-      if (!current) {
-        return null;
-      }
-      const exists = allFiles.some(
-        (file) => file.path === current.path && file.section === current.section,
-      );
-      return exists ? current : null;
-    });
-  }, [allFiles, filesKey]);
+    if (!previewFile) {
+      return;
+    }
+    const previewFileStillExists = allFiles.some(
+      (file) => file.path === previewFile.path && file.section === previewFile.section,
+    );
+    if (previewFileStillExists) {
+      return;
+    }
+    if (isPreviewModalDirty) {
+      setIsUnsavedCloseDialogOpen(true);
+      return;
+    }
+    closePreviewModalNow();
+  }, [allFiles, closePreviewModalNow, filesKey, isPreviewModalDirty, previewFile]);
 
   useEffect(() => {
     if (!previewFile) {
       return;
     }
     const handleWindowKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (isUnsavedCloseDialogOpen) {
+        return;
+      }
       if (event.key === "Escape") {
         closePreviewModal();
       }
@@ -1116,7 +1168,7 @@ export function GitDiffPanel({
     return () => {
       window.removeEventListener("keydown", handleWindowKeyDown);
     };
-  }, [closePreviewModal, previewFile]);
+  }, [closePreviewModal, isUnsavedCloseDialogOpen, previewFile]);
 
   useEffect(() => {
     if (!isModeMenuOpen) {
@@ -1605,17 +1657,35 @@ export function GitDiffPanel({
   ) : (
     <Upload size={12} aria-hidden />
   );
+  const selectedPathsForGeneration = useMemo(
+    () =>
+      selectedCommitCount > 0
+        ? selectedCommitPaths
+        : hasExplicitCommitSelection
+          ? []
+          : undefined,
+    [selectedCommitCount, selectedCommitPaths, hasExplicitCommitSelection],
+  );
+  const generateCommitMessageWithConfig = useCallback(
+    async (language: CommitMessageLanguage, engine: CommitMessageEngine) => {
+      if (!onGenerateCommitMessage) {
+        return;
+      }
+      setCommitMessageMenuEngine(engine);
+      saveLastCommitMessageConfig({ engine, language });
+      if (selectedPathsForGeneration) {
+        await onGenerateCommitMessage(language, engine, selectedPathsForGeneration);
+        return;
+      }
+      await onGenerateCommitMessage(language, engine);
+    },
+    [onGenerateCommitMessage, selectedPathsForGeneration],
+  );
   const showCommitMessageLanguageMenu = useCallback(
     (engine: CommitMessageEngine, position: { x: number; y: number }) => {
       if (!onGenerateCommitMessage || commitMessageLoading || commitLoading || !canGenerateCommitMessage) {
         return;
       }
-      const selectedPathsForGeneration =
-        selectedCommitCount > 0
-          ? selectedCommitPaths
-          : hasExplicitCommitSelection
-            ? []
-            : undefined;
       setGitContextMenu({
         ...position,
         label: t("git.generateCommitMessage"),
@@ -1624,27 +1694,13 @@ export function GitDiffPanel({
             type: "item",
             id: "commit-message-zh",
             label: t("git.generateCommitMessageChinese"),
-            onSelect: async () => {
-              setCommitMessageMenuEngine(engine);
-              if (selectedPathsForGeneration) {
-                await onGenerateCommitMessage("zh", engine, selectedPathsForGeneration);
-                return;
-              }
-              await onGenerateCommitMessage("zh", engine);
-            },
+            onSelect: () => generateCommitMessageWithConfig("zh", engine),
           },
           {
             type: "item",
             id: "commit-message-en",
             label: t("git.generateCommitMessageEnglish"),
-            onSelect: async () => {
-              setCommitMessageMenuEngine(engine);
-              if (selectedPathsForGeneration) {
-                await onGenerateCommitMessage("en", engine, selectedPathsForGeneration);
-                return;
-              }
-              await onGenerateCommitMessage("en", engine);
-            },
+            onSelect: () => generateCommitMessageWithConfig("en", engine),
           },
         ],
       });
@@ -1653,10 +1709,8 @@ export function GitDiffPanel({
       canGenerateCommitMessage,
       commitLoading,
       commitMessageLoading,
+      generateCommitMessageWithConfig,
       onGenerateCommitMessage,
-      selectedCommitCount,
-      selectedCommitPaths,
-      hasExplicitCommitSelection,
       t,
     ],
   );
@@ -1669,8 +1723,9 @@ export function GitDiffPanel({
       }
       const position = clampRendererContextMenuPosition(event.clientX, event.clientY, {
         width: 260,
-        height: 180,
+        height: 230,
       });
+      const lastConfig = readLastCommitMessageConfig();
       const engineItems: Array<{ engine: CommitMessageEngine; label: string }> = [
         { engine: "codex", label: t("git.generateCommitMessageEngineCodex") },
         { engine: "claude", label: t("git.generateCommitMessageEngineClaude") },
@@ -1680,26 +1735,42 @@ export function GitDiffPanel({
       setGitContextMenu({
         ...position,
         label: t("git.generateCommitMessage"),
-        items: engineItems.map(({ engine, label }) => ({
-          type: "item",
-          id: `commit-message-engine-${engine}`,
-          label,
-          onSelect: () => {
-            if (deferredCommitLanguageMenuTimerRef.current !== null) {
-              window.clearTimeout(deferredCommitLanguageMenuTimerRef.current);
-            }
-            deferredCommitLanguageMenuTimerRef.current = window.setTimeout(() => {
-              deferredCommitLanguageMenuTimerRef.current = null;
-              showCommitMessageLanguageMenu(engine, position);
-            }, 0);
+        items: [
+          {
+            type: "item",
+            id: "commit-message-last-config",
+            label: t("git.generateCommitMessageLastConfig"),
+            disabled: !lastConfig,
+            onSelect: async () => {
+              if (!lastConfig) {
+                return;
+              }
+              await generateCommitMessageWithConfig(lastConfig.language, lastConfig.engine);
+            },
           },
-        })),
+          { type: "separator", id: "commit-message-last-config-separator" },
+          ...engineItems.map<RendererContextMenuItem>(({ engine, label }) => ({
+            type: "item",
+            id: `commit-message-engine-${engine}`,
+            label,
+            onSelect: () => {
+              if (deferredCommitLanguageMenuTimerRef.current !== null) {
+                window.clearTimeout(deferredCommitLanguageMenuTimerRef.current);
+              }
+              deferredCommitLanguageMenuTimerRef.current = window.setTimeout(() => {
+                deferredCommitLanguageMenuTimerRef.current = null;
+                showCommitMessageLanguageMenu(engine, position);
+              }, 0);
+            },
+          })),
+        ],
       });
     },
     [
       canGenerateCommitMessage,
       commitLoading,
       commitMessageLoading,
+      generateCommitMessageWithConfig,
       onGenerateCommitMessage,
       showCommitMessageLanguageMenu,
       t,
@@ -2432,10 +2503,6 @@ export function GitDiffPanel({
                     <WorkspaceEditableDiffReviewSurface
                       workspaceId={workspaceId}
                       workspacePath={workspacePath}
-                      gitStatusFiles={[
-                        ...stagedFiles,
-                        ...unstagedFiles,
-                      ]}
                       files={[
                         {
                           filePath: previewFile.path,
@@ -2463,6 +2530,8 @@ export function GitDiffPanel({
                       allowEditing
                       onRequestRefreshReview={onRefreshGitDiffs}
                       onRequestGitStatusRefresh={onRefreshGitStatus}
+                      onDirtyChange={setIsPreviewModalDirty}
+                      onDraftActionsChange={handlePreviewDraftActionsChange}
                       onCreateCodeAnnotation={onCreateCodeAnnotation}
                       onRemoveCodeAnnotation={onRemoveCodeAnnotation}
                       codeAnnotations={codeAnnotations}
@@ -2477,6 +2546,13 @@ export function GitDiffPanel({
             document.body,
           )
         : null}
+      <UnsavedChangesDialog
+        open={isUnsavedCloseDialogOpen}
+        isSaving={isPreviewSaveInFlight}
+        onContinueEditing={() => setIsUnsavedCloseDialogOpen(false)}
+        onDiscard={discardAndClosePreviewModal}
+        onSaveAndClose={saveAndClosePreviewModal}
+      />
       {discardDialogPaths ? (
         <div
           className="diff-danger-dialog-overlay"

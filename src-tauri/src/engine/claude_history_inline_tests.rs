@@ -7,8 +7,9 @@ use super::{
     CLAUDE_ATTRIBUTION_STRICT_MATCH,
 };
 use crate::engine::claude_history_entries::{
-    classify_claude_history_entry, is_claude_control_plane_entry, ClaudeHistoryEntryClassification,
-    ClaudeHistoryHiddenReason, ClaudeLocalControlEventType, CLAUDE_CONTROL_EVENT_TOOL_TYPE,
+    classify_claude_history_entry, extract_command_prompt_text, is_claude_control_plane_entry,
+    ClaudeHistoryEntryClassification, ClaudeHistoryHiddenReason, ClaudeLocalControlEventType,
+    CLAUDE_CONTROL_EVENT_TOOL_TYPE,
 };
 use crate::engine::EngineConfig;
 use serde_json::json;
@@ -1109,6 +1110,56 @@ fn local_control_classifier_detects_displayable_and_hidden_events() {
         classify_claude_history_entry(&natural_text),
         ClaudeHistoryEntryClassification::Normal
     );
+}
+
+#[test]
+fn slash_command_user_prompt_with_args_stays_visible() {
+    let skill_question = json!({
+        "message": {
+            "role": "user",
+            "content": "<command-message>aimax:code-review</command-message>\n<command-name>/aimax:code-review</command-name>\n<command-args>审查PR802，并告诉我他解决了什么问题，我应不应该合并他</command-args>"
+        }
+    });
+    let resume_command = json!({
+        "message": {
+            "role": "user",
+            "content": "<command-name>/resume</command-name>"
+        }
+    });
+    let empty_args_command = json!({
+        "message": {
+            "role": "user",
+            "content": "<command-message>clear</command-message>\n<command-name>/clear</command-name>\n<command-args></command-args>"
+        }
+    });
+
+    assert_eq!(
+        classify_claude_history_entry(&skill_question),
+        ClaudeHistoryEntryClassification::Normal
+    );
+    assert!(matches!(
+        classify_claude_history_entry(&resume_command),
+        ClaudeHistoryEntryClassification::Hidden(ClaudeHistoryHiddenReason::InternalRecord)
+    ));
+    assert!(matches!(
+        classify_claude_history_entry(&empty_args_command),
+        ClaudeHistoryEntryClassification::Hidden(ClaudeHistoryHiddenReason::InternalRecord)
+    ));
+}
+
+#[test]
+fn command_prompt_text_unwraps_slash_command_tags_for_session_titles() {
+    let wrapped = "<command-message>aimax:code-review</command-message>\n<command-name>/aimax:code-review</command-name>\n<command-args>审查PR802，并告诉我他解决了什么问题</command-args>";
+    assert_eq!(
+        extract_command_prompt_text(wrapped),
+        "审查PR802，并告诉我他解决了什么问题"
+    );
+
+    let message_only = "<command-message>clear</command-message>\n<command-args></command-args>";
+    assert_eq!(extract_command_prompt_text(message_only), "clear");
+
+    let plain = "普通用户消息保持原样";
+    assert_eq!(extract_command_prompt_text(plain), plain);
 }
 
 #[test]

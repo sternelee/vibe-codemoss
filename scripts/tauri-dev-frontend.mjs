@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { ensureTauriDevResourcePlaceholders } from "./tauri-dev-resources.mjs";
 
 const require = createRequire(import.meta.url);
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
@@ -65,6 +66,7 @@ function spawnViteDevServer() {
 }
 
 async function main() {
+  await ensureTauriDevResourcePlaceholders(repoRoot);
   await runNodeScript(ensureDevPortScript);
   spawnViteDevServer();
 }
