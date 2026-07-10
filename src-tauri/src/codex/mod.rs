@@ -182,7 +182,6 @@ pub(crate) use self::start_thread_retry::{
 };
 
 const DELETE_ARCHIVE_TIMEOUT_MS: u64 = 2_000;
-const CLAUDE_MANUAL_COMPACT_TIMEOUT_SECS: u64 = 120;
 
 fn emit_manual_compaction_event(
     app: &AppHandle,
@@ -249,17 +248,11 @@ async fn compact_claude_thread(
         ..Default::default()
     };
 
-    let compact_result = timeout(
-        Duration::from_secs(CLAUDE_MANUAL_COMPACT_TIMEOUT_SECS),
-        session.send_message(params, &turn_id),
-    )
-    .await
-    .map_err(|_| {
-        format!(
-            "Claude /compact timed out after {} seconds",
-            CLAUDE_MANUAL_COMPACT_TIMEOUT_SECS
-        )
-    })?;
+    // No outer wall-clock cap: /compact is an LLM summarization over the whole
+    // conversation and legitimately takes minutes on a large context. send_message
+    // already has a 90s first-event watchdog (claude.rs) guarding a true hang, and
+    // the auto-compact path (lifecycle.rs) runs uncapped too — matching it here.
+    let compact_result = session.send_message(params, &turn_id).await;
 
     match compact_result {
         Ok(result_text) => {
