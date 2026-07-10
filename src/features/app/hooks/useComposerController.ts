@@ -24,6 +24,7 @@ export function useComposerController({
   activeWorkspace,
   isProcessing,
   isReviewing,
+  hasPendingUserInput,
   steerEnabled,
   activeEngine,
   resolveCanonicalThreadId,
@@ -59,6 +60,7 @@ export function useComposerController({
   activeWorkspace: WorkspaceInfo | null;
   isProcessing: boolean;
   isReviewing: boolean;
+  hasPendingUserInput?: boolean;
   steerEnabled: boolean;
   activeEngine?: EngineType;
   resolveCanonicalThreadId: (threadId: string) => string;
@@ -136,6 +138,7 @@ export function useComposerController({
     activeTerminalPulse,
     isProcessing,
     isReviewing,
+    hasPendingUserInput,
     steerEnabled,
     activeWorkspace,
     activeEngine,
