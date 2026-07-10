@@ -27,7 +27,10 @@ import {
 import { UpdateToast } from "../../update/components/UpdateToast";
 import { ErrorToasts } from "../../notifications/components/ErrorToasts";
 import { GlobalRuntimeNoticeDock } from "../../notifications/components/GlobalRuntimeNoticeDock";
-import type { ComposerRewindDialogRequest } from "../../composer/components/Composer";
+import type {
+  ComposerNoteCardSelectionRequest,
+  ComposerRewindDialogRequest,
+} from "../../composer/components/Composer";
 import { resolveCodexProviderLabel } from "../../app/utils/codexProviderLabel";
 import { GitDiffViewer } from "../../git/components/GitDiffViewer";
 import { buildCanonicalGitChanges } from "../../git/utils/gitChangeModel";
@@ -95,7 +98,7 @@ import type {
 } from "../../../types";
 import { __profile as threadsRuntimeProfile } from "../../threads/hooks/useThreadsReducer";
 import { getClientStoreSync } from "../../../services/clientStorage";
-import { getCodexProviders } from "../../../services/tauri";
+import { getCodexProviders, type WorkspaceNoteCard } from "../../../services/tauri";
 import { normalizeSpecRootInput } from "../../spec/pathUtils";
 import type {
   CodeAnnotationBridgeProps,
@@ -297,7 +300,10 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
   const [codexProviderProfiles, setCodexProviderProfiles] = useState<
     CodexProviderProfileOption[]
   >([]);
+  const [noteCardSelectionRequest, setNoteCardSelectionRequest] =
+    useState<ComposerNoteCardSelectionRequest | null>(null);
   const rewindDialogRequestSerialRef = useRef(0);
+  const noteCardSelectionRequestSerialRef = useRef(0);
   const activeThreadStatus = options.activeThreadId
     ? (options.threadStatusById[options.activeThreadId] ?? null)
     : null;
@@ -1127,10 +1133,32 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
   const handleComposerOpenDiffPath = useEventCallback((path: string) =>
     options.onOpenFile(path),
   );
+  const handleReferenceWorkspaceNote = useCallback((note: WorkspaceNoteCard) => {
+    noteCardSelectionRequestSerialRef.current += 1;
+    setNoteCardSelectionRequest({
+      requestId: noteCardSelectionRequestSerialRef.current,
+      noteCard: {
+        id: note.id,
+        title: note.title,
+        plainTextExcerpt: note.plainTextExcerpt,
+        bodyMarkdown: note.bodyMarkdown,
+        updatedAt: note.updatedAt,
+        archived: Boolean(note.archivedAt),
+        imageCount: note.attachments.length,
+        previewAttachments: note.attachments.map((attachment) => ({
+          id: attachment.id,
+          fileName: attachment.fileName,
+          contentType: attachment.contentType,
+          absolutePath: attachment.absolutePath,
+        })),
+      },
+    });
+  }, []);
 
   const renderComposerNode = (
     showStatusPanelToggleOverride?: boolean,
     branchControlEnabled: boolean = true,
+    externalNoteCardRequest: ComposerNoteCardSelectionRequest | null = null,
   ) =>
     options.showComposer ? (
       <Profiler id="composer" onRender={handleRuntimeProfileRender}>
@@ -1288,6 +1316,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
           selectedCodeAnnotations={selectedCodeAnnotations}
           onRemoveCodeAnnotation={handleRemoveCodeAnnotation}
           onClearCodeAnnotations={handleClearCodeAnnotations}
+          externalNoteCardSelectionRequest={externalNoteCardRequest}
           reviewPrompt={options.reviewPrompt}
           onReviewPromptClose={options.onReviewPromptClose}
           onReviewPromptShowPreset={options.onReviewPromptShowPreset}
@@ -1316,7 +1345,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
         />
       </Profiler>
     ) : null;
-  const composerNode = renderComposerNode(false);
+  const composerNode = renderComposerNode(false, true, noteCardSelectionRequest);
   // 首页：分支徽标与工作区选择并排渲染在 HomeChat 里，故 Composer 内不再重复
   const homeComposerNode = renderComposerNode(false, false);
   const approvalToastsNode = null;
@@ -1858,6 +1887,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
       workspacePath={options.activeWorkspace?.path ?? null}
       focusNoteId={options.focusedWorkspaceNoteId ?? null}
       focusRequestKey={options.focusedWorkspaceNoteRequestKey ?? 0}
+      onReferenceNote={handleReferenceWorkspaceNote}
     />
   ) : null;
 

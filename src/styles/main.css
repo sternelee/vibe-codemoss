@@ -1376,9 +1376,15 @@ body[data-panel-resizing="true"] .main {
 }
 
 .content.is-note-cards-split .content-note-cards-split-divider:hover::after,
+.content.is-note-cards-split .content-note-cards-split-divider:focus-visible::after,
 .note-cards-split-resizing .content-note-cards-split-divider::after {
   width: 2px;
   background: var(--accent-primary, #2563eb);
+}
+
+.content.is-note-cards-split .content-note-cards-split-divider:focus-visible {
+  outline: 2px solid var(--accent-primary, #2563eb);
+  outline-offset: -2px;
 }
 
 .note-cards-split-resizing {

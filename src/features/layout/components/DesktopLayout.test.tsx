@@ -1,8 +1,15 @@
 // @vitest-environment jsdom
 import type { ComponentProps } from "react";
 import { cleanup, fireEvent, render } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DesktopLayout } from "./DesktopLayout";
+
+const clientStorageMock = vi.hoisted(() => ({
+  getClientStoreSync: vi.fn(),
+  writeClientStoreValue: vi.fn(),
+}));
+
+vi.mock("../../../services/clientStorage", () => clientStorageMock);
 
 function renderDesktopLayout(overrides: Partial<ComponentProps<typeof DesktopLayout>> = {}) {
   return render(
@@ -50,6 +57,11 @@ function renderDesktopLayout(overrides: Partial<ComponentProps<typeof DesktopLay
 }
 
 describe("DesktopLayout", () => {
+  beforeEach(() => {
+    clientStorageMock.getClientStoreSync.mockReset().mockReturnValue(undefined);
+    clientStorageMock.writeClientStoreValue.mockReset();
+  });
+
   it("keeps plan section expanded in normal activity view", () => {
     const { container } = renderDesktopLayout();
 
@@ -172,6 +184,8 @@ describe("DesktopLayout", () => {
     expect(divider?.getAttribute("role")).toBe("separator");
     expect(divider?.getAttribute("aria-orientation")).toBe("vertical");
     expect(divider?.getAttribute("aria-label")).toBe("layout.resizeNoteCardsSplit");
+    expect(divider?.getAttribute("tabindex")).toBe("0");
+    expect(divider?.getAttribute("aria-valuenow")).toBe("66.67");
   });
 
   it("resizes the right note-card column while preserving minimum widths", () => {
@@ -197,5 +211,35 @@ describe("DesktopLayout", () => {
 
     fireEvent.pointerUp(window);
     expect(document.body.classList.contains("note-cards-split-resizing")).toBe(false);
+    expect(clientStorageMock.writeClientStoreValue).toHaveBeenCalledWith(
+      "layout",
+      "noteCardsSplitRatio",
+      60,
+    );
+  });
+
+  it("restores, keyboard-adjusts, and resets the persisted note split ratio", () => {
+    cleanup();
+    clientStorageMock.getClientStoreSync.mockReturnValue(62);
+    const { container } = renderDesktopLayout({ centerMode: "notes" });
+    const content = container.querySelector(".content.is-note-cards-split") as HTMLElement;
+    const noteCardsLayer = container.querySelector(".content-layer--note-cards") as HTMLElement;
+    const chatLayer = container.querySelector(".content-layer--note-cards-companion") as HTMLElement;
+    const divider = container.querySelector(".content-note-cards-split-divider") as HTMLElement;
+    vi.spyOn(noteCardsLayer, "getBoundingClientRect").mockReturnValue({ width: 600 } as DOMRect);
+    vi.spyOn(chatLayer, "getBoundingClientRect").mockReturnValue({ width: 300 } as DOMRect);
+
+    expect(content.style.getPropertyValue("--note-cards-split-ratio")).toBe("62.00");
+    fireEvent.keyDown(divider, { key: "ArrowRight" });
+    expect(content.style.getPropertyValue("--note-cards-split-ratio")).toBe("60.00");
+    expect(divider.getAttribute("aria-valuenow")).toBe("60.00");
+
+    fireEvent.doubleClick(divider);
+    expect(content.style.getPropertyValue("--note-cards-split-ratio")).toBe("66.67");
+    expect(clientStorageMock.writeClientStoreValue).toHaveBeenLastCalledWith(
+      "layout",
+      "noteCardsSplitRatio",
+      66.667,
+    );
   });
 });

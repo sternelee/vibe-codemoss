@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useRef,
+  type KeyboardEvent,
   type MouseEvent,
   type PointerEvent,
   type ReactNode,
@@ -10,6 +11,45 @@ import { useTranslation } from "react-i18next";
 import { MainTopbar } from "../../app/components/MainTopbar";
 import { MemoryPanel } from "./MemoryPanel";
 import type { CenterMode } from "../../app/hooks/useGitPanelController";
+import { getClientStoreSync, writeClientStoreValue } from "../../../services/clientStorage";
+
+const NOTE_CARDS_SPLIT_RATIO_KEY = "noteCardsSplitRatio";
+const DEFAULT_NOTE_CARDS_SPLIT_RATIO = 66.667;
+const MIN_NOTE_CARDS_SPLIT_RATIO = 48;
+const MAX_NOTE_CARDS_SPLIT_RATIO = 76;
+
+function clampNoteCardsSplitRatio(value: number, min = MIN_NOTE_CARDS_SPLIT_RATIO, max = MAX_NOTE_CARDS_SPLIT_RATIO) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function readNoteCardsSplitRatio() {
+  const stored = getClientStoreSync<number>("layout", NOTE_CARDS_SPLIT_RATIO_KEY);
+  return typeof stored === "number" && Number.isFinite(stored)
+    ? clampNoteCardsSplitRatio(stored)
+    : DEFAULT_NOTE_CARDS_SPLIT_RATIO;
+}
+
+function resolveNoteCardsSplitBounds(totalWidth: number) {
+  return {
+    min: Math.max(MIN_NOTE_CARDS_SPLIT_RATIO, (420 / totalWidth) * 100),
+    max: Math.min(MAX_NOTE_CARDS_SPLIT_RATIO, ((totalWidth - 280) / totalWidth) * 100),
+  };
+}
+
+function applyNoteCardsSplitRatio(
+  splitRoot: HTMLElement,
+  divider: HTMLElement,
+  ratio: number,
+  persist: boolean,
+) {
+  const normalizedRatio = clampNoteCardsSplitRatio(ratio);
+  splitRoot.style.setProperty("--note-cards-split-ratio", normalizedRatio.toFixed(2));
+  divider.setAttribute("aria-valuenow", normalizedRatio.toFixed(2));
+  if (persist) {
+    writeClientStoreValue("layout", NOTE_CARDS_SPLIT_RATIO_KEY, normalizedRatio);
+  }
+  return normalizedRatio;
+}
 
 type DesktopLayoutProps = {
   sidebarNode: ReactNode;
@@ -107,6 +147,7 @@ export function DesktopLayout({
   const fileCompareLayerRef = useRef<HTMLDivElement | null>(null);
   const memoryLayerRef = useRef<HTMLDivElement | null>(null);
   const splitResizeCleanupRef = useRef<(() => void) | null>(null);
+  const noteCardsSplitRatioRef = useRef(readNoteCardsSplitRatio());
   const isEditorSplitMode = centerMode === "editor";
   const isNoteCardsSplitMode = centerMode === "notes";
   const isEditorHorizontalSplitMode =
@@ -182,6 +223,30 @@ export function DesktopLayout({
       splitResizeCleanupRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    if (!isNoteCardsSplitMode) {
+      return;
+    }
+    const splitRoot = noteCardsLayerRef.current?.parentElement;
+    const divider = splitRoot?.querySelector<HTMLElement>(".content-note-cards-split-divider");
+    if (splitRoot && divider) {
+      const chatLayer = splitRoot.querySelector<HTMLElement>(".content-layer--note-cards-companion");
+      const noteCardsLayer = splitRoot.querySelector<HTMLElement>(".content-layer--note-cards");
+      const totalWidth = (chatLayer?.getBoundingClientRect().width ?? 0) +
+        (noteCardsLayer?.getBoundingClientRect().width ?? 0);
+      const bounds = totalWidth > 0 ? resolveNoteCardsSplitBounds(totalWidth) : null;
+      const restoredRatio = bounds && bounds.max > bounds.min
+        ? clampNoteCardsSplitRatio(noteCardsSplitRatioRef.current, bounds.min, bounds.max)
+        : noteCardsSplitRatioRef.current;
+      noteCardsSplitRatioRef.current = applyNoteCardsSplitRatio(
+        splitRoot,
+        divider,
+        restoredRatio,
+        false,
+      );
+    }
+  }, [isNoteCardsSplitMode]);
 
   const handleHorizontalSplitPointerDown = useCallback(
     (event: PointerEvent<HTMLDivElement>) => {
@@ -349,11 +414,12 @@ export function DesktopLayout({
 
       const startX = event.clientX;
       const startNoteCardsWidth = noteCardsRect.width;
-      const minNoteCardsWidth = Math.max(420, totalWidth * 0.48);
-      const maxNoteCardsWidth = Math.min(totalWidth - 280, totalWidth * 0.76);
-      if (maxNoteCardsWidth <= minNoteCardsWidth) {
+      const bounds = resolveNoteCardsSplitBounds(totalWidth);
+      if (bounds.max <= bounds.min) {
         return;
       }
+      divider.setAttribute("aria-valuemin", bounds.min.toFixed(2));
+      divider.setAttribute("aria-valuemax", bounds.max.toFixed(2));
 
       document.body.classList.add("note-cards-split-resizing");
 
@@ -367,15 +433,21 @@ export function DesktopLayout({
 
       const handlePointerMove = (moveEvent: globalThis.PointerEvent) => {
         const deltaX = moveEvent.clientX - startX;
-        const nextNoteCardsWidth = Math.min(
-          maxNoteCardsWidth,
-          Math.max(minNoteCardsWidth, startNoteCardsWidth - deltaX),
+        const requestedRatio = ((startNoteCardsWidth - deltaX) / totalWidth) * 100;
+        noteCardsSplitRatioRef.current = applyNoteCardsSplitRatio(
+          splitRoot,
+          divider,
+          clampNoteCardsSplitRatio(requestedRatio, bounds.min, bounds.max),
+          false,
         );
-        const nextRatio = (nextNoteCardsWidth / totalWidth) * 100;
-        splitRoot.style.setProperty("--note-cards-split-ratio", nextRatio.toFixed(2));
       };
 
       const handlePointerUp = () => {
+        writeClientStoreValue(
+          "layout",
+          NOTE_CARDS_SPLIT_RATIO_KEY,
+          noteCardsSplitRatioRef.current,
+        );
         cleanup();
       };
 
@@ -387,6 +459,62 @@ export function DesktopLayout({
     },
     [],
   );
+
+  const handleNoteCardsSplitKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight" && event.key !== "Home") {
+        return;
+      }
+      const divider = event.currentTarget;
+      const splitRoot = divider.closest(".content.is-note-cards-split") as HTMLElement | null;
+      const chatLayer = splitRoot?.querySelector<HTMLElement>(".content-layer--note-cards-companion");
+      const noteCardsLayer = splitRoot?.querySelector<HTMLElement>(".content-layer--note-cards");
+      if (!splitRoot || !chatLayer || !noteCardsLayer) {
+        return;
+      }
+      const totalWidth = chatLayer.getBoundingClientRect().width + noteCardsLayer.getBoundingClientRect().width;
+      if (totalWidth <= 0) {
+        return;
+      }
+      const bounds = resolveNoteCardsSplitBounds(totalWidth);
+      if (bounds.max <= bounds.min) {
+        return;
+      }
+      event.preventDefault();
+      const requestedRatio = event.key === "Home"
+        ? DEFAULT_NOTE_CARDS_SPLIT_RATIO
+        : noteCardsSplitRatioRef.current + (event.key === "ArrowLeft" ? 2 : -2);
+      noteCardsSplitRatioRef.current = applyNoteCardsSplitRatio(
+        splitRoot,
+        divider,
+        clampNoteCardsSplitRatio(requestedRatio, bounds.min, bounds.max),
+        true,
+      );
+    },
+    [],
+  );
+
+  const handleNoteCardsSplitDoubleClick = useCallback((event: MouseEvent<HTMLDivElement>) => {
+    const divider = event.currentTarget;
+    const splitRoot = divider.closest(".content.is-note-cards-split") as HTMLElement | null;
+    if (!splitRoot) {
+      return;
+    }
+    const chatLayer = splitRoot.querySelector<HTMLElement>(".content-layer--note-cards-companion");
+    const noteCardsLayer = splitRoot.querySelector<HTMLElement>(".content-layer--note-cards");
+    const totalWidth = (chatLayer?.getBoundingClientRect().width ?? 0) +
+      (noteCardsLayer?.getBoundingClientRect().width ?? 0);
+    const bounds = totalWidth > 0 ? resolveNoteCardsSplitBounds(totalWidth) : null;
+    const defaultRatio = bounds && bounds.max > bounds.min
+      ? clampNoteCardsSplitRatio(DEFAULT_NOTE_CARDS_SPLIT_RATIO, bounds.min, bounds.max)
+      : DEFAULT_NOTE_CARDS_SPLIT_RATIO;
+    noteCardsSplitRatioRef.current = applyNoteCardsSplitRatio(
+      splitRoot,
+      divider,
+      defaultRatio,
+      true,
+    );
+  }, []);
 
   if (showKanban) {
     return (
@@ -547,7 +675,13 @@ export function DesktopLayout({
                       role="separator"
                       aria-orientation="vertical"
                       aria-label={t("layout.resizeNoteCardsSplit")}
+                      aria-valuemin={MIN_NOTE_CARDS_SPLIT_RATIO}
+                      aria-valuemax={MAX_NOTE_CARDS_SPLIT_RATIO}
+                      aria-valuenow={Number(noteCardsSplitRatioRef.current.toFixed(2))}
+                      tabIndex={0}
                       onPointerDown={handleNoteCardsSplitPointerDown}
+                      onKeyDown={handleNoteCardsSplitKeyDown}
+                      onDoubleClick={handleNoteCardsSplitDoubleClick}
                     />
                   ) : null}
                   <div

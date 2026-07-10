@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import Archive from "lucide-react/dist/esm/icons/archive";
 import ImagePlus from "lucide-react/dist/esm/icons/image-plus";
+import MessageSquarePlus from "lucide-react/dist/esm/icons/message-square-plus";
+import MoreHorizontal from "lucide-react/dist/esm/icons/more-horizontal";
 import NotebookPen from "lucide-react/dist/esm/icons/notebook-pen";
 import Plus from "lucide-react/dist/esm/icons/plus";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
@@ -15,6 +17,12 @@ import { confirm } from "@tauri-apps/plugin-dialog";
 import { ImagePreviewOverlay } from "../../../components/common/ImagePreviewOverlay";
 import { LocalImage } from "../../../components/common/LocalImage";
 import { RichTextInput } from "../../../components/common/RichTextInput/RichTextInput";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../../../components/ui/dropdown-menu";
 import { isWindowsPlatform } from "../../../utils/platform";
 import { Markdown } from "../../messages/components/Markdown";
 import { pickImageFiles, type WorkspaceNoteCard, type WorkspaceNoteCardSummary } from "../../../services/tauri";
@@ -27,6 +35,7 @@ type WorkspaceNoteCardPanelProps = {
   workspacePath?: string | null;
   focusNoteId?: string | null;
   focusRequestKey?: number;
+  onReferenceNote?: (note: WorkspaceNoteCard) => void;
 };
 
 type NoteCardCollection = "active" | "archive";
@@ -78,12 +87,54 @@ function buildNoteCardStorageHintPath(projectName: string) {
   return `~/.ccgui/note_card/${projectName}/active | archive`;
 }
 
+function areStringArraysEqual(left: readonly string[], right: readonly string[]) {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+type NoteCardDeleteMenuProps = {
+  triggerLabel: string;
+  deleteLabel: string;
+  onDelete: () => void;
+  iconSize?: number;
+  triggerClassName?: string;
+};
+
+function NoteCardDeleteMenu({
+  triggerLabel,
+  deleteLabel,
+  onDelete,
+  iconSize = 13,
+  triggerClassName = "ghost workspace-note-cards-icon-action",
+}: NoteCardDeleteMenuProps) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className={triggerClassName}
+          aria-label={triggerLabel}
+          title={triggerLabel}
+        >
+          <MoreHorizontal size={iconSize} aria-hidden />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="workspace-note-cards-action-menu">
+        <DropdownMenuItem variant="destructive" onSelect={onDelete}>
+          <Trash2 aria-hidden />
+          {deleteLabel}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export function WorkspaceNoteCardPanel({
   workspaceId,
   workspaceName = null,
   workspacePath = null,
   focusNoteId = null,
   focusRequestKey = 0,
+  onReferenceNote,
 }: WorkspaceNoteCardPanelProps) {
   const { t, i18n } = useTranslation();
   const [collection, setCollection] = useState<NoteCardCollection>("active");
@@ -100,7 +151,9 @@ export function WorkspaceNoteCardPanel({
   const [attachmentDrafts, setAttachmentDrafts] = useState<string[]>([]);
   const [imagePreview, setImagePreview] = useState<NoteCardImagePreview | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const lastHandledFocusRequestRef = useRef<number | null>(null);
 
   const archived = collection === "archive";
   const projectName = useMemo(
@@ -111,6 +164,22 @@ export function WorkspaceNoteCardPanel({
     () => [workspaceId?.trim() ?? "", workspaceName?.trim() ?? "", workspacePath?.trim() ?? ""].join("::"),
     [workspaceId, workspaceName, workspacePath],
   );
+  const persistedAttachmentPaths = useMemo(
+    () => selectedNote?.attachments.map((attachment) => attachment.absolutePath) ?? [],
+    [selectedNote],
+  );
+  const isDraftDirty = useMemo(() => {
+    if (archived) {
+      return false;
+    }
+    const baselineTitle = selectedNote?.title ?? "";
+    const baselineBody = selectedNote?.bodyMarkdown ?? "";
+    return (
+      titleDraft !== baselineTitle ||
+      bodyDraft !== baselineBody ||
+      !areStringArraysEqual(attachmentDrafts, persistedAttachmentPaths)
+    );
+  }, [archived, attachmentDrafts, bodyDraft, persistedAttachmentPaths, selectedNote, titleDraft]);
 
   const resetDraft = useCallback(() => {
     setSelectedId(null);
@@ -120,6 +189,7 @@ export function WorkspaceNoteCardPanel({
     setBodyDraft("");
     setAttachmentDrafts([]);
     setError(null);
+    setSaveError(null);
   }, []);
 
   const refreshList = useCallback(() => {
@@ -127,32 +197,14 @@ export function WorkspaceNoteCardPanel({
   }, []);
 
   useEffect(() => {
-    setSelectedId(null);
-    setSelectedWorkspaceScope(null);
-    setSelectedNote(null);
-    setTitleDraft("");
-    setBodyDraft("");
-    setAttachmentDrafts([]);
-    setError(null);
-  }, [collection]);
-
-  useEffect(() => {
     setItems([]);
     setLoading(false);
     setDetailLoading(false);
     setQuery("");
     setImagePreview(null);
+    lastHandledFocusRequestRef.current = null;
     resetDraft();
   }, [resetDraft, workspaceScopeKey]);
-
-  useEffect(() => {
-    if (!workspaceId || !focusNoteId) {
-      return;
-    }
-    setCollection("active");
-    setSelectedId(focusNoteId);
-    setSelectedWorkspaceScope(workspaceScopeKey);
-  }, [focusNoteId, focusRequestKey, workspaceId, workspaceScopeKey]);
 
   useEffect(() => {
     if (!workspaceId) {
@@ -182,16 +234,6 @@ export function WorkspaceNoteCardPanel({
             return;
           }
           setItems(response.items);
-          if (selectedId && !response.items.some((item) => item.id === selectedId)) {
-            setSelectedId(null);
-            setSelectedWorkspaceScope(null);
-            setSelectedNote(null);
-            if (!archived) {
-              setTitleDraft("");
-              setBodyDraft("");
-              setAttachmentDrafts([]);
-            }
-          }
         })
         .catch((listError) => {
           if (cancelled) {
@@ -217,7 +259,6 @@ export function WorkspaceNoteCardPanel({
     archived,
     query,
     refreshNonce,
-    selectedId,
     workspaceId,
     workspaceName,
     workspacePath,
@@ -332,15 +373,42 @@ export function WorkspaceNoteCardPanel({
     setAttachmentDrafts((previous) => previous.filter((entry) => entry !== path));
   }, []);
 
+  const confirmDiscardDraft = useCallback(async () => {
+    if (!isDraftDirty) {
+      return true;
+    }
+    return confirm(t("noteCards.discardConfirm"), {
+      title: t("noteCards.unsavedTitle"),
+      kind: "warning",
+      okLabel: t("noteCards.discardAction"),
+      cancelLabel: t("noteCards.keepEditing"),
+    });
+  }, [isDraftDirty, t]);
+
+  const openNote = useCallback(
+    (noteId: string) => {
+      setSelectedNote(null);
+      setSelectedId(noteId);
+      setSelectedWorkspaceScope(workspaceScopeKey);
+      setTitleDraft("");
+      setBodyDraft("");
+      setAttachmentDrafts([]);
+      setError(null);
+      setSaveError(null);
+    },
+    [workspaceScopeKey],
+  );
+
   const handleSave = useCallback(async () => {
     if (!workspaceId) {
-      return;
+      return false;
     }
     if (!titleDraft.trim() && !bodyDraft.trim() && attachmentDrafts.length === 0) {
-      return;
+      return false;
     }
     setSaving(true);
     setError(null);
+    setSaveError(null);
     try {
       const currentSelectedId = selectedId;
       const isUpdate = Boolean(currentSelectedId && !archived);
@@ -373,8 +441,12 @@ export function WorkspaceNoteCardPanel({
         variant: "success",
         durationMs: 2400,
       });
-    } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : String(saveError));
+      return true;
+    } catch (caughtError) {
+      const message = caughtError instanceof Error ? caughtError.message : String(caughtError);
+      setError(message);
+      setSaveError(message);
+      return false;
     } finally {
       setSaving(false);
     }
@@ -392,9 +464,43 @@ export function WorkspaceNoteCardPanel({
     workspaceScopeKey,
   ]);
 
-  const handleArchive = useCallback(
+  const restoreNote = useCallback(
     async (noteId: string) => {
       if (!workspaceId) {
+        return null;
+      }
+      try {
+        return await noteCardsFacade.restore({
+          noteId,
+          workspaceId,
+          workspaceName,
+          workspacePath,
+        });
+      } catch (caughtError) {
+        setError(caughtError instanceof Error ? caughtError.message : String(caughtError));
+        return null;
+      }
+    },
+    [workspaceId, workspaceName, workspacePath],
+  );
+
+  const handleRestore = useCallback(
+    async (noteId: string) => {
+      const restored = await restoreNote(noteId);
+      if (!restored) {
+        return;
+      }
+      resetDraft();
+      setCollection("active");
+      openNote(restored.id);
+      refreshList();
+    },
+    [openNote, refreshList, resetDraft, restoreNote],
+  );
+
+  const handleArchive = useCallback(
+    async (noteId: string) => {
+      if (!workspaceId || (selectedId === noteId && !(await confirmDiscardDraft()))) {
         return;
       }
       try {
@@ -408,34 +514,41 @@ export function WorkspaceNoteCardPanel({
           resetDraft();
         }
         refreshList();
-      } catch (archiveError) {
-        setError(archiveError instanceof Error ? archiveError.message : String(archiveError));
-      }
-    },
-    [refreshList, resetDraft, selectedId, workspaceId, workspaceName, workspacePath],
-  );
-
-  const handleRestore = useCallback(
-    async (noteId: string) => {
-      if (!workspaceId) {
-        return;
-      }
-      try {
-        const restored = await noteCardsFacade.restore({
-          noteId,
-          workspaceId,
-          workspaceName,
-          workspacePath,
+        pushErrorToast({
+          id: `workspace-note-card-archive-${noteId}`,
+          title: t("noteCards.archiveSuccessTitle"),
+          message: t("noteCards.archiveSuccessMessage"),
+          variant: "success",
+          durationMs: 6000,
+          actions: [
+            {
+              label: t("noteCards.undoArchive"),
+              pendingLabel: t("noteCards.restoring"),
+              run: async () => {
+                const restored = await restoreNote(noteId);
+                if (!restored) {
+                  throw new Error(t("noteCards.restoreFailed"));
+                }
+                refreshList();
+              },
+            },
+          ],
         });
-        setCollection("active");
-        setSelectedId(restored.id);
-        setSelectedWorkspaceScope(workspaceScopeKey);
-        refreshList();
-      } catch (restoreError) {
-        setError(restoreError instanceof Error ? restoreError.message : String(restoreError));
+      } catch (caughtError) {
+        setError(caughtError instanceof Error ? caughtError.message : String(caughtError));
       }
     },
-    [refreshList, workspaceId, workspaceName, workspacePath, workspaceScopeKey],
+    [
+      confirmDiscardDraft,
+      refreshList,
+      resetDraft,
+      restoreNote,
+      selectedId,
+      t,
+      workspaceId,
+      workspaceName,
+      workspacePath,
+    ],
   );
 
   const handleDelete = useCallback(
@@ -476,19 +589,93 @@ export function WorkspaceNoteCardPanel({
   );
 
   const handleSelectCard = useCallback(
-    (noteId: string) => {
-      setSelectedId(noteId);
-      setSelectedWorkspaceScope(workspaceScopeKey);
+    async (noteId: string) => {
+      if (noteId === selectedId || !(await confirmDiscardDraft())) {
+        return;
+      }
+      openNote(noteId);
     },
-    [workspaceScopeKey],
+    [confirmDiscardDraft, openNote, selectedId],
   );
 
-  const handleCreateNote = useCallback(() => {
+  const handleCreateNote = useCallback(async () => {
+    if (!(await confirmDiscardDraft())) {
+      return;
+    }
     if (archived) {
       setCollection("active");
     }
     resetDraft();
-  }, [archived, resetDraft]);
+  }, [archived, confirmDiscardDraft, resetDraft]);
+
+  const handleCollectionChange = useCallback(
+    async (nextCollection: NoteCardCollection) => {
+      if (nextCollection === collection || !(await confirmDiscardDraft())) {
+        return;
+      }
+      resetDraft();
+      setCollection(nextCollection);
+    },
+    [collection, confirmDiscardDraft, resetDraft],
+  );
+
+  const handleClearEditor = useCallback(async () => {
+    if (await confirmDiscardDraft()) {
+      resetDraft();
+    }
+  }, [confirmDiscardDraft, resetDraft]);
+
+  const handleReferenceNote = useCallback(() => {
+    if (selectedNote && !archived) {
+      onReferenceNote?.(selectedNote);
+    }
+  }, [archived, onReferenceNote, selectedNote]);
+
+  const handleCollectionTabKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLButtonElement>) => {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight" && event.key !== "Home" && event.key !== "End") {
+        return;
+      }
+      event.preventDefault();
+      const nextCollection = event.key === "ArrowLeft" || event.key === "Home" ? "active" : "archive";
+      const nextTab = event.currentTarget.parentElement?.querySelector<HTMLButtonElement>(
+        `[data-note-collection="${nextCollection}"]`,
+      );
+      nextTab?.focus();
+      void handleCollectionChange(nextCollection);
+    },
+    [handleCollectionChange],
+  );
+
+  const handleWorkbenchKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      if (!archived && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        void handleSave();
+      }
+    },
+    [archived, handleSave],
+  );
+
+  useEffect(() => {
+    if (
+      !workspaceId ||
+      !focusNoteId ||
+      lastHandledFocusRequestRef.current === focusRequestKey
+    ) {
+      return;
+    }
+    lastHandledFocusRequestRef.current = focusRequestKey;
+    void (async () => {
+      if (!(await confirmDiscardDraft())) {
+        return;
+      }
+      if (archived) {
+        setCollection("active");
+      }
+      openNote(focusNoteId);
+    })();
+  }, [archived, confirmDiscardDraft, focusNoteId, focusRequestKey, openNote, workspaceId]);
 
   const previewNote = selectedNote;
   const saveLabel = selectedId && !archived ? t("noteCards.saveUpdate") : t("noteCards.saveCreate");
@@ -498,9 +685,19 @@ export function WorkspaceNoteCardPanel({
     path: buildNoteCardStorageHintPath(projectName),
   });
   const isListEmpty = items.length === 0;
+  const hasMeaningfulDraft = Boolean(titleDraft.trim() || bodyDraft.trim() || attachmentDrafts.length > 0);
+  const saveStatusLabel = saving
+    ? t("noteCards.saveStatusSaving")
+    : saveError
+      ? t("noteCards.saveStatusError")
+      : isDraftDirty
+        ? t("noteCards.saveStatusDirty")
+        : selectedNote
+          ? t("noteCards.saveStatusSaved")
+          : t("noteCards.saveStatusIdle");
 
   return (
-    <div className="workspace-note-cards-panel">
+    <div className="workspace-note-cards-panel" onKeyDown={handleWorkbenchKeyDown}>
       <header className="workspace-note-cards-topbar">
         <div className="workspace-note-cards-topbar-main">
           <span className="workspace-note-cards-title-icon" aria-hidden>
@@ -509,6 +706,7 @@ export function WorkspaceNoteCardPanel({
           <div className="workspace-note-cards-title-block">
             <h2>{t("noteCards.title")}</h2>
             <p>{t("noteCards.subtitle")}</p>
+            <p className="workspace-note-cards-storage-meta">{storageHint}</p>
           </div>
           <div className="workspace-note-cards-header-actions">
             <button
@@ -523,7 +721,7 @@ export function WorkspaceNoteCardPanel({
             <button
               type="button"
               className="workspace-note-cards-primary-action"
-              onClick={handleCreateNote}
+              onClick={() => void handleCreateNote()}
               aria-label={t("noteCards.new")}
               title={t("noteCards.new")}
             >
@@ -538,8 +736,11 @@ export function WorkspaceNoteCardPanel({
               type="button"
               role="tab"
               aria-selected={!archived}
+              aria-controls="workspace-note-cards-collection"
+              data-note-collection="active"
               className={`workspace-note-cards-collection-tab${!archived ? " is-active" : ""}`}
-              onClick={() => setCollection("active")}
+              onClick={() => void handleCollectionChange("active")}
+              onKeyDown={handleCollectionTabKeyDown}
             >
               {t("noteCards.pool")}
             </button>
@@ -547,8 +748,11 @@ export function WorkspaceNoteCardPanel({
               type="button"
               role="tab"
               aria-selected={archived}
+              aria-controls="workspace-note-cards-collection"
+              data-note-collection="archive"
               className={`workspace-note-cards-collection-tab${archived ? " is-active" : ""}`}
-              onClick={() => setCollection("archive")}
+              onClick={() => void handleCollectionChange("archive")}
+              onKeyDown={handleCollectionTabKeyDown}
             >
               {t("noteCards.archive")}
             </button>
@@ -560,6 +764,8 @@ export function WorkspaceNoteCardPanel({
               onChange={(event) => setQuery(event.target.value)}
               placeholder={t("noteCards.searchPlaceholder")}
               aria-label={t("noteCards.searchPlaceholder")}
+              name="workspace-note-card-search"
+              autoComplete="off"
             />
             {query ? (
               <button
@@ -575,7 +781,12 @@ export function WorkspaceNoteCardPanel({
         </div>
       </header>
 
-      <section className={`workspace-note-cards-list${isListEmpty ? " is-empty" : ""}`}>
+      <div className="workspace-note-cards-workbench">
+      <section
+        id="workspace-note-cards-collection"
+        className={`workspace-note-cards-list${isListEmpty ? " is-empty" : ""}`}
+        aria-label={archived ? t("noteCards.archive") : t("noteCards.pool")}
+      >
         {isListEmpty ? (
           <div className="workspace-note-cards-empty">{emptyMessage}</div>
         ) : (
@@ -589,7 +800,7 @@ export function WorkspaceNoteCardPanel({
                 <button
                   type="button"
                   className="workspace-note-cards-card-main"
-                  onClick={() => handleSelectCard(item.id)}
+                  onClick={() => void handleSelectCard(item.id)}
                   aria-pressed={isSelected}
                 >
                   <div className="workspace-note-cards-card-head">
@@ -628,15 +839,11 @@ export function WorkspaceNoteCardPanel({
                       <Archive size={13} aria-hidden />
                     </button>
                   )}
-                  <button
-                    type="button"
-                    className="ghost workspace-note-cards-icon-action workspace-note-cards-danger"
-                    onClick={() => void handleDelete(item.id, item.title)}
-                    aria-label={t("noteCards.deleteAction")}
-                    title={t("noteCards.deleteAction")}
-                  >
-                    <Trash2 size={13} aria-hidden />
-                  </button>
+                  <NoteCardDeleteMenu
+                    triggerLabel={t("noteCards.moreActions")}
+                    deleteLabel={t("noteCards.deleteAction")}
+                    onDelete={() => void handleDelete(item.id, item.title)}
+                  />
                 </div>
               </article>
             );
@@ -652,22 +859,31 @@ export function WorkspaceNoteCardPanel({
               <span>{selectedId ? t("noteCards.selectedHint") : t("noteCards.editorHintShort")}</span>
             </div>
             <div className="workspace-note-cards-head-actions">
-              {selectedId ? (
+              {selectedNote && onReferenceNote ? (
                 <button
                   type="button"
-                  className="ghost workspace-note-cards-icon-action workspace-note-cards-danger"
-                  onClick={() => void handleDelete(selectedId, selectedNote?.title ?? titleDraft)}
-                  aria-label={t("noteCards.deleteAction")}
-                  title={t("noteCards.deleteAction")}
+                  className="workspace-note-cards-reference-action"
+                  onClick={handleReferenceNote}
+                  disabled={isDraftDirty}
+                  title={isDraftDirty ? t("noteCards.referenceSaveFirst") : t("noteCards.referenceInChat")}
                 >
-                  <Trash2 size={14} aria-hidden />
+                  <MessageSquarePlus size={14} aria-hidden />
+                  <span>{t("noteCards.referenceInChat")}</span>
                 </button>
+              ) : null}
+              {selectedId ? (
+                <NoteCardDeleteMenu
+                  triggerLabel={t("noteCards.moreActions")}
+                  deleteLabel={t("noteCards.deleteAction")}
+                  iconSize={14}
+                  onDelete={() => void handleDelete(selectedId, selectedNote?.title ?? titleDraft)}
+                />
               ) : null}
               {selectedId ? (
                 <button
                   type="button"
                   className="ghost workspace-note-cards-icon-action"
-                  onClick={resetDraft}
+                  onClick={() => void handleClearEditor()}
                   aria-label={t("noteCards.clear")}
                   title={t("noteCards.clear")}
                 >
@@ -683,6 +899,8 @@ export function WorkspaceNoteCardPanel({
               onChange={(event) => setTitleDraft(event.target.value)}
               placeholder={t("noteCards.titlePlaceholder")}
               aria-label={t("noteCards.titlePlaceholder")}
+              name="workspace-note-card-title"
+              autoComplete="off"
             />
             <RichTextInput
               value={bodyDraft}
@@ -710,15 +928,25 @@ export function WorkspaceNoteCardPanel({
                 </button>
               )}
               footerRight={(
-                <button
-                  type="button"
-                  className="workspace-note-cards-save"
-                  onClick={() => void handleSave()}
-                  disabled={saving || !workspaceId}
-                >
-                  <Save size={14} aria-hidden />
-                  <span>{saveLabel}</span>
-                </button>
+                <div className="workspace-note-cards-save-group">
+                  <span
+                    className={`workspace-note-cards-save-status${saveError ? " is-error" : isDraftDirty ? " is-dirty" : ""}`}
+                    role="status"
+                    aria-live="polite"
+                  >
+                    {saveStatusLabel}
+                  </span>
+                  <button
+                    type="button"
+                    className="workspace-note-cards-save"
+                    onClick={() => void handleSave()}
+                    disabled={saving || !workspaceId || !hasMeaningfulDraft || !isDraftDirty}
+                    title={t("noteCards.saveShortcut")}
+                  >
+                    <Save size={14} aria-hidden />
+                    <span>{saveLabel}</span>
+                  </button>
+                </div>
               )}
             />
           </div>
@@ -750,15 +978,13 @@ export function WorkspaceNoteCardPanel({
                   >
                     <Undo2 size={14} aria-hidden />
                   </button>
-                  <button
-                    type="button"
-                    className="ghost workspace-note-cards-inline-action workspace-note-cards-icon-action workspace-note-cards-danger"
-                    onClick={() => void handleDelete(previewNote.id, previewNote.title)}
-                    aria-label={t("noteCards.deleteAction")}
-                    title={t("noteCards.deleteAction")}
-                  >
-                    <Trash2 size={14} aria-hidden />
-                  </button>
+                  <NoteCardDeleteMenu
+                    triggerLabel={t("noteCards.moreActions")}
+                    deleteLabel={t("noteCards.deleteAction")}
+                    iconSize={14}
+                    triggerClassName="ghost workspace-note-cards-inline-action workspace-note-cards-icon-action"
+                    onDelete={() => void handleDelete(previewNote.id, previewNote.title)}
+                  />
                 </div>
               </div>
               <Markdown
@@ -804,12 +1030,11 @@ export function WorkspaceNoteCardPanel({
           )}
         </section>
       )}
+      </div>
 
       {error ? (
-        <div className="workspace-note-cards-error">{error}</div>
+        <div className="workspace-note-cards-error" role="status" aria-live="polite">{error}</div>
       ) : null}
-
-      <p className="workspace-note-cards-storage-hint" title={storageHint}>{storageHint}</p>
 
       {imagePreview ? (
         <ImagePreviewOverlay
