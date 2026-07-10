@@ -723,10 +723,11 @@ pub fn engine_event_to_app_server_event_with_turn_context(
             // for RequestUserInput, so `itemId: item_id` pinned the card to the
             // top of the turn (it rendered right after the assistant message's
             // first block, then got buried as the turn streamed on). A unique,
-            // non-matching itemId makes the frontend use its tail placement,
-            // where the sticky ask-card CSS pins the box above the composer; it
-            // also gives the settled ask its own item id instead of reusing the
-            // assistant message item. turnId stays as item_id for turn context.
+            // non-matching itemId makes the frontend fall back to its default
+            // tail placement, so the card renders at the bottom of the turn near
+            // the composer; it also gives the settled ask its own item id instead
+            // of reusing the assistant message item. turnId stays as item_id for
+            // turn context.
             let ask_item_id = format!("askuserquestion-{}", stringify_value(request_id));
             json!({
                 "method": "item/tool/requestUserInput",
@@ -1108,7 +1109,7 @@ mod tests {
         // (resolve_claude_realtime_item_id falls through to assistant_item_id),
         // which anchored it to the top of the turn. It must carry its own
         // request-scoped itemId so the frontend renders it at the conversation
-        // tail (where the sticky ask-card CSS pins it above the composer).
+        // tail (the bottom of the turn, near the composer).
         let event = EngineEvent::RequestUserInput {
             workspace_id: "ws-ask".to_string(),
             request_id: json!("ask-req-1"),
