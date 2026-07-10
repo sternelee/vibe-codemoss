@@ -35,8 +35,7 @@
     ],
     "resources": {
       "infoplist/**/*": "./",
-      "../dist/*": "dist/",
-      "../dist/assets/**/*": "dist/assets/",
+      "../dist/index.html": "web/",
       "resources/curated-skills": "curated-skills",
       "../skills-lock.json": "."
     },

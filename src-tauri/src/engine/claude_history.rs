@@ -20,8 +20,9 @@ use tokio::sync::Semaphore;
 use tokio::time::timeout;
 
 use super::claude_history_entries::{
-    classify_claude_history_entry, extract_text_from_content, ClaudeHistoryEntryClassification,
-    ClaudeHistoryHiddenReason, ClaudeLocalControlEvent, CLAUDE_CONTROL_EVENT_TOOL_TYPE,
+    classify_claude_history_entry, extract_command_prompt_text, extract_text_from_content,
+    ClaudeHistoryEntryClassification, ClaudeHistoryHiddenReason, ClaudeLocalControlEvent,
+    CLAUDE_CONTROL_EVENT_TOOL_TYPE,
 };
 use super::claude_history_large_payload::{
     estimate_base64_decoded_bytes, extract_images_and_deferred_from_content,
@@ -39,7 +40,10 @@ pub(crate) const CLAUDE_ATTRIBUTION_REASON_PROJECT_DIRECTORY: &str = "claude-pro
 const CLAUDE_ATTRIBUTION_REASON_TRANSCRIPT_CWD: &str = "claude-transcript-cwd";
 const CLAUDE_ATTRIBUTION_REASON_GIT_ROOT: &str = "claude-git-root";
 const CLAUDE_SOURCE_FACT_CACHE_SCHEMA_VERSION: u32 = 1;
-const CLAUDE_SOURCE_FACT_SCANNER_VERSION: u32 = 2;
+// v3: first_real_user_message now unwraps slash-command tags (args first)
+// and keeps up to 60 chars, so stale cached previews must be rebuilt.
+const CLAUDE_SOURCE_FACT_SCANNER_VERSION: u32 = 3;
+const CLAUDE_SESSION_TITLE_PREVIEW_MAX_CHARS: usize = 60;
 fn normalize_session_id(session_id: &str) -> Result<String, String> {
     normalize_claude_session_id(session_id)
 }
@@ -791,7 +795,10 @@ async fn scan_session_source_file(
 
             if let Some(content) = msg.and_then(|m| m.get("content")) {
                 if let Some(text) = extract_text_from_content(content) {
-                    first_user_message = Some(truncate(&text, 45));
+                    first_user_message = Some(truncate(
+                        &extract_command_prompt_text(&text),
+                        CLAUDE_SESSION_TITLE_PREVIEW_MAX_CHARS,
+                    ));
                 }
             }
         }
@@ -963,7 +970,7 @@ async fn scan_subagent_session_file(
     .await?;
     summary.session_id = subagent_session_id.to_session_id();
     if let Some(description) = description {
-        summary.first_message = truncate(&description, 45);
+        summary.first_message = truncate(&description, CLAUDE_SESSION_TITLE_PREVIEW_MAX_CHARS);
     }
     summary.parent_session_id = Some(parent_session_id.to_string());
     summary.subagent_type = subagent_type;
@@ -1030,7 +1037,8 @@ async fn scan_subagent_source_file(
         fact.display_session_id = fact.canonical_session_id.clone();
         fact.parent_session_id = Some(parent_session_id.to_string());
         if let Some(description) = description {
-            fact.first_real_user_message = Some(truncate(&description, 45));
+            fact.first_real_user_message =
+                Some(truncate(&description, CLAUDE_SESSION_TITLE_PREVIEW_MAX_CHARS));
         }
         fact.subagent_type = subagent_type;
     }

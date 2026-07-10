@@ -77,3 +77,11 @@ objc2-app-kit = { version = "0.3", features = ["NSAppearance", "NSResponder", "N
 objc2-foundation = { version = "0.3", features = ["NSString"] }
 objc2-av-foundation = { version = "0.3", features = ["AVCaptureDevice", "AVMediaFormat"] }
 block2 = "0.6"
+
+# Binary size: strip + fat LTO + size-biased opt (whisper.cpp C code keeps its own -O3).
+# No panic="abort": tokio task isolation relies on unwinding; a task panic must not kill the app.
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+opt-level = "s"

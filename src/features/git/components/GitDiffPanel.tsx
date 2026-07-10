@@ -1,5 +1,9 @@
 import type { GitHubPullRequest, GitLogEntry } from "../../../types";
-import type { CommitMessageEngine } from "../../../services/tauri";
+import type { CommitMessageEngine, CommitMessageLanguage } from "../../../services/tauri";
+import {
+  readLastCommitMessageConfig,
+  saveLastCommitMessageConfig,
+} from "../../../utils/commitMessage";
 import type {
   KeyboardEvent as ReactKeyboardEvent,
   MouseEvent as ReactMouseEvent,
@@ -1653,17 +1657,35 @@ function GitDiffPanelImpl({
   ) : (
     <Upload size={12} aria-hidden />
   );
+  const selectedPathsForGeneration = useMemo(
+    () =>
+      selectedCommitCount > 0
+        ? selectedCommitPaths
+        : hasExplicitCommitSelection
+          ? []
+          : undefined,
+    [selectedCommitCount, selectedCommitPaths, hasExplicitCommitSelection],
+  );
+  const generateCommitMessageWithConfig = useCallback(
+    async (language: CommitMessageLanguage, engine: CommitMessageEngine) => {
+      if (!onGenerateCommitMessage) {
+        return;
+      }
+      setCommitMessageMenuEngine(engine);
+      saveLastCommitMessageConfig({ engine, language });
+      if (selectedPathsForGeneration) {
+        await onGenerateCommitMessage(language, engine, selectedPathsForGeneration);
+        return;
+      }
+      await onGenerateCommitMessage(language, engine);
+    },
+    [onGenerateCommitMessage, selectedPathsForGeneration],
+  );
   const showCommitMessageLanguageMenu = useCallback(
     (engine: CommitMessageEngine, position: { x: number; y: number }) => {
       if (!onGenerateCommitMessage || commitMessageLoading || commitLoading || !canGenerateCommitMessage) {
         return;
       }
-      const selectedPathsForGeneration =
-        selectedCommitCount > 0
-          ? selectedCommitPaths
-          : hasExplicitCommitSelection
-            ? []
-            : undefined;
       setGitContextMenu({
         ...position,
         label: t("git.generateCommitMessage"),
@@ -1672,27 +1694,13 @@ function GitDiffPanelImpl({
             type: "item",
             id: "commit-message-zh",
             label: t("git.generateCommitMessageChinese"),
-            onSelect: async () => {
-              setCommitMessageMenuEngine(engine);
-              if (selectedPathsForGeneration) {
-                await onGenerateCommitMessage("zh", engine, selectedPathsForGeneration);
-                return;
-              }
-              await onGenerateCommitMessage("zh", engine);
-            },
+            onSelect: () => generateCommitMessageWithConfig("zh", engine),
           },
           {
             type: "item",
             id: "commit-message-en",
             label: t("git.generateCommitMessageEnglish"),
-            onSelect: async () => {
-              setCommitMessageMenuEngine(engine);
-              if (selectedPathsForGeneration) {
-                await onGenerateCommitMessage("en", engine, selectedPathsForGeneration);
-                return;
-              }
-              await onGenerateCommitMessage("en", engine);
-            },
+            onSelect: () => generateCommitMessageWithConfig("en", engine),
           },
         ],
       });
@@ -1701,10 +1709,8 @@ function GitDiffPanelImpl({
       canGenerateCommitMessage,
       commitLoading,
       commitMessageLoading,
+      generateCommitMessageWithConfig,
       onGenerateCommitMessage,
-      selectedCommitCount,
-      selectedCommitPaths,
-      hasExplicitCommitSelection,
       t,
     ],
   );
@@ -1717,8 +1723,9 @@ function GitDiffPanelImpl({
       }
       const position = clampRendererContextMenuPosition(event.clientX, event.clientY, {
         width: 260,
-        height: 180,
+        height: 230,
       });
+      const lastConfig = readLastCommitMessageConfig();
       const engineItems: Array<{ engine: CommitMessageEngine; label: string }> = [
         { engine: "codex", label: t("git.generateCommitMessageEngineCodex") },
         { engine: "claude", label: t("git.generateCommitMessageEngineClaude") },
@@ -1728,26 +1735,42 @@ function GitDiffPanelImpl({
       setGitContextMenu({
         ...position,
         label: t("git.generateCommitMessage"),
-        items: engineItems.map(({ engine, label }) => ({
-          type: "item",
-          id: `commit-message-engine-${engine}`,
-          label,
-          onSelect: () => {
-            if (deferredCommitLanguageMenuTimerRef.current !== null) {
-              window.clearTimeout(deferredCommitLanguageMenuTimerRef.current);
-            }
-            deferredCommitLanguageMenuTimerRef.current = window.setTimeout(() => {
-              deferredCommitLanguageMenuTimerRef.current = null;
-              showCommitMessageLanguageMenu(engine, position);
-            }, 0);
+        items: [
+          {
+            type: "item",
+            id: "commit-message-last-config",
+            label: t("git.generateCommitMessageLastConfig"),
+            disabled: !lastConfig,
+            onSelect: async () => {
+              if (!lastConfig) {
+                return;
+              }
+              await generateCommitMessageWithConfig(lastConfig.language, lastConfig.engine);
+            },
           },
-        })),
+          { type: "separator", id: "commit-message-last-config-separator" },
+          ...engineItems.map<RendererContextMenuItem>(({ engine, label }) => ({
+            type: "item",
+            id: `commit-message-engine-${engine}`,
+            label,
+            onSelect: () => {
+              if (deferredCommitLanguageMenuTimerRef.current !== null) {
+                window.clearTimeout(deferredCommitLanguageMenuTimerRef.current);
+              }
+              deferredCommitLanguageMenuTimerRef.current = window.setTimeout(() => {
+                deferredCommitLanguageMenuTimerRef.current = null;
+                showCommitMessageLanguageMenu(engine, position);
+              }, 0);
+            },
+          })),
+        ],
       });
     },
     [
       canGenerateCommitMessage,
       commitLoading,
       commitMessageLoading,
+      generateCommitMessageWithConfig,
       onGenerateCommitMessage,
       showCommitMessageLanguageMenu,
       t,

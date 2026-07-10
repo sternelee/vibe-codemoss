@@ -40,6 +40,26 @@ pub(crate) async fn maybe_start_local_daemon_for_remote(
     let daemon_binary = resolve_or_build_daemon_binary(app).await?;
 
     let mut command = crate::utils::async_command(&daemon_binary);
+    // Packaged builds no longer bundle a dist copy for the web service; export
+    // the embedded frontend once per version and point the daemon at it. Dev
+    // builds keep resolving the repo dist through the daemon's own candidates.
+    if !cfg!(debug_assertions) {
+        let app_for_export = app.clone();
+        let export_result = tauri::async_runtime::spawn_blocking(move || {
+            super::assets_export::ensure_web_assets_export(&app_for_export)
+        })
+        .await
+        .map_err(|error| error.to_string())
+        .and_then(|result| result);
+        match export_result {
+            Ok(assets_dir) => {
+                command.env("MOSSX_WEB_ASSETS_DIR", &assets_dir);
+            }
+            Err(error) => {
+                log::warn!("[web-service] failed to export web assets for daemon: {error}");
+            }
+        }
+    }
     command.arg("--listen").arg(&resolved_host);
     if let Some(token) = token.and_then(|value| {
         let trimmed = value.trim();

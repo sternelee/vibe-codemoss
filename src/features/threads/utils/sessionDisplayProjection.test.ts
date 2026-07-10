@@ -13,6 +13,11 @@ describe("sessionDisplayProjection", () => {
     expect(isWeakSessionDisplayTitle("分析左侧栏消失问题")).toBe(false);
   });
 
+  it("classifies clipped raw command-tag names as weak titles", () => {
+    expect(isWeakSessionDisplayTitle("<command-m")).toBe(true);
+    expect(isWeakSessionDisplayTitle("<local-command-stdout>")).toBe(true);
+  });
+
   it("keeps a meaningful title when a later candidate only has Agent N", () => {
     const previous: ThreadSummary = {
       id: "claude:session-1",

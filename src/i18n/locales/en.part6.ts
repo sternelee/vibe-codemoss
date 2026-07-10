@@ -411,6 +411,7 @@ const enPart6 = {
     hideExitedSessions: "Hide exited sessions",
     showExitedSessions: "Show exited sessions",
     exitedSessionsHidden: "{{count}} exited hidden",
+    subagentTag: "Subagent",
     subagentTreeExpanded: "Subagent tree expanded",
     subagentTreeExpand: "Expand subagent tree",
     subagentTreeCollapse: "Collapse subagent tree",

@@ -272,6 +272,34 @@ fn has_non_empty_command_args(text: &str) -> bool {
     !after[..end].trim().is_empty()
 }
 
+fn find_tag_content<'a>(text: &'a str, tag: &str) -> Option<&'a str> {
+    let open = format!("<{tag}>");
+    let close = format!("</{tag}>");
+    let start = text.find(&open)? + open.len();
+    let end = text[start..].find(&close)? + start;
+    Some(text[start..end].trim())
+}
+
+/// Mirrors the frontend extractCommandMessagePromptText: slash-command user
+/// records carry the real prompt in <command-args> (preferred), falling back
+/// to the command description/name, so session title previews surface the
+/// prompt instead of raw markup.
+pub(crate) fn extract_command_prompt_text(text: &str) -> String {
+    if !text.contains("<command-") {
+        return text.to_string();
+    }
+    [
+        find_tag_content(text, "command-args"),
+        find_tag_content(text, "command-message"),
+        find_tag_content(text, "command-name"),
+    ]
+    .into_iter()
+    .flatten()
+    .find(|part| !part.is_empty())
+    .unwrap_or(text)
+    .to_string()
+}
+
 fn is_user_role(entry: &Value, msg: &Value) -> bool {
     entry.get("role").and_then(Value::as_str) == Some("user")
         || msg.get("role").and_then(Value::as_str) == Some("user")
