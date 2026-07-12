@@ -247,3 +247,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 976: 全局搜索结果分层
+
+**Date**: 2026-07-13
+**Task**: 全局搜索结果分层
+**Branch**: `feature/v-0.7.2`
+
+### Summary
+
+全局搜索结果按内容类型分层展示，文件标题改为 basename，完整路径保留为位置元数据，并完成搜索回归与 OpenSpec 验证。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2577fd6f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
