@@ -112,6 +112,22 @@ describe("Messages turn files changed cards", () => {
     expect(sessionCard?.textContent ?? "").toContain("b.ts");
   });
 
+  it("pins the completed turn's inline card and hides the session card while a new turn is pending", () => {
+    const { container } = renderMessages([
+      userMessage("u1"),
+      editTool("t1", "src/a.ts", "old", "new\nnew2"),
+      finalAssistant("a1"),
+      // 用户又发了新问题，本回合还没有最终回复 = 有新回合进行中
+      userMessage("u2"),
+    ]);
+
+    // 上一轮的汇总钉在它自己的回合边界（内联卡），不再飘到末尾
+    const cards = container.querySelectorAll(".turn-files-changed-card");
+    expect(cards).toHaveLength(1);
+    // 末尾会话累计卡在新回合进行中时不渲染，避免落到新问题之后
+    expect(container.querySelector(".messages-session-files-changed")).toBeNull();
+  });
+
   it("renders no cards when the conversation has no file edits", () => {
     const { container } = renderMessages([
       userMessage("u1"),

@@ -196,6 +196,7 @@ type MessagesTimelineProps = {
   messageActionTargetByAssistantId: Map<string, string>;
   messageCopyTextByAssistantId: Map<string, string>;
   latestFinalAssistantMessageId: string | null;
+  hasPendingUserTurn: boolean;
   pendingJumpMessageId: string | null;
   onPendingJumpTargetReady: (messageId: string) => void;
   onForkFromMessage?: (messageId: string) => void;
@@ -354,6 +355,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
   messageActionTargetByAssistantId,
   messageCopyTextByAssistantId,
   latestFinalAssistantMessageId,
+  hasPendingUserTurn,
   pendingJumpMessageId,
   onPendingJumpTargetReady,
   onForkFromMessage,
@@ -1433,10 +1435,12 @@ export const MessagesTimeline = memo(function MessagesTimeline({
         renderItem.isFinal === true &&
         assistantFinalBoundarySet.has(renderItem.id) &&
         !assistantLiveTurnFinalBoundarySuppressedSet.has(renderItem.id);
-      // 最后一轮的汇总由时间线末尾的会话累计卡承载，内联卡只回溯更早轮次。
+      // 空闲时最后一轮的汇总由时间线末尾的会话累计卡承载，内联卡只回溯更早轮次；
+      // 一旦有新回合进行中（hasPendingUserTurn），末尾累计卡会落到新问题之后，
+      // 此时改由这一轮的内联卡把汇总钉在它自己的回合边界上。
       const turnFilesChangedSummary =
         shouldRenderFinalBoundary &&
-        renderItem.id !== latestFinalAssistantMessageId
+        (renderItem.id !== latestFinalAssistantMessageId || hasPendingUserTurn)
           ? turnFileChangesByBoundaryId.get(renderItem.id) ?? null
           : null;
       const finalMetaParts: string[] = [];
@@ -2216,7 +2220,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
           </div>
         )}
         {shouldVirtualizeTimeline ? renderVirtualProjectionRows() : renderStaticProjectionRows()}
-        {sessionFileChangesSummary && (
+        {sessionFileChangesSummary && !hasPendingUserTurn && (
           <div className="messages-session-files-changed">
             <TurnFilesChangedCard summary={sessionFileChangesSummary} />
           </div>
