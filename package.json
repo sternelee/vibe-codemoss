@@ -137,6 +137,11 @@
     "web-vitals": "^4.2.4",
     "xlsx": "^0.18.5"
   },
+  "overrides": {
+    "radix-ui": {
+      "@radix-ui/react-presence": "1.1.6"
+    }
+  },
   "devDependencies": {
     "@tauri-apps/cli": "^2.9.6",
     "@testing-library/react": "^16.3.2",
