@@ -346,3 +346,45 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 979: 收口 Web 资源分发与首次启动稳定性
+
+**Date**: 2026-07-13
+**Task**: 收口 Web 资源分发与首次启动稳定性
+**Branch**: `feature/v-0.7.2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| 模块 | 完成内容 |
+|---|---|
+| React 稳定性 | 将 radix-ui 内的 @radix-ui/react-presence 固定到 1.1.6，修复生产包首次启动 React #185 崩溃。 |
+| Web 资源安装 | 完成 GitHub Release ZIP 下载、SHA-256 校验、本地包选择、原子覆盖安装、状态检测与操作反馈。 |
+| Daemon 服务 | 从应用数据目录的 web-assets/current 加载前端资源，并保留失败时的有效已安装版本。 |
+| Release | 新增可选 Web 资源产物；Web ZIP 缺失或构建失败不阻断 macOS、Windows、Linux 原有发布。 |
+
+**验证结果**：typecheck、lint、build、174 个 focused frontend tests、20 个 Rust tests、runtime contracts、OpenSpec strict validation、release archive smoke 均通过；完整测试仅保留 3 个与本次 diff 无关的 Sidebar 既有失败。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1173ae67` | (see git log) |
+| `27c501a7` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
