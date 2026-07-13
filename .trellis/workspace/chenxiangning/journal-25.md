@@ -422,3 +422,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 981: 修复 Messages 自动滚底锚点更新回环
+
+**Date**: 2026-07-13
+**Task**: 修复 Messages 自动滚底锚点更新回环
+**Branch**: `feature/v-0.7.2`
+
+### Summary
+
+定位并修复 long conversation streaming、virtualized row measurement 与 bottom-follow 共同触发的 active anchor state feedback。near-bottom 时稳定选择 latest user anchor，scroll-away 后保留原 viewport geometry tracking；补充 focused regression test 与 OpenSpec change，相关测试、lint、typecheck、build 和 strict validation 均通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b27891b0` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
