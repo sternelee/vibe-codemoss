@@ -247,6 +247,7 @@ type MessagesTimelineProps = {
   proxyUrl: string | null;
   reasoningMetaById: Map<string, ReturnType<typeof parseReasoning>>;
   requestAutoScroll: () => void;
+  requestBottomConvergence: () => void;
   selectedExitPlanExecutionByItemKey: Record<string, Extract<AccessMode, "default" | "full-access">>;
   scrollElementRef: RefObject<HTMLDivElement | null>;
   showFileLinkMenu?: (event: React.MouseEvent, path: string) => void;
@@ -393,6 +394,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
   proxyUrl,
   reasoningMetaById,
   requestAutoScroll,
+  requestBottomConvergence,
   selectedExitPlanExecutionByItemKey,
   scrollElementRef,
   showFileLinkMenu,
@@ -1298,12 +1300,9 @@ export const MessagesTimeline = memo(function MessagesTimeline({
       return undefined;
     }
     // 历史会话应默认落在底部（最新消息处），而不是顶部。
-    const pinScrollToBottom =
-      scrollElement && reset.shouldResetScroll
-        ? () => {
-            scrollElement.scrollTo({ top: scrollElement.scrollHeight, behavior: "auto" });
-          }
-        : null;
+    const pinScrollToBottom = scrollElement && reset.shouldResetScroll
+      ? requestBottomConvergence
+      : null;
     pinScrollToBottom?.();
     if (typeof window === "undefined") {
       remeasureTimelineVirtualizerRows(timelineVirtualizer);
@@ -1321,6 +1320,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
     isThinking,
     isWorking,
     pendingJumpMessageId,
+    requestBottomConvergence,
     scrollElementRef,
     shouldVirtualizeTimeline,
     timelineVirtualizer,

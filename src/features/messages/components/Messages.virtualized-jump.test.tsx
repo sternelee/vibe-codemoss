@@ -512,16 +512,19 @@ describe("Messages virtualized jump behavior", () => {
       text: `${oversizedMarkdown}\n\n${index + 1}`,
     }));
 
-    render(
+    const renderWith = (threadId: string | null, visibleItems: ConversationItem[]) => (
       <Messages
-        items={items}
-        threadId="thread-oversized-prompt"
+        items={visibleItems}
+        threadId={threadId}
         workspaceId="ws-heavy"
         isThinking={false}
         activeEngine="claude"
         openTargets={[]}
         selectedOpenAppId=""
-      />,
+      />
+    );
+    const { container, rerender } = render(
+      renderWith("thread-oversized-prompt", items),
     );
 
     expect(screen.getByText("Oversized conversation opened in lightweight mode")).toBeTruthy();
@@ -529,5 +532,25 @@ describe("Messages virtualized jump behavior", () => {
     expect(screen.getAllByRole("button", { name: "Render details" }).length)
       .toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: "Retry full detail" })).toBeNull();
+
+    const scroller = container.querySelector(".messages") as HTMLDivElement;
+    let scrollTop = 0;
+    Object.defineProperties(scroller, {
+      clientHeight: { configurable: true, value: 720 },
+      scrollHeight: { configurable: true, value: 4_000 },
+      scrollTop: {
+        configurable: true,
+        get: () => scrollTop,
+        set: (value: number) => {
+          scrollTop = value;
+        },
+      },
+    });
+
+    rerender(renderWith(null, []));
+    rerender(renderWith("thread-oversized-prompt", items));
+
+    expect(screen.getByText("Oversized conversation opened in lightweight mode")).toBeTruthy();
+    expect(scroller.scrollTop).toBe(4_000 - 720);
   });
 });
