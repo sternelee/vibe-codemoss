@@ -521,3 +521,85 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 984: 补齐新增文件 diff 入口
+
+**Date**: 2026-07-14
+**Task**: 补齐新增文件 diff 入口
+**Branch**: `feature/v-0.7.2`
+
+### Summary
+
+消息幕布对 added 且缺少 inline diff 的文件复用 canonical Git diff 入口；保留已有 inline preview 与其他 change kind 行为，并补充 focused tests 和 OpenSpec artifacts。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8b8b919b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 985: 统一对话幕布钉底与回刷时序
+
+**Date**: 2026-07-14
+**Task**: 统一对话幕布钉底与回刷时序
+**Branch**: `feature/v-0.7.2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+## 对话幕布统一钉底与生命周期收口
+
+| 项目 | 内容 |
+|---|---|
+| Scroll owner | 将 history、live、settle、Timeline 与右下角控制统一到单一 convergence owner。 |
+| Late render | 保留即时反馈，并增加 100/300/1000/2000ms true-bottom checkpoints。 |
+| Lifecycle | 修复 active-first、同 thread 关闭重开、连续多轮 settle 与 lightweight/oversized 回刷时序。 |
+| Stability | stable edge 零写入，避免 scroll/anchor/measure 反馈环与 Maximum update depth。 |
+| Verification | 相关扩大回归 91 passed / 5 skipped；typecheck、ESLint、OpenSpec strict 404/404 通过。全量测试仍由 3 个既有 Sidebar 断言失败阻断。 |
+
+**关键文件**：
+- `src/features/messages/components/Messages.tsx`
+- `src/features/messages/components/messagesScrollConvergence.ts`
+- `src/features/messages/components/MessagesTimeline.tsx`
+- `src/features/messages/components/ScrollControl.tsx`
+- `openspec/changes/unify-conversation-scroll-bottom-convergence/`
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `cb028740` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
