@@ -521,3 +521,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 984: 补齐新增文件 diff 入口
+
+**Date**: 2026-07-14
+**Task**: 补齐新增文件 diff 入口
+**Branch**: `feature/v-0.7.2`
+
+### Summary
+
+消息幕布对 added 且缺少 inline diff 的文件复用 canonical Git diff 入口；保留已有 inline preview 与其他 change kind 行为，并补充 focused tests 和 OpenSpec artifacts。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8b8b919b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
