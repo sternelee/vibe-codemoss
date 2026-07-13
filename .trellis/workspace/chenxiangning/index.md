@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-25.md`
-- **Total Sessions**: 979
+- **Total Sessions**: 980
 - **Last Active**: 2026-07-13
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-25.md` | ~390 | Active |
+| `journal-25.md` | ~424 | Active |
 | `journal-24.md` | ~1994 | Archived |
 | `journal-23.md` | ~1965 | Archived |
 | `journal-22.md` | ~1969 | Archived |
@@ -53,6 +53,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 980 | 2026-07-13 | 补充 v0.7.2 发布记录并延长 Codex 健康检查超时 | `76c52d81`, `cf17256e` | `feature/v-0.7.2` |
 | 979 | 2026-07-13 | 收口 Web 资源分发与首次启动稳定性 | `1173ae67`, `27c501a7` | `feature/v-0.7.2` |
 | 978 | 2026-07-13 | 根治 Sidebar 首次启动会话行更新回环 | `db663a44` | `feature/v-0.7.2` |
 | 977 | 2026-07-13 | 根治 Tooltip 启动更新回环 | `0d2c5cad` | `feature/v-0.7.2` |

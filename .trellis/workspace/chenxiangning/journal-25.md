@@ -388,3 +388,37 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 980: 补充 v0.7.2 发布记录并延长 Codex 健康检查超时
+
+**Date**: 2026-07-13
+**Task**: 补充 v0.7.2 发布记录并延长 Codex 健康检查超时
+**Branch**: `feature/v-0.7.2`
+
+### Summary
+
+补充 v0.7.1/v0.7.2 中英文发布日志；将 Codex GUI、workspace core 与 daemon 的 session health probe timeout 从 3 秒统一调整为 15 秒，降低冷启动时正常 runtime 被过早清理的概率。cargo check 与 git diff --check 通过；全仓库 cargo fmt --check 仍受既有未格式化文件影响。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `76c52d81` | (see git log) |
+| `cf17256e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
