@@ -488,3 +488,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 983: 修复 AppShell composer 冷启动状态回环
+
+**Date**: 2026-07-13
+**Task**: 修复 AppShell composer 冷启动状态回环
+**Branch**: `feature/v-0.7.2`
+
+### Summary
+
+切断 composer selection cache state 对 reload layout effect 的自反馈，保证 pending 到 canonical selection 连续迁移，并移除 React Scan 内部 signal 强写；相关回归、lint、typecheck、build、OpenSpec 与用户实机验证通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0c198dc7` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
