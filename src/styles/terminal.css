@@ -216,7 +216,10 @@
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: content-box;
-  background-color: var(--sb-thumb-color);
+  /* fallback 到 --scrollbar-thumb:滚动条样式收窄后,全局 `*` 不再兜底赋值
+     --sb-thumb-color,此处裸用会解析失败使滑块透明。终端不套用 .scrollable,
+     故直接取全局滚动条色还原原本表现。 */
+  background-color: var(--sb-thumb-color, var(--scrollbar-thumb));
 }
 
 .terminal-surface .xterm-viewport::-webkit-scrollbar-thumb:hover {
