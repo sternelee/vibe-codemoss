@@ -58,3 +58,19 @@
 
 - Vite dev server 已启动：`http://127.0.0.1:1420/`。
 - 待人工验证 history-open、turn-settle、manual scroll-away、floating top/bottom control。
+
+### Send-time layout-shock / programmatic-echo follow-up
+
+- 根因：发送消息翻转 isWorking 时虚拟化门槛 48→16 以空缓存翻开（或 live 尾窗裁剪），总高度塌缩→钳位→回填；异步派发的程序化 scroll 事件在回填后送达，被 near-bottom 判定误判为用户上滚，解除跟随并取消收敛 run，视口滞留半空。
+- 修复：程序化 scrollTop 指纹环（收敛帧/请求合流/内容高度回调吸收），活跃 instant 收敛期间仅指纹命中按回声豁免；`resolveVirtualizedTimelineScopeReset` 新增 `shouldPinBottomWhenArmed`，虚拟化 OFF↔ON 翻转按 armed 落位（history-open 契约，独立于焦点跟随开关）。
+- Regression: `keeps following when a programmatic-echo scroll event lands after late geometry growth`（live-behavior）；resolver flip-on/flip-off 落位用例（virtualization helper）。
+- Focused Vitest: live-behavior 51 passed; scroll/virtualization/history/jump 扩展面 9 files, 125 passed, 5 skipped。
+- `npm run typecheck`、changed-file ESLint: passed。
+
+### Flip-open remeasure rAF lifecycle follow-up
+
+- 症状：发送第二条消息后，新用户气泡与 working 计时器叠在上一条长回复正文中间，首个 delta 到达后自愈（数秒）。
+- 根因：scope-reset effect 的翻开重测 rAF 挂在 per-run cleanup 上；发送瞬间 isThinking/isWorking/scope key 同帧连续变化，cleanup 在 rAF 执行前吊销它，而 resolver 首翻信号已消费、工作态分支拒绝重排——重测丢失，行保持估高摆放直到 liveRowRemeasure。
+- 修复：rAF 句柄迁移到 `scopeResetRemeasureRafRef`（与 hydration/liveRow 重测同惯用法），新调度替换旧调度，仅在切会话与卸载时取消。
+- Regression: `keeps the flip-open remeasure alive across same-frame dependency churn`（virtualized-jump；已验证恢复旧 cleanup 时该测试失败）。
+- Focused Vitest: 8 files, 117 passed, 5 skipped；`npm run typecheck`、changed-file ESLint: passed。

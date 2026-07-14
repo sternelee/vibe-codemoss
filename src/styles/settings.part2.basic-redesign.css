@@ -280,6 +280,13 @@
   border-radius: 10px;
 }
 
+/* Popup is portaled to <body>, so it lives outside .settings-section-basic.
+   Keep option labels on one line — the default grid item lets CJK text
+   collapse to a 1-char-wide column and stack vertically. */
+.settings-sound-select-popup [data-slot="select-item"] {
+  white-space: nowrap;
+}
+
 .settings-section-basic .settings-sound-select-row-shadcn .settings-sound-test-btn {
   min-width: 92px;
   min-height: 38px;

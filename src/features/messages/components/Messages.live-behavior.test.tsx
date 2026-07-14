@@ -1425,6 +1425,47 @@ describe("Messages live behavior", () => {
     scrollSpy.mockRestore();
   });
 
+  it("keeps following when a programmatic-echo scroll event lands after late geometry growth", () => {
+    // 回归：发送消息触发虚拟化翻开/live 尾窗裁剪时总高度先塌缩再回填。WebKit 的
+    // scroll 事件异步派发，钉底写入产生的事件可能在高度回填之后才送达——事件位置
+    // 离新底部很远，但它是程序化回声而非用户上滚，不能解除跟随并杀掉收敛 run。
+    const scrollSpy = vi
+      .spyOn(HTMLElement.prototype, "scrollIntoView")
+      .mockImplementation(() => {});
+    const { container } = render(
+      <Messages
+        items={[
+          { id: "echo-user", kind: "message", role: "user", text: "go" },
+          { id: "echo-assistant", kind: "message", role: "assistant", text: "partial" },
+        ]}
+        threadId="thread-echo"
+        workspaceId="ws-1"
+        isThinking
+        processingStartedAt={Date.now() - 1_000}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+    const scroller = getMessagesScroller(container);
+
+    let scrollHeight = 2400;
+    setScrollerMetrics(scroller, 1680, () => scrollHeight);
+
+    // 内容变化触发 live-follow 收敛：写入 scrollTop=1680（真实底部），进入回声指纹。
+    notifyContentResized();
+    expect(scroller.scrollTop).toBe(1680);
+
+    // 迟到测高把总高度回填到 6000，随后旧写入的 scroll 事件才送达（位置仍是 1680，
+    // 距新底部 3600px）。指纹命中 → 跟随保持武装，不得释放。
+    scrollHeight = 6000;
+    fireEvent.scroll(scroller);
+
+    // 下一次内容高度信号应把视口追回新的真实底部，而不是滞留在 1680。
+    notifyContentResized();
+    expect(scroller.scrollTop).toBe(6000 - 720);
+    scrollSpy.mockRestore();
+  });
+
   it("re-pins to the bottom after the conversation settles and the timeline back-fills", async () => {
     window.localStorage.setItem("ccgui.messages.live.autoFollow", "1");
     const scrollSpy = vi

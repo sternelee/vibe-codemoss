@@ -67,6 +67,14 @@ history content 首次可用时立即登记 scope 并执行一次 initial placem
 
 turn settlement 使用 `useLayoutEffect` 捕获 `isThinking: true -> false`。完整 timeline back-fill、virtualizer correction 与 lightweight/heavy-row hydration 可能在 passive effect 前改变 geometry；settle intent 必须先于这些异步 scroll/resize signals 启动，避免把布局造成的离底误判为用户 scroll-away。真实 wheel-up、top navigation、anchor jump 与 focus-follow disable 仍走既有 cancel contract。
 
+### Decision 9: 程序化滚动回声指纹环，虚拟化 OFF↔ON 翻转按落位处理
+
+发送消息使 `isWorking` 翻真时，虚拟化门槛从 48 降到 16、live 尾窗裁剪同时生效：timeline 总高度先塌缩到估高之和（长回复估高封顶 260px，真实常上千），浏览器钳位 `scrollTop`，随后重测回填真实高度。WebKit 的 scroll 事件异步派发，钳位/收敛写入产生的事件可能在几何回填之后才送达——此刻按 near-bottom 判定会把程序化回声误判成用户上滚，解除跟随并杀掉收敛 run，视口滞留半空（表现为发送第二条消息后跳顶，幅度随估高误差不定）。
+
+处理：`Messages` 维护跨 run 的程序化 scrollTop 指纹环，收敛帧读/写、请求合流读取、内容高度回调都吸收当前位置；活跃 instant 收敛期间，事件位置命中指纹按回声豁免（保持武装），未命中才是真实用户滚动（拖滚动条/触摸/翻页键），沿用既有释放语义。wheel 的同步释放契约不变。同时虚拟化 OFF↔ON 翻转视作一次布局落位：scope-reset resolver 增加 `shouldPinBottomWhenArmed`，翻转时若用户仍 parked 在底部（`autoScrollRef`），通过 `history-open` 契约（不受焦点跟随开关约束）请求一次统一收敛并重新武装 lifecycle window。
+
+替代方案是活跃 run 期间无差别豁免所有 scroll 事件。拒绝，因为流式期 run 几乎持续活跃，滚动条拖拽/触摸将无法逃逸（重蹈「滚不走」）。
+
 ## Risks / Trade-offs
 
 - [Risk] 每帧读写 scroll geometry 可能增加 layout cost → 只在 active convergence 窗口运行，连续稳定 3 帧即停止；auto mode 直接落位，不做长 smooth animation。

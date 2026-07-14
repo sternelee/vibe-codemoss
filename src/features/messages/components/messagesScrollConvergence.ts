@@ -9,6 +9,12 @@ type ConversationScrollConvergenceOptions = {
   recheckDelaysMs?: readonly number[];
   shouldContinue?: () => boolean;
   onComplete?: (reason: "settled" | "timeout" | "cancelled") => void;
+  /**
+   * 每帧上报本帧读到的 scrollTop（写入前）与写入后的 scrollTop。调用方用它维护
+   * 「程序化回声指纹」：WebKit 的 scroll 事件是异步派发的，钳位/收敛写入产生的
+   * 事件可能在几何继续变化后才送达，只有指纹匹配才能与真实用户滚动区分开。
+   */
+  onFrameObservation?: (observedScrollTop: number, appliedScrollTop: number) => void;
 };
 
 const DEFAULT_MAX_DURATION_MS = 2_000;
@@ -91,8 +97,9 @@ export function startConversationScrollConvergence(
         return;
       }
 
+      const observedScrollTop = container.scrollTop;
       const target = resolveConversationScrollEdgeTarget(container, options.edge);
-      const distance = target - container.scrollTop;
+      const distance = target - observedScrollTop;
       const timedOut = performance.now() - startedAt >= maxDurationMs;
 
       if (Math.abs(distance) > SCROLL_TOLERANCE_PX && (timedOut || options.motion === "instant")) {
@@ -103,6 +110,7 @@ export function startConversationScrollConvergence(
           Math.sign(distance);
         container.scrollTop += Math.abs(stepPx) > Math.abs(distance) ? distance : stepPx;
       }
+      options.onFrameObservation?.(observedScrollTop, container.scrollTop);
 
       const remainingDistance =
         resolveConversationScrollEdgeTarget(container, options.edge) - container.scrollTop;
