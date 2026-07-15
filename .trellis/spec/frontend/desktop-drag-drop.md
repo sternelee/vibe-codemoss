@@ -59,6 +59,7 @@ type UsePasteAndDropOptions = {
   - `main-window://drag-drop` for events forwarded from child WebViews.
 - Rust MUST register a global `Builder::on_webview_event(...)` bridge for `WebviewEvent::DragDrop` when child WebViews can exist above the main app surface.
 - The bridge MUST forward all WebView drag/drop events, including `webview.label() == "main"`. The main native `getCurrentWindow().onDragDropEvent(...)` path is not sufficient as the only delivery path in the current Tauri/Wry runtime.
+- The bridge MUST forward `DragDropEvent::Leave` as `type: "leave"`; frontend consumers MUST clear hover state before position-based hit-testing because native leave events do not carry a meaningful position.
 - `src/services/dragDrop.ts` MUST handle duplicate `drop` payloads idempotently because main WebView drops can arrive through both the native window listener and the forwarded bridge.
 - Rust bridge MUST NOT add `if webview.label() == "main" { return; }`. That optimization breaks the verified macOS external drag-drop path.
 - Forwarded `position` MUST be converted to main-window viewport coordinates before frontend target hit-testing. For child WebViews, add the child WebView physical position offset to the event-local physical position.
@@ -84,11 +85,13 @@ type UsePasteAndDropOptions = {
 | Windows Explorer path | preserves drive-letter path and dedupes case-insensitively | compare raw drive-letter variants as distinct paths |
 | Linux file manager | consumes WebKitGTK drag paths when available | assume Linux opacity support is required |
 | listener teardown | all native and forwarded listeners unlisten together | leak one listener after last subscriber unsubscribes |
+| drag exits application window | forwarded `leave` clears active overlays | wait for DOM `drop` / `dragend` that cannot arrive outside the app |
 
 ### 5. Good / Base / Bad Cases
 
 - Good：main WebView receives the event directly; `dragDrop.ts` dispatches it once to subscribers.
 - Good：Browser Agent child WebView receives the event; Rust forwards `main-window://drag-drop`; `dragDrop.ts` dispatches it to the same subscribers.
+- Good：external drag enters a drop target and then exits the application window; Rust forwards `leave` and every active overlay settles immediately.
 - Base：no child WebViews are mounted; forwarded listener remains idle and harmless.
 - Bad：Browser Agent child WebView handles `DragDropEvent::Drop` only inside the browser module and the main Composer never receives `paths`.
 - Bad：Rust bridge skips `webview.label() == "main"` because it assumes `getCurrentWindow().onDragDropEvent` is always sufficient. This regressed macOS Finder drag-drop after the first successful fix.

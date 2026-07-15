@@ -937,11 +937,11 @@ describe("Sidebar", () => {
     expect(screen.queryByText("No sessions yet.")).toBeNull();
   });
 
-  it("shows a loading state for an expanded workspace while its sessions are loading", () => {
+  it("shows a loading state for an expanded workspace before its sessions hydrate", () => {
     const workspace = {
-      id: "ws-loading-disconnected",
-      name: "loading-disconnected-workspace",
-      path: "/tmp/loading-disconnected-workspace",
+      id: "ws-unhydrated",
+      name: "unhydrated-workspace",
+      path: "/tmp/unhydrated-workspace",
       connected: false,
       kind: "main" as const,
       settings: {
@@ -961,7 +961,6 @@ describe("Sidebar", () => {
             workspaces: [workspace],
           },
         ]}
-        threadListLoadingByWorkspace={{ "ws-loading-disconnected": true }}
       />,
     );
 

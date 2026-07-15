@@ -91,6 +91,42 @@ describe("useWorkspaceDropZone", () => {
     hook.unmount();
   });
 
+  it("clears drag over state when leaving the whole drop target after nested enters", () => {
+    const hook = renderDropHook({ onDropPaths: () => {} });
+    const currentTarget = document.createElement("aside");
+    const preventDefault = vi.fn();
+
+    act(() => {
+      hook.result.handleDragEnter({
+        currentTarget,
+        dataTransfer: { types: ["Files"], items: [] },
+        clientX: 10,
+        clientY: 10,
+        preventDefault,
+      } as unknown as React.DragEvent<HTMLElement>);
+      hook.result.handleDragEnter({
+        currentTarget,
+        dataTransfer: { types: ["Files"], items: [] },
+        clientX: 20,
+        clientY: 20,
+        preventDefault,
+      } as unknown as React.DragEvent<HTMLElement>);
+    });
+
+    expect(hook.result.isDragOver).toBe(true);
+
+    act(() => {
+      hook.result.handleDragLeave({
+        currentTarget,
+        relatedTarget: null,
+      } as unknown as React.DragEvent<HTMLElement>);
+    });
+
+    expect(hook.result.isDragOver).toBe(false);
+
+    hook.unmount();
+  });
+
   it("emits file paths on drop when available", () => {
     const onDropPaths = vi.fn();
     const hook = renderDropHook({ onDropPaths });

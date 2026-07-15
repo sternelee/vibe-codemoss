@@ -1639,14 +1639,12 @@ function SidebarImpl({
     const nextCursor =
       threadListCursorByWorkspace[entry.id] ?? null;
     const isThreadListHydrated = hydratedThreadListWorkspaceIds.has(entry.id);
-    const isThreadListLoading = _threadListLoadingByWorkspace[entry.id] ?? false;
     const isPaging = threadListPagingByWorkspace[entry.id] ?? false;
     const worktrees = worktreesByParent.get(entry.id) ?? [];
-    // Until a connected workspace finishes its first hydration, show a loading
-    // placeholder instead of the stale/fallback-named ("Agent 1", "Agent 2")
-    // preview threads that would otherwise leak through before real data lands.
+    // Until a workspace finishes its first hydration, show a loading placeholder
+    // instead of leaving the expanded region blank or leaking stale/fallback-named
+    // ("Agent 1", "Agent 2") preview threads before real data lands.
     const showThreadLoadingState =
-      (entry.connected || isThreadListLoading) &&
       !isThreadListHydrated &&
       worktrees.length === 0;
     const showThreadList =
