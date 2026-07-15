@@ -970,3 +970,102 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 997: 修复大文件 Diff 对齐与跨平台换行保存
+
+**Date**: 2026-07-16
+**Task**: 修复大文件 Diff 对齐与跨平台换行保存
+**Branch**: `feature/v-0.7.3`
+
+### Summary
+
+引入 bounded line alignment 与 unique-anchor fallback，按 diff block 导航并用运行时行高保持双栏像素对齐；保存时保留既有 CRLF/CR line ending，补齐 focused tests 与 OpenSpec change。验证：29 tests、ESLint、typecheck、git diff check、strict OpenSpec validation 通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `031f4563f5a5f908f279f43b231fd442de757295` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 998: 统一 Git 文件列表与差异预览链路
+
+**Date**: 2026-07-16
+**Task**: 统一 Git 文件列表与差异预览链路
+**Branch**: `feature/v-0.7.3`
+
+### Summary
+
+收敛 GitDiffPanel、GitHistory worktree 与 commit details 的 changed-file renderer 和 activation contract；统一 editable preview modal，保留 historical read-only region preview 边界并移除重复渲染链路。验证：76 tests、ESLint、typecheck、git diff check、strict OpenSpec validation 通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a90a136e220e14bf641b39583be48623edbd8f55` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 999: 更新 0.7.3 分析与变更记录
+
+**Date**: 2026-07-16
+**Task**: 更新 0.7.3 分析与变更记录
+**Branch**: `feature/v-0.7.3`
+
+### Summary
+
+基于当前客户端代码更新快捷键与优先级分析文档，并按既有中英文格式补充 0.7.3 CHANGELOG。验证：staged file audit 与 git diff check 通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `fa834842528278781acc71b4d9dee5cca33aec52` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

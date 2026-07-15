@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { FileReadTarget } from "../../../utils/workspacePaths";
 import {
   clearFileDocumentSessionCacheForTests,
+  detectPreservedLineEnding,
+  restorePreservedLineEnding,
   useFileDocumentState,
 } from "./useFileDocumentState";
 import {
@@ -48,6 +50,50 @@ describe("useFileDocumentState", () => {
   afterEach(() => {
     clearFileDocumentSessionCacheForTests();
     vi.clearAllMocks();
+  });
+
+  it("preserves uniform disk line endings without rewriting mixed content", () => {
+    expect(detectPreservedLineEnding("a\r\nb\r\n")).toBe("\r\n");
+    expect(detectPreservedLineEnding("a\rb\r")).toBe("\r");
+    expect(detectPreservedLineEnding("a\nb\n")).toBeNull();
+    expect(detectPreservedLineEnding("a\r\nb\n")).toBeNull();
+    expect(restorePreservedLineEnding("a\nb\n", "\r\n")).toBe("a\r\nb\r\n");
+    expect(restorePreservedLineEnding("a\nb", "\r")).toBe("a\rb");
+    expect(restorePreservedLineEnding("a\r\nb\n", null)).toBe("a\r\nb\n");
+  });
+
+  it("writes CodeMirror LF edits back with the original Windows CRLF style", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "const value = 1;\r\nconst next = true;\r\n",
+      truncated: false,
+    });
+    vi.mocked(writeWorkspaceFile).mockResolvedValue();
+    const { result } = renderHook((props: HookProps) => useFileDocumentState(props), {
+      initialProps: {
+        workspaceId: "ws-crlf",
+        customSpecRoot: null,
+        workspaceRelativeFilePath: "src/value.ts",
+        fileReadTarget: makeWorkspaceTarget("src/value.ts"),
+        skipTextRead: false,
+        externalAbsoluteReadOnlyMessage: "read only",
+      },
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    act(() => result.current.setContent("const value = 2;\nconst next = true;\n"));
+    await act(async () => {
+      await result.current.handleSave();
+    });
+
+    expect(writeWorkspaceFile).toHaveBeenCalledWith(
+      "ws-crlf",
+      "src/value.ts",
+      "const value = 2;\r\nconst next = true;\r\n",
+    );
+    await waitFor(() => expect(result.current.isDirty).toBe(false));
+    expect(result.current.externalDiskSnapshotRef.current?.content).toBe(
+      "const value = 2;\r\nconst next = true;\r\n",
+    );
   });
 
   it("clears stale content when the target path becomes invalid", async () => {

@@ -11,7 +11,11 @@ import type { EditorView } from "@codemirror/view";
 import type { CodeAnnotationSelection } from "../../code-annotations/types";
 import type { FileCompareSession } from "../types/fileCompare";
 import { useFileDocumentState } from "../hooks/useFileDocumentState";
-import { computeFileCompareDiff, type FileCompareLineGap } from "../utils/fileCompareDiff";
+import {
+  computeFileCompareDiff,
+  type FileCompareCollapsedRange,
+  type FileCompareLineGap,
+} from "../utils/fileCompareDiff";
 import { resolveFileRenderProfile } from "../utils/fileRenderProfile";
 import { loadCodeMirrorExtensionsForEditorLanguage } from "../utils/codemirrorLanguageExtensions";
 import { resolveFileReadTarget } from "../../../utils/workspacePaths";
@@ -69,7 +73,6 @@ function fileNameFromPath(path: string) {
   const parts = path.replace(/\\/g, "/").split("/").filter(Boolean);
   return parts[parts.length - 1] ?? path;
 }
-
 export function useFileCompareEditorTheme() {
   const [editorTheme, setEditorTheme] = useState<EditorTheme>(() => resolveEditorTheme());
 
@@ -210,6 +213,7 @@ export function CompareEditorColumn({
   editorTheme,
   markers,
   lineGaps,
+  collapsedRanges = [],
   saveFileShortcut,
   activeLineNumber,
 }: {
@@ -217,6 +221,7 @@ export function CompareEditorColumn({
   editorTheme: EditorTheme;
   markers: GitLineMarkers;
   lineGaps: FileCompareLineGap[];
+  collapsedRanges?: FileCompareCollapsedRange[];
   saveFileShortcut?: string | null;
   activeLineNumber: number | null;
 }) {
@@ -303,6 +308,7 @@ export function CompareEditorColumn({
             languageExtensions={languageExtensions}
             gitLineMarkers={markers}
             fileCompareLineGaps={lineGaps}
+            fileCompareCollapsedRanges={collapsedRanges}
             codeAnnotations={EMPTY_ANNOTATIONS}
             annotationDraft={null}
             annotationWidgetLabels={EMPTY_ANNOTATION_LABELS}
@@ -431,15 +437,15 @@ export function WorkspaceFileComparePanel({
     () => computeFileCompareDiff(drafts.map((draft) => draft.content)),
     [drafts],
   );
-  const activeDifference = diffResult.changedRows[activeDifferenceIndex] ?? null;
-  const canNavigateDiffs = diffResult.changedRows.length > 0;
+  const activeDifference = diffResult.changedBlocks[activeDifferenceIndex] ?? null;
+  const canNavigateDiffs = diffResult.changedBlocks.length > 0;
 
   useEffect(() => {
-    if (activeDifferenceIndex < diffResult.changedRows.length) {
+    if (activeDifferenceIndex < diffResult.changedBlocks.length) {
       return;
     }
-    setActiveDifferenceIndex(Math.max(0, diffResult.changedRows.length - 1));
-  }, [activeDifferenceIndex, diffResult.changedRows.length]);
+    setActiveDifferenceIndex(Math.max(0, diffResult.changedBlocks.length - 1));
+  }, [activeDifferenceIndex, diffResult.changedBlocks.length]);
 
   const markersByDraftId = useMemo(() => {
     const entries = drafts.map((draft, index) => [
@@ -457,16 +463,16 @@ export function WorkspaceFileComparePanel({
       return;
     }
     setActiveDifferenceIndex((current) =>
-      (current - 1 + diffResult.changedRows.length) % diffResult.changedRows.length,
+      (current - 1 + diffResult.changedBlocks.length) % diffResult.changedBlocks.length,
     );
-  }, [canNavigateDiffs, diffResult.changedRows.length]);
+  }, [canNavigateDiffs, diffResult.changedBlocks.length]);
 
   const goNextDifference = useCallback(() => {
     if (!canNavigateDiffs) {
       return;
     }
-    setActiveDifferenceIndex((current) => (current + 1) % diffResult.changedRows.length);
-  }, [canNavigateDiffs, diffResult.changedRows.length]);
+    setActiveDifferenceIndex((current) => (current + 1) % diffResult.changedBlocks.length);
+  }, [canNavigateDiffs, diffResult.changedBlocks.length]);
 
   const handlePanelScroll = useCallback((event: UIEvent<HTMLDivElement>) => {
     const sourceScroller = event.target;
@@ -545,7 +551,7 @@ export function WorkspaceFileComparePanel({
             {canNavigateDiffs
               ? t("files.fileCompare.differenceCount", {
                   current: activeDifferenceIndex + 1,
-                  total: diffResult.changedRows.length,
+                  total: diffResult.changedBlocks.length,
                 })
               : t("files.fileCompare.noDifferences")}
           </span>

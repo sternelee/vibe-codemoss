@@ -11,15 +11,25 @@
 - `feat(i18n)`: 语言支持扩展到 10 种，并在设置页提供语言下拉入口，语言解析、切换与持久化流程同步覆盖新语言
 - `feat(sidebar)`: 侧栏线程列表 hydration 前显示加载占位，避免工作区会话恢复期间出现空白区域
 - `feat(ui)`: 对齐 Codex 消息渲染与 workspace navigation，收敛 Codex 输出展示、侧栏 workspace 卡片和相关导航行为
+- `feat(file-markdown)`: README 风格 Markdown 改为单次完整渲染，保留 raw HTML 对齐容器、图片尺寸和引用式图片；本地图片增加 remount cache，批注编辑器改为不挤压正文的浮层，并统一使用主题色令牌
+- `feat(messages)`: 回合文件变更汇总中的文件可直接打开现有 Git Diff modal，并默认以最大化模式查看对应 staged / unstaged 差异
 
 🔧 Improvements
 - `refactor(i18n)`: 将中英文大体积 part locale 拆分为 per-namespace locale folder，降低翻译文件维护与局部更新成本
+- `refactor(git)`: 统一主 Git 面板、Git History worktree 与 commit details 的 changed-file renderer 和弹窗预览链路，收敛文件树、键盘激活与 editable / read-only Diff 入口，避免同类界面继续分叉
 - `build(i18n)`: 新增本地化构建、抽取、分块检查与 merge workflow，为多语言扩展提供可重复的脚本链路
 
 🐛 Fixes
 - `fix(terminal)`: 终端选中文本发送到 Composer 时不再重复插入内容，并补充外部输入回显回归覆盖
 - `fix(markdown)`: 保留 Markdown / LaTeX 公式容器边界并避免重复包裹，兼容紧凑多行公式写法
 - `fix(settings)`: 语言选择器改用 native select，移除 Radix portaled popup 几何计算链，修复 WebView UI Scale 大于 100% 时出现页面级空白浮层的问题
+- `fix(app)`: 原生文件拖拽离开应用窗口时正确结束 drag lifecycle，避免 Composer / workspace overlay 残留；未完成首次 hydration 的展开 workspace 始终显示加载占位，不再短暂空白或展示过期会话
+- `fix(session)`: Codex 子代理会话按 canonical parent-child relationship 投影到侧栏树，并按 child UUID 去重，避免子代理显示为顶层会话或重复占用列表与 usage 统计
+- `fix(messages)`: 恢复新增文件在消息幕布中的原地 inline Diff，将 `*** Add File` patch 转换为可预览的新增行，避免空白预览或首次点击跳转到其他页面
+- `fix(threads)`: Fork 后保留正确的 provider、父线程与 sidebar projection，并修复 Claude 幕布在会话切换、恢复和 rewind 后的生命周期残留
+- `fix(codex)`: 已结束的 Codex turn 不再被迟到的 progress / item event 重新标记为加载中，避免会话完成后恢复 spinner 或 processing 状态
+- `fix(diff)`: 修复大文件 Diff 在大量插入或删除后左右内容逐步错位的问题，按连续差异块导航，并以运行时行高和斜线 gap 保持双栏像素级对齐、区分真实空行与补位区域
+- `fix(files)`: 编辑并保存 Windows CRLF 或 legacy CR 文件时保留原始换行格式，避免 CodeMirror 的 LF normalization 造成整文件伪 Diff 或保存后持续显示 dirty
 
 English:
 
@@ -28,15 +38,25 @@ English:
 - `feat(i18n)`: expand language support to 10 languages and add a language dropdown in settings, with language resolution, switching, and persistence updated for the expanded set
 - `feat(sidebar)`: show a loading placeholder before thread-list hydration so restored workspaces no longer present a blank sidebar area
 - `feat(ui)`: align Codex message rendering and workspace navigation, tightening Codex output presentation, workspace cards, and related sidebar navigation behavior
+- `feat(file-markdown)`: render README-style Markdown in one complete pass to preserve raw HTML alignment wrappers, image dimensions, and reference images; cache resolved local images across remounts, move annotation editing into a non-disruptive popover, and align its styling with theme tokens
+- `feat(messages)`: open files from turn-level change summaries in the existing Git Diff modal, maximized by default and resolved against the current staged / unstaged model
 
 🔧 Improvements
 - `refactor(i18n)`: split large English and Chinese part locale files into per-namespace locale folders to make translation maintenance and localized updates more targeted
+- `refactor(git)`: unify the changed-file renderer and preview-modal flow across the main Git panel, Git History worktree, and commit details, consolidating file trees, keyboard activation, and editable / read-only Diff entry points so equivalent surfaces no longer drift apart
 - `build(i18n)`: add repeatable localization scripts for build, extraction, chunk checks, and merge workflows
 
 🐛 Fixes
 - `fix(terminal)`: prevent duplicated text when sending a terminal selection to the Composer, with regression coverage for external input echo behavior
 - `fix(markdown)`: preserve Markdown / LaTeX math container boundaries and avoid duplicate wrapping, including compact multi-line formula layouts
 - `fix(settings)`: move the language selector to a native select and remove the Radix portaled-popup geometry path, fixing the page-sized blank popup at WebView UI Scale values above 100%
+- `fix(app)`: settle the native drag lifecycle when files leave the application window so Composer and workspace overlays cannot remain stuck; keep a loading placeholder visible for expanded workspaces until their initial hydration completes instead of briefly showing a blank or stale session list
+- `fix(session)`: project Codex subagent sessions into the sidebar using canonical parent-child relationships and deduplicate by child UUID, preventing subagents from appearing as top-level sessions or being counted twice in lists and usage totals
+- `fix(messages)`: restore in-place inline Diffs for newly added files by translating `*** Add File` patches into previewable added lines, avoiding blank previews and first-click navigation away from the conversation
+- `fix(threads)`: preserve the correct provider, parent thread, and sidebar projection after Fork, and clear stale Claude conversation-curtain lifecycle state across session switches, recovery, and rewind
+- `fix(codex)`: keep settled Codex turns terminal when late progress or item events arrive, preventing completed conversations from returning to spinner or processing states
+- `fix(diff)`: fix progressive left/right misalignment after large insertions or deletions, navigate by contiguous difference blocks, and use runtime line heights with hatched gaps to preserve pixel-level alignment while distinguishing real blank lines from alignment placeholders
+- `fix(files)`: preserve the original line endings when editing and saving Windows CRLF or legacy CR files, preventing CodeMirror LF normalization from creating whole-file false Diffs or leaving documents perpetually dirty
 
 ---
 
