@@ -42,14 +42,22 @@ const supportedLanguages = new Set<SupportedLanguage>(
 const DEFAULT_LANGUAGE: SupportedLanguage = "zh";
 
 /**
- * Loaders only exist for languages that ship a full translation bundle today.
- * Languages without a loader render through their fallback chain (see below),
- * so adding a bundle later is just a matter of registering another loader here.
+ * Loaders exist for languages that ship a full translation bundle. Languages
+ * without a loader render through their fallback chain, so adding a bundle later
+ * is just a matter of registering another loader here.
  */
 const localeLoaders: Partial<
   Record<SupportedLanguage, () => Promise<{ default: Record<string, unknown> }>>
 > = {
   en: () => import("./locales/en"),
+  "zh-TW": () => import("./locales/zh-TW"),
+  hi: () => import("./locales/hi"),
+  es: () => import("./locales/es"),
+  fr: () => import("./locales/fr"),
+  ja: () => import("./locales/ja"),
+  ru: () => import("./locales/ru"),
+  ko: () => import("./locales/ko"),
+  "pt-BR": () => import("./locales/pt-BR"),
   zh: () => import("./locales/zh"),
 };
 
@@ -121,9 +129,10 @@ async function loadBundle(lang: SupportedLanguage): Promise<void> {
 async function loadLanguageResource(lang: string | undefined): Promise<SupportedLanguage> {
   const normalized = normalizeLanguage(lang);
   await loadBundle(normalized);
-  // Languages without their own bundle need the fallback chain loaded so that
-  // i18next can resolve keys instead of showing raw key strings.
-  if (!localeLoaders[normalized]) {
+  // Languages without their own bundle need fallback resources loaded so that
+  // i18next can resolve keys instead of showing raw key strings. Languages with
+  // an explicit custom chain keep that chain warm as a recovery path.
+  if (!localeLoaders[normalized] || fallbackChains[normalized]) {
     for (const fallback of fallbackChainFor(normalized)) {
       await loadBundle(fallback);
     }

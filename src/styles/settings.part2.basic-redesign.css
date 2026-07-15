@@ -300,6 +300,7 @@
   width: auto;
   min-width: 0; /* override the base min-w-36 so it hugs the language name */
   border-radius: 10px;
+  font-weight: 400;
 }
 
 /* Popup is portaled to <body> — keep endonyms on one line so CJK labels

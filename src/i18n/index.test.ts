@@ -29,16 +29,15 @@ describe("i18n dynamic locale loading", () => {
     expect(i18n.hasResourceBundle("en", "translation")).toBe(true);
   });
 
-  it("loads the English fallback bundle when switching to a bundle-less language", async () => {
+  it("loads a newly shipped translation bundle on switch", async () => {
     const module = await import("./index");
     const i18n = await module.i18nReady;
 
     await i18n.changeLanguage("ja");
 
     expect(i18n.language).toBe("ja");
-    // Japanese has no bundle yet, so only the English fallback is loaded.
-    expect(i18n.hasResourceBundle("ja", "translation")).toBe(false);
-    expect(i18n.hasResourceBundle("en", "translation")).toBe(true);
+    expect(i18n.hasResourceBundle("ja", "translation")).toBe(true);
+    expect(i18n.hasResourceBundle("en", "translation")).toBe(false);
   });
 
   it("loads the Simplified-then-English chain for Traditional Chinese", async () => {
@@ -48,6 +47,7 @@ describe("i18n dynamic locale loading", () => {
     await i18n.changeLanguage("zh-TW");
 
     expect(i18n.language).toBe("zh-TW");
+    expect(i18n.hasResourceBundle("zh-TW", "translation")).toBe(true);
     expect(i18n.hasResourceBundle("zh", "translation")).toBe(true);
     expect(i18n.hasResourceBundle("en", "translation")).toBe(true);
   });
