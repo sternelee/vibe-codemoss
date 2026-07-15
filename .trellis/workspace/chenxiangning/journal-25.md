@@ -703,3 +703,39 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 989: 更新 0.7.3 发布说明
+
+**Date**: 2026-07-15
+**Task**: 更新 0.7.3 发布说明
+**Branch**: `feature/v-0.7.2`
+
+### Summary
+
+按既有 changelog 格式补充 v0.7.3 中英双语发布说明。
+
+### Main Changes
+
+- 更新 CHANGELOG.md 顶部 v0.7.3 section。
+- 内容覆盖版本号、i18n 10 语言支持、侧栏 hydration loading、Codex 渲染与 workspace navigation、终端 selection 发送、Markdown 公式边界、设置页语言选择器缩放兼容修复。
+- 验证：git diff --check -- CHANGELOG.md 通过。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `83adce03` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
