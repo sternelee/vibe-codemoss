@@ -29,11 +29,42 @@ describe("i18n dynamic locale loading", () => {
     expect(i18n.hasResourceBundle("en", "translation")).toBe(true);
   });
 
+  it("loads the English fallback bundle when switching to a bundle-less language", async () => {
+    const module = await import("./index");
+    const i18n = await module.i18nReady;
+
+    await i18n.changeLanguage("ja");
+
+    expect(i18n.language).toBe("ja");
+    // Japanese has no bundle yet, so only the English fallback is loaded.
+    expect(i18n.hasResourceBundle("ja", "translation")).toBe(false);
+    expect(i18n.hasResourceBundle("en", "translation")).toBe(true);
+  });
+
+  it("loads the Simplified-then-English chain for Traditional Chinese", async () => {
+    const module = await import("./index");
+    const i18n = await module.i18nReady;
+
+    await i18n.changeLanguage("zh-TW");
+
+    expect(i18n.language).toBe("zh-TW");
+    expect(i18n.hasResourceBundle("zh", "translation")).toBe(true);
+    expect(i18n.hasResourceBundle("en", "translation")).toBe(true);
+  });
+
   it("preserves saveLanguage storage behavior", async () => {
     const { saveLanguage } = await import("./index");
 
     saveLanguage("en");
 
     expect(writeClientStoreValueMock).toHaveBeenCalledWith("app", "language", "en");
+  });
+
+  it("normalizes unsupported stored languages before persisting", async () => {
+    const { saveLanguage } = await import("./index");
+
+    saveLanguage("klingon");
+
+    expect(writeClientStoreValueMock).toHaveBeenCalledWith("app", "language", "zh");
   });
 });

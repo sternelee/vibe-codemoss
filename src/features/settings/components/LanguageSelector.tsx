@@ -1,18 +1,45 @@
 import { useTranslation } from "react-i18next";
 import Languages from "lucide-react/dist/esm/icons/languages";
-import LetterText from "lucide-react/dist/esm/icons/letter-text";
-import { saveLanguage } from "../../../i18n";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  SUPPORTED_LANGUAGES,
+  saveLanguage,
+  type SupportedLanguage,
+} from "../../../i18n";
 
-type LanguageSelectorProps = {
-  rowClassName?: string;
-};
+const supportedCodes = new Set<SupportedLanguage>(
+  SUPPORTED_LANGUAGES.map((entry) => entry.code),
+);
 
-export function LanguageSelector({ rowClassName }: LanguageSelectorProps = {}) {
+/**
+ * Maps the active i18next language (which may carry a region suffix like
+ * "en-US") onto one of our supported codes, defaulting to Simplified Chinese.
+ */
+export function resolveCurrentLanguage(
+  language: string | undefined,
+): SupportedLanguage {
+  const raw = language ?? "";
+  if (supportedCodes.has(raw as SupportedLanguage)) {
+    return raw as SupportedLanguage;
+  }
+  const primary = raw.split("-")[0]?.toLowerCase();
+  const match = SUPPORTED_LANGUAGES.find(
+    (entry) => entry.code.split("-")[0]?.toLowerCase() === primary,
+  );
+  return match?.code ?? "zh";
+}
+
+export function LanguageSelector() {
   const { t, i18n } = useTranslation();
-  const normalizedLanguage = (i18n.language || "").toLowerCase();
-  const currentLanguage = normalizedLanguage.startsWith("en") ? "en" : "zh";
+  const currentLanguage = resolveCurrentLanguage(i18n.language);
 
-  const handleLanguageChange = (newLang: "zh" | "en") => {
+  const handleLanguageChange = (newLang: string) => {
     if (newLang === currentLanguage) {
       return;
     }
@@ -21,46 +48,27 @@ export function LanguageSelector({ rowClassName }: LanguageSelectorProps = {}) {
   };
 
   return (
-    <div className={`settings-row mb-3 ${rowClassName ?? ""}`.trim()}>
-      <div className="settings-label settings-basic-field-header">
+    <div className="settings-field settings-basic-item">
+      <div className="settings-basic-field-header">
         <Languages className="settings-basic-field-icon" aria-hidden />
         <span className="settings-basic-field-label">{t("settings.language")}</span>
       </div>
-      <div className="settings-control">
-        <div
-          className="settings-basic-language-selector"
-          role="radiogroup"
-          aria-label={t("settings.language")}
-        >
-          <button
-            type="button"
-            role="radio"
-            aria-checked={currentLanguage === "zh"}
-            className={`settings-basic-language-option ${
-              currentLanguage === "zh" ? "active" : ""
-            }`}
-            onClick={() => handleLanguageChange("zh")}
+      <div className="settings-control settings-basic-language-control">
+        <Select value={currentLanguage} onValueChange={handleLanguageChange}>
+          <SelectTrigger
+            className="settings-basic-language-select-trigger"
+            aria-label={t("settings.language")}
           >
-            <span className="settings-basic-language-icon settings-basic-language-icon-zh">
-              <Languages size={14} />
-            </span>
-            <span>{t("settings.languageZh")}</span>
-          </button>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={currentLanguage === "en"}
-            className={`settings-basic-language-option ${
-              currentLanguage === "en" ? "active" : ""
-            }`}
-            onClick={() => handleLanguageChange("en")}
-          >
-            <span className="settings-basic-language-icon settings-basic-language-icon-en">
-              <LetterText size={14} />
-            </span>
-            <span>{t("settings.languageEn")}</span>
-          </button>
-        </div>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="settings-basic-language-select-popup">
+            {SUPPORTED_LANGUAGES.map((entry) => (
+              <SelectItem key={entry.code} value={entry.code}>
+                {entry.nativeName}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
     </div>
   );

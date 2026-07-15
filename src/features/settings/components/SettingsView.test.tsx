@@ -46,6 +46,10 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 
 vi.mock("../../../i18n", () => ({
   saveLanguage: vi.fn(),
+  SUPPORTED_LANGUAGES: [
+    { code: "zh", nativeName: "简体中文" },
+    { code: "en", nativeName: "English" },
+  ],
   default: {
     use: () => ({ init: vi.fn() }),
   },

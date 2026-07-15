@@ -382,7 +382,7 @@ export function BasicAppearanceSection({
             </div>
           ) : null}
         </div>
-        <LanguageSelector rowClassName="settings-basic-item" />
+        <LanguageSelector />
         <div className="settings-field settings-basic-item">
           <div className="settings-basic-field-header">
             <ArrowLeftRight className="settings-basic-field-icon" aria-hidden />

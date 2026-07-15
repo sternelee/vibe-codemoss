@@ -287,6 +287,27 @@
   white-space: nowrap;
 }
 
+/* Keep the language dropdown compact — sized to its value, not the full
+   control column — and pinned to the right so its edge aligns with the
+   segmented controls above and below. */
+.settings-section-basic .settings-basic-language-control {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.settings-section-basic .settings-basic-language-select-trigger {
+  min-height: 36px;
+  width: auto;
+  min-width: 0; /* override the base min-w-36 so it hugs the language name */
+  border-radius: 10px;
+}
+
+/* Popup is portaled to <body> — keep endonyms on one line so CJK labels
+   don't collapse into a 1-char-wide column. */
+.settings-basic-language-select-popup [data-slot="select-item"] {
+  white-space: nowrap;
+}
+
 .settings-section-basic .settings-sound-select-row-shadcn .settings-sound-test-btn {
   min-width: 92px;
   min-height: 38px;
