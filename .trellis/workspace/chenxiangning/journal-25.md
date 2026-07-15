@@ -838,3 +838,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 993: 修复 Fork 会话投影与 Claude 幕布生命周期
+
+**Date**: 2026-07-15
+**Task**: 修复 Fork 会话投影与 Claude 幕布生命周期
+**Branch**: `feature/v-0.7.3`
+
+### Summary
+
+区分用户 Fork 与真实 Subagent 投影；为 Claude 幕布 Fork/Rewind 增加显式 operation lifecycle，保留 Fork 父会话并保持 Rewind 语义；同步并归档 OpenSpec，focused 137 tests、typecheck、lint 与 OpenSpec 410 项 strict validation 通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a1fe352e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
