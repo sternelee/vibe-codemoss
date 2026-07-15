@@ -603,3 +603,37 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 986: 合并 PR #834 公式容器边界修复
+
+**Date**: 2026-07-15
+**Task**: 合并 PR #834 公式容器边界修复
+**Branch**: `feature/v-0.7.2`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+合并 upstream PR #834（fix-message-math-container-prefix）到 feature/v-0.7.2。保留上游 4 个提交与 OpenSpec/Trellis 记录，使用 --no-ff 生成独立 merge commit。合并过程无冲突；后续将在单独 OpenSpec change 中处理 compact display math 边界。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `af276865` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
