@@ -26,3 +26,11 @@ Tool block chrome SHALL 避免让 timeline placeholder rows 预留异常高度�
 - **WHEN** 混合 tool cards 和 placeholder
 - **THEN** 当 timeline 同时渲染 tool cards 与 virtual blank rows 时，placeholder 高度不得被 tool-card shell 样式撑大，scrolling 必须稳定。
 
+### Requirement: Generic tool rows share marker semantics
+
+Generic tool block MUST 使用与 sibling tool rows 一致的 marker shell、alignment 和 accessible label semantics，不得因 fallback renderer 产生不同的行高或错位 marker。
+
+#### Scenario: Render an unknown generic tool block
+
+- **WHEN** message renderer 收到没有 dedicated renderer 的 tool block
+- **THEN** generic row MUST 与相邻 tool rows 对齐，并保持 tool identity 可读
