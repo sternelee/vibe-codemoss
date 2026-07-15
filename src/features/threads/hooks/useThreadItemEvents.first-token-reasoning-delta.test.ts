@@ -94,7 +94,7 @@ describe("useThreadItemEvents first-token reasoning dispatch", () => {
       }),
       hasCustomName: false,
     });
-    expect(markProcessing).toHaveBeenCalledWith("thread-1", true);
+    expect(markProcessing).not.toHaveBeenCalled();
     expect(safeMessageActivity).toHaveBeenCalledTimes(1);
   });
 
