@@ -1003,3 +1003,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 998: 统一 Git 文件列表与差异预览链路
+
+**Date**: 2026-07-16
+**Task**: 统一 Git 文件列表与差异预览链路
+**Branch**: `feature/v-0.7.3`
+
+### Summary
+
+收敛 GitDiffPanel、GitHistory worktree 与 commit details 的 changed-file renderer 和 activation contract；统一 editable preview modal，保留 historical read-only region preview 边界并移除重复渲染链路。验证：76 tests、ESLint、typecheck、git diff check、strict OpenSpec validation 通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a90a136e220e14bf641b39583be48623edbd8f55` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
