@@ -16,6 +16,7 @@
 
 🔧 Improvements
 - `refactor(i18n)`: 将中英文大体积 part locale 拆分为 per-namespace locale folder，降低翻译文件维护与局部更新成本
+- `refactor(git)`: 统一主 Git 面板、Git History worktree 与 commit details 的 changed-file renderer 和弹窗预览链路，收敛文件树、键盘激活与 editable / read-only Diff 入口，避免同类界面继续分叉
 - `build(i18n)`: 新增本地化构建、抽取、分块检查与 merge workflow，为多语言扩展提供可重复的脚本链路
 
 🐛 Fixes
@@ -27,6 +28,8 @@
 - `fix(messages)`: 恢复新增文件在消息幕布中的原地 inline Diff，将 `*** Add File` patch 转换为可预览的新增行，避免空白预览或首次点击跳转到其他页面
 - `fix(threads)`: Fork 后保留正确的 provider、父线程与 sidebar projection，并修复 Claude 幕布在会话切换、恢复和 rewind 后的生命周期残留
 - `fix(codex)`: 已结束的 Codex turn 不再被迟到的 progress / item event 重新标记为加载中，避免会话完成后恢复 spinner 或 processing 状态
+- `fix(diff)`: 修复大文件 Diff 在大量插入或删除后左右内容逐步错位的问题，按连续差异块导航，并以运行时行高和斜线 gap 保持双栏像素级对齐、区分真实空行与补位区域
+- `fix(files)`: 编辑并保存 Windows CRLF 或 legacy CR 文件时保留原始换行格式，避免 CodeMirror 的 LF normalization 造成整文件伪 Diff 或保存后持续显示 dirty
 
 English:
 
@@ -40,6 +43,7 @@ English:
 
 🔧 Improvements
 - `refactor(i18n)`: split large English and Chinese part locale files into per-namespace locale folders to make translation maintenance and localized updates more targeted
+- `refactor(git)`: unify the changed-file renderer and preview-modal flow across the main Git panel, Git History worktree, and commit details, consolidating file trees, keyboard activation, and editable / read-only Diff entry points so equivalent surfaces no longer drift apart
 - `build(i18n)`: add repeatable localization scripts for build, extraction, chunk checks, and merge workflows
 
 🐛 Fixes
@@ -51,6 +55,8 @@ English:
 - `fix(messages)`: restore in-place inline Diffs for newly added files by translating `*** Add File` patches into previewable added lines, avoiding blank previews and first-click navigation away from the conversation
 - `fix(threads)`: preserve the correct provider, parent thread, and sidebar projection after Fork, and clear stale Claude conversation-curtain lifecycle state across session switches, recovery, and rewind
 - `fix(codex)`: keep settled Codex turns terminal when late progress or item events arrive, preventing completed conversations from returning to spinner or processing states
+- `fix(diff)`: fix progressive left/right misalignment after large insertions or deletions, navigate by contiguous difference blocks, and use runtime line heights with hatched gaps to preserve pixel-level alignment while distinguishing real blank lines from alignment placeholders
+- `fix(files)`: preserve the original line endings when editing and saving Windows CRLF or legacy CR files, preventing CodeMirror LF normalization from creating whole-file false Diffs or leaving documents perpetually dirty
 
 ---
 
