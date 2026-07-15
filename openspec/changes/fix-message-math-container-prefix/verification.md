@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation verified. Strict OpenSpec artifact validation remains environment-blocked because neither the CLI nor the repository fallback validator is executable in this workspace.
+Implementation and rebuilt-desktop manual verification completed. Strict OpenSpec artifact validation remains environment-blocked because neither the CLI nor the repository fallback validator is executable in this workspace.
 
 ## Regression Evidence
 
@@ -101,9 +101,9 @@ No Sidebar source, test, dependency, or shared provider-menu file differs from `
 
 The proposal, design, tasks, delta spec, and this verification artifact were manually reviewed for the expected change structure, but strict schema validation is not claimed.
 
-## Remaining Manual Risk
+## Manual Verification and Remaining Risk
 
-- A rebuilt cc-gui should open the target UUID once for visual confirmation in the actual desktop WebView.
+- A rebuilt cc-gui opened the target UUID in the actual desktop WebView, and the previously failing formulas rendered correctly.
 - The conservative `\\(q\\)` single-symbol heuristic remains intentionally unchanged; this change only fixes container-prefix loss and nested wrapping inside already established math ranges.
 
 ## Break-Loop Analysis
@@ -127,7 +127,7 @@ The proposal, design, tasks, delta spec, and this verification artifact were man
 | P0 | Test Coverage | list/blockquote/unmatched/cross-container/nested-wrapper DOM and pure assertions | DONE |
 | P1 | Documentation | OpenSpec delta + Trellis frontend executable contract | DONE |
 | P1 | Integration | production `Markdown` replay for the reported UUID | DONE |
-| P2 | Manual QA | rebuilt desktop WebView visual check | TODO |
+| P2 | Manual QA | rebuilt desktop WebView visual check | DONE |
 
 ### 4. Systematic Expansion
 
@@ -141,4 +141,4 @@ The proposal, design, tasks, delta spec, and this verification artifact were man
 - [x] Updated `.trellis/spec/frontend/quality-guidelines.md` and index.
 - [x] Added executable regression coverage.
 - [ ] No `src/templates/markdown/spec/` tree exists in this repository, so template sync is not applicable.
-- [ ] Commit and Trellis session record remain intentionally deferred until the user requests a commit.
+- [x] Code commit and mandatory Trellis session record completed before PR publication.
