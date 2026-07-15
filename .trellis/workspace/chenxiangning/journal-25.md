@@ -871,3 +871,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 994: 恢复幕布新增文件内联 Diff
+
+**Date**: 2026-07-15
+**Task**: 恢复幕布新增文件内联 Diff
+**Branch**: `feature/v-0.7.3`
+
+### Summary
+
+回退新增文件点击后隐式切换中间 Diff 的错误行为，兼容 apply_patch 新文件正文在 conversation canvas 内原地预览，并完成 focused tests、typecheck、lint 与 OpenSpec strict validation。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `07ed4c70` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
