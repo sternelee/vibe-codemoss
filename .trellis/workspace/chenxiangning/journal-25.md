@@ -739,3 +739,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 990: 审计周度代码变更并收口 OpenSpec
+
+**Date**: 2026-07-15
+**Task**: 审计周度代码变更并收口 OpenSpec
+**Branch**: `feature/v-0.7.2`
+
+### Summary
+
+审计 2026-07-09 至 2026-07-15 的 64 个 code/build commits，补录 18 个提案缺口并同步 11 个 capability deltas；归档 13 个完成态 active changes 和 1 个 retrospective change，更新项目快照为 active=12、archive=596、specs=395。全程只修改 openspec 文档；OpenSpec strict validation 407 passed、0 failed，consistency 0 errors，git diff check 通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `84f00051` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
