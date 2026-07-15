@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-25.md`
-- **Total Sessions**: 994
+- **Total Sessions**: 995
 - **Last Active**: 2026-07-15
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-25.md` | ~906 | Active |
+| `journal-25.md` | ~939 | Active |
 | `journal-24.md` | ~1994 | Archived |
 | `journal-23.md` | ~1965 | Archived |
 | `journal-22.md` | ~1969 | Archived |
@@ -53,6 +53,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 995 | 2026-07-15 | 已编辑文件最大化 Diff 预览 | `e902a0ae` | `feature/v-0.7.3` |
 | 994 | 2026-07-15 | 恢复幕布新增文件内联 Diff | `07ed4c70` | `feature/v-0.7.3` |
 | 993 | 2026-07-15 | 修复 Fork 会话投影与 Claude 幕布生命周期 | `a1fe352e` | `feature/v-0.7.3` |
 | 992 | 2026-07-15 | 修复新增文件空白 Diff 回退 | `28d1df33` | `feature/v-0.7.3` |

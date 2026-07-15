@@ -904,3 +904,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 995: 已编辑文件最大化 Diff 预览
+
+**Date**: 2026-07-15
+**Task**: 已编辑文件最大化 Diff 预览
+**Branch**: `feature/v-0.7.3`
+
+### Summary
+
+复用右侧 Git 文件列表既有 Diff modal，使幕布已编辑文件可点击并直接最大化预览；补齐 workspace 绝对路径解析、异步文件列表重试及 staged/unstaged 回归测试。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e902a0ae` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
