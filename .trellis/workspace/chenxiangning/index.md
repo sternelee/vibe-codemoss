@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-25.md`
-- **Total Sessions**: 987
+- **Total Sessions**: 990
 - **Last Active**: 2026-07-15
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-25.md` | ~672 | Active |
+| `journal-25.md` | ~774 | Active |
 | `journal-24.md` | ~1994 | Archived |
 | `journal-23.md` | ~1965 | Archived |
 | `journal-22.md` | ~1969 | Archived |
@@ -53,6 +53,9 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 990 | 2026-07-15 | 审计周度代码变更并收口 OpenSpec | `84f00051` | `feature/v-0.7.2` |
+| 989 | 2026-07-15 | 更新 0.7.3 发布说明 | `83adce03` | `feature/v-0.7.2` |
+| 988 | 2026-07-15 | 修复界面缩放下语言选择器渲染 | `21bdde7a` | `feature/v-0.7.2` |
 | 987 | 2026-07-15 | 稳健兼容对话紧凑多行公式 | `3369ff28` | `feature/v-0.7.2` |
 | 986 | 2026-07-15 | 合并 PR #834 公式容器边界修复 | `af276865` | `feature/v-0.7.2` |
 | 985 | 2026-07-14 | 统一对话幕布钉底与回刷时序 | `cb028740` | `feature/v-0.7.2` |

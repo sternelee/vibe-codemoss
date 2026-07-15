@@ -1,14 +1,16 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi, afterEach } from "vitest";
+import { saveLanguage } from "../../../i18n";
 import { LanguageSelector, resolveCurrentLanguage } from "./LanguageSelector";
 
 let currentLanguage = "zh";
+const changeLanguageMock = vi.fn();
 const useTranslationMock = vi.fn(() => ({
   t: (key: string) => (key === "settings.language" ? "Language" : key),
   i18n: {
     language: currentLanguage,
-    changeLanguage: vi.fn(),
+    changeLanguage: changeLanguageMock,
   },
 }));
 
@@ -53,17 +55,56 @@ describe("LanguageSelector", () => {
   afterEach(() => {
     cleanup();
     currentLanguage = "zh";
+    changeLanguageMock.mockReset();
+    vi.mocked(saveLanguage).mockReset();
   });
 
   it("shows the active language's native name in the trigger", () => {
     currentLanguage = "zh";
     render(<LanguageSelector />);
-    expect(screen.getByLabelText("Language").textContent).toContain("简体中文");
+    const select = screen.getByRole("combobox", {
+      name: "Language",
+    }) as HTMLSelectElement;
+    expect(select.value).toBe("zh");
+    expect(select.selectedOptions[0]?.textContent).toBe("简体中文");
   });
 
   it("reflects a non-default active language", () => {
     currentLanguage = "en";
     render(<LanguageSelector />);
-    expect(screen.getByLabelText("Language").textContent).toContain("English");
+    const select = screen.getByRole("combobox", {
+      name: "Language",
+    }) as HTMLSelectElement;
+    expect(select.value).toBe("en");
+  });
+
+  it("renders every supported language without a portaled popup", () => {
+    render(<LanguageSelector />);
+
+    expect(screen.getAllByRole("option")).toHaveLength(10);
+    expect(document.querySelector('[data-slot="select-popup"]')).toBeNull();
+  });
+
+  it("keeps the visual chevron outside the native control semantics", () => {
+    const { container } = render(<LanguageSelector />);
+
+    const select = screen.getByRole("combobox", { name: "Language" });
+    const icon = container.querySelector(
+      ".settings-basic-language-select-icon",
+    );
+
+    expect(select.nextElementSibling).toBe(icon);
+    expect(icon?.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("changes and persists a newly selected language", () => {
+    render(<LanguageSelector />);
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Language" }), {
+      target: { value: "en" },
+    });
+
+    expect(changeLanguageMock).toHaveBeenCalledWith("en");
+    expect(saveLanguage).toHaveBeenCalledWith("en");
   });
 });

@@ -1,12 +1,6 @@
 import { useTranslation } from "react-i18next";
+import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import Languages from "lucide-react/dist/esm/icons/languages";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   SUPPORTED_LANGUAGES,
   saveLanguage,
@@ -54,21 +48,24 @@ export function LanguageSelector() {
         <span className="settings-basic-field-label">{t("settings.language")}</span>
       </div>
       <div className="settings-control settings-basic-language-control">
-        <Select value={currentLanguage} onValueChange={handleLanguageChange}>
-          <SelectTrigger
-            className="settings-basic-language-select-trigger"
+        <div className="settings-select-wrap settings-basic-language-select-wrap">
+          <select
+            className="settings-select settings-basic-language-native-select"
             aria-label={t("settings.language")}
+            value={currentLanguage}
+            onChange={(event) => handleLanguageChange(event.target.value)}
           >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className="settings-basic-language-select-popup">
             {SUPPORTED_LANGUAGES.map((entry) => (
-              <SelectItem key={entry.code} value={entry.code}>
+              <option key={entry.code} value={entry.code}>
                 {entry.nativeName}
-              </SelectItem>
+              </option>
             ))}
-          </SelectContent>
-        </Select>
+          </select>
+          <ChevronDown
+            className="settings-basic-language-select-icon"
+            aria-hidden
+          />
+        </div>
       </div>
     </div>
   );

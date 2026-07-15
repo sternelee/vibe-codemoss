@@ -1,9 +1,9 @@
 # Project Context
 
 - Type: OpenSpec Workspace
-- Updated At: 2026-07-11T20:28:14+08:00
+- Updated At: 2026-07-15T19:45:00+08:00
 - Scope: governance snapshot for the current `mossx` repository workspace
-- Product version fact: `ccgui@0.5.13` from `package.json` and `src-tauri/tauri.conf.json`
+- Product version fact: `ccgui@0.7.3` from `package.json` and `src-tauri/tauri.conf.json`
 
 ## Domain
 
@@ -20,7 +20,7 @@ The product in this repository is `ccgui`: a Tauri 2 desktop AI engineering work
 - Change workflow artifacts: `openspec/changes/<change-id>/{proposal,design,tasks,verification}.md`
 - Archive: `openspec/changes/archive/*`
 - Implementation rules: `.trellis/spec/**`
-- Current workspace state: tracked active changes = `12`, archive changes = `581`, main specs = `383`
+- Current workspace state: tracked active changes = `12`, archive changes = `596`, main specs = `395`
 
 ## Entry Surfaces
 
@@ -55,24 +55,24 @@ The product in this repository is `ccgui`: a Tauri 2 desktop AI engineering work
 ## Current Inventory
 
 - Active changes: `12`
-- Archive changes: `581`
-- Main specs: `383`
+- Archive changes: `596`
+- Main specs: `395`
 - Completed task sets still active: `0`
 - Ready-for-implementation task sets: `0`
 - Demand-pool proposal directories without `proposal.md` / `tasks.md`: `0`
 
 ## Active Changes
 
-Active OpenSpec changes after the 2026-07-11 closure batch:
+Active OpenSpec changes after the 2026-07-15 weekly audit and closure batch:
 
 - `add-askuserquestion-default-mode-mcp-bridge` — 10/12; blocked on deferred `cargo test` and manual multi-select queue acceptance.
 - `add-linux-native-menu-localization` — 3/5; blocked on deferred Rust validation and Linux startup localization smoke test.
 - `optimize-conversation-streaming-render-perf` — 7/8; implementation verification passed, but archive remains blocked on rebuilt-app performance trace evidence.
 - `add-claude-runtime-mcp-servers-panel` — 5/6; blocked on manual Claude runtime-server panel QA.
-- `harden-conversation-rendering-for-large-history` — 33/36; blocked on heavy-history manual evidence, performance budget finalization, and human acceptance.
+- `harden-conversation-rendering-for-large-history` — 34/37; blocked on heavy-history manual evidence, performance budget finalization, and human acceptance.
 - `fix-codex-thread-start-continuity-and-recovery` — 24/26; implementation tasks are complete; commit and mandatory Trellis session record remain.
 - `enable-claude-lightweight-streaming-and-frame-attribution` — 15/18; blocked on human FPS/visual fidelity acceptance and final archive.
-- `2026-06-24-retire-opencode-and-gemini-cli` — 1/45; large cross-layer implementation backlog, not an archive candidate.
+- `2026-06-24-retire-opencode-and-gemini-cli` — 4/48; large cross-layer implementation backlog, not an archive candidate.
 - `2026-06-24-infer-thread-rename-from-claude-codex-jsonl` — 0/31; planned implementation backlog, not an archive candidate.
 - `2026-06-22-release-pipeline-cache-sccache` — 7/13; blocked on live release run, artifact, cache-size, and fallback evidence.
 - `fix-sidebar-session-catalog-progressive-loading` — 0/8; documentation-restored backlog covering bounded first-page projection, continuation semantics, stale-result rejection, and large-history evidence.
@@ -85,6 +85,30 @@ Calibration rule: `openspec validate --strict` proves artifact structure only. I
 The previous v0.5.11 performance and recovery follow-up chain has been archived. Future performance work should open a new chain instead of reusing the archived change directories.
 
 ## Recent Archive / Sync Snapshot
+
+### 2026-07-15 Weekly Code-Change Coverage And Closure Batch
+
+Audited Git history from `2026-07-09 00:00:00 +08:00` through 2026-07-15: 149 total commits, 107 non-merge commits, and 64 commits touching code/build paths. The durable matrix is stored in `openspec/docs/weekly-code-change-openspec-audit-2026-07-15.md`; classification totals are 22 direct change tracked, 12 existing proposal tracked, 18 retrospective backfill, and 12 non-behavior maintenance.
+
+The retrospective change `retro-weekly-code-change-spec-coverage-2026-07-15` added five main capabilities and extended six existing capabilities. New capabilities are `client-localization-language-support`, `terminal-composer-handoff`, `session-history-display-fidelity`, `codex-model-catalog-coverage`, and `client-scrollbar-visual-consistency`.
+
+Archived 13 previously active changes whose task sets were 100% complete:
+
+- `add-downloadable-web-assets`
+- `align-codex-message-rendering-with-official`
+- `fix-app-shell-composer-startup-convergence`
+- `fix-message-math-container-prefix`
+- `fix-messages-scroll-anchor-update-loop`
+- `fix-sidebar-scroll-area-react19-ref-loop`
+- `fix-sidebar-thread-row-provider-startup-loop`
+- `fix-tooltip-startup-update-loop`
+- `group-global-search-results`
+- `harden-message-compact-display-math-boundaries`
+- `reduce-idle-chrome-render-cost`
+- `restore-added-file-diff-access`
+- `unify-conversation-scroll-bottom-convergence`
+
+All archive candidates were synced before move. `reduce-idle-chrome-render-cost` used `--skip-specs` only after all three delta requirement headers were verified to exist exactly once in `ui-chrome-idle-render-cost`. Final counts after archiving the retrospective change: active=12, archive=596, specs=395.
 
 ### 2026-07-11 Completion-Based Closure Batch
 
@@ -199,7 +223,7 @@ Validation: each change passed `openspec validate <change> --strict --no-interac
 
 Current-branch implementation substrate includes:
 
-- Multi-engine runtime: Claude, Codex, OpenCode, Gemini, and custom provider surfaces.
+- Primary runtime surfaces: Claude Code and Codex, plus custom provider configuration; OpenCode/Gemini frontend retirement remains tracked as an explicit migration backlog.
 - Project intelligence: Project Map / Project X-Ray, Project Memory, Context Ledger, SpecHub, and governance evidence panels.
 - Execution surfaces: Task Center / TaskRun, Kanban, Plan panel, Session Activity, runtime log, terminal, Git history, and engine task output inspection.
 - Runtime reliability: realtime batching, runtime evidence gates, lifecycle hardening, stalled recovery contracts, global client error log, and startup orchestration.
@@ -257,6 +281,7 @@ npm run check:large-files
 
 ## Update History
 
+- 2026-07-15: Audited one week of code/build history, backfilled 18 proposal gaps through one capability-oriented retrospective change, synced five new and six modified capability specs, archived 13 completed active changes plus the retrospective change, and refreshed tracked counts to active=12, archive=596, specs=395. No product code was modified.
 - 2026-07-11: Completed a documentation-only calibration pass. Added missing designs for Linux native-menu localization and Claude runtime MCP servers, added seven evidence-oriented verification reports, and restored two empty sidebar loading changes with proposal/design/tasks/spec deltas. No product code, configuration, scripts, or tests were modified; both restored changes remain 0% complete pending implementation/evidence review.
 - 2026-07-11: Archived 18 completion-based changes, synced their delta specs, calibrated four stale delta anchors/sections, and refreshed the active backlog to 12 changes. Current tracked counts are active=12, archive=581, specs=383.
 - 2026-06-23: Archived 9 verified v0.5.13 changes and synced their deltas into main specs. Current tracked counts are active=4, archive=521, specs=357. Remaining active set is one in-progress release pipeline cache change plus three demand-pool proposals without `tasks.md` or spec deltas.
