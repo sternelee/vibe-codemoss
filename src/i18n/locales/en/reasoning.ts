@@ -25,6 +25,10 @@ const reasoning = {
       label: "Max",
       description: "Maximum reasoning depth",
     },
+    ultra: {
+      label: "Ultra",
+      description: "Maximum reasoning with automatic task delegation",
+    },
   },
 };
 

@@ -65,6 +65,18 @@ const normalizeModelIdentity = (model: ModelOption): string => {
   return model.id.trim().toLowerCase();
 };
 
+const mergeReasoningMetadata = (
+  existingModel: ModelOption,
+  overridingModel: ModelOption,
+) => ({
+  supportedReasoningEfforts:
+    overridingModel.supportedReasoningEfforts.length > 0
+      ? overridingModel.supportedReasoningEfforts
+      : existingModel.supportedReasoningEfforts,
+  defaultReasoningEffort:
+    overridingModel.defaultReasoningEffort ?? existingModel.defaultReasoningEffort,
+});
+
 const mergeModelOption = (existing: ModelOption, next: ModelOption): ModelOption => ({
   ...existing,
   id: next.id || existing.id,
@@ -72,12 +84,7 @@ const mergeModelOption = (existing: ModelOption, next: ModelOption): ModelOption
   displayName: next.displayName || existing.displayName,
   description: next.description || existing.description,
   source: next.source || existing.source,
-  supportedReasoningEfforts:
-    existing.supportedReasoningEfforts.length > 0
-      ? existing.supportedReasoningEfforts
-      : next.supportedReasoningEfforts,
-  defaultReasoningEffort:
-    existing.defaultReasoningEffort ?? next.defaultReasoningEffort,
+  ...mergeReasoningMetadata(existing, next),
 });
 
 const upsertModelOption = (
@@ -133,16 +140,38 @@ const getBuiltInCodexModelOptions = (): ModelOption[] =>
 const mergeCodexSelectableModels = (baseModels: ModelOption[]): ModelOption[] => {
   const mergedModels: ModelOption[] = [];
   const seenIdentities = new Map<string, number>();
+  const builtInModels = getBuiltInCodexModelOptions();
+  const customModels = readCustomCodexModelOptions();
 
-  baseModels.forEach((model) => upsertModelOption(mergedModels, seenIdentities, model));
-  readCustomCodexModelOptions().forEach((model) =>
+  builtInModels.forEach((model) =>
+    upsertModelOption(mergedModels, seenIdentities, model),
+  );
+  customModels.forEach((model) =>
     upsertModelOption(mergedModels, seenIdentities, model, true),
   );
-  getBuiltInCodexModelOptions().forEach((model) =>
+  baseModels.forEach((model) =>
     upsertModelOption(mergedModels, seenIdentities, model, true),
   );
 
-  return mergedModels;
+  const mergedByIdentity = new Map(
+    mergedModels.map((model) => [normalizeModelIdentity(model), model]),
+  );
+  const orderedModels: ModelOption[] = [];
+  const appendedIdentities = new Set<string>();
+  [...baseModels, ...customModels, ...builtInModels].forEach((model) => {
+    const identity = normalizeModelIdentity(model);
+    if (!identity || appendedIdentities.has(identity)) {
+      return;
+    }
+    const mergedModel = mergedByIdentity.get(identity);
+    if (!mergedModel) {
+      return;
+    }
+    appendedIdentities.add(identity);
+    orderedModels.push(mergedModel);
+  });
+
+  return orderedModels;
 };
 
 const normalizeEffort = (value: unknown): string | null => {

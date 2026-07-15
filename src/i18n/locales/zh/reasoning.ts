@@ -25,6 +25,10 @@ const reasoning = {
       label: "最多",
       description: "最高思考强度",
     },
+    ultra: {
+      label: "超强",
+      description: "最高思考强度，并自动委派任务",
+    },
   },
 };
 

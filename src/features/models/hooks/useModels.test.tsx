@@ -144,6 +144,128 @@ describe("useModels", () => {
     expect(result.current.selectedEffort).toBe("medium");
   });
 
+  it("replaces the startup fallback after runtime reasoning metadata arrives", async () => {
+    const modelListRequest = createDeferred<{
+      result: {
+        data: Array<Record<string, unknown>>;
+      };
+    }>();
+    vi.mocked(getModelList).mockReturnValueOnce(modelListRequest.promise);
+    vi.mocked(getConfigModel).mockResolvedValueOnce("gpt-5.6-sol");
+
+    const { result } = renderHook(() =>
+      useModels({ activeWorkspace: workspace }),
+    );
+
+    await waitFor(() => expect(result.current.selectedModelId).toBe("gpt-5.6-sol"));
+    expect(result.current.reasoningOptions).toEqual(["low", "medium", "high", "xhigh"]);
+
+    modelListRequest.resolve({
+      result: {
+        data: [
+          {
+            id: "gpt-5.6-sol",
+            model: "gpt-5.6-sol",
+            displayName: "GPT-5.6-Sol",
+            supportedReasoningEfforts: [
+              { reasoningEffort: "low", description: "Low" },
+              { reasoningEffort: "medium", description: "Medium" },
+              { reasoningEffort: "high", description: "High" },
+              { reasoningEffort: "xhigh", description: "Extra High" },
+              { reasoningEffort: "max", description: "Max" },
+              { reasoningEffort: "ultra", description: "Ultra" },
+            ],
+            defaultReasoningEffort: "low",
+            isDefault: true,
+          },
+        ],
+      },
+    });
+
+    await waitFor(() =>
+      expect(result.current.reasoningOptions).toEqual([
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max",
+        "ultra",
+      ]),
+    );
+    expect(result.current.selectedEffort).toBe("low");
+  });
+
+  it("keeps model-specific runtime reasoning metadata ahead of the common fallback", async () => {
+    vi.mocked(getModelList).mockResolvedValueOnce({
+      result: {
+        data: [
+          {
+            id: "gpt-5.6-sol",
+            model: "gpt-5.6-sol",
+            displayName: "GPT-5.6-Sol",
+            supportedReasoningEfforts: [
+              { reasoningEffort: "low", description: "Low" },
+              { reasoningEffort: "max", description: "Max" },
+              { reasoningEffort: "ultra", description: "Ultra" },
+            ],
+            defaultReasoningEffort: "low",
+            isDefault: true,
+          },
+          {
+            id: "gpt-5.6-terra",
+            model: "gpt-5.6-terra",
+            displayName: "GPT-5.6-Terra",
+            supportedReasoningEfforts: [
+              { reasoningEffort: "low", description: "Low" },
+              { reasoningEffort: "medium", description: "Medium" },
+              { reasoningEffort: "high", description: "High" },
+              { reasoningEffort: "ultra", description: "Ultra" },
+            ],
+            defaultReasoningEffort: "medium",
+            isDefault: false,
+          },
+          {
+            id: "gpt-5.6-luna",
+            model: "gpt-5.6-luna",
+            displayName: "GPT-5.6-Luna",
+            supportedReasoningEfforts: [
+              { reasoningEffort: "medium", description: "Medium" },
+              { reasoningEffort: "high", description: "High" },
+            ],
+            defaultReasoningEffort: "medium",
+            isDefault: false,
+          },
+        ],
+      },
+    });
+    vi.mocked(getConfigModel).mockResolvedValueOnce("gpt-5.6-sol");
+
+    const { result } = renderHook(() =>
+      useModels({ activeWorkspace: workspace }),
+    );
+
+    await waitFor(() =>
+      expect(result.current.reasoningOptions).toEqual(["low", "max", "ultra"]),
+    );
+    expect(result.current.models.slice(0, 3).map((model) => model.id)).toEqual([
+      "gpt-5.6-sol",
+      "gpt-5.6-terra",
+      "gpt-5.6-luna",
+    ]);
+    expect(result.current.selectedModelId).toBe("gpt-5.6-sol");
+    expect(result.current.selectedEffort).toBe("low");
+
+    act(() => result.current.setSelectedModelId("gpt-5.6-terra"));
+
+    await waitFor(() => expect(result.current.selectedModelId).toBe("gpt-5.6-terra"));
+    expect(result.current.reasoningOptions).toEqual(["low", "medium", "high", "ultra"]);
+
+    act(() => result.current.setSelectedModelId("gpt-5.6-luna"));
+
+    await waitFor(() => expect(result.current.selectedModelId).toBe("gpt-5.6-luna"));
+    expect(result.current.reasoningOptions).toEqual(["medium", "high"]);
+  });
+
   it("keeps the selected reasoning effort when switching models", async () => {
     vi.mocked(getModelList).mockResolvedValueOnce({
       result: {
