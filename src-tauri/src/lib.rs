@@ -58,6 +58,16 @@ fn forwarded_drag_drop_paths(paths: &[std::path::PathBuf]) -> Vec<String> {
         .collect()
 }
 
+fn forwarded_drag_drop_leave_payload() -> ForwardedDragDropPayload {
+    ForwardedDragDropPayload {
+        event_type: "leave",
+        // Native leave events do not carry a position. Frontend consumers treat
+        // leave as a terminal lifecycle event before any target hit-testing.
+        position: ForwardedDragDropPosition { x: 0.0, y: 0.0 },
+        paths: None,
+    }
+}
+
 fn forward_webview_drag_drop_to_main<R: tauri::Runtime>(
     webview: &Webview<R>,
     event: &WebviewEvent,
@@ -82,13 +92,28 @@ fn forward_webview_drag_drop_to_main<R: tauri::Runtime>(
             position: forwarded_drag_drop_position(webview, position),
             paths: Some(forwarded_drag_drop_paths(paths)),
         }),
-        DragDropEvent::Leave => None,
+        DragDropEvent::Leave => Some(forwarded_drag_drop_leave_payload()),
         _ => None,
     };
     if let (Some(payload), Some(main_window)) =
         (payload, webview.window().get_webview_window("main"))
     {
         let _ = main_window.emit(MAIN_WINDOW_DRAG_DROP_FORWARD_EVENT, payload);
+    }
+}
+
+#[cfg(test)]
+mod drag_drop_bridge_tests {
+    use super::*;
+
+    #[test]
+    fn forwarded_leave_payload_ends_the_frontend_drag_lifecycle() {
+        let payload = forwarded_drag_drop_leave_payload();
+
+        assert_eq!(payload.event_type, "leave");
+        assert_eq!(payload.position.x, 0.0);
+        assert_eq!(payload.position.y, 0.0);
+        assert!(payload.paths.is_none());
     }
 }
 
