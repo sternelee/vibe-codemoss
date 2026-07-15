@@ -64,6 +64,12 @@ function inferEngineFromThreadId(threadId: string): "claude" | "codex" | "gemini
   return "codex";
 }
 
+export function canProgressEventStartProcessing(
+  engine: "claude" | "codex" | "gemini" | "opencode",
+) {
+  return engine !== "codex";
+}
+
 function isClaudeThread(threadId: string) {
   return threadId.startsWith("claude:") || threadId.startsWith("claude-pending-");
 }
@@ -88,14 +94,19 @@ function isGeminiEventThread(
 function inferItemEngineSource(
   item: Record<string, unknown>,
   threadId: string,
-): ReasoningEngineHint {
+): "claude" | "codex" | "gemini" | "opencode" {
   const rawEngineSource = asString(item.engineSource ?? item.engine_source ?? "")
     .trim()
     .toLowerCase();
-  if (rawEngineSource === "gemini") {
-    return "gemini";
+  if (
+    rawEngineSource === "claude" ||
+    rawEngineSource === "codex" ||
+    rawEngineSource === "gemini" ||
+    rawEngineSource === "opencode"
+  ) {
+    return rawEngineSource;
   }
-  return isGeminiThread(threadId) ? "gemini" : null;
+  return inferEngineFromThreadId(threadId);
 }
 
 function isInterruptedThread(
@@ -541,6 +552,7 @@ export function useThreadItemEvents({
           operation.kind === "reasoningContentDelta");
       if (
         !isGeminiReasoningDelta &&
+        canProgressEventStartProcessing(inferEngineFromThreadId(operation.threadId)) &&
         (!markedProcessingThreads || !markedProcessingThreads.has(operation.threadId))
       ) {
         markProcessing(operation.threadId, true);
@@ -687,6 +699,9 @@ export function useThreadItemEvents({
       const shouldMarkProcessing = normalizedEvent.operation !== "itemCompleted";
       const markProcessingIfNeeded = () => {
         if (!shouldMarkProcessing) {
+          return;
+        }
+        if (!canProgressEventStartProcessing(normalizedEvent.engine)) {
           return;
         }
         if (markedProcessingThreads?.has(normalizedEvent.threadId)) {
@@ -1143,7 +1158,11 @@ export function useThreadItemEvents({
       const itemEngineSource = inferItemEngineSource(item, threadId);
       const shouldSuppressGeminiReasoningProcessing =
         itemType === "reasoning" && itemEngineSource === "gemini";
-      if (shouldMarkProcessing && !shouldSuppressGeminiReasoningProcessing) {
+      if (
+        shouldMarkProcessing &&
+        !shouldSuppressGeminiReasoningProcessing &&
+        canProgressEventStartProcessing(itemEngineSource)
+      ) {
         markProcessing(threadId, true);
       }
       applyCollabThreadLinks(threadId, item);

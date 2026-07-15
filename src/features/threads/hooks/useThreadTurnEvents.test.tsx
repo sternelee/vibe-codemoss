@@ -1904,7 +1904,7 @@ describe("useThreadTurnEvents", () => {
 
   it("marks context compacting immediately when compaction starts", () => {
     const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1111);
-    const { result, dispatch, safeMessageActivity } = makeOptions();
+    const { result, dispatch, markProcessing, safeMessageActivity } = makeOptions();
 
     act(() => {
       result.current.onContextCompacting("ws-1", "thread-1", {
@@ -1926,6 +1926,7 @@ describe("useThreadTurnEvents", () => {
       isCompacting: true,
       timestamp: 1111,
     });
+    expect(markProcessing).not.toHaveBeenCalledWith("thread-1", true);
     expect(safeMessageActivity).toHaveBeenCalled();
 
     nowSpy.mockRestore();

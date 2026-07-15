@@ -871,3 +871,102 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 994: 恢复幕布新增文件内联 Diff
+
+**Date**: 2026-07-15
+**Task**: 恢复幕布新增文件内联 Diff
+**Branch**: `feature/v-0.7.3`
+
+### Summary
+
+回退新增文件点击后隐式切换中间 Diff 的错误行为，兼容 apply_patch 新文件正文在 conversation canvas 内原地预览，并完成 focused tests、typecheck、lint 与 OpenSpec strict validation。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `07ed4c70` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 995: 已编辑文件最大化 Diff 预览
+
+**Date**: 2026-07-15
+**Task**: 已编辑文件最大化 Diff 预览
+**Branch**: `feature/v-0.7.3`
+
+### Summary
+
+复用右侧 Git 文件列表既有 Diff modal，使幕布已编辑文件可点击并直接最大化预览；补齐 workspace 绝对路径解析、异步文件列表重试及 staged/unstaged 回归测试。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e902a0ae` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 996: 修复 Codex 已结束会话 loading 复活
+
+**Date**: 2026-07-16
+**Task**: 修复 Codex 已结束会话 loading 复活
+**Branch**: `feature/v-0.7.3`
+
+### Summary
+
+仅调整 Codex 前端 processing 启动权限：progress/content 事件不再把已结束会话重新置为 loading；保留显式新 turn 与 compaction 生命周期，并补齐并行会话、迟到事件和 compaction 回归测试；同步并归档 OpenSpec change。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7f90d84c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
