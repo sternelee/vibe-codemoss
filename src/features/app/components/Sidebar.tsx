@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 
 import { ThreadList } from "./ThreadList";
 import { ThreadEmptyState } from "./ThreadEmptyState";
+import { ThreadLoadingState } from "./ThreadLoadingState";
 import { WorktreeSection } from "./WorktreeSection";
 import { PinnedThreadList } from "./PinnedThreadList";
 import { WorkspaceCard } from "./WorkspaceCard";
@@ -1607,17 +1608,29 @@ function SidebarImpl({
     const totalThreadRoots = threadRows?.totalRoots ?? 0;
     const nextCursor =
       threadListCursorByWorkspace[entry.id] ?? null;
-    const showThreadList =
-      !isCollapsed && (threads.length > 0 || Boolean(nextCursor));
+    const isThreadListHydrated = hydratedThreadListWorkspaceIds.has(entry.id);
     const isPaging = threadListPagingByWorkspace[entry.id] ?? false;
     const worktrees = worktreesByParent.get(entry.id) ?? [];
+    // Until a connected workspace finishes its first hydration, show a loading
+    // placeholder instead of the stale/fallback-named ("Agent 1", "Agent 2")
+    // preview threads that would otherwise leak through before real data lands.
+    const showThreadLoadingState =
+      !isCollapsed &&
+      entry.connected &&
+      !isThreadListHydrated &&
+      worktrees.length === 0;
+    const showThreadList =
+      !isCollapsed &&
+      !showThreadLoadingState &&
+      (threads.length > 0 || Boolean(nextCursor));
     const isWorktreeSectionCollapsed =
       collapsedWorktreeSections.has(entry.id);
     const showThreadEmptyState =
       !isCollapsed &&
       !showThreadList &&
+      !showThreadLoadingState &&
       worktrees.length === 0 &&
-      hydratedThreadListWorkspaceIds.has(entry.id);
+      isThreadListHydrated;
     const isThreadListDegraded =
       hasDegradedThreadList(threads) ||
       worktrees.some((worktree) => hasDegradedThreadList(threadsByWorkspace[worktree.id] ?? []));
@@ -1807,6 +1820,7 @@ function SidebarImpl({
             {t("sidebar.sessionFolderLoadFailed")}
           </div>
         ) : null}
+        {showThreadLoadingState ? <ThreadLoadingState /> : null}
         {showThreadEmptyState ? <ThreadEmptyState /> : null}
       </WorkspaceCard>
     );

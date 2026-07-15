@@ -182,7 +182,7 @@ const baseProps = {
   activeItems: [],
   threadParentById: {},
   threadStatusById: {},
-  hydratedThreadListWorkspaceIds: new Set<string>(),
+  hydratedThreadListWorkspaceIds: new Set<string>(["ws-1"]),
   threadListLoadingByWorkspace: {},
   threadListPagingByWorkspace: {},
   threadListCursorByWorkspace: {},

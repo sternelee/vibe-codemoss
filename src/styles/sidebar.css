@@ -1962,6 +1962,25 @@
   margin-left: 4px;
 }
 
+.thread-loading-state {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 4px;
+  color: var(--text-faint, var(--text-muted));
+  font-size: var(--sidebar-meta-font-size);
+  line-height: 1.4;
+}
+
+.thread-loading-state svg {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.thread-loading-state-nested {
+  margin-left: 4px;
+}
+
 /* Updated Thread Row Styles */
 .thread-row {
   display: flex;

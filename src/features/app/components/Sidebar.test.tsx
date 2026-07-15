@@ -243,6 +243,7 @@ describe("Sidebar", () => {
           },
         ]}
         threadsByWorkspace={{ "ws-1": [thread] }}
+        hydratedThreadListWorkspaceIds={new Set(["ws-1"])}
         getPinTimestamp={(workspaceId, threadId) =>
           workspaceId === "ws-1" && threadId === "thread-1" ? 111 : null
         }
@@ -297,6 +298,7 @@ describe("Sidebar", () => {
           },
         ]}
         threadsByWorkspace={{ "ws-1": [pinnedThread, regularThread] }}
+        hydratedThreadListWorkspaceIds={new Set(["ws-1"])}
         getPinTimestamp={(workspaceId, threadId) =>
           workspaceId === "ws-1" && threadId === "thread-pinned" ? 111 : null
         }
@@ -332,6 +334,7 @@ describe("Sidebar", () => {
           },
         ]}
         threadsByWorkspace={{ "ws-1": [pinnedThread, regularThread] }}
+        hydratedThreadListWorkspaceIds={new Set(["ws-1"])}
         getPinTimestamp={(workspaceId, threadId) =>
           workspaceId === "ws-1" && threadId === "thread-pinned" ? 111 : null
         }
@@ -381,6 +384,7 @@ describe("Sidebar", () => {
           },
         ]}
         threadsByWorkspace={{ "ws-1": [thread] }}
+        hydratedThreadListWorkspaceIds={new Set(["ws-1"])}
         getPinTimestamp={getPinTimestamp}
         isThreadPinned={isThreadPinned}
         pinnedThreadsVersion={0}
@@ -402,6 +406,7 @@ describe("Sidebar", () => {
           },
         ]}
         threadsByWorkspace={{ "ws-1": [thread] }}
+        hydratedThreadListWorkspaceIds={new Set(["ws-1"])}
         getPinTimestamp={getPinTimestamp}
         isThreadPinned={isThreadPinned}
         pinnedThreadsVersion={1}
@@ -497,6 +502,7 @@ describe("Sidebar", () => {
       <Sidebar
         {...baseProps}
         workspaces={[workspaceAlpha, workspaceBeta]}
+        hydratedThreadListWorkspaceIds={new Set(["ws-alpha", "ws-beta"])}
         groupedWorkspaces={[
           {
             id: null,
@@ -582,6 +588,7 @@ describe("Sidebar", () => {
           "alpha-running": { isProcessing: true, hasUnread: false, isReviewing: false },
           "alpha-exited": { isProcessing: false, hasUnread: false, isReviewing: false },
         }}
+        hydratedThreadListWorkspaceIds={new Set(["ws-alpha"])}
       />,
     );
 

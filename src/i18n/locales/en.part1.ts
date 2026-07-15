@@ -42,6 +42,7 @@ const enPart1 = {
     workspaceAliasBadge: "A",
     workspaceAliasBadgeTitle: "Workspace alias. Original name: {{name}}",
     emptyWorkspaceSessions: "No sessions yet.",
+    loadingWorkspaceSessions: "Loading…",
     newSessionFolder: "New folder",
     newSessionFolderIn: "New folder in {{name}}",
     renameSessionFolder: "Rename {{name}}",

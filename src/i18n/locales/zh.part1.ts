@@ -185,6 +185,7 @@ const zhPart1 = {
     workspaceAliasBadge: "别",
     workspaceAliasBadgeTitle: "这是工作区别名，原名：{{name}}",
     emptyWorkspaceSessions: "暂无会话",
+    loadingWorkspaceSessions: "加载中…",
     newSessionFolder: "新建文件夹",
     newSessionFolderIn: "在 {{name}} 中新建文件夹",
     renameSessionFolder: "重命名 {{name}}",
