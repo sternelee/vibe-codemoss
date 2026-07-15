@@ -2704,23 +2704,27 @@
 }
 
 .file-compare-column-header {
-  min-height: 46px;
+  box-sizing: border-box;
+  height: 36px;
+  min-height: 36px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px;
+  padding: 3px 10px;
   border-bottom: 1px solid var(--border-subtle);
   background: var(--surface-panel);
 }
 
 .file-compare-column-title {
   min-width: 0;
-  display: grid;
-  gap: 2px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
 }
 
 .file-compare-column-name {
+  flex: 0 0 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2731,6 +2735,7 @@
 }
 
 .file-compare-column-path {
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2797,8 +2802,25 @@
 }
 
 .file-compare-cm .cm-file-compare-line-gap {
-  height: calc(var(--file-compare-gap-lines, 1) * 1.55em);
-  background: color-mix(in srgb, #6bb3f0 10%, transparent);
+  background:
+    repeating-linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--text-muted) 20%, transparent) 0 2px,
+      transparent 2px 11px
+    ),
+    color-mix(in srgb, #6bb3f0 6%, transparent);
+  box-shadow: inset 3px 0 0 color-mix(in srgb, #6bb3f0 68%, transparent);
+}
+
+.file-compare-cm .cm-file-compare-collapsed-range {
+  min-height: 24px;
+  background:
+    repeating-linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--text-muted) 20%, transparent) 0 2px,
+      transparent 2px 11px
+    ),
+    color-mix(in srgb, #6bb3f0 6%, transparent);
   box-shadow: inset 3px 0 0 color-mix(in srgb, #6bb3f0 68%, transparent);
 }
 

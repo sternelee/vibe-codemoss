@@ -29,6 +29,27 @@ type FileDocumentSessionCacheEntry = {
   updatedAt: number;
 };
 
+export function detectPreservedLineEnding(content: string): "\r\n" | "\r" | null {
+  const withoutCrLf = content.replace(/\r\n/g, "");
+  if (content.includes("\r\n") && !withoutCrLf.includes("\r") && !withoutCrLf.includes("\n")) {
+    return "\r\n";
+  }
+  if (content.includes("\r") && !content.includes("\n")) {
+    return "\r";
+  }
+  return null;
+}
+
+export function restorePreservedLineEnding(
+  content: string,
+  lineEnding: "\r\n" | "\r" | null,
+) {
+  if (!lineEnding) {
+    return content;
+  }
+  return content.replace(/\r\n|\r|\n/g, "\n").replace(/\n/g, lineEnding);
+}
+
 const FILE_DOCUMENT_SESSION_CACHE_MAX_ENTRIES = 24;
 const FILE_DOCUMENT_SESSION_CACHE_MAX_CONTENT_LENGTH = 1_048_576;
 const fileDocumentSessionCache = new Map<string, FileDocumentSessionCacheEntry>();
@@ -313,6 +334,12 @@ export function useFileDocumentState({
 
   const handleSave = useCallback(() => {
     const contentToSave = latestContentRef.current;
+    const diskContentToSave = restorePreservedLineEnding(
+      contentToSave,
+      detectPreservedLineEnding(
+        externalDiskSnapshotRef.current?.content ?? savedContentRef.current,
+      ),
+    );
     const latestIsDirty = contentToSave !== savedContentRef.current;
     if (!latestIsDirty) {
       return Promise.resolve(true);
@@ -338,22 +365,29 @@ export function useFileDocumentState({
             workspaceId,
             customSpecRoot,
             fileReadExternalSpecLogicalPath,
-            contentToSave,
+            diskContentToSave,
           );
         } else if (fileReadTargetDomain === "external-absolute") {
           throw new Error(externalAbsoluteReadOnlyMessage);
         } else if (fileReadTargetDomain === "invalid") {
           throw new Error("Invalid file path");
         } else {
-          await writeWorkspaceFile(workspaceId, workspaceRelativeFilePath, contentToSave);
+          await writeWorkspaceFile(workspaceId, workspaceRelativeFilePath, diskContentToSave);
         }
         if (saveRequestId !== saveRequestIdRef.current) {
           return false;
         }
         savedContentRef.current = contentToSave;
         latestIsDirtyRef.current = latestContentRef.current !== contentToSave;
+        setDocumentSnapshot((current) =>
+          createFileDocumentSnapshot(
+            current.content,
+            current.truncated,
+            current.snapshotVersion + 1,
+          ),
+        );
         externalDiskSnapshotRef.current = {
-          content: contentToSave,
+          content: diskContentToSave,
           truncated,
         };
         writeFileDocumentSessionCache(fileReadTargetKey, {

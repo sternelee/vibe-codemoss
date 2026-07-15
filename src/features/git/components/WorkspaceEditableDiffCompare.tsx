@@ -6,15 +6,18 @@ import {
   useRef,
   useState,
   type CSSProperties,
-  type ReactNode,
   type UIEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
 import type { GitLineMarkers } from "../../files/utils/gitLineMarkers";
 import { useFileDocumentState } from "../../files/hooks/useFileDocumentState";
-import { computeFileCompareDiff } from "../../files/utils/fileCompareDiff";
+import {
+  buildFocusedFileCompareRanges,
+  computeFileCompareDiff,
+} from "../../files/utils/fileCompareDiff";
 import { resolveFileRenderProfile } from "../../files/utils/fileRenderProfile";
 import {
   CompareEditorColumn,
@@ -23,6 +26,7 @@ import {
 } from "../../files/components/WorkspaceFileComparePanel";
 import { resolveFileReadTarget } from "../../../utils/workspacePaths";
 import { loadFileViewStyles } from "../../../styles/featureStyleLoaders";
+import { getGitFileFullDiff } from "../../../services/tauri";
 import { reconstructPreviousVersion } from "../utils/reconstructPreviousVersion";
 
 type WorkspaceEditableDiffCompareProps = {
@@ -30,10 +34,11 @@ type WorkspaceEditableDiffCompareProps = {
   workspacePath: string;
   filePath: string;
   diff: string;
-  fallback: ReactNode;
+  contentMode?: "all" | "focused";
   onSaveSuccess: () => void;
   onDirtyChange: (isDirty: boolean) => void;
   onDraftActionsChange?: (actions: EditableDiffDraftActions | null) => void;
+  headerControlsTarget?: HTMLElement | null;
 };
 
 export type EditableDiffDraftActions = {
@@ -49,10 +54,11 @@ export function WorkspaceEditableDiffCompare({
   workspacePath,
   filePath,
   diff,
-  fallback,
+  contentMode = "all",
   onSaveSuccess,
   onDirtyChange,
   onDraftActionsChange,
+  headerControlsTarget = null,
 }: WorkspaceEditableDiffCompareProps) {
   const { t } = useTranslation();
   const editorTheme = useFileCompareEditorTheme();
@@ -96,9 +102,45 @@ export function WorkspaceEditableDiffCompare({
       return;
     }
     reconstructedBaselineRef.current = { diff, source: savedSource };
-    setPreviousSource(reconstructPreviousVersion(savedSource, diff));
-    setHasResolvedBaseline(true);
-  }, [diff, documentState.content, documentState.isLoading, documentState.isSaving, documentState.savedContentRef]);
+    setPreviousSource(null);
+    setHasResolvedBaseline(false);
+
+    const previewBaseline = reconstructPreviousVersion(savedSource, diff);
+    if (previewBaseline !== null) {
+      setPreviousSource(previewBaseline);
+      setHasResolvedBaseline(true);
+      return;
+    }
+
+    let cancelled = false;
+    void getGitFileFullDiff(workspaceId, fileReadTarget.workspaceRelativePath)
+      .then((fullDiff) => {
+        if (cancelled) {
+          return;
+        }
+        setPreviousSource(reconstructPreviousVersion(savedSource, fullDiff));
+        setHasResolvedBaseline(true);
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+        setPreviousSource(null);
+        setHasResolvedBaseline(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    diff,
+    documentState.content,
+    documentState.isLoading,
+    documentState.isSaving,
+    documentState.savedContentRef,
+    fileReadTarget.workspaceRelativePath,
+    workspaceId,
+  ]);
 
   useEffect(() => {
     onDirtyChange(documentState.isDirty);
@@ -106,21 +148,25 @@ export function WorkspaceEditableDiffCompare({
   }, [documentState.isDirty, onDirtyChange]);
 
   const deferredContentForDiff = useDeferredValue(documentState.content);
+  const baselineUnavailable = hasResolvedBaseline && previousSource === null;
   const diffResult = useMemo(
-    () => computeFileCompareDiff([previousSource ?? "", deferredContentForDiff]),
+    () => computeFileCompareDiff([
+      previousSource ?? deferredContentForDiff,
+      deferredContentForDiff,
+    ]),
     [deferredContentForDiff, previousSource],
   );
-  const activeDifference = diffResult.changedRows[activeDifferenceIndex] ?? null;
-  const canNavigateDifferences = diffResult.changedRows.length > 0;
+  const activeDifference = diffResult.changedBlocks[activeDifferenceIndex] ?? null;
+  const canNavigateDifferences = diffResult.changedBlocks.length > 0;
   const saveDocument = documentState.handleSave;
   const discardDocument = documentState.handleDiscard;
 
   useEffect(() => {
-    if (activeDifferenceIndex < diffResult.changedRows.length) {
+    if (activeDifferenceIndex < diffResult.changedBlocks.length) {
       return;
     }
-    setActiveDifferenceIndex(Math.max(0, diffResult.changedRows.length - 1));
-  }, [activeDifferenceIndex, diffResult.changedRows.length]);
+    setActiveDifferenceIndex(Math.max(0, diffResult.changedBlocks.length - 1));
+  }, [activeDifferenceIndex, diffResult.changedBlocks.length]);
 
   const handleSave = useCallback(async () => {
     const shouldRefresh = documentState.isDirty;
@@ -151,11 +197,11 @@ export function WorkspaceEditableDiffCompare({
         id: `previous:${filePath}`,
         label: filePath,
         title: t("files.editableDiff.previousVersion"),
-        content: previousSource ?? "",
+        content: previousSource ?? documentState.content,
         isDirty: false,
         isSaving: false,
-        isLoading: documentState.isLoading,
-        error: null,
+        isLoading: documentState.isLoading || !hasResolvedBaseline,
+        error: baselineUnavailable ? t("git.diffUnavailable") : null,
         saveError: null,
         truncated: false,
         readOnlyReason: null,
@@ -191,7 +237,9 @@ export function WorkspaceEditableDiffCompare({
       documentState.setContent,
       documentState.truncated,
       filePath,
+      hasResolvedBaseline,
       handleSave,
+      baselineUnavailable,
       previousSource,
       t,
     ],
@@ -203,6 +251,18 @@ export function WorkspaceEditableDiffCompare({
         modified,
       })),
     [diffResult.changedLineNumbersByColumn],
+  );
+  const collapsedRangesByColumn = useMemo(
+    () =>
+      contentMode === "focused"
+        ? drafts.map((draft, columnIndex) =>
+            buildFocusedFileCompareRanges(
+              draft.content,
+              diffResult.changedLineNumbersByColumn[columnIndex] ?? [],
+            ),
+          )
+        : drafts.map(() => []),
+    [contentMode, diffResult.changedLineNumbersByColumn, drafts],
   );
 
   const handlePanelScroll = useCallback((event: UIEvent<HTMLDivElement>) => {
@@ -230,50 +290,60 @@ export function WorkspaceEditableDiffCompare({
     });
   }, []);
 
-  if (hasResolvedBaseline && previousSource === null) {
-    return fallback;
-  }
+  const differenceNavigator = (
+    <div
+      className={`editable-diff-compare-nav${headerControlsTarget ? " is-external" : ""}`}
+      aria-live="polite"
+    >
+      <span>
+        {canNavigateDifferences
+          ? t("files.fileCompare.differenceCount", {
+              current: activeDifferenceIndex + 1,
+              total: diffResult.changedBlocks.length,
+            })
+          : t("files.fileCompare.noDifferences")}
+      </span>
+      <button
+        type="button"
+        className="ghost"
+        onClick={() =>
+          setActiveDifferenceIndex(
+            (current) =>
+              (current - 1 + diffResult.changedBlocks.length) %
+              diffResult.changedBlocks.length,
+          )
+        }
+        disabled={!canNavigateDifferences}
+        aria-label={t("files.fileCompare.previousDifference")}
+        title={t("files.fileCompare.previousDifference")}
+      >
+        <ChevronUp size={14} aria-hidden />
+      </button>
+      <button
+        type="button"
+        className="ghost"
+        onClick={() =>
+          setActiveDifferenceIndex(
+            (current) => (current + 1) % diffResult.changedBlocks.length,
+          )
+        }
+        disabled={!canNavigateDifferences}
+        aria-label={t("files.fileCompare.nextDifference")}
+        title={t("files.fileCompare.nextDifference")}
+      >
+        <ChevronDown size={14} aria-hidden />
+      </button>
+    </div>
+  );
 
   return (
-    <div className="editable-diff-compare" onScrollCapture={handlePanelScroll}>
-      <div className="editable-diff-compare-nav" aria-live="polite">
-        <span>
-          {canNavigateDifferences
-            ? t("files.fileCompare.differenceCount", {
-                current: activeDifferenceIndex + 1,
-                total: diffResult.changedRows.length,
-              })
-            : t("files.fileCompare.noDifferences")}
-        </span>
-        <button
-          type="button"
-          className="ghost"
-          onClick={() =>
-            setActiveDifferenceIndex((current) =>
-              (current - 1 + diffResult.changedRows.length) % diffResult.changedRows.length,
-            )
-          }
-          disabled={!canNavigateDifferences}
-          aria-label={t("files.fileCompare.previousDifference")}
-          title={t("files.fileCompare.previousDifference")}
-        >
-          <ChevronUp size={14} aria-hidden />
-        </button>
-        <button
-          type="button"
-          className="ghost"
-          onClick={() =>
-            setActiveDifferenceIndex((current) =>
-              (current + 1) % diffResult.changedRows.length,
-            )
-          }
-          disabled={!canNavigateDifferences}
-          aria-label={t("files.fileCompare.nextDifference")}
-          title={t("files.fileCompare.nextDifference")}
-        >
-          <ChevronDown size={14} aria-hidden />
-        </button>
-      </div>
+    <div
+      className={`editable-diff-compare${headerControlsTarget ? " has-external-nav" : ""}`}
+      onScrollCapture={handlePanelScroll}
+    >
+      {headerControlsTarget
+        ? createPortal(differenceNavigator, headerControlsTarget)
+        : differenceNavigator}
       <div
         className="file-compare-columns editable-diff-compare-columns"
         style={{ "--file-compare-column-count": "2" } as CSSProperties}
@@ -285,6 +355,7 @@ export function WorkspaceEditableDiffCompare({
             editorTheme={editorTheme}
             markers={markersByColumn[columnIndex] ?? EMPTY_MARKERS}
             lineGaps={diffResult.gapLineCountsByColumn[columnIndex] ?? []}
+            collapsedRanges={collapsedRangesByColumn[columnIndex] ?? []}
             saveFileShortcut="cmd+s"
             activeLineNumber={
               activeDifference?.lineNumbersByColumn[columnIndex] ?? null
