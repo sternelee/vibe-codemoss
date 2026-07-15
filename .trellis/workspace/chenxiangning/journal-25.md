@@ -1069,3 +1069,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1000: 修复 Sidebar React 递归更新崩溃
+
+**Date**: 2026-07-16
+**Task**: 修复 Sidebar React 递归更新崩溃
+**Branch**: `feature/v-0.7.3`
+
+### Summary
+
+对齐 Radix ScrollArea 与 Presence 依赖版本，移除 invalid 重复依赖，并补充 React 19 StrictMode Sidebar 回归测试与 OpenSpec 变更记录。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `fea01b26` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
