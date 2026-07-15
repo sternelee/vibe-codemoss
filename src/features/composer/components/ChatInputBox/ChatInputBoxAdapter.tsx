@@ -815,6 +815,8 @@ function normalizeReasoningEffort(effort?: string | null): ReasoningEffort | nul
       return 'xhigh';
     case 'max':
       return 'max';
+    case 'ultra':
+      return 'ultra';
     default:
       return null;
   }

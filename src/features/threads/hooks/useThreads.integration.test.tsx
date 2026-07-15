@@ -102,6 +102,35 @@ describe("useThreads UX integration", () => {
     vi.useRealTimers();
   });
 
+  it("refreshes the active workspace model catalog when Codex connects", async () => {
+    const onWorkspaceConnected = vi.fn();
+    const onWorkspaceModelsRefresh = vi.fn();
+
+    renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected,
+        onWorkspaceModelsRefresh,
+      }),
+    );
+
+    await act(async () => {
+      handlers?.onWorkspaceConnected?.("ws-1");
+      await Promise.resolve();
+    });
+
+    expect(onWorkspaceConnected).toHaveBeenCalledWith("ws-1");
+    expect(onWorkspaceModelsRefresh).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      handlers?.onWorkspaceConnected?.("ws-2");
+      await Promise.resolve();
+    });
+
+    expect(onWorkspaceConnected).toHaveBeenCalledWith("ws-2");
+    expect(onWorkspaceModelsRefresh).toHaveBeenCalledTimes(1);
+  });
+
   it("resumes selected threads when no local items exist", async () => {
     vi.mocked(resumeThread).mockResolvedValue({
       result: {

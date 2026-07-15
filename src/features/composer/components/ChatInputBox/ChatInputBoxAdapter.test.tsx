@@ -987,10 +987,10 @@ describe('ChatInputBoxAdapter toggle bridge', () => {
     expect(latest.sendShortcut).toBe('cmdEnter');
   });
 
-  it('drops unsupported reasoning effort values instead of falling back to medium', async () => {
+  it('keeps ultra while dropping unknown reasoning effort values', async () => {
     renderAdapter({
       selectedEffort: 'ultra',
-      reasoningOptions: ['high', 'ultra', 'max'],
+      reasoningOptions: ['high', 'ultra', 'turbo', 'max'],
     });
 
     await waitFor(() => expect(mockState.latestProps).toBeTruthy());
@@ -999,8 +999,8 @@ describe('ChatInputBoxAdapter toggle bridge', () => {
       reasoningEffort?: string | null;
       reasoningOptions?: string[];
     };
-    expect(latest.reasoningEffort).toBeNull();
-    expect(latest.reasoningOptions).toEqual(['high', 'max']);
+    expect(latest.reasoningEffort).toBe('ultra');
+    expect(latest.reasoningOptions).toEqual(['high', 'ultra', 'max']);
   });
 
   it('preserves explicit empty reasoning options instead of falling back to every level', async () => {

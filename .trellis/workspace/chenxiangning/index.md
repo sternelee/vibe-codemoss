@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-25.md`
-- **Total Sessions**: 999
+- **Total Sessions**: 1001
 - **Last Active**: 2026-07-16
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-25.md` | ~1071 | Active |
+| `journal-25.md` | ~1137 | Active |
 | `journal-24.md` | ~1994 | Archived |
 | `journal-23.md` | ~1965 | Archived |
 | `journal-22.md` | ~1969 | Archived |
@@ -53,6 +53,8 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 1001 | 2026-07-16 | 动态同步 Codex 模型推理强度 | `e79216d4` | `feature/v-0.7.3` |
+| 1000 | 2026-07-16 | 修复 Sidebar React 递归更新崩溃 | `fea01b26` | `feature/v-0.7.3` |
 | 999 | 2026-07-16 | 更新 0.7.3 分析与变更记录 | `fa834842528278781acc71b4d9dee5cca33aec52` | `feature/v-0.7.3` |
 | 998 | 2026-07-16 | 统一 Git 文件列表与差异预览链路 | `a90a136e220e14bf641b39583be48623edbd8f55` | `feature/v-0.7.3` |
 | 997 | 2026-07-16 | 修复大文件 Diff 对齐与跨平台换行保存 | `031f4563f5a5f908f279f43b231fd442de757295` | `feature/v-0.7.3` |
