@@ -1,4 +1,5 @@
 import { normalizeOutsideMarkdownCode } from "../../utils/markdownCodeRegions";
+import { normalizeCompactMultiLineDisplayMath } from "./compactDisplayMath";
 
 export type KatexModule = typeof import("katex")["default"];
 export type RehypeKatexPlugin = typeof import("rehype-katex")["default"];
@@ -167,6 +168,7 @@ function looksLikeStandaloneLatexFormulaLine(value: string) {
     return false;
   }
   const plainWordTokens = trimmed
+    .replace(/\\(?:begin|end)\{[A-Za-z*]+\}/g, " ")
     .replace(/\\[A-Za-z]+/g, " ")
     .replace(/[{}_^=<>+\-*/()[\],.;:]/g, " ")
     .match(/[A-Za-z]{3,}/g);
@@ -672,15 +674,21 @@ function normalizeCommonMathDelimiters(value: string) {
 export function normalizeMarkdownMathForMessage(value: string) {
   return normalizeOutsideMarkdownCode(
     value,
-    (text) => normalizeStandaloneMathDisplayLines(
-      normalizeLeadingLatexBeforeCjkProse(
-        normalizeMalformedDisplayMathSegments(
-          normalizeInlineDisplayMathSegments(
-            normalizeCommonMathDelimiters(text),
+    (text) => {
+      const compactDisplayResult = normalizeCompactMultiLineDisplayMath(text);
+      if (compactDisplayResult.hasUnresolvedCandidate) {
+        return text;
+      }
+      return normalizeStandaloneMathDisplayLines(
+        normalizeLeadingLatexBeforeCjkProse(
+          normalizeMalformedDisplayMathSegments(
+            normalizeInlineDisplayMathSegments(
+              normalizeCommonMathDelimiters(compactDisplayResult.value),
+            ),
           ),
         ),
-      ),
-    ),
+      );
+    },
   );
 }
 
