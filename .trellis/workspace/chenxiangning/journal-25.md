@@ -1102,3 +1102,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1001: 动态同步 Codex 模型推理强度
+
+**Date**: 2026-07-16
+**Task**: 动态同步 Codex 模型推理强度
+**Branch**: `feature/v-0.7.3`
+
+### Summary
+
+让 Codex reasoning options/default 以 runtime model/list metadata 为准，公共能力仅作 degraded fallback；接入 ultra，并在当前 workspace 收到 codex/connected 后重拉 model catalog，补齐 focused regression tests 与 OpenSpec artifacts。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e79216d4` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
