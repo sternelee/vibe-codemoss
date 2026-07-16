@@ -1368,3 +1368,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1009: 收敛 Git History 三栏布局
+
+**Date**: 2026-07-17
+**Task**: 收敛 Git History 三栏布局
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+隐藏 Git History 左侧 overview，保留顶部 worktree summary 数据源，并将 desktop 三栏默认比例调整为 3:4:3；focused Vitest 45/45、typecheck、lint、large-file report、diff check 与 OpenSpec strict validation 均通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `42647ff9` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
