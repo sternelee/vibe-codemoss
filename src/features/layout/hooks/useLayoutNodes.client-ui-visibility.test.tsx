@@ -276,8 +276,18 @@ vi.mock("../../git/components/GitDiffViewer", () => ({
   GitDiffViewer: () => <div data-testid="git-diff-viewer" />,
 }));
 
+let capturedFileTreePanelProps: {
+  onGitRepositoryAction?: (request: {
+    action: "stage-all";
+    repositoryRoot: string;
+  }) => Promise<void>;
+} | null = null;
+
 vi.mock("../../files/components/FileTreePanel", () => ({
-  FileTreePanel: () => <div data-testid="file-tree-panel" />,
+  FileTreePanel: (props: typeof capturedFileTreePanelProps) => {
+    capturedFileTreePanelProps = props;
+    return <div data-testid="file-tree-panel" />;
+  },
 }));
 
 vi.mock("../../search/components/WorkspaceSearchPanel", () => ({
@@ -968,10 +978,33 @@ async function renderUseLayoutNodes(
 
 describe("useLayoutNodes client UI visibility", () => {
   afterEach(() => {
+    capturedFileTreePanelProps = null;
     clientUiVisibilityMock.visiblePanels.clear();
     clientUiVisibilityMock.visibleControls.clear();
     composerMockState.thinkingCallbacks.length = 0;
     vi.clearAllMocks();
+  });
+
+  it("selects the exact repository before staging from the file-tree Git menu", async () => {
+    const onSelectGitRoot = vi.fn(async () => undefined);
+    const onStageGitAll = vi.fn(async () => undefined);
+    const { result } = await renderUseLayoutNodes(
+      createLayoutOptions({ onSelectGitRoot, onStageGitAll }),
+    );
+
+    render(<>{result.current.gitDiffPanelNode}</>);
+    await act(async () => {
+      await capturedFileTreePanelProps?.onGitRepositoryAction?.({
+        action: "stage-all",
+        repositoryRoot: "services/api",
+      });
+    });
+
+    expect(onSelectGitRoot).toHaveBeenCalledWith("services/api");
+    expect(onStageGitAll).toHaveBeenCalledTimes(1);
+    expect(onSelectGitRoot.mock.invocationCallOrder[0]).toBeLessThan(
+      onStageGitAll.mock.invocationCallOrder[0] ?? Number.MAX_SAFE_INTEGER,
+    );
   });
 
   it("keeps conversation, composer, send, and settings recovery available when every optional entry is hidden", async () => {
