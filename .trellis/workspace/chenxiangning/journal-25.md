@@ -1269,3 +1269,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1006: 安全合并上游 0.7.4 更新
+
+**Date**: 2026-07-16
+**Task**: 安全合并上游 0.7.4 更新
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+以 no-ff merge 合并 upstream chore/bump-version-0.7.4，保留本地 7 个 commits 与上游 6 个 commits；能力哨兵、typecheck、lint、runtime contracts 和本地 Git focused tests 通过。上游 affected tests 保留两个目标分支自身已有失败：隐藏的 Client UI visibility 旧断言与 Moonshot SVG title 断言。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `27b547e7` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
