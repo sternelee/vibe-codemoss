@@ -1625,3 +1625,43 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 35: 合并 PR 752 到 0.7.3 分支
+
+**Date**: 2026-07-16
+**Task**: 合并 PR 752 到 0.7.3 分支
+**Branch**: `chore/bump-version-0.7.3`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+目标：将 PR #752 的 daemon 修复合并到当前 chore/bump-version-0.7.3 分支，不合并到 main。
+
+变更：通过 `git merge --no-commit --no-ff origin/chore/bump-version-0.7.1` 将 PR 752 相关提交带入当前分支，保留 daemon orphan sweep blocking_lock 修复、Codex 历史读取 RPC 以及关联 runtime/web_service 调整。
+
+验证：`cargo test --manifest-path src-tauri/Cargo.toml --no-run` 成功。
+
+备注：当前工作树已清理并提交为 4b972f87。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4b972f87` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
