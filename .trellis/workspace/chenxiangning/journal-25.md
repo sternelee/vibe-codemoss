@@ -1201,3 +1201,104 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1004: 稳定 Git 分支菜单并优化层级交互
+
+**Date**: 2026-07-16
+**Task**: 稳定 Git 分支菜单并优化层级交互
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+稳定多仓库分支摘要，增加内层分组折叠，精简文件树 Git 菜单并复用当前分支更新能力；统一分组与叶子分支 typography/indent。Focused Vitest 62/62、typecheck、lint、runtime contracts、large-file gate、OpenSpec strict validation 均通过；全量测试仍受未触碰的 Sidebar.styles 既有断言漂移阻塞。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `57e50e3d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1005: 收口多仓库 Git 提交与文件树状态能力
+
+**Date**: 2026-07-16
+**Task**: 收口多仓库 Git 提交与文件树状态能力
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+按能力边界提交多仓库文件树状态装饰与多仓库提交工作区，归档对应 Trellis tasks；自动化门禁与 focused frontend/Rust tests 通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6454397b` | (see git log) |
+| `9da8688b` | (see git log) |
+| `6ca8b891` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1006: 安全合并上游 0.7.4 更新
+
+**Date**: 2026-07-16
+**Task**: 安全合并上游 0.7.4 更新
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+以 no-ff merge 合并 upstream chore/bump-version-0.7.4，保留本地 7 个 commits 与上游 6 个 commits；能力哨兵、typecheck、lint、runtime contracts 和本地 Git focused tests 通过。上游 affected tests 保留两个目标分支自身已有失败：隐藏的 Client UI visibility 旧断言与 Moonshot SVG title 断言。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `27b547e7` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

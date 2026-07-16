@@ -32,6 +32,7 @@ function summary(repositoryRoot: string): GitRepositorySummary {
     modifiedCount: 0,
     untrackedCount: 0,
     conflictedCount: 0,
+    fileStatuses: [],
     isClean: true,
     error: null,
   };
@@ -98,6 +99,38 @@ describe("useGitRepositories", () => {
     });
     expect(listGitRepositorySummaries).toHaveBeenCalledTimes(2);
     expect(result.current.repositories).toBe(initialRepositories);
+    unmount();
+  });
+
+  it("preserves last-known-good repositories for one transient empty response", async () => {
+    vi.mocked(listGitRepositorySummaries)
+      .mockResolvedValueOnce([summary("service-a")])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([summary("service-b")])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    const { result, unmount } = renderHook(() =>
+      useGitRepositories({ activeWorkspace: workspace("workspace-a") }),
+    );
+    await act(async () => { await Promise.resolve(); });
+
+    await act(async () => { await result.current.refreshRepositories(); });
+    expect(result.current.repositories.map((repository) => repository.repositoryRoot)).toEqual([
+      "service-a",
+    ]);
+
+    await act(async () => { await result.current.refreshRepositories(); });
+    expect(result.current.repositories.map((repository) => repository.repositoryRoot)).toEqual([
+      "service-b",
+    ]);
+
+    await act(async () => { await result.current.refreshRepositories(); });
+    expect(result.current.repositories.map((repository) => repository.repositoryRoot)).toEqual([
+      "service-b",
+    ]);
+
+    await act(async () => { await result.current.refreshRepositories(); });
+    expect(result.current.repositories).toEqual([]);
     unmount();
   });
 });

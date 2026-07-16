@@ -2298,6 +2298,7 @@
   color: var(--text-secondary);
   font-size: 12px;
   font-weight: 600;
+  line-height: 20px;
   text-align: left;
 }
 
@@ -2309,10 +2310,39 @@
 }
 
 .composer-git-branch-scope {
-  padding: 4px 8px 2px 30px;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 4px 8px 4px 30px;
+  border: 0;
+  background: transparent;
   color: var(--text-tertiary);
-  font-family: var(--code-font-family);
-  font-size: 11px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+  text-align: left;
+}
+
+.composer-git-branch-scope:hover,
+.composer-git-branch-scope:focus-visible {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.composer-git-branch-item {
+  min-height: 28px;
+  padding-left: 30px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 20px;
+}
+
+.composer-git-branch-scope-children .composer-git-branch-item {
+  padding-left: 46px;
 }
 
 .composer-git-repository-status,
@@ -2321,9 +2351,31 @@
   flex: 0 0 auto;
   align-items: center;
   gap: 4px;
-  color: var(--accent-primary);
+  color: var(--text-muted);
   font-family: var(--code-font-family);
   font-size: 11px;
+}
+
+.composer-git-repository-token.is-branch {
+  color: var(--git-branch);
+  font-weight: 600;
+}
+
+.composer-git-repository-token.is-sync {
+  color: var(--text-muted);
+}
+
+.composer-git-repository-token.is-clean {
+  color: var(--git-status-added);
+}
+
+.composer-git-repository-token.is-dirty {
+  color: var(--git-status-modified);
+}
+
+.composer-git-repository-token.is-conflict,
+.composer-git-repository-token.is-error {
+  color: var(--git-status-conflict);
 }
 
 .composer-git-upstream {
