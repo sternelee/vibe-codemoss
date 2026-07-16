@@ -682,6 +682,24 @@ export function useGitPanelController({
     setCenterMode(editorSplitCompanion === "projectMap" ? "projectMap" : "chat");
   }, [editorSplitCompanion, fileTabWorkspaceKey]);
 
+  const handleReorderFileTabs = useCallback(
+    (nextOrder: string[]) => {
+      setFileTabsByWorkspace((states) =>
+        updateWorkspaceFileTabs(states, fileTabWorkspaceKey, (current) => {
+          // Only accept a permutation of the current tabs; never add/drop paths.
+          if (
+            nextOrder.length !== current.openTabs.length ||
+            !nextOrder.every((path) => current.openTabs.includes(path))
+          ) {
+            return current;
+          }
+          return { openTabs: nextOrder, activeFilePath: current.activeFilePath };
+        }),
+      );
+    },
+    [fileTabWorkspaceKey],
+  );
+
   const handleExitEditor = useCallback(() => {
     setCenterMode(editorSplitCompanion === "projectMap" ? "projectMap" : "chat");
     setFileTabsByWorkspace((states) =>
@@ -780,6 +798,7 @@ export function useGitPanelController({
     handleActivateFileTab,
     handleCloseFileTab,
     handleCloseAllFileTabs,
+    handleReorderFileTabs,
     handleExitEditor,
     compactTab,
     activeWorkspaceIdRef,

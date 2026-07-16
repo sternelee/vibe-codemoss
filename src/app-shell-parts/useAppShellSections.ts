@@ -137,6 +137,7 @@ export function useAppShellSections(input: UseAppShellSectionsInput) {
     handleActivateFileTab,
     handleCloseFileTab,
     handleCloseAllFileTabs,
+    handleReorderFileTabs,
     handleExitEditor,
     selectedDiffPath,
     isTablet,
@@ -1092,6 +1093,9 @@ export function useAppShellSections(input: UseAppShellSectionsInput) {
     ...taskRunActions,
     ...navigationActions,
     ...contextActions,
+    // Tab reorder is purely cosmetic (no active-file/navigation change), so it
+    // skips the live-edit-preview navigation marking the other tab actions use.
+    handleReorderWorkspaceFileTabs: handleReorderFileTabs,
     selectedComposerKanbanPanelId,
     setSelectedComposerKanbanPanelId,
     composerKanbanContextMode,

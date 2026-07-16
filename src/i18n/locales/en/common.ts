@@ -58,6 +58,7 @@ const common = {
     toggleTerminalPanel: "Toggle terminal panel",
     moreActions: "More actions",
     showInHeader: "Show in toolbar",
+    showOnWorkspaceRow: "Show on project row",
     markdownMermaidFullscreen: "Fullscreen",
     markdownMermaidFullscreenHint: "Open diagram fullscreen",
     markdownImageFullscreen: "Fullscreen",

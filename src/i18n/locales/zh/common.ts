@@ -40,6 +40,7 @@ const common = {
     toggleTerminalPanel: "切换终端面板",
     moreActions: "更多操作",
     showInHeader: "在顶栏显示",
+    showOnWorkspaceRow: "在项目行显示",
     markdownMermaidFullscreen: "全屏",
     markdownMermaidFullscreenHint: "放大查看图表",
     markdownImageFullscreen: "全屏",

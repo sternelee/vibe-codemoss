@@ -262,6 +262,28 @@ export function SidebarWorkspaceMenuOverlay({
                     <RefreshCw size={13} aria-hidden />
                   </button>
                 ) : null}
+                {action.pinnable && action.onTogglePinned ? (
+                  <input
+                    type="checkbox"
+                    className="sidebar-workspace-menu-item-pin"
+                    checked={action.pinned ?? false}
+                    onMouseDown={(event) => {
+                      event.stopPropagation();
+                    }}
+                    onPointerDown={(event) => {
+                      event.stopPropagation();
+                    }}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                    }}
+                    onChange={() => {
+                      action.onTogglePinned?.();
+                    }}
+                    aria-label={t("common.showOnWorkspaceRow")}
+                    title={t("common.showOnWorkspaceRow")}
+                    data-tauri-drag-region="false"
+                  />
+                ) : null}
               </div>
             ))}
             {groupIndex < menu.groups.length - 1 ? (

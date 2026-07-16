@@ -10,6 +10,19 @@ import type {
   EngineRefreshResult,
 } from "../../engine/hooks/useEngineController";
 
+const clientStoreMock = vi.hoisted(() => ({
+  data: {} as Record<string, Record<string, unknown>>,
+  getClientStoreSync: vi.fn((store: string, key: string) => {
+    return clientStoreMock.data[store]?.[key];
+  }),
+  writeClientStoreValue: vi.fn((store: string, key: string, value: unknown) => {
+    clientStoreMock.data[store] = {
+      ...(clientStoreMock.data[store] ?? {}),
+      [key]: value,
+    };
+  }),
+}));
+
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string) => {
@@ -63,6 +76,10 @@ vi.mock("../../../services/tauri", () => ({
 }));
 vi.mock("../../../services/globalRuntimeNotices", () => ({
   pushGlobalRuntimeNotice: vi.fn(),
+}));
+vi.mock("../../../services/clientStorage", () => ({
+  getClientStoreSync: clientStoreMock.getClientStoreSync,
+  writeClientStoreValue: clientStoreMock.writeClientStoreValue,
 }));
 
 const getOpenCodeProviderHealthMock = vi.mocked(getOpenCodeProviderHealth);
@@ -163,6 +180,9 @@ function createHandlers() {
 
 describe("useSidebarMenus", () => {
   beforeEach(() => {
+    clientStoreMock.data = {};
+    clientStoreMock.getClientStoreSync.mockClear();
+    clientStoreMock.writeClientStoreValue.mockClear();
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
       value: {
@@ -482,6 +502,56 @@ describe("useSidebarMenus", () => {
     expect(handlers.onReloadWorkspaceThreads).toHaveBeenCalledWith("ws-1");
     expect(handlers.onToggleExitedSessions).toHaveBeenCalledWith("/tmp/mossx");
     expect(handlers.onCreateSessionFolder).toHaveBeenCalledWith("ws-1");
+  });
+
+  it("marks only the original row actions as pinnable and toggles the shared preference", async () => {
+    clientStoreMock.data = {
+      app: {
+        sidebarWorkspacePinnedActions: ["reload-threads"],
+      },
+    };
+    const handlers = createHandlers();
+    const { result } = renderHook(() => useSidebarMenus(handlers));
+
+    await act(async () => {
+      const event = {
+        clientX: 160,
+        clientY: 120,
+        preventDefault: vi.fn(),
+        stopPropagation: vi.fn(),
+      } as unknown as Parameters<typeof result.current.showWorkspaceMenu>[0];
+      result.current.showWorkspaceMenu(event, workspace);
+    });
+
+    const workspaceActions =
+      result.current.workspaceMenuState?.groups.find((group) => group.id === "workspace-actions")
+        ?.actions ?? [];
+    const reloadAction = workspaceActions.find((action) => action.id === "reload-threads");
+    const activateAction = workspaceActions.find((action) => action.id === "activate-workspace");
+    const renameAction = workspaceActions.find((action) => action.id === "rename-workspace-alias");
+
+    // Only the four buttons that used to live inline on the workspace row are pinnable.
+    expect(
+      workspaceActions.filter((action) => action.pinnable).map((action) => action.id),
+    ).toEqual([
+      "activate-workspace",
+      "reload-threads",
+      "toggle-exited-sessions",
+      "create-session-folder",
+    ]);
+    expect(renameAction?.pinnable).toBeFalsy();
+    expect(reloadAction?.pinned).toBe(true);
+    expect(activateAction?.pinned).toBe(false);
+
+    act(() => {
+      activateAction?.onTogglePinned?.();
+    });
+
+    expect(clientStoreMock.writeClientStoreValue).toHaveBeenCalledWith(
+      "app",
+      "sidebarWorkspacePinnedActions",
+      ["reload-threads", "activate-workspace"],
+    );
   });
 
   it("labels Codex provider choices by config source", async () => {

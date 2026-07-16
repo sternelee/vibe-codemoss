@@ -1,7 +1,8 @@
-import type { MouseEvent } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import ListChevronsDownUp from "lucide-react/dist/esm/icons/list-chevrons-down-up";
 import ListChevronsUpDown from "lucide-react/dist/esm/icons/list-chevrons-up-down";
+import SquarePlus from "lucide-react/dist/esm/icons/square-plus";
 import type { WorkspaceInfo } from "../../../types";
 import { TooltipIconButton } from "../../../components/ui/tooltip-icon-button";
 import { isDefaultWorkspacePath } from "../../workspaces/utils/defaultWorkspace";
@@ -9,6 +10,16 @@ import { isDefaultWorkspacePath } from "../../workspaces/utils/defaultWorkspace"
 function isActivationKey(key: string) {
   return key === "Enter" || key === " " || key === "Space" || key === "Spacebar";
 }
+
+// 用户在「...」菜单里勾选后，回到项目行外显的快捷动作。
+export type WorkspaceRowPinnedAction = {
+  id: string;
+  label: string;
+  icon: ReactNode;
+  active?: boolean;
+  className?: string;
+  onSelect: () => void;
+};
 
 type WorkspaceCardProps = {
   workspace: WorkspaceInfo;
@@ -22,6 +33,7 @@ type WorkspaceCardProps = {
   onOpenWorkspaceHome?: (workspaceId: string) => void;
   onSelectWorkspace: (workspaceId: string) => void;
   onToggleWorkspaceCollapse: (workspaceId: string, collapsed: boolean) => void;
+  pinnedRowActions?: WorkspaceRowPinnedAction[];
   children?: React.ReactNode;
 };
 
@@ -37,6 +49,7 @@ export function WorkspaceCard({
   onOpenWorkspaceHome,
   onSelectWorkspace,
   onToggleWorkspaceCollapse,
+  pinnedRowActions,
   children,
 }: WorkspaceCardProps) {
   const { t } = useTranslation();
@@ -158,6 +171,26 @@ export function WorkspaceCard({
           ) : null}
 
           <div className="workspace-actions">
+            {pinnedRowActions?.map((action) => (
+              <TooltipIconButton
+                key={action.id}
+                className={`workspace-action-btn${
+                  action.className ? ` ${action.className}` : ""
+                }${action.active ? " is-active" : ""}`}
+                aria-pressed={action.active}
+                data-tauri-drag-region="false"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  action.onSelect();
+                }}
+                onDoubleClick={(event) => {
+                  event.stopPropagation();
+                }}
+                label={action.label}
+              >
+                {action.icon}
+              </TooltipIconButton>
+            ))}
             <TooltipIconButton
               className="workspace-action-btn"
               onClick={(event) => {
@@ -169,11 +202,7 @@ export function WorkspaceCard({
               }}
               label={t("sidebar.sessionActionsGroup")}
             >
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                <path d="M5.92578 15.075H12.0758C13.7326 15.075 15.0758 13.7319 15.0758 12.075V5.92505C15.0758 4.26819 13.7326 2.92505 12.0758 2.92505H9.90078H5.92578C4.26893 2.92505 2.92578 4.2682 2.92578 5.92505V12.075C2.92578 13.7319 4.26893 15.075 5.92578 15.075Z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                <path d="M6.16406 9H11.8341" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M9 6.16504V11.835" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              <SquarePlus size={15} strokeWidth={1.85} aria-hidden />
             </TooltipIconButton>
           </div>
         </div>

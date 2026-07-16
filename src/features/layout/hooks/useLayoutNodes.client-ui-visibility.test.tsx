@@ -582,6 +582,7 @@ function createLayoutOptions(
     onActivateEditorTab: noop,
     onCloseEditorTab: noop,
     onCloseAllEditorTabs: noop,
+    onReorderEditorTabs: noop,
     onActiveEditorLineRangeChange: noop,
     onOpenFile: noop,
     onCompareFiles: () => true,

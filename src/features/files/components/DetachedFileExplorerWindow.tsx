@@ -104,6 +104,7 @@ export function DetachedFileExplorerWindow() {
     activateTab,
     closeTab,
     closeAllTabs,
+    reorderTabs,
   } = useDetachedFileExplorerState(
     session?.workspaceId ?? null,
     session?.workspacePath ?? null,
@@ -257,6 +258,7 @@ export function DetachedFileExplorerWindow() {
         onActivateTab={activateTab}
         onCloseTab={closeTab}
         onCloseAllTabs={closeAllTabs}
+        onReorderTabs={reorderTabs}
         onRefreshFiles={refreshFiles}
         externalChangeMonitoringEnabled={isFocused && externalChangeAwarenessEnabled}
         externalChangeTransportMode={externalChangeTransportMode}

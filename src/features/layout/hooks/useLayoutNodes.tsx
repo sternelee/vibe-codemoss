@@ -696,6 +696,11 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
         onLoadOlderThreads={options.onLoadOlderThreads}
         onReloadWorkspaceThreads={options.onReloadWorkspaceThreads}
         onQuickReloadWorkspaceThreads={options.onQuickReloadWorkspaceThreads}
+        isExitedSessionsHidden={options.isExitedSessionsHidden}
+        onToggleExitedSessionsHidden={options.onToggleExitedSessionsHidden}
+        rootSessionFolderDraftRequestByWorkspaceId={
+          options.rootSessionFolderDraftRequestByWorkspaceId
+        }
         workspaceDropTargetRef={options.workspaceDropTargetRef}
         isWorkspaceDropActive={options.isWorkspaceDropActive}
         workspaceDropText={options.workspaceDropText}
@@ -1835,6 +1840,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
           onActivateTab={options.onActivateEditorTab}
           onCloseTab={options.onCloseEditorTab}
           onCloseAllTabs={options.onCloseAllEditorTabs}
+          onReorderTabs={options.onReorderEditorTabs}
           fileReferenceMode={options.fileReferenceMode}
           onFileReferenceModeChange={options.onFileReferenceModeChange}
           activeFileLineRange={options.activeComposerFileLineRange}

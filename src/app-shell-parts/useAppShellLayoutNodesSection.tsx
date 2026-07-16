@@ -311,6 +311,7 @@ export function useAppShellLayoutNodesSection(
     handleCheckoutBranch,
     handleCloseAllWorkspaceFileTabs,
     handleCloseWorkspaceFileTab,
+    handleReorderWorkspaceFileTabs,
     handleCommit,
     handleCommitAndPush,
     handleCommitAndSync,
@@ -898,7 +899,6 @@ export function useAppShellLayoutNodesSection(
       alertError(error instanceof Error ? error.message : String(error));
     });
   }, [activeWorkspace?.name, activeWorkspaceId, alertError]);
-
   const mainHeaderActions = useMainHeaderActionItems({
     isCompact,
     rightPanelCollapsed,
@@ -1728,6 +1728,7 @@ export function useAppShellLayoutNodesSection(
       onActivateEditorTab: handleActivateWorkspaceFileTab,
       onCloseEditorTab: handleCloseWorkspaceFileTab,
       onCloseAllEditorTabs: handleCloseAllWorkspaceFileTabs,
+      onReorderEditorTabs: handleReorderWorkspaceFileTabs,
       onActiveEditorLineRangeChange: setActiveEditorLineRange,
       onOpenFile: handleOpenWorkspaceFile,
       onCompareFiles: handleOpenWorkspaceFileCompare,

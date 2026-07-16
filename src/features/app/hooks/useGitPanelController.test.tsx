@@ -326,6 +326,47 @@ describe("useGitPanelController editor tabs", () => {
     expect(result.current.activeEditorFilePath).toBe("src/types.ts");
   });
 
+  it("reorders tabs without changing the active file", () => {
+    const { result } = renderHook(() => useGitPanelController(makeProps()));
+
+    act(() => {
+      result.current.handleOpenFile("src/App.tsx");
+      result.current.handleOpenFile("src/main.tsx");
+      result.current.handleOpenFile("src/types.ts");
+    });
+
+    act(() => {
+      result.current.handleReorderFileTabs([
+        "src/types.ts",
+        "src/App.tsx",
+        "src/main.tsx",
+      ]);
+    });
+
+    expect(result.current.openFileTabs).toEqual([
+      "src/types.ts",
+      "src/App.tsx",
+      "src/main.tsx",
+    ]);
+    expect(result.current.activeEditorFilePath).toBe("src/types.ts");
+  });
+
+  it("ignores reorder input that is not a permutation of the open tabs", () => {
+    const { result } = renderHook(() => useGitPanelController(makeProps()));
+
+    act(() => {
+      result.current.handleOpenFile("src/App.tsx");
+      result.current.handleOpenFile("src/main.tsx");
+    });
+
+    act(() => {
+      // Missing a tab / introduces an unknown path — must be rejected.
+      result.current.handleReorderFileTabs(["src/App.tsx", "src/unknown.ts"]);
+    });
+
+    expect(result.current.openFileTabs).toEqual(["src/App.tsx", "src/main.tsx"]);
+  });
+
   it("returns to chat mode after closing the last tab", () => {
     const { result } = renderHook(() => useGitPanelController(makeProps()));
 

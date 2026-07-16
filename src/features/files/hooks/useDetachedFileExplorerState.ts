@@ -138,6 +138,19 @@ export function useDetachedFileExplorerState(
     setNavigationTarget(null);
   };
 
+  const reorderTabs = (nextOrder: string[]) => {
+    setOpenTabs((current) => {
+      // Only accept a permutation of the current tabs; never add/drop paths.
+      if (
+        nextOrder.length !== current.length ||
+        !nextOrder.every((path) => current.includes(path))
+      ) {
+        return current;
+      }
+      return nextOrder;
+    });
+  };
+
   return {
     openTabs,
     activeFilePath,
@@ -146,5 +159,6 @@ export function useDetachedFileExplorerState(
     activateTab,
     closeTab,
     closeAllTabs,
+    reorderTabs,
   };
 }
