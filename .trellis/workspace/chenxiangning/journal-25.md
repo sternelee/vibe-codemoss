@@ -1168,3 +1168,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1003: 完成多仓库 Git 命令中心
+
+**Date**: 2026-07-16
+**Task**: 完成多仓库 Git 命令中心
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+实现多仓库发现与分支作用域、文件树 Git 状态和精简右键菜单、仓库切换 loading、默认折叠分支分组、独立仓库根菜单及嵌套仓库 diff 预览路径修复；完成专项测试、跨层门禁与 OpenSpec 验证。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f242e9da` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
