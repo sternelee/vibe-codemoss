@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { FileChangeRow, type FileChangeDiffPreview } from "./FileChangeRow";
+import {
+  FileChangeRow,
+  unifiedDiffToPreview,
+  type FileChangeDiffPreview,
+} from "./FileChangeRow";
 
 afterEach(() => {
   cleanup();
@@ -94,6 +98,20 @@ describe("FileChangeRow", () => {
     fireEvent.click(view.container.querySelector('[data-slot="marker"]') as HTMLElement);
     expect(onOpenDiffPath).toHaveBeenCalledOnce();
     expect(onOpenDiffPath).toHaveBeenCalledWith("src/New.tsx");
+  });
+
+  it("converts apply_patch added-file bodies into inline diff lines", () => {
+    const preview = unifiedDiffToPreview([
+      "*** Add File: src/New.tsx",
+      "+const value = 1;",
+      "+export default value;",
+      "*** End Patch",
+    ].join("\n"));
+
+    expect(preview.lines).toEqual([
+      { kind: "add", text: "const value = 1;" },
+      { kind: "add", text: "export default value;" },
+    ]);
   });
 
   it("isolates canonical diff navigation failures", () => {

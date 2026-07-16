@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-25.md`
-- **Total Sessions**: 991
-- **Last Active**: 2026-07-15
+- **Total Sessions**: 1001
+- **Last Active**: 2026-07-16
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-25.md` | ~807 | Active |
+| `journal-25.md` | ~1137 | Active |
 | `journal-24.md` | ~1994 | Archived |
 | `journal-23.md` | ~1965 | Archived |
 | `journal-22.md` | ~1969 | Archived |
@@ -53,6 +53,16 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 1001 | 2026-07-16 | 动态同步 Codex 模型推理强度 | `e79216d4` | `feature/v-0.7.3` |
+| 1000 | 2026-07-16 | 修复 Sidebar React 递归更新崩溃 | `fea01b26` | `feature/v-0.7.3` |
+| 999 | 2026-07-16 | 更新 0.7.3 分析与变更记录 | `fa834842528278781acc71b4d9dee5cca33aec52` | `feature/v-0.7.3` |
+| 998 | 2026-07-16 | 统一 Git 文件列表与差异预览链路 | `a90a136e220e14bf641b39583be48623edbd8f55` | `feature/v-0.7.3` |
+| 997 | 2026-07-16 | 修复大文件 Diff 对齐与跨平台换行保存 | `031f4563f5a5f908f279f43b231fd442de757295` | `feature/v-0.7.3` |
+| 996 | 2026-07-16 | 修复 Codex 已结束会话 loading 复活 | `7f90d84c` | `feature/v-0.7.3` |
+| 995 | 2026-07-15 | 已编辑文件最大化 Diff 预览 | `e902a0ae` | `feature/v-0.7.3` |
+| 994 | 2026-07-15 | 恢复幕布新增文件内联 Diff | `07ed4c70` | `feature/v-0.7.3` |
+| 993 | 2026-07-15 | 修复 Fork 会话投影与 Claude 幕布生命周期 | `a1fe352e` | `feature/v-0.7.3` |
+| 992 | 2026-07-15 | 修复新增文件空白 Diff 回退 | `28d1df33` | `feature/v-0.7.3` |
 | 991 | 2026-07-15 | 合并并审查 Codex 子代理侧栏投影修复 | `0470eb43` | `feature/v-0.7.2` |
 | 990 | 2026-07-15 | 审计周度代码变更并收口 OpenSpec | `84f00051` | `feature/v-0.7.2` |
 | 989 | 2026-07-15 | 更新 0.7.3 发布说明 | `83adce03` | `feature/v-0.7.2` |

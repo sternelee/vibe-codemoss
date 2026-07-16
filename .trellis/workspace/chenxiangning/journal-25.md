@@ -805,3 +805,333 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 992: 修复新增文件空白 Diff 回退
+
+**Date**: 2026-07-15
+**Task**: 修复新增文件空白 Diff 回退
+**Branch**: `feature/v-0.7.3`
+
+### Summary
+
+审查并提交消息幕布新增文件 Diff fallback：仅 added 文件在 inline preview 不可渲染时跳转 canonical Git Diff，保留合法 inline preview 与 lazy parse；focused 38 tests、lint、typecheck、OpenSpec strict validation 通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `28d1df33` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 993: 修复 Fork 会话投影与 Claude 幕布生命周期
+
+**Date**: 2026-07-15
+**Task**: 修复 Fork 会话投影与 Claude 幕布生命周期
+**Branch**: `feature/v-0.7.3`
+
+### Summary
+
+区分用户 Fork 与真实 Subagent 投影；为 Claude 幕布 Fork/Rewind 增加显式 operation lifecycle，保留 Fork 父会话并保持 Rewind 语义；同步并归档 OpenSpec，focused 137 tests、typecheck、lint 与 OpenSpec 410 项 strict validation 通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a1fe352e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 994: 恢复幕布新增文件内联 Diff
+
+**Date**: 2026-07-15
+**Task**: 恢复幕布新增文件内联 Diff
+**Branch**: `feature/v-0.7.3`
+
+### Summary
+
+回退新增文件点击后隐式切换中间 Diff 的错误行为，兼容 apply_patch 新文件正文在 conversation canvas 内原地预览，并完成 focused tests、typecheck、lint 与 OpenSpec strict validation。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `07ed4c70` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 995: 已编辑文件最大化 Diff 预览
+
+**Date**: 2026-07-15
+**Task**: 已编辑文件最大化 Diff 预览
+**Branch**: `feature/v-0.7.3`
+
+### Summary
+
+复用右侧 Git 文件列表既有 Diff modal，使幕布已编辑文件可点击并直接最大化预览；补齐 workspace 绝对路径解析、异步文件列表重试及 staged/unstaged 回归测试。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e902a0ae` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 996: 修复 Codex 已结束会话 loading 复活
+
+**Date**: 2026-07-16
+**Task**: 修复 Codex 已结束会话 loading 复活
+**Branch**: `feature/v-0.7.3`
+
+### Summary
+
+仅调整 Codex 前端 processing 启动权限：progress/content 事件不再把已结束会话重新置为 loading；保留显式新 turn 与 compaction 生命周期，并补齐并行会话、迟到事件和 compaction 回归测试；同步并归档 OpenSpec change。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7f90d84c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 997: 修复大文件 Diff 对齐与跨平台换行保存
+
+**Date**: 2026-07-16
+**Task**: 修复大文件 Diff 对齐与跨平台换行保存
+**Branch**: `feature/v-0.7.3`
+
+### Summary
+
+引入 bounded line alignment 与 unique-anchor fallback，按 diff block 导航并用运行时行高保持双栏像素对齐；保存时保留既有 CRLF/CR line ending，补齐 focused tests 与 OpenSpec change。验证：29 tests、ESLint、typecheck、git diff check、strict OpenSpec validation 通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `031f4563f5a5f908f279f43b231fd442de757295` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 998: 统一 Git 文件列表与差异预览链路
+
+**Date**: 2026-07-16
+**Task**: 统一 Git 文件列表与差异预览链路
+**Branch**: `feature/v-0.7.3`
+
+### Summary
+
+收敛 GitDiffPanel、GitHistory worktree 与 commit details 的 changed-file renderer 和 activation contract；统一 editable preview modal，保留 historical read-only region preview 边界并移除重复渲染链路。验证：76 tests、ESLint、typecheck、git diff check、strict OpenSpec validation 通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a90a136e220e14bf641b39583be48623edbd8f55` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 999: 更新 0.7.3 分析与变更记录
+
+**Date**: 2026-07-16
+**Task**: 更新 0.7.3 分析与变更记录
+**Branch**: `feature/v-0.7.3`
+
+### Summary
+
+基于当前客户端代码更新快捷键与优先级分析文档，并按既有中英文格式补充 0.7.3 CHANGELOG。验证：staged file audit 与 git diff check 通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `fa834842528278781acc71b4d9dee5cca33aec52` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1000: 修复 Sidebar React 递归更新崩溃
+
+**Date**: 2026-07-16
+**Task**: 修复 Sidebar React 递归更新崩溃
+**Branch**: `feature/v-0.7.3`
+
+### Summary
+
+对齐 Radix ScrollArea 与 Presence 依赖版本，移除 invalid 重复依赖，并补充 React 19 StrictMode Sidebar 回归测试与 OpenSpec 变更记录。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `fea01b26` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1001: 动态同步 Codex 模型推理强度
+
+**Date**: 2026-07-16
+**Task**: 动态同步 Codex 模型推理强度
+**Branch**: `feature/v-0.7.3`
+
+### Summary
+
+让 Codex reasoning options/default 以 runtime model/list metadata 为准，公共能力仅作 degraded fallback；接入 ultra，并在当前 workspace 收到 codex/connected 后重拉 model catalog，补齐 focused regression tests 与 OpenSpec artifacts。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e79216d4` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

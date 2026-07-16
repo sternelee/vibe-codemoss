@@ -35,6 +35,7 @@ export type FileCodeMirrorEditorProps = {
   languageExtensions: ReactCodeMirrorProps["extensions"];
   gitLineMarkers: GitLineMarkers;
   fileCompareLineGaps?: FileCodeMirrorLineGap[];
+  fileCompareCollapsedRanges?: FileCodeMirrorCollapsedRange[];
   codeAnnotations: CodeAnnotationSelection[];
   annotationDraft: FileAnnotationDraftState | null;
   annotationWidgetLabels: {
@@ -60,17 +61,53 @@ export type FileCodeMirrorLineGap = {
   count: number;
 };
 
+export type FileCodeMirrorCollapsedRange = {
+  fromLine: number;
+  toLine: number;
+};
+
 const navigationLineFlashEffect = StateEffect.define<number | null>();
+
+export function resolveFileCompareLineGapHeight(
+  lineCount: number,
+  defaultLineHeight: number,
+) {
+  return Math.max(0, lineCount) * Math.max(0, defaultLineHeight);
+}
 
 class FileCompareLineGapWidget extends WidgetType {
   constructor(private readonly lineCount: number) {
     super();
   }
 
-  toDOM() {
+  private updateHeight(element: HTMLElement, view: EditorView) {
+    element.style.height = `${resolveFileCompareLineGapHeight(
+      this.lineCount,
+      view.defaultLineHeight,
+    )}px`;
+  }
+
+  toDOM(view: EditorView) {
     const element = document.createElement("div");
     element.className = "cm-file-compare-line-gap";
-    element.style.setProperty("--file-compare-gap-lines", String(this.lineCount));
+    this.updateHeight(element, view);
+    return element;
+  }
+
+  updateDOM(element: HTMLElement, view: EditorView) {
+    this.updateHeight(element, view);
+    return true;
+  }
+
+  ignoreEvent() {
+    return true;
+  }
+}
+
+class FileCompareCollapsedRangeWidget extends WidgetType {
+  toDOM() {
+    const element = document.createElement("div");
+    element.className = "cm-file-compare-collapsed-range";
     return element;
   }
 
@@ -126,6 +163,46 @@ const fileCompareLineGapsField = StateField.define<DecorationSet>({
   provide: (field) => EditorView.decorations.from(field),
 });
 
+function buildFileCompareCollapsedRangeDecorations(
+  doc: { lines: number; line: (lineNumber: number) => { from: number; to: number } },
+  ranges: FileCodeMirrorCollapsedRange[],
+) {
+  const decorations = ranges.flatMap((range) => {
+    const fromLine = Math.max(1, Math.min(doc.lines, Math.floor(range.fromLine)));
+    const toLine = Math.max(fromLine, Math.min(doc.lines, Math.floor(range.toLine)));
+    const from = doc.line(fromLine).from;
+    const to = doc.line(toLine).to;
+    return to > from
+      ? [Decoration.replace({
+          widget: new FileCompareCollapsedRangeWidget(),
+          block: true,
+        }).range(from, to)]
+      : [];
+  });
+  return Decoration.set(decorations, true);
+}
+
+const setFileCompareCollapsedRangesEffect =
+  StateEffect.define<FileCodeMirrorCollapsedRange[]>();
+const fileCompareCollapsedRangesField = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(decorations, transaction) {
+    let nextDecorations = transaction.docChanged
+      ? decorations.map(transaction.changes)
+      : decorations;
+    for (const effect of transaction.effects) {
+      if (effect.is(setFileCompareCollapsedRangesEffect)) {
+        nextDecorations = buildFileCompareCollapsedRangeDecorations(
+          transaction.state.doc,
+          effect.value,
+        );
+      }
+    }
+    return nextDecorations;
+  },
+  provide: (field) => EditorView.decorations.from(field),
+});
+
 const navigationLineFlashField = StateField.define<DecorationSet>({
   create: () => Decoration.none,
   update(markers, transaction) {
@@ -166,6 +243,7 @@ export const FileCodeMirrorEditorImpl = forwardRef<
     languageExtensions,
     gitLineMarkers,
     fileCompareLineGaps = [],
+    fileCompareCollapsedRanges = [],
     codeAnnotations,
     annotationDraft,
     annotationWidgetLabels,
@@ -286,6 +364,7 @@ export const FileCodeMirrorEditorImpl = forwardRef<
       annotationWidgetsExt,
       gitLineMarkersExtension(),
       fileCompareLineGapsField,
+      fileCompareCollapsedRangesField,
       ...(Array.isArray(languageExtensions)
         ? languageExtensions
         : languageExtensions
@@ -375,6 +454,16 @@ export const FileCodeMirrorEditorImpl = forwardRef<
     });
   }, [fileCompareLineGaps, filePath]);
 
+  useEffect(() => {
+    const view = codeMirrorRef.current?.view;
+    if (!view) {
+      return;
+    }
+    view.dispatch({
+      effects: setFileCompareCollapsedRangesEffect.of(fileCompareCollapsedRanges),
+    });
+  }, [fileCompareCollapsedRanges, filePath]);
+
   return (
     <div className="fvp-editor">
       <CodeMirror
@@ -387,6 +476,7 @@ export const FileCodeMirrorEditorImpl = forwardRef<
             effects: [
               setGitLineMarkersEffect.of(gitLineMarkers),
               setFileCompareLineGapsEffect.of(fileCompareLineGaps),
+              setFileCompareCollapsedRangesEffect.of(fileCompareCollapsedRanges),
             ],
           });
         }}

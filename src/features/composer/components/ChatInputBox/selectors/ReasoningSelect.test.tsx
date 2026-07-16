@@ -72,4 +72,21 @@ describe('ReasoningSelect', () => {
     expect(screen.queryByText('Extra High')).toBeNull();
     expect(screen.queryByText('Max')).toBeNull();
   });
+
+  it('renders and selects the runtime ultra effort', async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    const onChange = vi.fn();
+    render(
+      <ReasoningSelect
+        value="low"
+        onChange={onChange}
+        options={['low', 'ultra']}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Low' }));
+    await user.click(await screen.findByText('Ultra'));
+
+    expect(onChange).toHaveBeenCalledWith('ultra');
+  });
 });

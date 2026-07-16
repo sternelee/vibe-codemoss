@@ -2,6 +2,10 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const { getGitFileFullDiff } = vi.hoisted(() => ({
+  getGitFileFullDiff: vi.fn(async () => ""),
+}));
+
 const handleSave = vi.fn(async () => true);
 const handleDiscard = vi.fn();
 const setContent = vi.fn();
@@ -28,6 +32,7 @@ vi.mock("react-i18next", () => ({
         "files.fileCompare.nextDifference": "Next difference",
         "files.fileCompare.noDifferences": "No differences",
         "files.save": "Save",
+        "git.diffUnavailable": "Diff unavailable",
       };
       if (key === "files.fileCompare.differenceCount") {
         return `${values?.current} / ${values?.total} differences`;
@@ -45,22 +50,28 @@ vi.mock("../../../styles/featureStyleLoaders", () => ({
   loadFileViewStyles: vi.fn(async () => undefined),
 }));
 
+vi.mock("../../../services/tauri", () => ({
+  getGitFileFullDiff,
+}));
+
 vi.mock("../../files/components/WorkspaceFileComparePanel", () => ({
   useFileCompareEditorTheme: () => "light",
-  CompareEditorColumn: ({ draft }: { draft: {
+  CompareEditorColumn: ({ draft, collapsedRanges = [] }: { draft: {
     title: string;
     content: string;
     editable: boolean;
+    error: string | null;
     onChange: (value: string) => void;
     onSave: () => void;
-  } }) => (
-    <section aria-label={draft.title}>
+  }; collapsedRanges?: Array<{ fromLine: number; toLine: number }> }) => (
+    <section aria-label={draft.title} data-collapsed-ranges={JSON.stringify(collapsedRanges)}>
       <textarea
         aria-label={`${draft.title} editor`}
         value={draft.content}
         disabled={!draft.editable}
         onChange={(event) => draft.onChange(event.currentTarget.value)}
       />
+      {draft.error ? <span>{draft.error}</span> : null}
       {draft.editable ? (
         <button type="button" onClick={draft.onSave}>Save source</button>
       ) : null}
@@ -83,6 +94,7 @@ const PATCH = [
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  getGitFileFullDiff.mockResolvedValue("");
   documentState = {
     ...documentState,
     content: "const value = 'after';\n",
@@ -101,7 +113,6 @@ describe("WorkspaceEditableDiffCompare", () => {
         workspacePath="/repo"
         filePath="example.ts"
         diff={PATCH}
-        fallback={<div>Read-only fallback</div>}
         onSaveSuccess={vi.fn()}
         onDirtyChange={vi.fn()}
       />,
@@ -121,6 +132,36 @@ describe("WorkspaceEditableDiffCompare", () => {
     expect(setContent).toHaveBeenCalledWith("const value = 'edited';\n");
   });
 
+  it("keeps the source editable while focused mode only collapses unchanged ranges", async () => {
+    const sourceLines = Array.from({ length: 12 }, (_unused, index) =>
+      index === 5 ? "const value = 'after';" : `// stable ${index + 1}`,
+    );
+    documentState = {
+      ...documentState,
+      content: `${sourceLines.join("\n")}\n`,
+      savedContentRef: { current: `${sourceLines.join("\n")}\n` },
+    };
+    const patch = "@@ -6 +6 @@\n-const value = 'before';\n+const value = 'after';\n";
+
+    render(
+      <WorkspaceEditableDiffCompare
+        workspaceId="workspace-1"
+        workspacePath="/repo"
+        filePath="example.ts"
+        diff={patch}
+        contentMode="focused"
+        onSaveSuccess={vi.fn()}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    const sourceEditor = await screen.findByLabelText("Source code editor");
+    expect((sourceEditor as HTMLTextAreaElement).disabled).toBe(false);
+    expect((sourceEditor as HTMLTextAreaElement).value).toBe(`${sourceLines.join("\n")}\n`);
+    expect(screen.getByLabelText("Source code").getAttribute("data-collapsed-ranges"))
+      .not.toBe("[]");
+  });
+
   it("uses the existing save contract and reports save success", async () => {
     const onSaveSuccess = vi.fn();
     documentState = { ...documentState, isDirty: true };
@@ -130,7 +171,6 @@ describe("WorkspaceEditableDiffCompare", () => {
         workspacePath="/repo"
         filePath="example.ts"
         diff={PATCH}
-        fallback={<div>Read-only fallback</div>}
         onSaveSuccess={onSaveSuccess}
         onDirtyChange={vi.fn()}
       />,
@@ -141,20 +181,66 @@ describe("WorkspaceEditableDiffCompare", () => {
     expect(onSaveSuccess).toHaveBeenCalledOnce();
   });
 
-  it("falls back when the patch cannot reconstruct the previous version", async () => {
+  it("keeps the editable compare when the baseline cannot be reconstructed", async () => {
     render(
       <WorkspaceEditableDiffCompare
         workspaceId="workspace-1"
         workspacePath="/repo"
         filePath="example.ts"
         diff="not a unified patch"
-        fallback={<div>Read-only fallback</div>}
         onSaveSuccess={vi.fn()}
         onDirtyChange={vi.fn()}
       />,
     );
 
-    expect(await screen.findByText("Read-only fallback")).toBeTruthy();
+    expect(await screen.findByText("Diff unavailable")).toBeTruthy();
+    expect(screen.getByLabelText("Source code editor")).toBeTruthy();
+    expect(screen.queryByText("Read-only fallback")).toBeNull();
+  });
+
+  it("recovers the editable compare with a full diff when the preview patch is truncated", async () => {
+    getGitFileFullDiff.mockResolvedValueOnce(PATCH);
+    render(
+      <WorkspaceEditableDiffCompare
+        workspaceId="workspace-1"
+        workspacePath="/repo"
+        filePath="example.ts"
+        diff="@@ -1 +1 @@\n[diff truncated for performance]"
+        onSaveSuccess={vi.fn()}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    expect(
+      (await screen.findByLabelText("Previous version editor") as HTMLTextAreaElement).value,
+    ).toBe("const value = 'before';\n");
+    expect(getGitFileFullDiff).toHaveBeenCalledWith("workspace-1", "example.ts");
+    expect(screen.queryByText("Read-only fallback")).toBeNull();
+  });
+
+  it("keeps the editable shell while the full diff request is pending", async () => {
+    let resolveFullDiff: (diff: string) => void = () => {};
+    getGitFileFullDiff.mockReturnValueOnce(new Promise((resolve) => {
+      resolveFullDiff = resolve;
+    }));
+    render(
+      <WorkspaceEditableDiffCompare
+        workspaceId="workspace-1"
+        workspacePath="/repo"
+        filePath="example.ts"
+        diff="not a unified patch"
+        onSaveSuccess={vi.fn()}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText("Source code editor")).toBeTruthy();
+    expect(screen.queryByText("Diff unavailable")).toBeNull();
+    expect(screen.queryByText("Read-only fallback")).toBeNull();
+
+    resolveFullDiff(PATCH);
+    expect(
+      (await screen.findByLabelText("Previous version editor") as HTMLTextAreaElement).value,
+    ).toBe("const value = 'before';\n");
   });
 
   it("reconstructs the baseline from saved source when reopening a dirty cached draft", async () => {
@@ -171,7 +257,6 @@ describe("WorkspaceEditableDiffCompare", () => {
         workspacePath="/repo"
         filePath="example.ts"
         diff={PATCH}
-        fallback={<div>Read-only fallback</div>}
         onSaveSuccess={vi.fn()}
         onDirtyChange={vi.fn()}
       />,
@@ -184,5 +269,66 @@ describe("WorkspaceEditableDiffCompare", () => {
       (screen.getByLabelText("Source code editor") as HTMLTextAreaElement).value,
     ).toBe("const value = 'after';\nconst localDraft = true;\n");
     expect(screen.queryByText("Read-only fallback")).toBeNull();
+  });
+
+  it("reports only real inserted rows when a large file exceeds the matrix alignment budget", async () => {
+    const headerControlsTarget = document.createElement("div");
+    headerControlsTarget.className = "test-header-controls";
+    document.body.appendChild(headerControlsTarget);
+    const baseLines = Array.from(
+      { length: 4_000 },
+      (_unused, index) => `stable line ${String(index + 1).padStart(4, "0")}`,
+    );
+    const insertedLines = Array.from(
+      { length: 14 },
+      (_unused, index) => `inserted changelog line ${index + 1}`,
+    );
+    const sourceLines = [
+      ...baseLines.slice(0, 13),
+      ...insertedLines,
+      ...baseLines.slice(13),
+    ];
+    const source = `${sourceLines.join("\n")}\n`;
+    const patch = [
+      "diff --git a/CHANGELOG.md b/CHANGELOG.md",
+      "--- a/CHANGELOG.md",
+      "+++ b/CHANGELOG.md",
+      "@@ -14,0 +14,14 @@",
+      ...insertedLines.map((line) => `+${line}`),
+      "",
+    ].join("\n");
+    documentState = {
+      ...documentState,
+      content: source,
+      savedContentRef: { current: source },
+    };
+
+    render(
+      <WorkspaceEditableDiffCompare
+        workspaceId="workspace-1"
+        workspacePath="/repo"
+        filePath="CHANGELOG.md"
+        diff={patch}
+        onSaveSuccess={vi.fn()}
+        onDirtyChange={vi.fn()}
+        headerControlsTarget={headerControlsTarget}
+      />,
+    );
+
+    expect(await screen.findByText("1 / 1 differences")).toBeTruthy();
+    expect(
+      headerControlsTarget.querySelector(
+        ".editable-diff-compare-nav.is-external",
+      ),
+    ).toBeTruthy();
+    expect(
+      document.querySelector(
+        ".editable-diff-compare > .editable-diff-compare-nav",
+      ),
+    ).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Next difference" }));
+    expect(screen.getByText("1 / 1 differences")).toBeTruthy();
+    expect(screen.queryByText("Read-only fallback")).toBeNull();
+    headerControlsTarget.remove();
   });
 });

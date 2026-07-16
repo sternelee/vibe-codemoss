@@ -139,6 +139,7 @@ function isSameMemoryTurn(
 type UseThreadsOptions = {
   activeWorkspace: WorkspaceInfo | null;
   onWorkspaceConnected: (id: string) => void;
+  onWorkspaceModelsRefresh?: () => Promise<void> | void;
   onDebug?: (entry: DebugEntry) => void;
   model?: string | null;
   effort?: string | null;
@@ -197,6 +198,7 @@ export type ThreadDeleteResult = {
 export function useThreads({
   activeWorkspace,
   onWorkspaceConnected,
+  onWorkspaceModelsRefresh,
   onDebug,
   model,
   effort,
@@ -614,10 +616,19 @@ export function useThreads({
   const handleWorkspaceConnected = useCallback(
     (workspaceId: string) => {
       onWorkspaceConnected(workspaceId);
+      if (workspaceId === activeWorkspace?.id) {
+        void onWorkspaceModelsRefresh?.();
+      }
       void refreshAccountRateLimits(workspaceId);
       void refreshAccountInfo(workspaceId);
     },
-    [onWorkspaceConnected, refreshAccountRateLimits, refreshAccountInfo],
+    [
+      activeWorkspace?.id,
+      onWorkspaceConnected,
+      onWorkspaceModelsRefresh,
+      refreshAccountRateLimits,
+      refreshAccountInfo,
+    ],
   );
 
   const isThreadHidden = useCallback(

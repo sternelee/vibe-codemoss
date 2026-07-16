@@ -791,6 +791,7 @@ export function AppShell() {
   } = useThreads({
     activeWorkspace,
     onWorkspaceConnected: markWorkspaceConnected,
+    onWorkspaceModelsRefresh: refreshModels,
     onDebug: addDebugEntry,
     model: null,
     effort: null,
