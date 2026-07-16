@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-25.md`
-- **Total Sessions**: 1007
+- **Total Sessions**: 1008
 - **Last Active**: 2026-07-17
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-25.md` | ~1337 | Active |
+| `journal-25.md` | ~1370 | Active |
 | `journal-24.md` | ~1994 | Archived |
 | `journal-23.md` | ~1965 | Archived |
 | `journal-22.md` | ~1969 | Archived |
@@ -53,6 +53,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 1008 | 2026-07-17 | 加固 react-scan 崩溃熔断恢复 | `d8f9ed40` | `feature/v-0.7.4` |
 | 1007 | 2026-07-17 | 完善多仓 Git History 仓库隔离 | `a215bac9` | `feature/v-0.7.4` |
 | 1006 | 2026-07-16 | 安全合并上游 0.7.4 更新 | `27b547e7` | `feature/v-0.7.4` |
 | 1005 | 2026-07-16 | 收口多仓库 Git 提交与文件树状态能力 | `6454397b`, `9da8688b`, `6ca8b891` | `feature/v-0.7.4` |

@@ -1335,3 +1335,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1008: 加固 react-scan 崩溃熔断恢复
+
+**Date**: 2026-07-17
+**Task**: 加固 react-scan 崩溃熔断恢复
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+为 production React #185 增加 react-scan one-shot circuit breaker；恢复失败时回滚 persisted state 与 session guard，保留普通 ErrorBoundary，并补齐 content-safe diagnostics、storage failure、测试隔离和 focused regression。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d8f9ed40` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
