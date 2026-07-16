@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-25.md`
-- **Total Sessions**: 1011
+- **Total Sessions**: 1012
 - **Last Active**: 2026-07-17
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-25.md` | ~1470 | Active |
+| `journal-25.md` | ~1503 | Active |
 | `journal-24.md` | ~1994 | Archived |
 | `journal-23.md` | ~1965 | Archived |
 | `journal-22.md` | ~1969 | Archived |
@@ -53,6 +53,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 1012 | 2026-07-17 | 恢复多仓 Git 文件回退入口 | `e73cc3f3` | `feature/v-0.7.4` |
 | 1011 | 2026-07-17 | 收口并归档文件历史视图 | `432a0f14`, `1db3de6a` | `feature/v-0.7.4` |
 | 1010 | 2026-07-17 | 完善文件追溯与多仓路径隔离 | `6031d97e` | `feature/v-0.7.4` |
 | 1009 | 2026-07-17 | 收敛 Git History 三栏布局 | `42647ff9` | `feature/v-0.7.4` |

@@ -1468,3 +1468,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1012: 恢复多仓 Git 文件回退入口
+
+**Date**: 2026-07-17
+**Task**: 恢复多仓 Git 文件回退入口
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+为多仓 unstaged 文件恢复共享回退 icon，复用确认框并以 repositoryRoot + path 隔离同名路径；补充确认、取消和 scoped refresh 测试，完成 OpenSpec/Trellis contract 与质量门禁。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e73cc3f3` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
