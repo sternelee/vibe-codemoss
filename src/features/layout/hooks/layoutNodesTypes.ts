@@ -38,6 +38,9 @@ import type {
   DictationTranscript,
   EngineType,
   GitFileStatus,
+  GitBranchListItem,
+  GitBranchUpdateResult,
+  GitRepositorySummary,
   GitHubIssue,
   GitHubPullRequestComment,
   GitHubPullRequest,
@@ -71,6 +74,8 @@ import type { RuntimeReconnectRecoveryCallbackResult } from "../../messages/comp
 import type { QueuedHandoffBubble } from "../../threads/utils/queuedHandoffBubble";
 import type { SessionRadarEntry } from "../../session-activity/hooks/useSessionRadarFeed";
 import type { CodexProviderProfileSelection } from "../../threads/constants/codexProviderProfiles";
+import type { RepositoryGitStatus } from "../../git/hooks/useMultiRepositoryGitStatus";
+import type { RepositoryCommitSelection } from "../../git/components/GitMultiRepositoryChanges";
 
 export type ThreadActivityStatus = {
   isProcessing: boolean;
@@ -313,8 +318,21 @@ export type LayoutNodesFlatOptions = {
   isWorktreeWorkspace: boolean;
   branchName: string;
   branches: BranchInfo[];
+  branchError?: string | null;
+  branchCurrentName?: string | null;
+  branchLocalItems?: GitBranchListItem[];
+  branchRemoteItems?: GitBranchListItem[];
+  gitRepositories?: GitRepositorySummary[];
+  gitRepositoriesLoading?: boolean;
+  gitRepositoriesError?: string | null;
+  selectedGitRepositoryRoot?: string | null;
+  onSelectGitRepository?: (repositoryRoot: string | null) => Promise<void> | void;
   onCheckoutBranch: (name: string) => Promise<void>;
   onCreateBranch: (name: string) => Promise<void>;
+  onUpdateBranch?: (
+    name: string,
+    repositoryRootOverride?: string,
+  ) => Promise<GitBranchUpdateResult | null>;
   onCopyThread: () => void | Promise<void>;
   onLockPanel?: () => void;
   onToggleTerminal: () => void;
@@ -473,8 +491,8 @@ export type LayoutNodesFlatOptions = {
   gitRootScanHasScanned: boolean;
   onGitRootScanDepthChange: (depth: number) => void;
   onScanGitRoots: () => void;
-  onSelectGitRoot: (path: string) => void;
-  onClearGitRoot: () => void;
+  onSelectGitRoot: (path: string) => void | Promise<void>;
+  onClearGitRoot: () => void | Promise<void>;
   onPickGitRoot: () => void | Promise<void>;
   onStageGitAll: () => Promise<void>;
   onStageGitFile: (path: string) => Promise<void>;
@@ -494,6 +512,7 @@ export type LayoutNodesFlatOptions = {
     language?: "zh" | "en",
     engine?: "codex" | "claude" | "gemini" | "opencode",
     selectedPaths?: string[],
+    repositorySelections?: RepositoryCommitSelection[],
   ) => void | Promise<void>;
   onCommit?: (selectedPaths?: string[]) => void | Promise<void>;
   onCommitAndPush?: (selectedPaths?: string[]) => void | Promise<void>;
@@ -507,6 +526,15 @@ export type LayoutNodesFlatOptions = {
   pushError?: string | null;
   syncError?: string | null;
   commitsAhead?: number;
+  multiRepositoryMode?: boolean;
+  repositoryStatuses?: RepositoryGitStatus[];
+  repositoryStatusesLoading?: boolean;
+  onRefreshRepositoryStatuses?: () => Promise<void> | void;
+  onStageRepositoryFile?: (repositoryRoot: string, path: string) => Promise<void>;
+  onUnstageRepositoryFile?: (repositoryRoot: string, path: string) => Promise<void>;
+  onStageRepositoryAll?: (repositoryRoot: string) => Promise<void>;
+  onCommitRepositories?: (selections: RepositoryCommitSelection[]) => Promise<void> | void;
+  repositoryCommitSummary?: string | null;
   onSendPrompt: (text: string) => void | Promise<void>;
   onSendPromptToNewAgent: (text: string) => void | Promise<void>;
   onCreatePrompt: (data: {
@@ -848,8 +876,18 @@ export type ChromeLayoutNodesOptions = Pick<
   | "isWorktreeWorkspace"
   | "branchName"
   | "branches"
+  | "branchError"
+  | "branchCurrentName"
+  | "branchLocalItems"
+  | "branchRemoteItems"
+  | "gitRepositories"
+  | "gitRepositoriesLoading"
+  | "gitRepositoriesError"
+  | "selectedGitRepositoryRoot"
+  | "onSelectGitRepository"
   | "onCheckoutBranch"
   | "onCreateBranch"
+  | "onUpdateBranch"
   | "onCopyThread"
   | "onLockPanel"
   | "onToggleTerminal"
@@ -1000,6 +1038,15 @@ export type GitLayoutNodesOptions = Pick<
   | "pushError"
   | "syncError"
   | "commitsAhead"
+  | "multiRepositoryMode"
+  | "repositoryStatuses"
+  | "repositoryStatusesLoading"
+  | "onRefreshRepositoryStatuses"
+  | "onStageRepositoryFile"
+  | "onUnstageRepositoryFile"
+  | "onStageRepositoryAll"
+  | "onCommitRepositories"
+  | "repositoryCommitSummary"
 >;
 
 export type ComposerLayoutNodesOptions = Pick<

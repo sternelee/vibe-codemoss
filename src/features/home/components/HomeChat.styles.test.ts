@@ -21,8 +21,8 @@ describe("HomeChat styles", () => {
 
     expect(homeCss).toContain("--codex-context-accent:");
     expect(homeCss).toContain("--codex-context-accent-track:");
-    expect(contextBarCss).toContain("var(--codex-context-accent, #10a37f)");
-    expect(contextBarCss).toContain("var(--codex-context-accent-track, rgba(16, 163, 127, 0.28))");
+    expect(contextBarCss).toContain("var(--codex-context-accent, var(--text-primary))");
+    expect(contextBarCss).toContain("var(--codex-context-accent-track, color-mix(in srgb, var(--text-primary) 24%, transparent))");
   });
 
   it("styles the homepage workspace popup like a lightweight anchored menu", () => {

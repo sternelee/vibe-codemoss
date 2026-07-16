@@ -709,6 +709,15 @@ impl DaemonState {
         crate::git_utils::resolve_git_root(&entry)
     }
 
+    async fn git_repo_root_for_scope(
+        &self,
+        workspace_id: &str,
+        repository_root: Option<&str>,
+    ) -> Result<PathBuf, String> {
+        let entry = self.workspace_entry(workspace_id).await?;
+        crate::git_utils::resolve_git_root_for_scope(&entry, repository_root)
+    }
+
     pub(crate) async fn list_git_roots(
         &self,
         workspace_id: String,
@@ -720,8 +729,27 @@ impl DaemonState {
         Ok(crate::git_utils::list_git_roots(&root, depth, 200))
     }
 
-    pub(crate) async fn get_git_status(&self, workspace_id: String) -> Result<Value, String> {
-        let repo_root = self.git_repo_root(&workspace_id).await?;
+    pub(crate) async fn list_git_repository_summaries(
+        &self,
+        workspace_id: String,
+        depth: Option<usize>,
+    ) -> Result<Vec<crate::types::GitRepositorySummary>, String> {
+        let entry = self.workspace_entry(&workspace_id).await?;
+        let root = PathBuf::from(entry.path);
+        let depth = depth.unwrap_or(2).clamp(1, 6);
+        Ok(crate::git_utils::list_git_repository_summaries(
+            &root, depth, 200,
+        ))
+    }
+
+    pub(crate) async fn get_git_status(
+        &self,
+        workspace_id: String,
+        repository_root: Option<String>,
+    ) -> Result<Value, String> {
+        let repo_root = self
+            .git_repo_root_for_scope(&workspace_id, repository_root.as_deref())
+            .await?;
         if !crate::git_utils::path_has_git_repository_marker(&repo_root) {
             return Ok(serde_json::json!({
                 "isGitRepository": false,
@@ -848,8 +876,11 @@ impl DaemonState {
     pub(crate) async fn get_git_diffs(
         &self,
         workspace_id: String,
+        repository_root: Option<String>,
     ) -> Result<Vec<GitFileDiff>, String> {
-        let repo_root = self.git_repo_root(&workspace_id).await?;
+        let repo_root = self
+            .git_repo_root_for_scope(&workspace_id, repository_root.as_deref())
+            .await?;
         if !crate::git_utils::path_has_git_repository_marker(&repo_root) {
             return Ok(Vec::new());
         }
@@ -920,8 +951,11 @@ impl DaemonState {
         &self,
         workspace_id: String,
         path: String,
+        repository_root: Option<String>,
     ) -> Result<String, String> {
-        let repo_root = self.git_repo_root(&workspace_id).await?;
+        let repo_root = self
+            .git_repo_root_for_scope(&workspace_id, repository_root.as_deref())
+            .await?;
         let trimmed_path = path.trim();
         if trimmed_path.is_empty() {
             return Err("path is required".to_string());
@@ -1001,8 +1035,11 @@ impl DaemonState {
         snapshot_id: Option<String>,
         offset: usize,
         limit: usize,
+        repository_root: Option<String>,
     ) -> Result<GitHistoryResponse, String> {
-        let repo_root = self.git_repo_root(&workspace_id).await?;
+        let repo_root = self
+            .git_repo_root_for_scope(&workspace_id, repository_root.as_deref())
+            .await?;
         let repo = open_repository_at_root(&repo_root)?;
         let query = trim_optional(query).map(|entry| entry.to_lowercase());
         let author = trim_optional(author).map(|entry| entry.to_lowercase());
@@ -1127,8 +1164,11 @@ impl DaemonState {
         workspace_id: String,
         commit_hash: String,
         max_diff_lines: usize,
+        repository_root: Option<String>,
     ) -> Result<GitCommitDetails, String> {
-        let repo_root = self.git_repo_root(&workspace_id).await?;
+        let repo_root = self
+            .git_repo_root_for_scope(&workspace_id, repository_root.as_deref())
+            .await?;
         let repo = open_repository_at_root(&repo_root)?;
         let target = commit_hash.trim();
         if target.is_empty() {
@@ -1244,8 +1284,11 @@ impl DaemonState {
         sha: String,
         path: Option<String>,
         context_lines: Option<usize>,
+        repository_root: Option<String>,
     ) -> Result<Vec<GitCommitDiff>, String> {
-        let repo_root = self.git_repo_root(&workspace_id).await?;
+        let repo_root = self
+            .git_repo_root_for_scope(&workspace_id, repository_root.as_deref())
+            .await?;
         let repo = open_repository_at_root(&repo_root)?;
         let target = sha.trim();
         if target.is_empty() {
@@ -1344,8 +1387,11 @@ impl DaemonState {
         &self,
         workspace_id: String,
         path: String,
+        repository_root: Option<String>,
     ) -> Result<(), String> {
-        let repo_root = self.git_repo_root(&workspace_id).await?;
+        let repo_root = self
+            .git_repo_root_for_scope(&workspace_id, repository_root.as_deref())
+            .await?;
         let path = path.trim();
         if path.is_empty() {
             return Err("path is required".to_string());
@@ -1354,8 +1400,14 @@ impl DaemonState {
         Ok(())
     }
 
-    pub(crate) async fn stage_git_all(&self, workspace_id: String) -> Result<(), String> {
-        let repo_root = self.git_repo_root(&workspace_id).await?;
+    pub(crate) async fn stage_git_all(
+        &self,
+        workspace_id: String,
+        repository_root: Option<String>,
+    ) -> Result<(), String> {
+        let repo_root = self
+            .git_repo_root_for_scope(&workspace_id, repository_root.as_deref())
+            .await?;
         git_core::run_git_command(&repo_root, &["add", "-A"]).await?;
         Ok(())
     }
@@ -1364,8 +1416,11 @@ impl DaemonState {
         &self,
         workspace_id: String,
         path: String,
+        repository_root: Option<String>,
     ) -> Result<(), String> {
-        let repo_root = self.git_repo_root(&workspace_id).await?;
+        let repo_root = self
+            .git_repo_root_for_scope(&workspace_id, repository_root.as_deref())
+            .await?;
         let path = path.trim();
         if path.is_empty() {
             return Err("path is required".to_string());
@@ -1378,8 +1433,11 @@ impl DaemonState {
         &self,
         workspace_id: String,
         path: String,
+        repository_root: Option<String>,
     ) -> Result<(), String> {
-        let repo_root = self.git_repo_root(&workspace_id).await?;
+        let repo_root = self
+            .git_repo_root_for_scope(&workspace_id, repository_root.as_deref())
+            .await?;
         let path = path.trim();
         if path.is_empty() {
             return Err("path is required".to_string());
@@ -1396,8 +1454,14 @@ impl DaemonState {
         Ok(())
     }
 
-    pub(crate) async fn revert_git_all(&self, workspace_id: String) -> Result<(), String> {
-        let repo_root = self.git_repo_root(&workspace_id).await?;
+    pub(crate) async fn revert_git_all(
+        &self,
+        workspace_id: String,
+        repository_root: Option<String>,
+    ) -> Result<(), String> {
+        let repo_root = self
+            .git_repo_root_for_scope(&workspace_id, repository_root.as_deref())
+            .await?;
         git_core::run_git_command(
             &repo_root,
             &["restore", "--staged", "--worktree", "--", "."],
@@ -1411,8 +1475,11 @@ impl DaemonState {
         &self,
         workspace_id: String,
         message: String,
+        repository_root: Option<String>,
     ) -> Result<(), String> {
-        let repo_root = self.git_repo_root(&workspace_id).await?;
+        let repo_root = self
+            .git_repo_root_for_scope(&workspace_id, repository_root.as_deref())
+            .await?;
         let message = message.trim();
         if message.is_empty() {
             return Err("message is required".to_string());
@@ -1434,8 +1501,11 @@ impl DaemonState {
         topic: Option<String>,
         reviewers: Option<String>,
         cc: Option<String>,
+        repository_root: Option<String>,
     ) -> Result<(), String> {
-        let repo_root = self.git_repo_root(&workspace_id).await?;
+        let repo_root = self
+            .git_repo_root_for_scope(&workspace_id, repository_root.as_deref())
+            .await?;
         let mut args = vec!["push".to_string()];
         if !run_hooks.unwrap_or(true) {
             args.push("--no-verify".to_string());
@@ -1498,8 +1568,11 @@ impl DaemonState {
         strategy: Option<String>,
         no_commit: Option<bool>,
         no_verify: Option<bool>,
+        repository_root: Option<String>,
     ) -> Result<(), String> {
-        let repo_root = self.git_repo_root(&workspace_id).await?;
+        let repo_root = self
+            .git_repo_root_for_scope(&workspace_id, repository_root.as_deref())
+            .await?;
         let mut args = vec!["pull".to_string()];
         if let Some(strategy_flag) = trim_optional(strategy) {
             match strategy_flag.as_str() {
@@ -1526,12 +1599,25 @@ impl DaemonState {
         Ok(())
     }
 
-    pub(crate) async fn sync_git(&self, workspace_id: String) -> Result<(), String> {
-        self.pull_git(workspace_id.clone(), None, None, None, None, None)
-            .await?;
+    pub(crate) async fn sync_git(
+        &self,
+        workspace_id: String,
+        repository_root: Option<String>,
+    ) -> Result<(), String> {
+        self.pull_git(
+            workspace_id.clone(),
+            None,
+            None,
+            None,
+            None,
+            None,
+            repository_root.clone(),
+        )
+        .await?;
         self.push_git(
             workspace_id,
             None,
+            repository_root,
             None,
             None,
             None,
@@ -1546,7 +1632,7 @@ impl DaemonState {
     }
 
     pub(crate) async fn git_pull(&self, workspace_id: String) -> Result<(), String> {
-        self.pull_git(workspace_id, None, None, None, None, None)
+        self.pull_git(workspace_id, None, None, None, None, None, None)
             .await
     }
 
@@ -1562,20 +1648,24 @@ impl DaemonState {
             None,
             None,
             None,
+            None,
         )
         .await
     }
 
     pub(crate) async fn git_sync(&self, workspace_id: String) -> Result<(), String> {
-        self.sync_git(workspace_id).await
+        self.sync_git(workspace_id, None).await
     }
 
     pub(crate) async fn git_fetch(
         &self,
         workspace_id: String,
         remote: Option<String>,
+        repository_root: Option<String>,
     ) -> Result<(), String> {
-        let repo_root = self.git_repo_root(&workspace_id).await?;
+        let repo_root = self
+            .git_repo_root_for_scope(&workspace_id, repository_root.as_deref())
+            .await?;
         if let Some(remote_name) = trim_optional(remote) {
             git_core::run_git_command(&repo_root, &["fetch", remote_name.as_str()]).await?;
         } else {
@@ -1588,8 +1678,11 @@ impl DaemonState {
         &self,
         workspace_id: String,
         branch_name: String,
+        repository_root: Option<String>,
     ) -> Result<GitBranchUpdateResult, String> {
-        let repo_root = self.git_repo_root(&workspace_id).await?;
+        let repo_root = self
+            .git_repo_root_for_scope(&workspace_id, repository_root.as_deref())
+            .await?;
         let normalized_branch = normalize_local_branch_ref(&branch_name);
         if normalized_branch.is_empty() {
             return Err("Branch name cannot be empty.".to_string());
@@ -1602,8 +1695,7 @@ impl DaemonState {
             ));
         }
         if branch_state.is_current {
-            self.pull_git(workspace_id, None, None, None, None, None)
-                .await?;
+            git_core::run_git_command(&repo_root, &["pull"]).await?;
             return Ok(branch_update_result(
                 branch_state.branch_name.as_str(),
                 BRANCH_UPDATE_STATUS_SUCCESS,
@@ -1665,8 +1757,14 @@ impl DaemonState {
         Ok(())
     }
 
-    pub(crate) async fn list_git_branches(&self, workspace_id: String) -> Result<Value, String> {
-        let repo_root = self.git_repo_root(&workspace_id).await?;
+    pub(crate) async fn list_git_branches(
+        &self,
+        workspace_id: String,
+        repository_root: Option<String>,
+    ) -> Result<Value, String> {
+        let repo_root = self
+            .git_repo_root_for_scope(&workspace_id, repository_root.as_deref())
+            .await?;
         if !crate::git_utils::path_has_git_repository_marker(&repo_root) {
             return Ok(json!({
                 "branches": [],
@@ -1788,8 +1886,11 @@ impl DaemonState {
         &self,
         workspace_id: String,
         name: String,
+        repository_root: Option<String>,
     ) -> Result<(), String> {
-        let repo_root = self.git_repo_root(&workspace_id).await?;
+        let repo_root = self
+            .git_repo_root_for_scope(&workspace_id, repository_root.as_deref())
+            .await?;
         let trimmed = name.trim();
         if trimmed.is_empty() {
             return Err("Branch name cannot be empty.".to_string());
@@ -1817,8 +1918,11 @@ impl DaemonState {
         &self,
         workspace_id: String,
         name: String,
+        repository_root: Option<String>,
     ) -> Result<(), String> {
-        let repo_root = self.git_repo_root(&workspace_id).await?;
+        let repo_root = self
+            .git_repo_root_for_scope(&workspace_id, repository_root.as_deref())
+            .await?;
         let name = normalize_local_branch_ref(&name);
         if name.is_empty() {
             return Err("Branch name cannot be empty.".to_string());
@@ -1930,8 +2034,11 @@ impl DaemonState {
         remote: String,
         branch: String,
         limit: Option<usize>,
+        repository_root: Option<String>,
     ) -> Result<GitPushPreviewResponse, String> {
-        let repo_root = self.git_repo_root(&workspace_id).await?;
+        let repo_root = self
+            .git_repo_root_for_scope(&workspace_id, repository_root.as_deref())
+            .await?;
         let target_remote = remote.trim();
         if target_remote.is_empty() {
             return Err("Remote is required for push preview.".to_string());

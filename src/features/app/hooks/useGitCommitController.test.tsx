@@ -11,6 +11,7 @@ const mockGenerateCommitMessageWithEngine = vi.fn<
     language?: "zh" | "en",
     engine?: "codex" | "claude" | "gemini" | "opencode",
     selectedPaths?: string[],
+    repositorySelections?: Array<{ repositoryRoot: string; selectedPaths: string[] }>,
   ) => Promise<string>
 >();
 const mockPushGit = vi.fn<(workspaceId: string) => Promise<void>>();
@@ -31,7 +32,16 @@ vi.mock("../../../services/tauri", () => ({
     language?: "zh" | "en",
     engine?: "codex" | "claude" | "gemini" | "opencode",
     selectedPaths?: string[],
-  ) => mockGenerateCommitMessageWithEngine(workspaceId, language, engine, selectedPaths),
+    repositorySelections?: Array<{ repositoryRoot: string; selectedPaths: string[] }>,
+  ) => repositorySelections
+    ? mockGenerateCommitMessageWithEngine(
+      workspaceId,
+      language,
+      engine,
+      selectedPaths,
+      repositorySelections,
+    )
+    : mockGenerateCommitMessageWithEngine(workspaceId, language, engine, selectedPaths),
   pushGit: (workspaceId: string) => mockPushGit(workspaceId),
   syncGit: (workspaceId: string) => mockSyncGit(workspaceId),
   stageGitFile: (workspaceId: string, path: string) => mockStageGitFile(workspaceId, path),
@@ -50,6 +60,7 @@ type MockGitStatus = {
 function createController(status: MockGitStatus) {
   const refreshGitStatus = vi.fn();
   const refreshGitLog = vi.fn();
+  const onMutationComplete = vi.fn().mockResolvedValue(undefined);
   const hook = renderHook(() =>
     useGitCommitController({
       activeWorkspace: {
@@ -66,10 +77,11 @@ function createController(status: MockGitStatus) {
       gitStatus: status as never,
       refreshGitStatus,
       refreshGitLog,
+      onMutationComplete,
     }),
   );
 
-  return { ...hook, refreshGitStatus, refreshGitLog };
+  return { ...hook, refreshGitStatus, refreshGitLog, onMutationComplete };
 }
 
 describe("useGitCommitController", () => {
@@ -110,7 +122,7 @@ describe("useGitCommitController", () => {
   });
 
   it("commits staged changes and refreshes git state", async () => {
-    const { result, refreshGitLog, refreshGitStatus } = createController({
+    const { result, refreshGitLog, refreshGitStatus, onMutationComplete } = createController({
       stagedFiles: [{ path: "src/file.ts", status: "M", additions: 1, deletions: 0 }],
       unstagedFiles: [],
     });
@@ -126,6 +138,7 @@ describe("useGitCommitController", () => {
     expect(mockCommitGit).toHaveBeenCalledWith("ws-1", "feat: selective commit");
     expect(refreshGitStatus).toHaveBeenCalledTimes(1);
     expect(refreshGitLog).toHaveBeenCalledTimes(1);
+    expect(onMutationComplete).toHaveBeenCalledTimes(1);
     expect(result.current.commitMessage).toBe("");
   });
 
@@ -243,6 +256,34 @@ describe("useGitCommitController", () => {
       "en",
       "codex",
       ["src\\staged.ts", "src/unstaged.ts"],
+    );
+  });
+
+  it("forwards repository-scoped selections when generating a multi-repository message", async () => {
+    const { result } = createController({
+      stagedFiles: [],
+      unstagedFiles: [],
+    });
+    const repositorySelections = [
+      { repositoryRoot: "services/api", selectedPaths: ["pom.xml"] },
+      { repositoryRoot: "services/web", selectedPaths: ["package.json"] },
+    ];
+
+    await act(async () => {
+      await result.current.onGenerateCommitMessage(
+        "zh",
+        "claude",
+        undefined,
+        repositorySelections,
+      );
+    });
+
+    expect(mockGenerateCommitMessageWithEngine).toHaveBeenCalledWith(
+      "ws-1",
+      "zh",
+      "claude",
+      undefined,
+      repositorySelections,
     );
   });
 });

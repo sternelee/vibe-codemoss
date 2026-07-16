@@ -704,8 +704,8 @@
   padding: 2px 0;
   cursor: default;
   position: relative;
-  --codex-token-fill: var(--codex-context-accent, #10a37f);
-  --codex-token-track: var(--codex-context-accent-track, rgba(16, 163, 127, 0.28));
+  --codex-token-fill: var(--codex-context-accent, var(--text-primary));
+  --codex-token-track: var(--codex-context-accent-track, color-mix(in srgb, var(--text-primary) 24%, transparent));
 }
 
 .context-dual-usage::before {

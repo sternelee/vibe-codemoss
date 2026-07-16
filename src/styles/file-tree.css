@@ -68,6 +68,9 @@
 }
 
 .file-tree-root-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -77,6 +80,28 @@
   font-weight: 500;
   line-height: 22px;
   text-transform: uppercase;
+}
+
+.file-tree-root-label.has-context-menu {
+  cursor: context-menu;
+}
+
+.file-tree-root-git-summary,
+.file-tree-git-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-muted);
+  font-family: var(--code-font-family);
+  font-size: 0.9em;
+  font-weight: 500;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.file-tree-root-git-summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .file-tree-root-actions {
@@ -770,11 +795,43 @@
 }
 
 .file-tree-name {
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   line-height: 1.2;
+}
+
+.file-tree-git-summary {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  margin-left: 7px;
+  padding-right: 22px;
+}
+
+.file-tree-git-token.is-branch {
+  color: var(--git-branch);
+  font-weight: 600;
+}
+
+.file-tree-git-token.is-sync {
+  color: var(--text-muted);
+}
+
+.file-tree-git-token.is-clean {
+  color: var(--git-status-added);
+}
+
+.file-tree-git-token.is-dirty {
+  color: var(--git-status-modified);
+}
+
+.file-tree-git-token.is-conflict,
+.file-tree-git-token.is-error {
+  color: var(--git-status-conflict);
 }
 
 .file-tree-action {
@@ -1118,46 +1175,47 @@
 }
 
 /* Git status colors in file tree */
+.file-tree-name.git-a,
+.file-tree-name.git-m,
+.file-tree-name.git-d,
+.file-tree-name.git-r,
+.file-tree-name.git-t,
+.file-tree-name.git-u {
+  font-weight: 550;
+}
+
 .file-tree-name.git-a {
-  color: #89d185;
+  color: var(--git-status-added);
 }
 
 .file-tree-name.git-m {
-  color: #6bb3f0;
+  color: var(--git-status-modified);
 }
 
 .file-tree-name.git-d {
-  color: #ff6b6b;
+  color: var(--git-status-deleted);
   text-decoration: line-through;
 }
 
 .file-tree-name.git-r {
-  color: #c9a3f5;
+  color: var(--git-status-renamed);
 }
 
 .file-tree-name.git-t {
-  color: #f5c363;
+  color: var(--git-status-type-changed);
 }
 
-:root[data-theme="light"] .file-tree-name.git-a {
-  color: var(--status-success);
+.file-tree-name.git-u {
+  color: var(--git-status-conflict);
 }
 
-:root[data-theme="light"] .file-tree-name.git-m {
-  color: #2a7ab5;
-}
-
-:root[data-theme="light"] .file-tree-name.git-d {
-  color: var(--status-error);
-  text-decoration: line-through;
-}
-
-:root[data-theme="light"] .file-tree-name.git-r {
-  color: #8b5fcf;
-}
-
-:root[data-theme="light"] .file-tree-name.git-t {
-  color: var(--status-warning);
+.file-tree-row.is-git-repository .file-tree-name.git-a,
+.file-tree-row.is-git-repository .file-tree-name.git-m,
+.file-tree-row.is-git-repository .file-tree-name.git-d,
+.file-tree-row.is-git-repository .file-tree-name.git-r,
+.file-tree-row.is-git-repository .file-tree-name.git-t,
+.file-tree-row.is-git-repository .file-tree-name.git-u {
+  color: var(--git-repository-dirty);
 }
 
 /* Gitignored files */

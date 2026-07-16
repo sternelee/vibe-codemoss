@@ -15,6 +15,7 @@ import { ProxyStatusBadge } from "../../../components/ProxyStatusBadge";
 import { EngineIcon } from "../../engine/components/EngineIcon";
 import { SharedSessionIcon } from "../../shared-session/components/SharedSessionIcon";
 import { resolveCodexProviderLabel } from "../utils/codexProviderLabel";
+import { THREAD_ROW_TOOLTIP_DELAY_MS } from "../constants";
 import { getExitedSessionRowVisibility } from "../utils/exitedSessionRows";
 import {
   ThreadRowStatusProvider,
@@ -225,6 +226,7 @@ const ThreadRowItem = memo(function ThreadRowItem({
       tooltipLabel={thread.name}
       tooltipSide="top" tooltipAlign="start" tooltipSideOffset={4}
       tooltipClassName="max-w-[400px] break-words" tooltipDisabled={isDeleteConfirmOpen}
+      tooltipDelay={THREAD_ROW_TOOLTIP_DELAY_MS}
       type="button"
       className={`thread-row ${isActiveThread ? "active" : ""}${
         isDeleteConfirmOpen ? " has-delete-confirm" : ""

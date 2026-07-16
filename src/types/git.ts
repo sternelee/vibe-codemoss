@@ -197,6 +197,34 @@ export type GitBranchListResponse = {
   diagnostic?: GitBranchListDiagnostic | null;
 };
 
+export type GitRepositoryHeadState =
+  | "branch"
+  | "detached"
+  | "unborn"
+  | "unavailable";
+
+export type GitRepositoryFileStatus = {
+  path: string;
+  status: "A" | "M" | "D" | "R" | "T" | "U";
+};
+
+export type GitRepositorySummary = {
+  repositoryRoot: string;
+  displayName: string;
+  currentBranch: string | null;
+  headState: GitRepositoryHeadState;
+  upstream: string | null;
+  ahead: number;
+  behind: number;
+  stagedCount: number;
+  modifiedCount: number;
+  untrackedCount: number;
+  conflictedCount: number;
+  fileStatuses: GitRepositoryFileStatus[];
+  isClean: boolean;
+  error: string | null;
+};
+
 export type GitBranchListRepositoryState =
   | "git_repository"
   | "not_git_repository"
@@ -280,4 +308,3 @@ export type BranchInfo = {
   name: string;
   lastCommit: number;
 };
-

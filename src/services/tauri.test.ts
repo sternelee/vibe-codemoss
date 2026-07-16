@@ -33,6 +33,10 @@ import {
   pushGit,
   pullGit,
   updateGitBranch,
+  listGitBranches,
+  listGitRepositorySummaries,
+  checkoutGitBranch,
+  createGitBranch,
   runWorkspaceCommand,
   runSpecCommand,
   resetGitCommit,
@@ -53,6 +57,7 @@ import {
   startThread,
   startReview,
   writeGlobalAgentsMd,
+  writeGlobalCodexAuthJson,
   writeGlobalCodexConfigToml,
   writeAgentMd,
   writeClaudeMd,
@@ -116,10 +121,13 @@ import {
   hydrateClaudeDeferredImage,
   setMainWindowOpacity,
   fetchClaudeProviderModels,
+  readClaudeSettingsJson,
   reorderClaudeProviders,
+  saveClaudeSettingsJson,
   getWebAssetsStatus,
   installWebAssets,
   installWebAssetsFromFile,
+  generateCommitMessage,
 } from "./tauri";
 import { resetRuntimeModeStateForTests } from "./tauri/runtimeMode";
 import {
@@ -182,6 +190,38 @@ describe("tauri invoke wrappers", () => {
     clearWebRuntimeFlag();
     resetRuntimeModeStateForTests();
     resetStartupTraceForTests();
+  });
+
+  it("maps repository-scoped commit message generation without changing legacy payloads", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValue("fix: generated");
+
+    await generateCommitMessage("ws-1", "zh", ["legacy.ts"]);
+    expect(invokeMock).toHaveBeenLastCalledWith("generate_commit_message", {
+      workspaceId: "ws-1",
+      language: "zh",
+      selectedPaths: ["legacy.ts"],
+    });
+
+    const repositorySelections = [
+      { repositoryRoot: "services/api", selectedPaths: ["pom.xml"] },
+      { repositoryRoot: "services/web", selectedPaths: ["package.json"] },
+    ];
+    await generateCommitMessage("ws-1", "en", undefined, repositorySelections);
+    expect(invokeMock).toHaveBeenLastCalledWith("generate_commit_message", {
+      workspaceId: "ws-1",
+      language: "en",
+      selectedPaths: undefined,
+      repositorySelections,
+    });
+
+    await generateCommitMessage("ws-1", "zh", undefined, []);
+    expect(invokeMock).toHaveBeenLastCalledWith("generate_commit_message", {
+      workspaceId: "ws-1",
+      language: "zh",
+      selectedPaths: undefined,
+      repositorySelections: [],
+    });
   });
 
   it("maps Web assets status and install commands without payload drift", async () => {
@@ -250,6 +290,24 @@ describe("tauri invoke wrappers", () => {
     });
   });
 
+  it("maps Claude settings.json read and save requests", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce('{"model":"opus"}').mockResolvedValueOnce(undefined);
+
+    await expect(readClaudeSettingsJson()).resolves.toBe('{"model":"opus"}');
+    await saveClaudeSettingsJson('{"model":"sonnet"}');
+
+    expect(invokeMock).toHaveBeenNthCalledWith(
+      1,
+      "vendor_read_claude_settings_json",
+    );
+    expect(invokeMock).toHaveBeenNthCalledWith(
+      2,
+      "vendor_save_claude_settings_json",
+      { content: '{"model":"sonnet"}' },
+    );
+  });
+
   it("maps native window opacity requests to the Tauri command", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({
@@ -282,6 +340,7 @@ describe("tauri invoke wrappers", () => {
 
     expect(invokeMock).toHaveBeenCalledWith("get_git_status", {
       workspaceId: "ws-1",
+      repositoryRoot: null,
     });
     expect(
       getStartupTraceSnapshot().events.some(
@@ -358,6 +417,18 @@ describe("tauri invoke wrappers", () => {
         status: "failed",
       }),
     ]);
+  });
+
+  it("maps an explicit repository scope for Git History diff loading", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce([]);
+
+    await getGitDiffs("ws-1", "services/api");
+
+    expect(invokeMock).toHaveBeenCalledWith("get_git_diffs", {
+      workspaceId: "ws-1",
+      repositoryRoot: "services/api",
+    });
   });
 
   it("invokes codex runtime reload command", async () => {
@@ -1414,6 +1485,7 @@ describe("tauri invoke wrappers", () => {
 
     expect(invokeMock).toHaveBeenCalledWith("stage_git_all", {
       workspaceId: "ws-6",
+      repositoryRoot: null,
     });
   });
 
@@ -1457,6 +1529,7 @@ describe("tauri invoke wrappers", () => {
       topic: "topic-1",
       reviewers: "alice,bob",
       cc: "carol",
+      repositoryRoot: null,
     });
   });
 
@@ -1479,6 +1552,31 @@ describe("tauri invoke wrappers", () => {
       strategy: "--rebase",
       noCommit: false,
       noVerify: true,
+      repositoryRoot: null,
+    });
+  });
+
+  it("maps explicit repository scope for status and stage", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValue({
+      branchName: "main",
+      files: [],
+      stagedFiles: [],
+      unstagedFiles: [],
+      totalAdditions: 0,
+      totalDeletions: 0,
+    });
+
+    await getGitStatus("ws-1", "services/api");
+    await stageGitAll("ws-1", "services/api");
+
+    expect(invokeMock).toHaveBeenNthCalledWith(1, "get_git_status", {
+      workspaceId: "ws-1",
+      repositoryRoot: "services/api",
+    });
+    expect(invokeMock).toHaveBeenNthCalledWith(2, "stage_git_all", {
+      workspaceId: "ws-1",
+      repositoryRoot: "services/api",
     });
   });
 
@@ -1492,11 +1590,41 @@ describe("tauri invoke wrappers", () => {
       worktreePath: null,
     });
 
-    await updateGitBranch("ws-33", "feature/demo");
+    await updateGitBranch("ws-33", "feature/demo", "services/api");
 
     expect(invokeMock).toHaveBeenCalledWith("update_git_branch", {
       workspaceId: "ws-33",
       branchName: "feature/demo",
+      repositoryRoot: "services/api",
+    });
+  });
+
+  it("maps repository-scoped Git command payloads", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValue([]);
+
+    await listGitRepositorySummaries("ws-scoped", 3);
+    await listGitBranches("ws-scoped", "services\\api");
+    await checkoutGitBranch("ws-scoped", "main", "services/api");
+    await createGitBranch("ws-scoped", "feature/new", "");
+
+    expect(invokeMock).toHaveBeenNthCalledWith(1, "list_git_repository_summaries", {
+      workspaceId: "ws-scoped",
+      depth: 3,
+    });
+    expect(invokeMock).toHaveBeenNthCalledWith(2, "list_git_branches", {
+      workspaceId: "ws-scoped",
+      repositoryRoot: "services\\api",
+    });
+    expect(invokeMock).toHaveBeenNthCalledWith(3, "checkout_git_branch", {
+      workspaceId: "ws-scoped",
+      name: "main",
+      repositoryRoot: "services/api",
+    });
+    expect(invokeMock).toHaveBeenNthCalledWith(4, "create_git_branch", {
+      workspaceId: "ws-scoped",
+      name: "feature/new",
+      repositoryRoot: "",
     });
   });
 
@@ -1522,6 +1650,33 @@ describe("tauri invoke wrappers", () => {
       remote: "origin",
       branch: "main",
       limit: 120,
+    });
+  });
+
+  it("maps repository scope for git push preview", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({
+      sourceBranch: "main",
+      targetRemote: "origin",
+      targetBranch: "main",
+      targetRef: "refs/remotes/origin/main",
+      targetFound: true,
+      hasMore: false,
+      commits: [],
+    });
+
+    await getGitPushPreview("ws-31", {
+      remote: "origin",
+      branch: "main",
+      repositoryRoot: "services/api",
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith("get_git_push_preview", {
+      workspaceId: "ws-31",
+      remote: "origin",
+      branch: "main",
+      limit: 120,
+      repositoryRoot: "services/api",
     });
   });
 
@@ -1847,6 +2002,20 @@ describe("tauri invoke wrappers", () => {
       kind: "config",
       workspaceId: undefined,
       content: 'model = "gpt-5"',
+    });
+  });
+
+  it("writes global auth.json", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({});
+
+    await writeGlobalCodexAuthJson('{"tokens":[]}');
+
+    expect(invokeMock).toHaveBeenCalledWith("file_write", {
+      scope: "global",
+      kind: "auth",
+      workspaceId: undefined,
+      content: '{"tokens":[]}',
     });
   });
 

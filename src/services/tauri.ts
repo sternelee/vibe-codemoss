@@ -77,7 +77,11 @@ export {
   updateEmailSenderSettings,
 } from "./tauri/email";
 export { setMenuAccelerators, updateMenuLabels } from "./tauri/menu";
-export type { CommitMessageEngine, CommitMessageLanguage } from "./tauri/commitMessage";
+export type {
+  CommitMessageEngine,
+  CommitMessageLanguage,
+  CommitMessageRepositorySelection,
+} from "./tauri/commitMessage";
 export {
   generateCommitMessage,
   generateCommitMessageWithEngine,
@@ -148,6 +152,7 @@ export {
   writeAgentMd,
   writeClaudeMd,
   writeGlobalAgentsMd,
+  writeGlobalCodexAuthJson,
   writeGlobalCodexConfigToml,
 } from "./tauri/textFiles";
 export { getComputerUseBridgeStatus, runComputerUseActivationProbe, runComputerUseCodexBroker, runComputerUseHostContractDiagnostics } from "./tauri/computerUse";
@@ -312,12 +317,14 @@ export {
   fetchClaudeProviderModels,
   getClaudeAlwaysThinkingEnabled,
   getClaudeProviders,
+  readClaudeSettingsJson,
   getCodexProviders,
   getCurrentClaudeConfig,
   getGeminiVendorPreflight,
   getGeminiVendorSettings,
   reorderClaudeProviders,
   saveGeminiVendorSettings,
+  saveClaudeSettingsJson,
   setClaudeAlwaysThinkingEnabled,
   switchClaudeProvider,
   switchCodexProvider,
@@ -409,6 +416,7 @@ export {
   getGitWorktreeDiffAgainstBranch,
   getGitWorktreeDiffFileAgainstBranch,
   listGitBranches,
+  listGitRepositorySummaries,
   listGitRoots,
   mergeGitBranch,
   pullGit,

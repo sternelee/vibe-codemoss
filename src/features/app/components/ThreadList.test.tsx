@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { StrictMode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { ThreadSummary } from "../../../types";
-import { DEFAULT_VISIBLE_THREAD_ROOT_COUNT } from "../constants";
+import {
+  DEFAULT_VISIBLE_THREAD_ROOT_COUNT,
+  THREAD_ROW_TOOLTIP_DELAY_MS,
+} from "../constants";
 import { ThreadList } from "./ThreadList";
 import { ScrollArea } from "../../../components/ui/scroll-area";
 
@@ -178,6 +181,35 @@ describe("ThreadList", () => {
       true,
       "/tmp/ws-1",
     );
+  });
+
+  it("delays thread row tooltip enough to avoid incidental pass-over hovers", async () => {
+    vi.useFakeTimers();
+    const view = render(<ThreadList {...baseProps} />);
+
+    try {
+      const row = screen.getByText("Alpha").closest(".thread-row");
+      expect(row).toBeTruthy();
+      if (!row) {
+        throw new Error("Missing thread row");
+      }
+
+      await act(async () => {
+        fireEvent.mouseEnter(row);
+        await vi.advanceTimersByTimeAsync(THREAD_ROW_TOOLTIP_DELAY_MS - 1);
+      });
+      expect(document.querySelector('[data-slot="tooltip-popup"]')).toBeNull();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(
+        document.querySelector('[data-slot="tooltip-popup"]')?.textContent,
+      ).toContain("Alpha");
+    } finally {
+      view.unmount();
+      vi.useRealTimers();
+    }
   });
   it("marks shared threads as not archivable for the context menu", () => {
     const onShowThreadMenu = vi.fn();

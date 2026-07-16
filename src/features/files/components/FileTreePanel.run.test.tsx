@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import type { OpenAppTarget } from "../../../types";
+import type { GitRepositorySummary, OpenAppTarget } from "../../../types";
 
 const revealItemInDirMock = vi.fn(async () => undefined);
 const emitToMock = vi.fn(async () => undefined);
@@ -121,6 +121,220 @@ afterEach(() => {
 });
 
 describe("FileTreePanel run action isolation", () => {
+  it("shows the focused Git submenu only for an exact repository folder target", async () => {
+    const repository: GitRepositorySummary = {
+      repositoryRoot: "services/api",
+      displayName: "api",
+      currentBranch: "main",
+      headState: "branch",
+      upstream: "origin/main",
+      ahead: 0,
+      behind: 0,
+      stagedCount: 0,
+      modifiedCount: 0,
+      untrackedCount: 0,
+      conflictedCount: 0,
+      fileStatuses: [],
+      isClean: true,
+      error: null,
+    };
+    const onGitRepositoryAction = vi.fn();
+    render(
+      <FileTreePanel
+        workspaceId="workspace-1"
+        workspacePath="/tmp/workspace"
+        files={["services/api/README.md", "services/web/README.md"]}
+        isLoading={false}
+        filePanelMode="files"
+        onFilePanelModeChange={() => undefined}
+        onOpenFile={() => undefined}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={() => undefined}
+        gitRepositories={[repository]}
+        onGitRepositoryAction={onGitRepositoryAction}
+      />,
+    );
+
+    fireEvent.doubleClick(screen.getByRole("button", { name: /services/ }));
+    const apiRow = screen.getByRole("button", { name: /api/ });
+    fireEvent.contextMenu(apiRow);
+    const gitMenuTrigger = await screen.findByRole("menuitem", { name: "git.repositoryMenuTitle" });
+    fireEvent.mouseEnter(gitMenuTrigger);
+    const gitMenu = await screen.findByRole("menu", { name: "git.repositoryMenuTitle" });
+    const expectedMenuItems = [
+      "Commit", "StageAll", "AddToGitignore", "History", "Push", "Pull", "Fetch",
+    ];
+    expectedMenuItems.forEach((item) => {
+      expect(within(gitMenu).getByRole("menuitem", {
+        name: `git.repositoryMenu${item}`,
+      })).toBeTruthy();
+    });
+    expect(within(gitMenu).getByRole("menuitem", {
+      name: "git.historyBranchMenuUpdate",
+    })).toBeTruthy();
+    ["ShowDiff", "CompareRevision", "CompareBranch", "Rollback"].forEach((item) => {
+      expect(within(gitMenu).queryByRole("menuitem", {
+        name: `git.repositoryMenu${item}`,
+      })).toBeNull();
+    });
+    expect(within(gitMenu).queryByRole("menuitem", { name: "git.repositoryMenuMerge" })).toBeNull();
+    fireEvent.click(within(gitMenu).getByRole("menuitem", { name: "git.historyBranchMenuUpdate" }));
+    expect(onGitRepositoryAction).toHaveBeenCalledWith({
+      action: "update",
+      branchName: "main",
+      repositoryRoot: "services/api",
+    });
+
+    fireEvent.contextMenu(screen.getByRole("button", { name: /web/ }));
+    expect(screen.queryByRole("menuitem", { name: "git.repositoryMenuTitle" })).toBeNull();
+  });
+
+  it("exposes the same Git submenu from a standalone repository root label", async () => {
+    const repository: GitRepositorySummary = {
+      repositoryRoot: "",
+      displayName: "workspace",
+      currentBranch: "main",
+      headState: "branch",
+      upstream: "origin/main",
+      ahead: 0,
+      behind: 0,
+      stagedCount: 0,
+      modifiedCount: 1,
+      untrackedCount: 0,
+      conflictedCount: 0,
+      fileStatuses: [],
+      isClean: false,
+      error: null,
+    };
+    const onGitRepositoryAction = vi.fn();
+    const { container } = render(
+      <FileTreePanel
+        workspaceId="workspace-1"
+        workspacePath="/tmp/workspace"
+        files={["README.md"]}
+        isLoading={false}
+        filePanelMode="files"
+        onFilePanelModeChange={() => undefined}
+        onOpenFile={() => undefined}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={() => undefined}
+        gitRepositories={[repository]}
+        onGitRepositoryAction={onGitRepositoryAction}
+      />,
+    );
+
+    fireEvent.contextMenu(container.querySelector(".file-tree-root-label") as HTMLElement);
+    const trigger = await screen.findByRole("menuitem", { name: "git.repositoryMenuTitle" });
+    fireEvent.mouseEnter(trigger);
+    const gitMenu = await screen.findByRole("menu", { name: "git.repositoryMenuTitle" });
+    fireEvent.click(within(gitMenu).getByRole("menuitem", { name: "git.repositoryMenuHistory" }));
+    expect(onGitRepositoryAction).toHaveBeenCalledWith({
+      action: "show-history",
+      repositoryRoot: "",
+    });
+  });
+
+  it("disables repository Update when no current branch is available", async () => {
+    const onGitRepositoryAction = vi.fn();
+    const { container } = render(
+      <FileTreePanel
+        workspaceId="workspace-1"
+        workspacePath="/tmp/workspace"
+        files={["README.md"]}
+        isLoading={false}
+        filePanelMode="files"
+        onFilePanelModeChange={() => undefined}
+        onOpenFile={() => undefined}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={() => undefined}
+        gitRepositories={[{
+          repositoryRoot: "",
+          displayName: "workspace",
+          currentBranch: null,
+          headState: "detached",
+          upstream: null,
+          ahead: 0,
+          behind: 0,
+          stagedCount: 0,
+          modifiedCount: 0,
+          untrackedCount: 0,
+          conflictedCount: 0,
+          fileStatuses: [],
+          isClean: true,
+          error: null,
+        }]}
+        onGitRepositoryAction={onGitRepositoryAction}
+      />,
+    );
+
+    fireEvent.contextMenu(container.querySelector(".file-tree-root-label") as HTMLElement);
+    const trigger = await screen.findByRole("menuitem", { name: "git.repositoryMenuTitle" });
+    fireEvent.mouseEnter(trigger);
+    const gitMenu = await screen.findByRole("menu", { name: "git.repositoryMenuTitle" });
+    const updateItem = within(gitMenu).getByRole("menuitem", {
+      name: "git.historyBranchMenuUpdate",
+    });
+    expect((updateItem as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(updateItem);
+    expect(onGitRepositoryAction).not.toHaveBeenCalled();
+  });
+
+  it("adds an exact nested repository path to the workspace .gitignore once", async () => {
+    const repository: GitRepositorySummary = {
+      repositoryRoot: "services/api",
+      displayName: "api",
+      currentBranch: "main",
+      headState: "branch",
+      upstream: null,
+      ahead: 0,
+      behind: 0,
+      stagedCount: 0,
+      modifiedCount: 0,
+      untrackedCount: 0,
+      conflictedCount: 0,
+      fileStatuses: [],
+      isClean: true,
+      error: null,
+    };
+    render(
+      <FileTreePanel
+        workspaceId="workspace-1"
+        workspacePath="/tmp/workspace"
+        files={["services/api/README.md"]}
+        isLoading={false}
+        filePanelMode="files"
+        onFilePanelModeChange={() => undefined}
+        onOpenFile={() => undefined}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={() => undefined}
+        gitRepositories={[repository]}
+      />,
+    );
+
+    fireEvent.doubleClick(screen.getByRole("button", { name: /services/ }));
+    fireEvent.contextMenu(screen.getByRole("button", { name: /api/ }));
+    const trigger = await screen.findByRole("menuitem", { name: "git.repositoryMenuTitle" });
+    fireEvent.mouseEnter(trigger);
+    const gitMenu = await screen.findByRole("menu", { name: "git.repositoryMenuTitle" });
+    fireEvent.click(within(gitMenu).getByRole("menuitem", { name: "git.repositoryMenuAddToGitignore" }));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith("write_workspace_file", {
+        workspaceId: "workspace-1",
+        path: ".gitignore",
+        content: "services/api/\n",
+      });
+    });
+  });
+
   it("renders top-level entries directly without a workspace root row", () => {
     const { container } = render(
       <FileTreePanel
@@ -383,6 +597,72 @@ describe("FileTreePanel run action isolation", () => {
     fireEvent.doubleClick(screen.getByRole("button", { name: /kmllm-search-showcar-py/ }));
     const fileLabel = screen.getByText("README.md");
     expect(fileLabel.className).toContain("git-m");
+  });
+
+  it("projects dirty file and folder colors for multiple repositories at once", () => {
+    const repository = (
+      repositoryRoot: string,
+      fileName: string,
+      status: "A" | "M" | "U",
+    ): GitRepositorySummary => ({
+      repositoryRoot,
+      displayName: repositoryRoot,
+      currentBranch: "main",
+      headState: "branch",
+      upstream: null,
+      ahead: 0,
+      behind: 0,
+      stagedCount: status === "A" ? 1 : 0,
+      modifiedCount: status === "M" ? 1 : 0,
+      untrackedCount: 0,
+      conflictedCount: status === "U" ? 1 : 0,
+      fileStatuses: [{ path: `src/${fileName}`, status }],
+      isClean: false,
+      error: null,
+    });
+
+    render(
+      <FileTreePanel
+        workspaceId="workspace-1"
+        workspacePath="/tmp/workspace"
+        gitRoot="service-a"
+        files={["service-a/src/api.ts", "service-b/src/web.ts"]}
+        directories={["service-a", "service-a/src", "service-b", "service-b/src"]}
+        isLoading={false}
+        filePanelMode="files"
+        onFilePanelModeChange={() => undefined}
+        onOpenFile={() => undefined}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={() => undefined}
+        gitRepositories={[
+          repository("service-a", "api.ts", "U"),
+          repository("service-b", "web.ts", "A"),
+        ]}
+        gitStatusFiles={[{
+          path: "src/api.ts",
+          status: "M",
+          additions: 1,
+          deletions: 0,
+        }]}
+      />,
+    );
+
+    const serviceALabel = screen.getByText("service-a");
+    const serviceBLabel = screen.getByText("service-b");
+    expect(serviceALabel.className).toContain("git-u");
+    expect(serviceBLabel.className).toContain("git-a");
+    expect(serviceALabel.closest(".file-tree-row")?.className).toContain("is-git-repository");
+    expect(serviceBLabel.closest(".file-tree-row")?.className).toContain("is-git-repository");
+
+    fireEvent.doubleClick(serviceALabel.closest("button") as HTMLButtonElement);
+    fireEvent.doubleClick(serviceBLabel.closest("button") as HTMLButtonElement);
+    fireEvent.doubleClick(screen.getAllByText("src")[0]?.closest("button") as HTMLButtonElement);
+    fireEvent.doubleClick(screen.getAllByText("src")[1]?.closest("button") as HTMLButtonElement);
+
+    expect(screen.getByText("api.ts").className).toContain("git-u");
+    expect(screen.getByText("web.ts").className).toContain("git-a");
   });
 
   it("does not apply subrepo repo-relative status to workspace root file with same name", () => {

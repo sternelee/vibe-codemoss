@@ -1378,8 +1378,8 @@ const settings = {
     vendorsTitle: "Vendor Management",
     vendorsDescription: "Manage vendor configurations for Claude and Codex.",
     vendor: {
-      allProviders: "All Providers",
-      allCodexProviders: "All Codex Providers",
+      officialConfig: "Official Config",
+      thirdPartyConfig: "Third-party Config",
       add: "Add",
       edit: "Edit",
       delete: "Delete",
@@ -1387,6 +1387,9 @@ const settings = {
       dragToReorder: "Drag to reorder",
       inUse: "In Use",
       availableForNewCodexSessions: "Available for new sessions",
+      providerColumn: "Provider",
+      statusColumn: "Status",
+      actionsColumn: "Actions",
       currentConfig: "Current Claude Code Config",
       noConfig: "No valid Claude settings detected yet.",
       notConfigured: "Not configured",
@@ -1398,12 +1401,16 @@ const settings = {
       customModels: "custom models",
       pluginModels: "Custom Models",
       manageModels: "Manage Models",
-      localProviderName: "Local settings.json",
+      cliSearchPlaceholder: "搜索CLI",
+      cliComingSoon: "Support is coming soon.",
+      cliComingSoonDetail: "This CLI is being adapted. Coming soon.",
+      openCliDocs: "Open docs",
+      localProviderName: "Official Config",
       localProviderDescription:
         "Use configuration directly from ~/.claude/settings.json",
-      emptyState: 'No Claude providers yet. Click "Add" above to create one.',
+      emptyState: 'No third-party configs yet. Click "Add" above to create one.',
       emptyCodexState:
-        'No Codex providers yet. Click "Add" above to create one.',
+        'No third-party configs yet. Click "Add" above to create one.',
       currentCodexGlobalConfig: "Global Default Codex Config",
       codexGlobalConfigPath: "~/.codex/config.toml",
       codexGlobalConfigEmpty: "No global config.toml detected.",
@@ -1558,6 +1565,8 @@ const settings = {
     openCodeCliDisableDescription:
       "Disable OpenCode CLI entirely. Once disabled, startup probing, provider checks, and engine entry points stop immediately.",
     codexTitle: "Codex",
+    claudeDescription:
+      "Configure Claude Code CLI providers and local settings used by ccgui.",
     codexDescription:
       "Configure the Codex CLI used by ccgui and validate the install.",
     defaultClaudePath: "Default Claude Code path",

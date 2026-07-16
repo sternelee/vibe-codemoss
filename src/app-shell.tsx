@@ -38,6 +38,8 @@ import { useLiquidGlassEffect } from "./features/app/hooks/useLiquidGlassEffect"
 import { useCopyThread } from "./features/threads/hooks/useCopyThread";
 import { useKanbanStore } from "./features/kanban/hooks/useKanbanStore";
 import { useGitCommitController } from "./features/app/hooks/useGitCommitController";
+import { useMultiRepositoryGitStatus } from "./features/git/hooks/useMultiRepositoryGitStatus";
+import { stageGitAll, stageGitFile, unstageGitFile } from "./services/tauri";
 import { forceRefreshAgents } from "./features/composer/components/ChatInputBox/providers";
 import { normalizeFsPath } from "./utils/workspacePaths";
 import type {
@@ -626,12 +628,23 @@ export function AppShell() {
     activeGitRoot,
     alertError,
     branches,
+    branchError,
+    currentBranch,
+    localBranches,
+    remoteBranches,
+    repositories,
+    repositoriesLoading,
+    repositoryError,
+    refreshRepositories,
+    selectedRepositoryRoot,
+    selectRepository,
     checkoutBranch,
     createBranch,
     fileStatus,
     handleApplyWorktreeChanges,
     handleCheckoutBranch,
     handleCreateBranch,
+    handleUpdateBranch,
     handleOpenDetachedFileExplorer,
     handlePickGitRoot,
     handleRevertAllGitChanges,
@@ -1395,6 +1408,25 @@ export function AppShell() {
   });
 
   const {
+    statuses: repositoryStatuses,
+    isLoading: repositoryStatusesLoading,
+    isMultiRepository,
+    refresh: refreshRepositoryStatuses,
+  } = useMultiRepositoryGitStatus(activeWorkspace, repositories);
+  const handleStageRepositoryFile = useCallback(async (repositoryRoot: string, path: string) => {
+    if (!activeWorkspace) return;
+    await stageGitFile(activeWorkspace.id, path, repositoryRoot);
+  }, [activeWorkspace]);
+  const handleUnstageRepositoryFile = useCallback(async (repositoryRoot: string, path: string) => {
+    if (!activeWorkspace) return;
+    await unstageGitFile(activeWorkspace.id, path, repositoryRoot);
+  }, [activeWorkspace]);
+  const handleStageRepositoryAll = useCallback(async (repositoryRoot: string) => {
+    if (!activeWorkspace) return;
+    await stageGitAll(activeWorkspace.id, repositoryRoot);
+  }, [activeWorkspace]);
+
+  const {
     commitMessage,
     commitMessageLoading,
     commitMessageError,
@@ -1404,6 +1436,7 @@ export function AppShell() {
     commitError,
     pushError,
     syncError,
+    repositoryCommitSummary,
     onCommitMessageChange: handleCommitMessageChange,
     onGenerateCommitMessage: handleGenerateCommitMessage,
     onCommit: handleCommit,
@@ -1411,6 +1444,7 @@ export function AppShell() {
     onCommitAndSync: handleCommitAndSync,
     onPush: handlePush,
     onSync: handleSync,
+    onCommitRepositories: handleCommitRepositories,
   } = useGitCommitController({
     activeWorkspace,
     activeWorkspaceId,
@@ -1418,6 +1452,9 @@ export function AppShell() {
     gitStatus,
     refreshGitStatus,
     refreshGitLog,
+    onMutationComplete: refreshRepositories,
+    repositoryStatuses,
+    refreshRepositoryStatuses,
   });
 
   const {
@@ -1633,6 +1670,24 @@ export function AppShell() {
       attachImages,
       baseWorkspaceRef,
       branches,
+      branchError,
+      currentBranch,
+      localBranches,
+      remoteBranches,
+      repositories,
+      repositoriesLoading,
+      repositoryError,
+      repositoryStatuses,
+      repositoryStatusesLoading,
+      isMultiRepository,
+      refreshRepositoryStatuses,
+      handleStageRepositoryFile,
+      handleUnstageRepositoryFile,
+      handleStageRepositoryAll,
+      handleCommitRepositories,
+      repositoryCommitSummary,
+      selectedRepositoryRoot,
+      selectRepository,
       canFuseActiveQueue,
       canInterrupt,
       cancelClonePrompt,
@@ -1800,6 +1855,7 @@ export function AppShell() {
       handleCopyDebug,
       handleCopyThread,
       handleCreateBranch,
+      handleUpdateBranch,
       handleCreatePrompt,
       handleDebugClick,
       handleDeletePrompt,

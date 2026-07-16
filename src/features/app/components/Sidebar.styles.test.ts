@@ -46,4 +46,14 @@ describe("Sidebar styles", () => {
     expect(css).toMatch(/\.fvp-tab\.is-active::after\s*\{/);
     expect(css).toMatch(/\.fvp-tab\.is-active::after[\s\S]*?background:\s*color-mix\([^;]*var\(--border-accent\)/);
   });
+
+  it("does not bold the active quick-new-thread sidebar item", () => {
+    const css = readFileSync(
+      resolve(process.cwd(), "src/styles/sidebar.css"),
+      "utf8",
+    );
+    expect(css).toMatch(
+      /\.sidebar-primary-nav-mode-item\.is-active\s*\{[\s\S]*?font-weight:\s*400;/,
+    );
+  });
 });

@@ -309,4 +309,17 @@ describe("TooltipIconButton", () => {
 
     expect(document.querySelector('[data-slot="tooltip-popup"]')).toBeNull();
   });
+
+  it("cancels a pending tooltip while the user scrolls past the trigger", async () => {
+    const button = renderTooltipButton();
+
+    await act(async () => {
+      fireEvent.mouseEnter(button);
+      await vi.advanceTimersByTimeAsync(100);
+      fireEvent.wheel(button);
+      await vi.advanceTimersByTimeAsync(200);
+    });
+
+    expect(document.querySelector('[data-slot="tooltip-popup"]')).toBeNull();
+  });
 });

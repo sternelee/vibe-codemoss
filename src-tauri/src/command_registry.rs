@@ -230,6 +230,7 @@ pub(crate) fn invoke_handler(
         // Git
         crate::git::get_git_status,
         crate::git::list_git_roots,
+        crate::git::list_git_repository_summaries,
         crate::git::get_git_diffs,
         crate::git::get_git_file_full_diff,
         crate::git::get_git_log,
@@ -374,6 +375,8 @@ pub(crate) fn invoke_handler(
         crate::vendors::vendor_reorder_claude_providers,
         crate::vendors::vendor_delete_claude_provider,
         crate::vendors::vendor_switch_claude_provider,
+        crate::vendors::vendor_read_claude_settings_json,
+        crate::vendors::vendor_save_claude_settings_json,
         crate::vendors::vendor_get_claude_always_thinking_enabled,
         crate::vendors::vendor_set_claude_always_thinking_enabled,
         crate::vendors::vendor_fetch_claude_models,

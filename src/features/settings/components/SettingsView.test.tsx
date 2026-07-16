@@ -103,6 +103,10 @@ vi.mock("./SkillsSection", () => ({
   },
 }));
 
+vi.mock("../../vendors/components/VendorSettingsPanel", () => ({
+  VendorSettingsPanel: () => <div data-testid="vendor-settings-panel" />,
+}));
+
 vi.mock("../../../services/tauri", async () => {
   const actual = await vi.importActual<
     typeof import("../../../services/tauri")
@@ -415,6 +419,7 @@ const renderDisplaySection = (
     onWindowOpacityChange?: ComponentProps<
       typeof SettingsView
     >["onWindowOpacityChange"];
+    initialSection?: ComponentProps<typeof SettingsView>["initialSection"] | null;
   } = {},
 ) => {
   cleanup();
@@ -458,6 +463,10 @@ const renderDisplaySection = (
     onDownloadDictationModel: vi.fn(),
     onCancelDictationDownload: vi.fn(),
     onRemoveDictationModel: vi.fn(),
+    initialSection:
+      options.initialSection === null
+        ? undefined
+        : (options.initialSection ?? "basic"),
   };
 
   const view = render(<SettingsView {...props} />);
@@ -634,6 +643,51 @@ describe("SettingsView projects display", () => {
 });
 
 describe("SettingsView Display", () => {
+  it("uses the titlebar for the active settings section title and description", async () => {
+    renderDisplaySection({ initialSection: null });
+    await flushSettingsViewEffects();
+
+    const header = document.querySelector(".settings-header") as HTMLElement | null;
+    if (!header) {
+      throw new Error("Expected settings header");
+    }
+
+    const headerQueries = within(header);
+    expect(headerQueries.getByText("Basic Settings")).toBeTruthy();
+    expect(headerQueries.getByText("settings.basicDescription")).toBeTruthy();
+    expect(
+      document.querySelector(".settings-content .settings-section-title"),
+    ).toBeNull();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "settings.sidebarProviders" }),
+    );
+
+    expect(headerQueries.getByText("settings.sidebarProviders")).toBeTruthy();
+    expect(headerQueries.getByText("settings.vendorsDescription")).toBeTruthy();
+  });
+
+  it("opens basic settings by default when no external section is provided", async () => {
+    renderDisplaySection({ initialSection: null });
+    await flushSettingsViewEffects();
+    const sidebar = document.querySelector(
+      ".settings-sidebar",
+    ) as HTMLElement | null;
+    if (!sidebar) {
+      throw new Error("Expected settings sidebar");
+    }
+    const sidebarQueries = within(sidebar);
+
+    expect(
+      sidebarQueries.getByRole("button", {
+        name: "settings.sidebarProviders",
+      }).className,
+    ).not.toContain("active");
+    expect(
+      sidebarQueries.getByRole("button", { name: "Basic Settings" }).className,
+    ).toContain("active");
+  });
+
   it("shows consolidated settings entries and keeps removed sidebar entries hidden", async () => {
     renderDisplaySection();
     await flushSettingsViewEffects();
@@ -677,6 +731,21 @@ describe("SettingsView Display", () => {
       sidebarQueries.queryByRole("button", { name: "CLI Validation" }),
     ).toBeNull();
     expect(sidebarQueries.queryByRole("button", { name: "Skills" })).toBeNull();
+    const providersEntry = sidebarQueries.getByRole("button", {
+      name: "settings.sidebarProviders",
+    });
+    const basicEntry = sidebarQueries.getByRole("button", {
+      name: "Basic Settings",
+    });
+    expect(
+      Array.from(sidebar.querySelectorAll(".settings-nav")).indexOf(
+        basicEntry,
+      ),
+    ).toBeLessThan(
+      Array.from(sidebar.querySelectorAll(".settings-nav")).indexOf(
+        providersEntry,
+      ),
+    );
     expect(
       sidebarQueries.getByRole("button", { name: "Project Management" }),
     ).toBeTruthy();
@@ -2438,7 +2507,7 @@ describe("SettingsView Shortcuts", () => {
     });
   });
 
-  it("closes on Escape", async () => {
+  it("does not close on Escape", () => {
     let unmount = () => {};
     const onClose = vi.fn(() => {
       unmount();
@@ -2479,8 +2548,6 @@ describe("SettingsView Shortcuts", () => {
 
     fireEvent.keyDown(window, { key: "Escape", bubbles: true });
 
-    await waitFor(() => {
-      expect(onClose).toHaveBeenCalled();
-    });
+    expect(onClose).not.toHaveBeenCalled();
   });
 });

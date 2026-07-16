@@ -4,6 +4,7 @@ import type { WorkspaceInfo } from "../../../types";
 import {
   type CommitMessageEngine,
   type CommitMessageLanguage,
+  type CommitMessageRepositorySelection,
   commitGit,
   generateCommitMessageWithEngine,
   pushGit,
@@ -20,6 +21,9 @@ import {
   runScopedCommitOperation,
   type CommitScopeStatusSnapshot,
 } from "../../git/utils/commitScope";
+import type { RepositoryGitStatus } from "../../git/hooks/useMultiRepositoryGitStatus";
+import type { RepositoryCommitSelection } from "../../git/components/GitMultiRepositoryChanges";
+import { runMultiRepositoryCommitOperations } from "../../git/utils/multiRepositoryCommit";
 
 type GitStatusState = ReturnType<typeof useGitStatus>["status"];
 
@@ -30,6 +34,9 @@ type GitCommitControllerOptions = {
   gitStatus: GitStatusState;
   refreshGitStatus: () => void;
   refreshGitLog?: () => void;
+  onMutationComplete?: () => Promise<void> | void;
+  repositoryStatuses?: RepositoryGitStatus[];
+  refreshRepositoryStatuses?: () => Promise<void> | void;
 };
 
 type GitCommitController = {
@@ -42,18 +49,22 @@ type GitCommitController = {
   commitError: string | null;
   pushError: string | null;
   syncError: string | null;
+  repositoryCommitSummary: string | null;
   hasWorktreeChanges: boolean;
   onCommitMessageChange: (value: string) => void;
   onGenerateCommitMessage: (
     language?: CommitMessageLanguage,
     engine?: CommitMessageEngine,
     selectedPaths?: string[],
+    repositorySelections?: CommitMessageRepositorySelection[],
   ) => Promise<void>;
   onCommit: (selectedPaths?: string[]) => Promise<void>;
   onCommitAndPush: (selectedPaths?: string[]) => Promise<void>;
   onCommitAndSync: (selectedPaths?: string[]) => Promise<void>;
   onPush: () => Promise<void>;
   onSync: () => Promise<void>;
+  onCommitRepositories: (selections: RepositoryCommitSelection[]) => Promise<void>;
+  onCommitAndPushRepositories: (selections: RepositoryCommitSelection[]) => Promise<void>;
 };
 
 export function useGitCommitController({
@@ -63,6 +74,9 @@ export function useGitCommitController({
   gitStatus,
   refreshGitStatus,
   refreshGitLog,
+  onMutationComplete,
+  repositoryStatuses = [],
+  refreshRepositoryStatuses,
 }: GitCommitControllerOptions): GitCommitController {
   const { t } = useTranslation();
   const [commitMessage, setCommitMessage] = useState("");
@@ -76,6 +90,7 @@ export function useGitCommitController({
   const [commitError, setCommitError] = useState<string | null>(null);
   const [pushError, setPushError] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [repositoryCommitSummary, setRepositoryCommitSummary] = useState<string | null>(null);
 
   const hasWorktreeChanges = useMemo(() => {
     const hasStagedChanges = gitStatus.stagedFiles.length > 0;
@@ -91,6 +106,7 @@ export function useGitCommitController({
     language: CommitMessageLanguage = "zh",
     engine: CommitMessageEngine = "codex",
     selectedPaths?: string[],
+    repositorySelections?: CommitMessageRepositorySelection[],
   ) => {
     if (!activeWorkspace || commitMessageLoading) {
       return;
@@ -99,12 +115,20 @@ export function useGitCommitController({
     setCommitMessageLoading(true);
     setCommitMessageError(null);
     try {
-      const message = await generateCommitMessageWithEngine(
-        workspaceId,
-        language,
-        engine,
-        selectedPaths,
-      );
+      const message = repositorySelections
+        ? await generateCommitMessageWithEngine(
+          workspaceId,
+          language,
+          engine,
+          selectedPaths,
+          repositorySelections,
+        )
+        : await generateCommitMessageWithEngine(
+          workspaceId,
+          language,
+          engine,
+          selectedPaths,
+        );
       if (!shouldApplyCommitMessage(activeWorkspaceIdRef.current, workspaceId)) {
         return;
       }
@@ -133,6 +157,7 @@ export function useGitCommitController({
     setCommitMessage("");
     setCommitMessageError(null);
     setCommitMessageLoading(false);
+    setRepositoryCommitSummary(null);
   }, [activeWorkspaceId]);
 
   const runScopedCommit = useCallback(async (selectedPaths?: string[]) => {
@@ -166,6 +191,7 @@ export function useGitCommitController({
       setCommitMessage("");
       refreshGitStatus();
       refreshGitLog?.();
+      await onMutationComplete?.();
       if (result.postCommitError) {
         setCommitError(result.postCommitError);
       }
@@ -180,6 +206,7 @@ export function useGitCommitController({
     commitMessage,
     refreshGitLog,
     refreshGitStatus,
+    onMutationComplete,
     runScopedCommit,
   ]);
 
@@ -196,6 +223,7 @@ export function useGitCommitController({
     setPushLoading(true);
     setCommitError(null);
     setPushError(null);
+    setRepositoryCommitSummary(null);
     let commitReadyForPush = false;
     try {
       const result = await runScopedCommit(selectedPaths);
@@ -203,6 +231,7 @@ export function useGitCommitController({
         return;
       }
       setCommitMessage("");
+      await onMutationComplete?.();
       if (result.postCommitError) {
         setCommitError(result.postCommitError);
         refreshGitStatus();
@@ -232,6 +261,7 @@ export function useGitCommitController({
     commitMessage,
     refreshGitLog,
     refreshGitStatus,
+    onMutationComplete,
     runScopedCommit,
   ]);
 
@@ -255,6 +285,7 @@ export function useGitCommitController({
         return;
       }
       setCommitMessage("");
+      await onMutationComplete?.();
       if (result.postCommitError) {
         setCommitError(result.postCommitError);
         refreshGitStatus();
@@ -284,6 +315,7 @@ export function useGitCommitController({
     commitMessage,
     refreshGitLog,
     refreshGitStatus,
+    onMutationComplete,
     runScopedCommit,
   ]);
 
@@ -297,12 +329,13 @@ export function useGitCommitController({
       await pushGit(activeWorkspace.id);
       refreshGitStatus();
       refreshGitLog?.();
+      await onMutationComplete?.();
     } catch (error) {
       setPushError(error instanceof Error ? error.message : String(error));
     } finally {
       setPushLoading(false);
     }
-  }, [activeWorkspace, pushLoading, refreshGitLog, refreshGitStatus]);
+  }, [activeWorkspace, onMutationComplete, pushLoading, refreshGitLog, refreshGitStatus]);
 
   const handleSync = useCallback(async () => {
     if (!activeWorkspace || syncLoading) {
@@ -314,12 +347,103 @@ export function useGitCommitController({
       await syncGit(activeWorkspace.id);
       refreshGitStatus();
       refreshGitLog?.();
+      await onMutationComplete?.();
     } catch (error) {
       setSyncError(error instanceof Error ? error.message : String(error));
     } finally {
       setSyncLoading(false);
     }
-  }, [activeWorkspace, refreshGitLog, refreshGitStatus, syncLoading]);
+  }, [activeWorkspace, onMutationComplete, refreshGitLog, refreshGitStatus, syncLoading]);
+
+  const runRepositoryCommits = useCallback(async (
+    selections: RepositoryCommitSelection[],
+    pushAfterCommit: boolean,
+  ) => {
+    if (!activeWorkspace || commitLoading || !commitMessage.trim()) {
+      return;
+    }
+    const statusByRoot = new Map(repositoryStatuses.map((status) => [status.repositoryRoot, status]));
+    const repositories = selections.flatMap((selection) => {
+      const status = statusByRoot.get(selection.repositoryRoot);
+      return status ? [{
+        repositoryRoot: status.repositoryRoot,
+        displayName: status.displayName,
+        gitStatus: status,
+        selectedPaths: selection.selectedPaths,
+      }] : [];
+    });
+    if (repositories.length === 0) {
+      return;
+    }
+    setCommitLoading(true);
+    setPushLoading(pushAfterCommit);
+    setCommitError(null);
+    setPushError(null);
+    try {
+      const outcomes = await runMultiRepositoryCommitOperations({
+        workspaceId: activeWorkspace.id,
+        commitMessage,
+        repositories,
+        pushAfterCommit,
+        stageFile: stageGitFile,
+        unstageFile: unstageGitFile,
+        commit: commitGit,
+        push: (workspaceId, repositoryRoot) => pushGit(workspaceId, undefined, repositoryRoot),
+        formatRestoreSelectionFailed: (error) =>
+          t("git.commitRestoreSelectionFailed", { error }),
+      });
+      const commitFailures = outcomes.filter((outcome) => outcome.commitError);
+      const pushFailures = outcomes.filter((outcome) => outcome.pushError);
+      const postCommitFailures = outcomes.filter((outcome) => outcome.postCommitError);
+      setRepositoryCommitSummary(outcomes.map((outcome) => {
+        const failed = Boolean(outcome.commitError || outcome.postCommitError || outcome.pushError);
+        return `${outcome.displayName}: ${t(failed ? "common.error" : "common.success")}`;
+      }).join(" · "));
+      if (commitFailures.length === 0) {
+        setCommitMessage("");
+      } else {
+        setCommitError(commitFailures.map((outcome) =>
+          `${outcome.displayName}: ${outcome.commitError}`,
+        ).join("\n"));
+      }
+      if (postCommitFailures.length > 0) {
+        setCommitError(postCommitFailures.map((outcome) =>
+          `${outcome.displayName}: ${outcome.postCommitError}`,
+        ).join("\n"));
+      }
+      if (pushFailures.length > 0) {
+        setPushError(pushFailures.map((outcome) =>
+          `${outcome.displayName}: ${outcome.pushError}`,
+        ).join("\n"));
+      }
+      await refreshRepositoryStatuses?.();
+      await onMutationComplete?.();
+      refreshGitStatus();
+      refreshGitLog?.();
+    } finally {
+      setCommitLoading(false);
+      setPushLoading(false);
+    }
+  }, [
+    activeWorkspace,
+    commitLoading,
+    commitMessage,
+    onMutationComplete,
+    refreshGitLog,
+    refreshGitStatus,
+    refreshRepositoryStatuses,
+    repositoryStatuses,
+    t,
+  ]);
+
+  const handleCommitRepositories = useCallback(
+    (selections: RepositoryCommitSelection[]) => runRepositoryCommits(selections, false),
+    [runRepositoryCommits],
+  );
+  const handleCommitAndPushRepositories = useCallback(
+    (selections: RepositoryCommitSelection[]) => runRepositoryCommits(selections, true),
+    [runRepositoryCommits],
+  );
 
   return {
     commitMessage,
@@ -331,6 +455,7 @@ export function useGitCommitController({
     commitError,
     pushError,
     syncError,
+    repositoryCommitSummary,
     hasWorktreeChanges,
     onCommitMessageChange: handleCommitMessageChange,
     onGenerateCommitMessage: handleGenerateCommitMessage,
@@ -339,5 +464,7 @@ export function useGitCommitController({
     onCommitAndSync: handleCommitAndSync,
     onPush: handlePush,
     onSync: handleSync,
+    onCommitRepositories: handleCommitRepositories,
+    onCommitAndPushRepositories: handleCommitAndPushRepositories,
   };
 }
