@@ -437,7 +437,12 @@ async fn wait_for_thread_resume_ready(
     let last_reason =
         last_thread_not_ready_reason.unwrap_or_else(|| "thread not found".to_string());
     if is_thread_resume_rollout_pending_error_message(&last_reason) {
-        log_thread_resume_rollout_pending_soft_ready(workspace_id, thread_id, context, &last_reason);
+        log_thread_resume_rollout_pending_soft_ready(
+            workspace_id,
+            thread_id,
+            context,
+            &last_reason,
+        );
         return Ok(());
     }
     Err(format!(
@@ -1075,8 +1080,7 @@ mod tests {
         is_thread_not_found_response, is_thread_resume_rollout_pending_error_message,
         normalize_custom_spec_root, normalize_preferred_language, resolve_execution_policy,
         should_soft_ready_for_not_ready_reason, validate_thread_resume_ready_response,
-        validate_thread_start_response,
-        INVALID_THREAD_START_RESPONSE_ERROR_PREFIX,
+        validate_thread_start_response, INVALID_THREAD_START_RESPONSE_ERROR_PREFIX,
     };
     use serde_json::{json, Value};
 

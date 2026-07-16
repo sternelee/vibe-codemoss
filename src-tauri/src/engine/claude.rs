@@ -1110,7 +1110,10 @@ impl ClaudeSession {
     /// The turn currently being processed, if any. Used by the in-process MCP
     /// AskUserQuestion server to route a mid-turn ask to the live subscriber.
     pub fn active_turn_id(&self) -> Option<String> {
-        self.active_turn_id.lock().ok().and_then(|active| active.clone())
+        self.active_turn_id
+            .lock()
+            .ok()
+            .and_then(|active| active.clone())
     }
 
     async fn send_message_attempt(

@@ -234,9 +234,7 @@ async fn handle_mcp(
         }
         // Notifications (no `id`) get no response body.
         "notifications/initialized" | "notifications/cancelled" => McpResponse::Accepted,
-        "tools/list" => {
-            McpResponse::Json(rpc_result(id, json!({ "tools": [tool_definition()] })))
-        }
+        "tools/list" => McpResponse::Json(rpc_result(id, json!({ "tools": [tool_definition()] }))),
         "tools/call" => {
             let tool_name = msg
                 .get("params")
@@ -297,7 +295,8 @@ mod tests {
 
     #[test]
     fn mcp_config_json_uses_http_transport_and_workspace_url() {
-        let config: Value = serde_json::from_str(&server_at(4899).mcp_config_json("ws-42")).unwrap();
+        let config: Value =
+            serde_json::from_str(&server_at(4899).mcp_config_json("ws-42")).unwrap();
         let server = &config["mcpServers"][MCP_SERVER_NAME];
         assert_eq!(server["type"], "http");
         assert_eq!(server["url"], "http://127.0.0.1:4899/mcp/ws-42");
