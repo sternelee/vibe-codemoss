@@ -249,6 +249,7 @@ export const APP_SHELL_DOMAIN_CONTEXT_OWNED_KEYS: Record<
     "refreshRepositoryStatuses",
     "handleStageRepositoryFile",
     "handleUnstageRepositoryFile",
+    "handleRevertRepositoryFile",
     "handleStageRepositoryAll",
     "handleCommitRepositories",
     "repositoryCommitSummary",

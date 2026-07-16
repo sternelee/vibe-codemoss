@@ -536,6 +536,7 @@ export type LayoutNodesFlatOptions = {
   onRefreshRepositoryStatuses?: () => Promise<void> | void;
   onStageRepositoryFile?: (repositoryRoot: string, path: string) => Promise<void>;
   onUnstageRepositoryFile?: (repositoryRoot: string, path: string) => Promise<void>;
+  onRevertRepositoryFile?: (repositoryRoot: string, path: string) => Promise<void>;
   onStageRepositoryAll?: (repositoryRoot: string) => Promise<void>;
   onCommitRepositories?: (selections: RepositoryCommitSelection[]) => Promise<void> | void;
   repositoryCommitSummary?: string | null;
@@ -1051,6 +1052,7 @@ export type GitLayoutNodesOptions = Pick<
   | "onRefreshRepositoryStatuses"
   | "onStageRepositoryFile"
   | "onUnstageRepositoryFile"
+  | "onRevertRepositoryFile"
   | "onStageRepositoryAll"
   | "onCommitRepositories"
   | "repositoryCommitSummary"

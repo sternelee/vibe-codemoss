@@ -138,6 +138,7 @@ export type GitDiffPanelProps = CodeAnnotationBridgeProps & {
   onRefreshRepositoryStatuses?: () => Promise<void> | void;
   onStageRepositoryFile?: (repositoryRoot: string, path: string) => Promise<void>;
   onUnstageRepositoryFile?: (repositoryRoot: string, path: string) => Promise<void>;
+  onRevertRepositoryFile?: (repositoryRoot: string, path: string) => Promise<void>;
   onStageRepositoryAll?: (repositoryRoot: string) => Promise<void>;
   onCommitRepositories?: (selections: RepositoryCommitSelection[]) => Promise<void> | void;
   repositoryCommitSummary?: string | null;

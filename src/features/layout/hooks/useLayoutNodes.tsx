@@ -1940,6 +1940,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
           onRefreshRepositoryStatuses={options.onRefreshRepositoryStatuses}
           onStageRepositoryFile={options.onStageRepositoryFile}
           onUnstageRepositoryFile={options.onUnstageRepositoryFile}
+          onRevertRepositoryFile={options.onRevertRepositoryFile}
           onStageRepositoryAll={options.onStageRepositoryAll}
           onCommitRepositories={options.onCommitRepositories}
           repositoryCommitSummary={options.repositoryCommitSummary}

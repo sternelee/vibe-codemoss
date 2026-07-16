@@ -31,6 +31,7 @@ type GitMultiRepositoryChangesProps = {
   ) => void;
   onStageFile?: (repositoryRoot: string, path: string) => Promise<void>;
   onUnstageFile?: (repositoryRoot: string, path: string) => Promise<void>;
+  onDiscardFile?: (repositoryRoot: string, path: string) => Promise<void> | void;
   onStageAll?: (repositoryRoot: string) => Promise<void>;
   onOpenFile?: (repositoryRoot: string, path: string) => void;
   onOpenFilePreview?: (
@@ -63,6 +64,7 @@ export function GitMultiRepositoryChanges({
   onOpenGenerateMenu,
   onStageFile,
   onUnstageFile,
+  onDiscardFile,
   onStageAll,
   onOpenFile,
   onOpenFilePreview,
@@ -225,6 +227,7 @@ export function GitMultiRepositoryChanges({
                 await onStageFile(status.repositoryRoot, path);
                 await onRefresh?.();
               } : undefined}
+              onDiscardFile={onDiscardFile ? (path) => onDiscardFile(status.repositoryRoot, path) : undefined}
               isCommitPathLocked={isCommitPathLocked}
               onSetCommitSelection={(paths, selected) => setGroupSelection(status.repositoryRoot, paths, selected, stagedPaths)}
               onFileClick={(_event, path) => onOpenFile?.(status.repositoryRoot, path)}

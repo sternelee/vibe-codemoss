@@ -118,4 +118,32 @@ describe("GitMultiRepositoryChanges", () => {
     expect(onOpenFile).toHaveBeenNthCalledWith(2, "repo-b", "pom.xml");
     expect(onOpenFile).toHaveBeenNthCalledWith(3, "repo-b", "pom.xml");
   });
+
+  it("shows discard only for unstaged rows and forwards repository identity", () => {
+    const onDiscardFile = vi.fn();
+    const status = repositoryStatus("services/api");
+    status.stagedFiles = [
+      { path: "staged.md", status: "M", additions: 1, deletions: 0 },
+    ];
+    render(
+      <GitMultiRepositoryChanges
+        workspaceId="ws-1"
+        statuses={[status]}
+        isLoading={false}
+        commitMessage=""
+        commitLoading={false}
+        onDiscardFile={onDiscardFile}
+      />,
+    );
+
+    const discardButtons = document.querySelectorAll<HTMLButtonElement>(
+      ".diff-row-action--discard",
+    );
+    expect(discardButtons).toHaveLength(1);
+    expect(discardButtons[0]?.closest(".diff-row")?.getAttribute("data-path")).toBe("pom.xml");
+
+    fireEvent.click(discardButtons[0] as HTMLButtonElement);
+
+    expect(onDiscardFile).toHaveBeenCalledWith("services/api", "pom.xml");
+  });
 });

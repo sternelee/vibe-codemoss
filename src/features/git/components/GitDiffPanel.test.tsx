@@ -551,6 +551,64 @@ describe("GitDiffPanel", () => {
     expect(onOpenFile).toHaveBeenCalledWith("pom.xml", "services/api");
   });
 
+  it("confirms repository-scoped discard and keeps same-path repositories isolated", async () => {
+    const onRevertRepositoryFile = vi.fn(async () => undefined);
+    const onRefreshRepositoryStatuses = vi.fn(async () => undefined);
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        workspaceId="ws-1"
+        multiRepositoryMode
+        repositoryStatuses={[
+          {
+            repositoryRoot: "services/a",
+            displayName: "a",
+            branchName: "main",
+            stagedFiles: [],
+            unstagedFiles: [
+              { path: "pom.xml", status: "M", additions: 1, deletions: 0 },
+            ],
+            totalAdditions: 1,
+            totalDeletions: 0,
+            error: null,
+          },
+          {
+            repositoryRoot: "services/b",
+            displayName: "b",
+            branchName: "main",
+            stagedFiles: [],
+            unstagedFiles: [
+              { path: "pom.xml", status: "M", additions: 1, deletions: 0 },
+            ],
+            totalAdditions: 1,
+            totalDeletions: 0,
+            error: null,
+          },
+        ]}
+        onRevertRepositoryFile={onRevertRepositoryFile}
+        onRefreshRepositoryStatuses={onRefreshRepositoryStatuses}
+      />,
+    );
+
+    const discardButtons = document.querySelectorAll<HTMLButtonElement>(
+      ".diff-row-action--discard",
+    );
+    expect(discardButtons).toHaveLength(2);
+
+    fireEvent.click(discardButtons[1] as HTMLButtonElement);
+    fireEvent.click(screen.getByRole("button", { name: "common.cancel" }));
+    expect(onRevertRepositoryFile).not.toHaveBeenCalled();
+
+    fireEvent.click(discardButtons[1] as HTMLButtonElement);
+    fireEvent.click(screen.getByRole("button", { name: "git.discardDialogConfirmAction" }));
+
+    await waitFor(() => {
+      expect(onRevertRepositoryFile).toHaveBeenCalledWith("services/b", "pom.xml");
+      expect(onRefreshRepositoryStatuses).toHaveBeenCalledTimes(1);
+    });
+    expect(onRevertRepositoryFile).not.toHaveBeenCalledWith("services/a", "pom.xml");
+  });
+
   it("opens the latest repository-scoped modal preview without same-path cross-talk", async () => {
     let resolveFirstRepository: ((value: unknown) => void) | null = null;
     vi.mocked(invoke).mockImplementation((command, args) => {

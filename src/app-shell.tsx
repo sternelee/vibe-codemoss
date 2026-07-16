@@ -39,7 +39,7 @@ import { useCopyThread } from "./features/threads/hooks/useCopyThread";
 import { useKanbanStore } from "./features/kanban/hooks/useKanbanStore";
 import { useGitCommitController } from "./features/app/hooks/useGitCommitController";
 import { useMultiRepositoryGitStatus } from "./features/git/hooks/useMultiRepositoryGitStatus";
-import { stageGitAll, stageGitFile, unstageGitFile } from "./services/tauri";
+import { revertGitFile, stageGitAll, stageGitFile, unstageGitFile } from "./services/tauri";
 import { forceRefreshAgents } from "./features/composer/components/ChatInputBox/providers";
 import { normalizeFsPath } from "./utils/workspacePaths";
 import type {
@@ -1424,6 +1424,10 @@ export function AppShell() {
     if (!activeWorkspace) return;
     await unstageGitFile(activeWorkspace.id, path, repositoryRoot);
   }, [activeWorkspace]);
+  const handleRevertRepositoryFile = useCallback(async (repositoryRoot: string, path: string) => {
+    if (!activeWorkspace) return;
+    await revertGitFile(activeWorkspace.id, path, repositoryRoot);
+  }, [activeWorkspace]);
   const handleStageRepositoryAll = useCallback(async (repositoryRoot: string) => {
     if (!activeWorkspace) return;
     await stageGitAll(activeWorkspace.id, repositoryRoot);
@@ -1687,6 +1691,7 @@ export function AppShell() {
       refreshRepositoryStatuses,
       handleStageRepositoryFile,
       handleUnstageRepositoryFile,
+      handleRevertRepositoryFile,
       handleStageRepositoryAll,
       handleCommitRepositories,
       repositoryCommitSummary,
