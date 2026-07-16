@@ -1387,6 +1387,9 @@ const settings = {
       dragToReorder: "Drag to reorder",
       inUse: "In Use",
       availableForNewCodexSessions: "Available for new sessions",
+      providerColumn: "Provider",
+      statusColumn: "Status",
+      actionsColumn: "Actions",
       currentConfig: "Current Claude Code Config",
       noConfig: "No valid Claude settings detected yet.",
       notConfigured: "Not configured",
@@ -1398,6 +1401,7 @@ const settings = {
       customModels: "custom models",
       pluginModels: "Custom Models",
       manageModels: "Manage Models",
+      cliComingSoon: "Support is coming soon.",
       localProviderName: "Local settings.json",
       localProviderDescription:
         "Use configuration directly from ~/.claude/settings.json",

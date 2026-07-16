@@ -193,7 +193,18 @@ export function CustomModelDialog({
         </div>
 
         <div className="vendor-dialog-body">
-          <div className="vendor-hint">{t("settings.vendor.modelManager.description")}</div>
+          <div className="vendor-model-manager-toolbar">
+            <div className="vendor-hint">{t("settings.vendor.modelManager.description")}</div>
+            {!isAdding && (
+              <button
+                type="button"
+                className="vendor-btn-save vendor-model-manager-add-btn"
+                onClick={handleStartAdd}
+              >
+                + {t("settings.vendor.modelManager.addModel")}
+              </button>
+            )}
+          </div>
 
           <div className="vendor-model-manager-list" role="list">
             {models.length === 0 && !isAdding ? (
@@ -289,15 +300,7 @@ export function CustomModelDialog({
                 </button>
               </div>
             </div>
-          ) : (
-            <button
-              type="button"
-              className="vendor-btn-save vendor-model-manager-add-btn"
-              onClick={handleStartAdd}
-            >
-              + {t("settings.vendor.modelManager.addModel")}
-            </button>
-          )}
+          ) : null}
         </div>
 
         <div className="vendor-dialog-footer">

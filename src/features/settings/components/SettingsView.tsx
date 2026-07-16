@@ -373,7 +373,7 @@ export function SettingsView({
   const { t } = useTranslation();
   const runCodexDoctor = onRunCodexDoctor ?? onRunDoctor;
   const [activeSection, setActiveSection] =
-    useState<SettingsViewSection>("basic");
+    useState<SettingsViewSection>("providers");
   const [basicSubTab, setBasicSubTab] = useState<
     | "appearance"
     | "behavior"
@@ -867,7 +867,7 @@ export function SettingsView({
     if (initialSection) {
       setActiveSection(
         TEMPORARILY_DISABLED_SIDEBAR_SECTIONS.has(initialSection)
-          ? "basic"
+          ? "providers"
           : initialSection,
       );
     }
@@ -1709,21 +1709,21 @@ export function SettingsView({
           </button>
           <button
             type="button"
-            className={`settings-nav ${activeSection === "basic" ? "active" : ""}`}
-            onClick={() => setActiveSection("basic")}
-            title={sidebarCollapsed ? t("settings.sidebarBasic") : ""}
-          >
-            <Settings aria-hidden />
-            {!sidebarCollapsed && t("settings.sidebarBasic")}
-          </button>
-          <button
-            type="button"
             className={`settings-nav ${activeSection === "providers" || activeSection === "vendors" ? "active" : ""}`}
             onClick={() => setActiveSection("providers")}
             title={sidebarCollapsed ? t("settings.sidebarProviders") : ""}
           >
             <span className="codicon codicon-vm-connect" />
             {!sidebarCollapsed && t("settings.sidebarProviders")}
+          </button>
+          <button
+            type="button"
+            className={`settings-nav ${activeSection === "basic" ? "active" : ""}`}
+            onClick={() => setActiveSection("basic")}
+            title={sidebarCollapsed ? t("settings.sidebarBasic") : ""}
+          >
+            <Settings aria-hidden />
+            {!sidebarCollapsed && t("settings.sidebarBasic")}
           </button>
           <button
             type="button"

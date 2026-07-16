@@ -111,6 +111,13 @@
   width: min(640px, 90vw);
 }
 
+.vendor-model-manager-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .vendor-model-manager-list {
   display: flex;
   flex-direction: column;
@@ -178,7 +185,7 @@
 }
 
 .vendor-model-manager-add-btn {
-  align-self: flex-start;
+  flex-shrink: 0;
 }
 /* ==================== Model Mapping Settings ==================== */
 .model-mapping-card {

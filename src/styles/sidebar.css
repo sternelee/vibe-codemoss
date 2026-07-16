@@ -37,6 +37,7 @@
 
 .sidebar-primary-nav-mode-item.is-active {
   background: transparent;
+  font-weight: 400;
 }
 
 .sidebar-primary-nav-mode-item.is-active:hover,

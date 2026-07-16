@@ -15,6 +15,7 @@ import {
   restoreCodexUnifiedExecOfficialDefault,
   setCodexUnifiedExecOfficialOverride,
 } from "../../../services/tauri";
+import { pushErrorToast } from "../../../services/toasts";
 import type { AppSettings } from "../../../types";
 import { VendorSettingsPanel } from "./VendorSettingsPanel";
 
@@ -100,12 +101,6 @@ vi.mock("./CustomModelDialog", () => ({
   CustomModelDialog: () => null,
 }));
 
-vi.mock("./CurrentClaudeConfigCard", () => ({
-  CurrentClaudeConfigCard: () => (
-    <div data-testid="current-claude-config-stub" />
-  ),
-}));
-
 vi.mock("./CurrentCodexGlobalConfigCard", () => ({
   CurrentCodexGlobalConfigCard: () => (
     <div data-testid="current-codex-config-stub" />
@@ -126,6 +121,10 @@ vi.mock("../../../services/tauri", async () => {
   };
 });
 
+vi.mock("../../../services/toasts", () => ({
+  pushErrorToast: vi.fn(),
+}));
+
 const readGlobalCodexConfigTomlMock = vi.mocked(readGlobalCodexConfigToml);
 const readGlobalCodexAuthJsonMock = vi.mocked(readGlobalCodexAuthJson);
 const getCodexUnifiedExecExternalStatusMock = vi.mocked(
@@ -137,6 +136,7 @@ const restoreCodexUnifiedExecOfficialDefaultMock = vi.mocked(
 const setCodexUnifiedExecOfficialOverrideMock = vi.mocked(
   setCodexUnifiedExecOfficialOverride,
 );
+const pushErrorToastMock = vi.mocked(pushErrorToast);
 
 function renderPanel(
   options: {
@@ -174,12 +174,7 @@ function renderPanel(
 }
 
 async function openCodexTab() {
-  const codexTab = screen.getByText("Codex");
-  // Radix Tabs uses focus-based automatic activation; jsdom fireEvent.click
-  // does not focus the trigger, so focus it to actually switch to the Codex
-  // panel (otherwise its mount effects never run and waitFor times out).
-  fireEvent.focus(codexTab);
-  fireEvent.click(codexTab);
+  fireEvent.click(screen.getByRole("button", { name: "Codex CLI" }));
   await waitFor(() => {
     expect(getCodexUnifiedExecExternalStatusMock).toHaveBeenCalled();
   });
@@ -225,16 +220,79 @@ afterEach(() => {
 });
 
 describe("VendorSettingsPanel", () => {
-  it("does not expose the Gemini CLI vendor tab", async () => {
+  it("renders supported CLI names and planned CLI placeholders", async () => {
     renderPanel();
 
     await waitFor(() => {
       expect(readGlobalCodexConfigTomlMock).toHaveBeenCalled();
       expect(readGlobalCodexAuthJsonMock).toHaveBeenCalled();
     });
-    expect(screen.getByText("Claude Code")).toBeTruthy();
-    expect(screen.getByText("Codex")).toBeTruthy();
-    expect(screen.queryByText("Gemini CLI")).toBeNull();
+    expect(screen.getByRole("button", { name: /Claude Code CLI/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Codex CLI/ })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /OpenCode CLI/ }).getAttribute("aria-disabled"),
+    ).toBe("true");
+    expect(
+      screen.getByRole("button", { name: /Gemini CLI/ }).getAttribute("aria-disabled"),
+    ).toBe("true");
+    expect(
+      screen.getByRole("button", { name: /Kiro CLI/ }).getAttribute("aria-disabled"),
+    ).toBe("true");
+
+    const navLabels = screen
+      .getAllByRole("button")
+      .map(
+        (button) =>
+          button.querySelector(".min-w-0")?.textContent?.trim() ?? "",
+      )
+      .filter((label) => label.endsWith("CLI"));
+    expect(navLabels.slice(0, 8)).toEqual([
+      "Claude Code CLI",
+      "Codex CLI",
+      "Gemini CLI",
+      "OpenCode CLI",
+      "GLM CLI",
+      "Trae CLI",
+      "Cursor CLI",
+      "Kimi CLI",
+    ]);
+    expect(navLabels).toEqual(
+      expect.arrayContaining(["DevEco CLI", "PI CLI", "iFlow CLI"]),
+    );
+    expect(screen.queryByRole("button", { name: /Droid CLI/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Goose CLI/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Hermes CLI/ })).toBeNull();
+  });
+
+  it("keeps planned CLI placeholders on the current tab and shows a coming soon toast", async () => {
+    renderPanel();
+
+    await waitFor(() => {
+      expect(readGlobalCodexConfigTomlMock).toHaveBeenCalled();
+      expect(readGlobalCodexAuthJsonMock).toHaveBeenCalled();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /CodeBuddy CLI/ }));
+
+    expect(pushErrorToastMock).toHaveBeenCalledWith({
+      title: "CodeBuddy CLI",
+      message: "settings.vendor.cliComingSoon",
+      variant: "info",
+    });
+    expect(screen.queryByTestId("current-claude-config-stub")).toBeNull();
+    expect(screen.queryByTestId("current-codex-config-stub")).toBeNull();
+  });
+
+  it("keeps the CLI engine list in its own scroll container", async () => {
+    renderPanel();
+
+    await waitFor(() => {
+      expect(readGlobalCodexConfigTomlMock).toHaveBeenCalled();
+      expect(readGlobalCodexAuthJsonMock).toHaveBeenCalled();
+    });
+
+    expect(screen.getByLabelText("settings.vendorsTitle").className).toContain(
+      "vendor-engine-nav-scroll",
+    );
   });
 
   it("shows background terminal official actions in the Codex tab", async () => {

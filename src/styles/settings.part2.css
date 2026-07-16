@@ -1716,10 +1716,14 @@
 /* === Settings UI refresh (fixed-width centered content) === */
 .settings-content {
   --settings-content-fixed-width: 1080px;
+  --settings-content-pad-top: 18px;
+  --settings-content-pad-x: 30px;
+  --settings-content-pad-bottom: 44px;
 }
 
 .settings-content [data-slot="scroll-area-viewport"] {
-  padding: 18px 30px 44px;
+  padding: var(--settings-content-pad-top) var(--settings-content-pad-x)
+    var(--settings-content-pad-bottom);
 }
 
 /*
@@ -1742,8 +1746,7 @@
 }
 
 .settings-section,
-.settings-workspace-picker,
-.vendor-settings-panel {
+.settings-workspace-picker {
   width: min(100%, var(--settings-content-fixed-width));
   margin-inline: auto;
 }
@@ -2302,10 +2305,6 @@
   margin-top: 2px;
 }
 
-.vendor-settings-panel {
-  margin-top: 0;
-}
-
 @media (max-width: 1360px) {
   .settings-content {
     --settings-content-fixed-width: 980px;
@@ -2315,9 +2314,6 @@
 @media (max-width: 1100px) {
   .settings-content {
     --settings-content-fixed-width: 100%;
-  }
-
-  .settings-content [data-slot="scroll-area-viewport"] {
-    padding-inline: 20px;
+    --settings-content-pad-x: 20px;
   }
 }

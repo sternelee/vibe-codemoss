@@ -14,8 +14,8 @@ import { ProviderDialog } from "./ProviderDialog";
 import { CodexProviderDialog } from "./CodexProviderDialog";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import { CustomModelDialog } from "./CustomModelDialog";
-import { CurrentClaudeConfigCard } from "./CurrentClaudeConfigCard";
 import { CurrentCodexGlobalConfigCard } from "./CurrentCodexGlobalConfigCard";
+import { buildCliEngineNavItems, CliIcon, type CliEngineNavItem } from "./cliEngineNav";
 import {
   consumeVendorModelManagerRequest,
   VENDOR_MODEL_MANAGER_REQUEST_EVENT,
@@ -28,10 +28,9 @@ import {
   setCodexUnifiedExecOfficialOverride,
 } from "../../../services/tauri";
 import { pushErrorToast } from "../../../services/toasts";
-import { EngineIcon } from "../../engine/components/EngineIcon";
-import { Tabs, TabsList, TabsTab, TabsPanel } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 
 const LEGACY_CLAUDE_MAPPING_KEYS = [
   "mossx-claude-model-mapping",
@@ -412,76 +411,99 @@ export function VendorSettingsPanel({
     [claudeModels, codexModels, dialogTarget],
   );
 
+  const handleUnsupportedCliClick = useCallback(
+    (label: string) => {
+      pushErrorToast({
+        title: label,
+        message: t("settings.vendor.cliComingSoon"),
+        variant: "info",
+      });
+    },
+    [t],
+  );
+
+  const engineNavItems: CliEngineNavItem[] = buildCliEngineNavItems({
+    claudeHasConfig: Boolean(claude.currentConfig),
+    codexHasConfig: codexGlobalConfigExists,
+  });
+
   return (
-    <div className="vendor-settings-panel">
-      <h3 className="vendor-section-title">{t("settings.vendorsTitle")}</h3>
-      <p className="vendor-section-desc">{t("settings.vendorsDescription")}</p>
-
-      <Tabs
-        value={activeTab}
-        onValueChange={(value) => setActiveTab(value as VendorTab)}
+    <div
+      className={cn(
+        "vendor-settings-panel",
+        "flex items-start",
+        "-ml-[var(--settings-content-pad-x)]",
+        "max-md:ml-0 max-md:flex-col",
+      )}
+    >
+      <nav
+        className={cn(
+          "vendor-engine-nav vendor-engine-nav-scroll sticky top-0 flex shrink-0 flex-col self-start",
+          "max-md:static max-md:w-full max-md:flex-row max-md:px-0",
+        )}
+        aria-label={t("settings.vendorsTitle")}
       >
-        <TabsList className="vendor-tabs">
-          <TabsTab className="vendor-tab" value="claude">
-            <span className="vendor-tab-label">
-              <EngineIcon engine="claude" size={14} />
-              <span>Claude Code</span>
+        {engineNavItems.map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            className={cn(
+              "vendor-engine-tab flex w-full items-center text-left text-foreground transition-colors",
+              "max-md:flex-1",
+              item.supported && activeTab === item.key && "vendor-engine-tab-active",
+              !item.supported && "vendor-engine-tab-disabled",
+            )}
+            aria-current={item.supported && activeTab === item.key ? "true" : undefined}
+            aria-disabled={item.supported ? undefined : "true"}
+            onClick={() => {
+              if (item.supported) {
+                setActiveTab(item.key);
+                return;
+              }
+              handleUnsupportedCliClick(item.label);
+            }}
+          >
+            <span className="vendor-engine-icon flex shrink-0 items-center justify-center border bg-background">
+              <CliIcon id={item.key} label={item.label} />
             </span>
-          </TabsTab>
-          <TabsTab className="vendor-tab" value="codex">
-            <span className="vendor-tab-label">
-              <EngineIcon engine="codex" size={14} />
-              <span>Codex</span>
-            </span>
-          </TabsTab>
-        </TabsList>
+            <span className="min-w-0 flex-1 truncate">{item.label}</span>
+            {item.supported && item.hasConfig ? (
+              <span
+                className="size-1.5 shrink-0 rounded-full bg-emerald-500"
+                aria-hidden="true"
+              />
+            ) : null}
+          </button>
+        ))}
+      </nav>
 
-        <TabsPanel value="claude">
+      <div className="vendor-settings-content min-w-0 flex-1">
+        <div className="vendor-section-heading">
+          <h3 className="vendor-section-title">{t("settings.vendorsTitle")}</h3>
+          <p className="vendor-section-desc">
+            {t("settings.vendorsDescription")}
+          </p>
+        </div>
+        {activeTab === "claude" ? (
           <div className="vendor-tab-content">
-            <div
-              className="vendor-plugin-model-entry"
-              role="button"
-              tabIndex={0}
-              onClick={() => openModelDialog("claude")}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  openModelDialog("claude");
-                }
-              }}
-            >
-              <div className="vendor-plugin-model-entry-main">
-                <PackagePlus size={16} />
-                <span className="vendor-plugin-model-entry-title">
-                  {t("settings.vendor.pluginModels")}
-                </span>
-                {claudeModels.models.length > 0 && (
-                  <span className="vendor-plugin-model-entry-count">
-                    {claudeModels.models.length}
-                  </span>
-                )}
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  openModelDialog("claude");
-                }}
-              >
-                <PackagePlus size={14} />
-                {t("settings.vendor.manageModels")}
-              </Button>
-            </div>
-            <CurrentClaudeConfigCard
-              config={claude.currentConfig}
-              loading={claude.currentConfigLoading}
-              providers={claude.providers}
-              onSwitchProvider={claude.handleSwitchProvider}
-            />
             <ProviderList
               providers={claude.providers}
               loading={claude.loading}
+              headerActions={
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => openModelDialog("claude")}
+                >
+                  <PackagePlus size={14} />
+                  {t("settings.vendor.pluginModels")}
+                  {claudeModels.models.length > 0 ? (
+                    <span className="vendor-plugin-model-entry-count">
+                      {claudeModels.models.length}
+                    </span>
+                  ) : null}
+                </Button>
+              }
               onAdd={claude.handleAddProvider}
               onEdit={claude.handleEditProvider}
               onDelete={claude.handleDeleteProvider}
@@ -501,9 +523,7 @@ export function VendorSettingsPanel({
               onCancel={claude.cancelDeleteProvider}
             />
           </div>
-        </TabsPanel>
-
-        <TabsPanel value="codex">
+        ) : (
           <div className="vendor-tab-content">
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <Button
@@ -625,41 +645,6 @@ export function VendorSettingsPanel({
               authTruncated={codexAuthConfigTruncated}
               authError={codexAuthConfigError}
             />
-            <div
-              className="vendor-plugin-model-entry"
-              role="button"
-              tabIndex={0}
-              onClick={() => openModelDialog("codex")}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  openModelDialog("codex");
-                }
-              }}
-            >
-              <div className="vendor-plugin-model-entry-main">
-                <PackagePlus size={16} />
-                <span className="vendor-plugin-model-entry-title">
-                  {t("settings.vendor.pluginModels")}
-                </span>
-                {codexModels.models.length > 0 && (
-                  <span className="vendor-plugin-model-entry-count">
-                    {codexModels.models.length}
-                  </span>
-                )}
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  openModelDialog("codex");
-                }}
-              >
-                <PackagePlus size={14} />
-                {t("settings.vendor.manageModels")}
-              </Button>
-            </div>
             <div className="vendor-plugin-model-entry vendor-provider-label-toggle">
               <div className="vendor-plugin-model-entry-main">
                 <LayoutList size={16} />
@@ -686,6 +671,21 @@ export function VendorSettingsPanel({
             <CodexProviderList
               providers={codex.codexProviders}
               loading={codex.codexLoading}
+              headerActions={
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => openModelDialog("codex")}
+                >
+                  <PackagePlus size={14} />
+                  {t("settings.vendor.pluginModels")}
+                  {codexModels.models.length > 0 ? (
+                    <span className="vendor-plugin-model-entry-count">
+                      {codexModels.models.length}
+                    </span>
+                  ) : null}
+                </Button>
+              }
               onAdd={codex.handleAddCodexProvider}
               onEdit={codex.handleEditCodexProvider}
               onDelete={codex.handleDeleteCodexProvider}
@@ -703,9 +703,8 @@ export function VendorSettingsPanel({
               onCancel={codex.cancelDeleteCodexProvider}
             />
           </div>
-        </TabsPanel>
-
-      </Tabs>
+        )}
+      </div>
 
       <CustomModelDialog
         isOpen={modelDialogOpen}

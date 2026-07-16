@@ -1,7 +1,6 @@
 /* ==================== Vendor Settings ==================== */
 
 .vendor-settings-panel {
-  margin-top: 12px;
   /*
    * Mirror the basic-settings redesign tokens (settings.part2.basic-redesign.css)
    * so vendor cards share the exact same soft surfaces / borders / dividers.
@@ -10,13 +9,41 @@
    */
   --settings-basic-text: var(--text-strong);
   --settings-basic-text-muted: var(--text-muted);
-  --settings-basic-surface: color-mix(in srgb, var(--surface-card-strong) 84%, var(--surface-messages) 16%);
-  --settings-basic-surface-strong: color-mix(in srgb, var(--surface-card) 88%, var(--surface-messages) 12%);
-  --settings-basic-border: color-mix(in srgb, var(--border-strong) 72%, transparent);
-  --settings-basic-divider: color-mix(in srgb, var(--border-muted) 88%, transparent);
-  --settings-basic-control: color-mix(in srgb, var(--surface-control) 94%, var(--surface-card) 6%);
-  --settings-basic-control-hover: color-mix(in srgb, var(--surface-control-hover) 92%, var(--surface-card) 8%);
-  --settings-basic-control-border: color-mix(in srgb, var(--border-strong) 80%, transparent);
+  --settings-basic-surface: color-mix(
+    in srgb,
+    var(--surface-card-strong) 84%,
+    var(--surface-messages) 16%
+  );
+  --settings-basic-surface-strong: color-mix(
+    in srgb,
+    var(--surface-card) 88%,
+    var(--surface-messages) 12%
+  );
+  --settings-basic-border: color-mix(
+    in srgb,
+    var(--border-strong) 72%,
+    transparent
+  );
+  --settings-basic-divider: color-mix(
+    in srgb,
+    var(--border-muted) 88%,
+    transparent
+  );
+  --settings-basic-control: color-mix(
+    in srgb,
+    var(--surface-control) 94%,
+    var(--surface-card) 6%
+  );
+  --settings-basic-control-hover: color-mix(
+    in srgb,
+    var(--surface-control-hover) 92%,
+    var(--surface-card) 8%
+  );
+  --settings-basic-control-border: color-mix(
+    in srgb,
+    var(--border-strong) 80%,
+    transparent
+  );
   /*
    * Accent tokens re-pointed from the blue user-bubble to the neutral shadcn
    * primary, so the few legacy call-sites still referencing them (count badge,
@@ -24,9 +51,25 @@
    */
   --vendor-button-primary: var(--primary);
   --vendor-button-primary-fg: var(--primary-foreground);
-  --vendor-button-primary-hover: color-mix(in srgb, var(--primary) 88%, transparent);
+  --vendor-button-primary-hover: color-mix(
+    in srgb,
+    var(--primary) 88%,
+    transparent
+  );
   --vendor-button-primary-border: var(--settings-basic-control-border);
   --vendor-button-primary-soft: var(--settings-basic-surface-strong);
+  height: calc(
+    100vh - var(--settings-content-pad-top, 18px) -
+      var(--settings-content-pad-bottom, 44px)
+  );
+  overflow: hidden;
+}
+
+.vendor-section-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 14px;
 }
 
 .vendor-section-title {
@@ -38,67 +81,100 @@
 }
 
 .vendor-section-desc {
-  margin: 6px 0 18px;
-  color: var(--text-secondary);
+  margin: 0;
+  color: color-mix(in srgb, var(--text-secondary) 48%, transparent);
   font-size: 13px;
+  font-weight: 400;
 }
 
-.vendor-tabs {
-  display: flex;
-  width: 100%;
-  max-width: 880px;
-  gap: 0;
-  margin-bottom: 8px;
-  padding: 0;
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid var(--border-muted);
-  border-radius: 0;
+/*
+ * Engine switcher mirrors the app settings side-list: compact rows, smaller
+ * icons, and a clear divider before the detail pane.
+ */
+.vendor-engine-nav {
+  width: 204px;
+  gap: 3px;
+  padding: 2px 10px 2px 12px;
 }
 
-.vendor-tabs [data-slot="tab-indicator"] {
-  display: block;
-  background: var(--primary);
-  height: 2px;
-  border-radius: 0;
-  box-shadow: none;
+.vendor-engine-nav-scroll {
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
-.vendor-tab {
-  flex: 1;
-  min-height: 0;
-  height: 42px;
-  padding: 10px 14px;
-  background: transparent;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  box-shadow: none;
+.vendor-engine-tab {
+  min-height: 40px;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 400;
   color: var(--text-secondary);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease;
 }
 
-.vendor-tab-label {
+.vendor-engine-tab:hover {
+  background: color-mix(in srgb, var(--surface-hover) 68%, transparent);
+  color: var(--text-primary);
+}
+
+.vendor-engine-tab-disabled {
+  color: var(--text-faint);
+}
+
+.vendor-engine-tab-disabled:hover {
+  background: color-mix(in srgb, var(--surface-hover) 42%, transparent);
+  color: var(--text-secondary);
+}
+
+.vendor-engine-tab-active {
+  background: color-mix(in srgb, var(--surface-hover) 76%, transparent);
+  color: var(--text-primary);
+}
+
+:root[data-theme="light"] .vendor-engine-tab-active,
+:root[data-theme="light"] .vendor-engine-tab:hover {
+  background: #f7f7f7;
+}
+
+.vendor-engine-icon {
+  width: 30px;
+  height: 30px;
+  border-color: var(--settings-basic-divider);
+  border-radius: 8px;
+}
+
+.vendor-cli-logo-img {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.vendor-cli-logo {
+  width: 16px;
+  height: 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  border-radius: 4px;
+  color: #111827;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
 }
 
-.vendor-tab:hover {
-  color: var(--text-primary);
-  background: transparent;
-}
+.vendor-cli-logo-iflow { background: linear-gradient(135deg, #2563eb, #14b8a6); color: #fff; }
+.vendor-cli-logo-kiro { background: #f1f5f9; }
 
-.vendor-tab[data-selected],
-.vendor-tab[data-state="active"],
-.vendor-tab[data-active] {
-  color: var(--primary);
-  border-bottom-color: var(--primary);
-  background: transparent;
+.vendor-settings-content {
+  min-height: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-left: 24px;
+  border-left: 1px solid var(--settings-basic-divider);
 }
 
 .vendor-settings-panel [data-slot="button"][data-variant="default"] {
@@ -106,7 +182,8 @@
   color: #fff;
 }
 
-.vendor-settings-panel [data-slot="button"][data-variant="default"]:hover:not(:disabled) {
+.vendor-settings-panel
+  [data-slot="button"][data-variant="default"]:hover:not(:disabled) {
   background: var(--vendor-button-primary-hover);
 }
 
@@ -116,7 +193,8 @@
   color: var(--vendor-button-primary);
 }
 
-.vendor-settings-panel [data-slot="button"][data-variant="outline"]:hover:not(:disabled) {
+.vendor-settings-panel
+  [data-slot="button"][data-variant="outline"]:hover:not(:disabled) {
   border-color: var(--vendor-button-primary);
   background: var(--vendor-button-primary);
   color: #fff;
@@ -140,11 +218,17 @@
   border-radius: 10px;
   background: var(--settings-basic-surface);
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
 }
 
 .vendor-plugin-model-entry:hover {
-  border-color: color-mix(in srgb, var(--settings-basic-control-border) 75%, #b9c5df 25%);
+  border-color: color-mix(
+    in srgb,
+    var(--settings-basic-control-border) 75%,
+    #b9c5df 25%
+  );
   background: var(--settings-basic-surface-strong);
 }
 
@@ -222,7 +306,9 @@
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .vendor-btn-add:hover {
@@ -247,6 +333,121 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.vendor-provider-table-frame {
+  overflow: hidden;
+  border: 1px solid var(--settings-basic-border);
+  border-radius: 12px;
+  background: var(--settings-basic-surface);
+}
+
+.vendor-provider-table-frame [data-slot="table-container"] {
+  overflow-x: auto;
+}
+
+.vendor-provider-table {
+  table-layout: fixed;
+}
+
+.vendor-provider-table th,
+.vendor-provider-table td {
+  height: 42px;
+  padding: 6px 12px;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--settings-basic-divider);
+}
+
+.vendor-provider-table thead th {
+  height: 36px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: color-mix(
+    in srgb,
+    var(--settings-basic-surface-strong) 78%,
+    transparent
+  );
+}
+
+.vendor-provider-table tbody:last-child tr:last-child td,
+.vendor-provider-table
+  tbody.vendor-provider-table-body:last-of-type
+  tr:last-child
+  td {
+  border-bottom: 0;
+}
+
+.vendor-provider-table-row {
+  transition: background 0.15s ease;
+}
+
+.vendor-provider-table-row:hover {
+  background: color-mix(in srgb, var(--surface-hover) 62%, transparent);
+}
+
+.vendor-provider-table-row.active {
+  background: var(--vendor-button-primary-soft);
+}
+
+.vendor-provider-table-row.is-dragging {
+  background: var(--surface-hover);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
+  z-index: 100;
+}
+
+.vendor-provider-table-row.vendor-local-provider-row {
+  background: color-mix(in srgb, #f39c12 5%, var(--settings-basic-surface));
+}
+
+.vendor-provider-table-row.vendor-local-provider-row svg {
+  color: #f39c12;
+}
+
+.vendor-provider-table-drag-cell {
+  width: 44px;
+  text-align: center;
+}
+
+.vendor-provider-table-main-cell {
+  width: auto;
+  min-width: 0;
+}
+
+.vendor-provider-table .vendor-card-info {
+  min-width: 0;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.vendor-provider-table .vendor-card-name {
+  min-width: 0;
+  flex: 0 1 auto;
+  white-space: nowrap;
+}
+
+.vendor-provider-table .vendor-card-remark {
+  min-width: 0;
+  flex: 1 1 auto;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.vendor-provider-table-status-cell {
+  width: 180px;
+  text-align: right;
+}
+
+.vendor-provider-table-actions-cell {
+  width: 92px;
+  text-align: right;
+}
+
+.vendor-provider-table-actions-cell
+  [data-slot="button"]
+  + [data-slot="button"] {
+  margin-left: 4px;
 }
 
 .vendor-card {
@@ -294,6 +495,12 @@
   gap: 8px;
 }
 
+.vendor-card-name-extension {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
 .vendor-card-remark {
   font-size: 11px;
   color: var(--text-secondary);
@@ -327,14 +534,19 @@
 }
 
 .vendor-card-drag-handle {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   color: var(--text-faint);
   cursor: grab;
-  flex-shrink: 0;
-  width: 20px;
-  align-self: stretch;
+  width: 24px;
+  height: 28px;
+  border-radius: 6px;
+}
+
+.vendor-card-drag-handle:hover {
+  color: var(--text-secondary);
+  background: var(--surface-hover);
 }
 
 .vendor-card-drag-handle:active {
@@ -371,7 +583,9 @@
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .vendor-btn-enable:hover {
@@ -526,6 +740,30 @@
 }
 
 @media (max-width: 900px) {
+  .vendor-engine-nav {
+    width: 100%;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0;
+  }
+
+  .vendor-engine-tab {
+    justify-content: center;
+  }
+
+  .vendor-settings-content {
+    width: 100%;
+    max-height: none;
+    overflow-y: visible;
+    min-height: 0;
+    margin-top: 16px;
+    padding-left: 0;
+    padding-top: 16px;
+    border-left: 0;
+    border-top: 1px solid var(--settings-basic-divider);
+  }
+
   .vendor-current-config-body {
     grid-template-columns: 1fr;
   }

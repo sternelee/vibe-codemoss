@@ -78,4 +78,27 @@ describe("CustomModelDialog", () => {
     expect(onModelsChange).not.toHaveBeenCalled();
     expect(screen.getByText("settings.vendor.modelManager.modelIdInvalid")).toBeTruthy();
   });
+
+  it("places the add model action in the top-right toolbar above the model list", () => {
+    render(
+      <CustomModelDialog
+        isOpen
+        models={[]}
+        onModelsChange={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const addButton = screen.getByRole("button", {
+      name: "+ settings.vendor.modelManager.addModel",
+    });
+    const modelList = screen.getByRole("list");
+    const toolbar = addButton.closest(".vendor-model-manager-toolbar");
+
+    expect(toolbar).toBeTruthy();
+    expect(toolbar?.contains(addButton)).toBe(true);
+    expect(
+      addButton.compareDocumentPosition(modelList) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
 });
