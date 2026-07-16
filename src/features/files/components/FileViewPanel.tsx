@@ -61,6 +61,7 @@ import {
   resolveGitStatusPathCandidates,
   resolveWorkspacePathCandidates,
 } from "../../../utils/workspacePaths";
+import { reorderTabPathsAtTarget } from "../utils/fileTabOrder";
 import { reduceExternalChangeSyncState } from "../externalChangeStateMachine";
 import {
   resolveFileRenderProfile,
@@ -135,6 +136,7 @@ type FileViewPanelProps = {
   onActivateTab?: (path: string) => void;
   onCloseTab?: (path: string) => void;
   onCloseAllTabs?: () => void;
+  onReorderTabs?: (nextOrder: string[]) => void;
   fileReferenceMode?: "path" | "none";
   onFileReferenceModeChange?: (mode: "path" | "none") => void;
   activeFileLineRange?: { startLine: number; endLine: number } | null;
@@ -196,6 +198,7 @@ export function FileViewPanel({
   onActivateTab,
   onCloseTab,
   onCloseAllTabs,
+  onReorderTabs,
   activeFileLineRange = null,
   onActiveFileLineRangeChange,
   onActiveCodeAnchorChange,
@@ -295,6 +298,8 @@ export function FileViewPanel({
     x: 0,
     y: 0,
   });
+  const [draggingTabPath, setDraggingTabPath] = useState<string | null>(null);
+  const [dragOverTabPath, setDragOverTabPath] = useState<string | null>(null);
   const activeAnnotationLineRange =
     annotationDraft?.source === "file-edit-mode"
       ? annotationDraft.lineRange
@@ -1272,8 +1277,12 @@ export function FileViewPanel({
       ? effectiveAnnotationDraft
       : null;
 
-  const visibleTabs = openTabs && openTabs.length > 0 ? openTabs : [filePath];
+  const visibleTabs = useMemo(
+    () => (openTabs && openTabs.length > 0 ? openTabs : [filePath]),
+    [openTabs, filePath],
+  );
   const canCloseAllTabs = Boolean(onCloseAllTabs && visibleTabs.length > 0);
+  const canReorderTabs = Boolean(onReorderTabs) && visibleTabs.length > 1;
   const visibleActiveFileLineRange = editorLocalLineRange ?? activeFileLineRange;
   const activeFileLineLabel = visibleActiveFileLineRange
     ? visibleActiveFileLineRange.startLine === visibleActiveFileLineRange.endLine
@@ -1340,6 +1349,100 @@ export function FileViewPanel({
     onCloseAllTabs?.();
     closeTabContextMenu();
   }, [closeTabContextMenu, onCloseAllTabs]);
+
+  // Tab reordering uses pointer events rather than native HTML5 drag-and-drop:
+  // the macOS Tauri webview (WKWebView) does not reliably start an HTML5 drag
+  // that originates on the inner <button>, so a pointer-driven gesture is used.
+  const tabDragOriginRef = useRef<{
+    tabPath: string;
+    pointerId: number;
+    startX: number;
+    moved: boolean;
+  } | null>(null);
+  const suppressTabClickRef = useRef(false);
+
+  const resolveTabPathAtPoint = useCallback(
+    (clientX: number, clientY: number) => {
+      const element = document.elementFromPoint(clientX, clientY);
+      const tab = element?.closest<HTMLElement>(".fvp-tab");
+      return tab?.dataset.tabPath ?? null;
+    },
+    [],
+  );
+
+  const endTabDrag = useCallback(() => {
+    tabDragOriginRef.current = null;
+    setDraggingTabPath(null);
+    setDragOverTabPath(null);
+  }, []);
+
+  const handleTabPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>, tabPath: string) => {
+      suppressTabClickRef.current = false;
+      if (!canReorderTabs || event.button !== 0) {
+        return;
+      }
+      // Let the close/detach buttons own their own gestures.
+      if ((event.target as HTMLElement).closest(".fvp-tab-close, .fvp-tab-detach")) {
+        return;
+      }
+      tabDragOriginRef.current = {
+        tabPath,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        moved: false,
+      };
+    },
+    [canReorderTabs],
+  );
+
+  const handleTabPointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const origin = tabDragOriginRef.current;
+      if (!origin || event.pointerId !== origin.pointerId) {
+        return;
+      }
+      if (!origin.moved) {
+        if (Math.abs(event.clientX - origin.startX) < 4) {
+          return;
+        }
+        origin.moved = true;
+        setDraggingTabPath(origin.tabPath);
+        try {
+          event.currentTarget.setPointerCapture(origin.pointerId);
+        } catch {
+          // Pointer capture is best-effort.
+        }
+      }
+      const overPath = resolveTabPathAtPoint(event.clientX, event.clientY);
+      setDragOverTabPath((current) => (current === overPath ? current : overPath));
+    },
+    [resolveTabPathAtPoint],
+  );
+
+  const handleTabPointerUp = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const origin = tabDragOriginRef.current;
+      if (!origin || event.pointerId !== origin.pointerId) {
+        return;
+      }
+      if (origin.moved) {
+        // Swallow the click that the browser fires after the drag gesture so a
+        // reorder never doubles as a tab activation.
+        suppressTabClickRef.current = true;
+        const source = origin.tabPath;
+        const targetPath = resolveTabPathAtPoint(event.clientX, event.clientY);
+        if (targetPath && targetPath !== source) {
+          const nextOrder = reorderTabPathsAtTarget(visibleTabs, source, targetPath);
+          if (nextOrder.some((path, index) => path !== visibleTabs[index])) {
+            onReorderTabs?.(nextOrder);
+          }
+        }
+      }
+      endTabDrag();
+    },
+    [endTabDrag, onReorderTabs, resolveTabPathAtPoint, visibleTabs],
+  );
 
   const handleOpenDetachedTab = useCallback(
     (event: ReactMouseEvent<HTMLButtonElement>, tabPath: string) => {
@@ -1719,18 +1822,43 @@ export function FileViewPanel({
           const tabName = tabPath.split("/").pop() || tabPath;
           const tabGitStatus = resolveMatchedGitStatusByPath(tabPath)?.status ?? null;
           const tabGitStatusClass = tabGitStatus ? `git-${tabGitStatus.toLowerCase()}` : "";
+          const isDragging = draggingTabPath === tabPath;
+          const isDragOver =
+            Boolean(draggingTabPath) &&
+            dragOverTabPath === tabPath &&
+            draggingTabPath !== tabPath;
           return (
             <div
               key={tabPath}
-              className={`fvp-tab ${isActive ? "is-active" : ""} ${tabGitStatusClass}`.trim()}
+              className={`fvp-tab ${isActive ? "is-active" : ""} ${
+                isDragging ? "is-dragging" : ""
+              } ${isDragOver ? "is-drag-over" : ""} ${tabGitStatusClass}`
+                .replace(/\s+/g, " ")
+                .trim()}
               role="presentation"
+              data-tab-path={tabPath}
+              data-tauri-drag-region={canReorderTabs ? "false" : undefined}
+              onPointerDown={
+                canReorderTabs
+                  ? (event) => handleTabPointerDown(event, tabPath)
+                  : undefined
+              }
+              onPointerMove={canReorderTabs ? handleTabPointerMove : undefined}
+              onPointerUp={canReorderTabs ? handleTabPointerUp : undefined}
+              onPointerCancel={canReorderTabs ? endTabDrag : undefined}
             >
               <button
                 type="button"
                 className="fvp-tab-main"
                 role="tab"
                 aria-selected={isActive}
-                onClick={() => onActivateTab?.(tabPath)}
+                onClick={() => {
+                  if (suppressTabClickRef.current) {
+                    suppressTabClickRef.current = false;
+                    return;
+                  }
+                  onActivateTab?.(tabPath);
+                }}
                 onDoubleClick={() => onToggleEditorFileMaximized?.()}
                 onContextMenu={openTabContextMenu}
                 title={tabPath}

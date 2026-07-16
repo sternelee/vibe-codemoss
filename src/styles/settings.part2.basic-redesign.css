@@ -287,6 +287,92 @@
   white-space: nowrap;
 }
 
+/* Keep the language dropdown compact — sized to its value, not the full
+   control column — and pinned to the right so its edge aligns with the
+   segmented controls above and below. */
+.settings-section-basic .settings-basic-language-control {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.settings-section-basic .settings-basic-language-select-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: auto;
+}
+
+.settings-section-basic .settings-basic-language-native-select {
+  appearance: none;
+  min-height: 36px;
+  width: auto;
+  min-width: 148px;
+  padding: 7px 38px 7px 13px;
+  border-radius: 10px;
+  border-color: color-mix(
+    in srgb,
+    var(--settings-basic-control-border) 88%,
+    transparent
+  );
+  background: color-mix(
+    in srgb,
+    var(--settings-basic-control) 96%,
+    transparent
+  );
+  color: var(--settings-basic-text);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.settings-section-basic .settings-basic-language-native-select:hover {
+  border-color: color-mix(
+    in srgb,
+    var(--settings-basic-text-muted) 46%,
+    var(--settings-basic-control-border)
+  );
+  background: var(--settings-basic-control-hover);
+}
+
+.settings-section-basic .settings-basic-language-native-select:focus-visible {
+  outline: none;
+  border-color: var(--border-accent, #2563eb);
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--border-accent, #2563eb) 20%, transparent);
+}
+
+.settings-section-basic .settings-basic-language-select-icon {
+  position: absolute;
+  right: 12px;
+  width: 16px;
+  height: 16px;
+  color: var(--settings-basic-text-muted);
+  pointer-events: none;
+  transition:
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.settings-section-basic
+  .settings-basic-language-select-wrap:hover
+  .settings-basic-language-select-icon,
+.settings-section-basic
+  .settings-basic-language-select-wrap:focus-within
+  .settings-basic-language-select-icon {
+  color: var(--settings-basic-text);
+}
+
+.settings-section-basic
+  .settings-basic-language-select-wrap:focus-within
+  .settings-basic-language-select-icon {
+  transform: translateY(1px);
+}
+
 .settings-section-basic .settings-sound-select-row-shadcn .settings-sound-test-btn {
   min-width: 92px;
   min-height: 38px;

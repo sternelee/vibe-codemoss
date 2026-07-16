@@ -11,7 +11,10 @@ import {
   flushLiveAssistantShadowTranscriptsNow,
   resetLiveAssistantShadowTranscriptsForTests,
 } from "../utils/liveAssistantShadowTranscript";
-import { useThreadItemEvents } from "./useThreadItemEvents";
+import {
+  canProgressEventStartProcessing,
+  useThreadItemEvents,
+} from "./useThreadItemEvents";
 import {
   workspaceScopedSet,
 } from "./workspaceScopedMap";
@@ -96,6 +99,15 @@ const makeOptions = (overrides: SetupOverrides = {}) => {
   };
 };
 
+describe("canProgressEventStartProcessing", () => {
+  it("denies Codex progress startup without changing other engines", () => {
+    expect(canProgressEventStartProcessing("codex")).toBe(false);
+    expect(canProgressEventStartProcessing("claude")).toBe(true);
+    expect(canProgressEventStartProcessing("gemini")).toBe(true);
+    expect(canProgressEventStartProcessing("opencode")).toBe(true);
+  });
+});
+
 describe("useThreadItemEvents", () => {
   const convertedItem = {
     id: "item-1",
@@ -127,7 +139,7 @@ describe("useThreadItemEvents", () => {
       threadId: "thread-1",
       engine: "codex",
     });
-    expect(markProcessing).toHaveBeenCalledWith("thread-1", true);
+    expect(markProcessing).not.toHaveBeenCalled();
     expect(markReviewing).toHaveBeenCalledWith("thread-1", true);
     expect(applyCollabThreadLinks).toHaveBeenCalledWith("thread-1", item);
     expect(dispatch).toHaveBeenCalledWith({
@@ -148,7 +160,7 @@ describe("useThreadItemEvents", () => {
       result.current.onItemUpdated("ws-1", "thread-1", item);
     });
 
-    expect(markProcessing).toHaveBeenCalledWith("thread-1", true);
+    expect(markProcessing).not.toHaveBeenCalled();
     expect(dispatch).toHaveBeenCalledWith({
       type: "ensureThread",
       workspaceId: "ws-1",
@@ -189,7 +201,7 @@ describe("useThreadItemEvents", () => {
       });
     });
 
-    expect(markProcessing).toHaveBeenCalledWith("thread-1", true);
+    expect(markProcessing).not.toHaveBeenCalled();
     expect(dispatch).toHaveBeenCalledWith({
       type: "incrementAgentSegment",
       threadId: "thread-1",
@@ -356,7 +368,7 @@ describe("useThreadItemEvents", () => {
       threadId: "thread-1",
       engine: "codex",
     });
-    expect(markProcessing).toHaveBeenCalledWith("thread-1", true);
+    expect(markProcessing).not.toHaveBeenCalled();
     expect(dispatch).toHaveBeenCalledWith({
       type: "applyNormalizedRealtimeEvent",
       workspaceId: "ws-1",
@@ -454,7 +466,7 @@ describe("useThreadItemEvents", () => {
       }),
       hasCustomName: false,
     });
-    expect(markProcessing).toHaveBeenCalledWith("thread-1", true);
+    expect(markProcessing).not.toHaveBeenCalled();
     expect(safeMessageActivity).toHaveBeenCalledTimes(2);
 
     vi.useRealTimers();
@@ -514,8 +526,7 @@ describe("useThreadItemEvents", () => {
       threadId: "thread-1",
       engine: "codex",
     });
-    expect(markProcessing).toHaveBeenCalledTimes(1);
-    expect(markProcessing).toHaveBeenCalledWith("thread-1", true);
+    expect(markProcessing).not.toHaveBeenCalled();
     expect(dispatch).toHaveBeenNthCalledWith(2, {
       type: "applyNormalizedRealtimeEvent",
       workspaceId: "ws-1",
@@ -833,7 +844,7 @@ describe("useThreadItemEvents", () => {
       threadId: "thread-1",
       engine: "codex",
     });
-    expect(markProcessing).toHaveBeenCalledWith("thread-1", true);
+    expect(markProcessing).not.toHaveBeenCalled();
     expect(dispatch).toHaveBeenCalledWith({
       type: "appendAgentDelta",
       workspaceId: "ws-1",
@@ -911,7 +922,7 @@ describe("useThreadItemEvents", () => {
 
     expect(queuedTransitions).toHaveLength(1);
     expect(dispatch).not.toHaveBeenCalled();
-    expect(markProcessing).toHaveBeenCalledWith("thread-1", true);
+    expect(markProcessing).not.toHaveBeenCalled();
     expect(safeMessageActivity).toHaveBeenCalledTimes(1);
 
     markProcessing.mockClear();
@@ -957,7 +968,7 @@ describe("useThreadItemEvents", () => {
     });
 
     expect(queuedTransitions).toHaveLength(1);
-    expect(markProcessing).toHaveBeenCalledWith("thread-1", true);
+    expect(markProcessing).not.toHaveBeenCalled();
     expect(dispatch).not.toHaveBeenCalledWith(
       expect.objectContaining({ type: "applyNormalizedRealtimeEvent" }),
     );

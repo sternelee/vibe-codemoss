@@ -417,6 +417,7 @@ export function AppShell() {
     handleActivateFileTab,
     handleCloseFileTab,
     handleCloseAllFileTabs,
+    handleReorderFileTabs,
     handleExitEditor,
     activeWorkspaceIdRef,
     activeWorkspaceRef,
@@ -790,6 +791,7 @@ export function AppShell() {
   } = useThreads({
     activeWorkspace,
     onWorkspaceConnected: markWorkspaceConnected,
+    onWorkspaceModelsRefresh: refreshModels,
     onDebug: addDebugEntry,
     model: null,
     effort: null,
@@ -1826,6 +1828,7 @@ export function AppShell() {
       handleOpenMailSession,
       handleOpenModelSettings,
       handleRefreshModelConfig,
+      handleReorderFileTabs,
       handleOpenRenameWorktree,
       handleResolvedClaudeThinkingVisibleChange,
       handlePickGitRoot,

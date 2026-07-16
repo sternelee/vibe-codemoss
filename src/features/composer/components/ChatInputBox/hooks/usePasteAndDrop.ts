@@ -563,6 +563,10 @@ export function usePasteAndDrop({
       if (!dropZone) {
         return;
       }
+      if (event.payload.type === 'leave') {
+        resetDragHint();
+        return;
+      }
       const position = normalizeDragPosition(
         event.payload.position,
         lastClientPositionRef.current,
@@ -603,9 +607,6 @@ export function usePasteAndDrop({
         clearDetachedFileTreeDragSnapshot();
         clearFileTreeDragBridge();
         return;
-      }
-      if (event.payload.type === 'leave') {
-        resetDragHint();
       }
     });
     return () => {

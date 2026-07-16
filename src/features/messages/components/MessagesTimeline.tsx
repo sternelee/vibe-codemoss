@@ -221,6 +221,7 @@ type MessagesTimelineProps = {
   conversationLightweightModeEnabled: boolean;
   messageNodeByIdRef: MutableRefObject<Map<string, HTMLDivElement>>;
   onOpenDiffPath?: (path: string) => void;
+  onPreviewFileDiff?: (path: string) => void;
   onConversationDetailHydrationRequest: () => void;
   onConversationLightweightModeEnable: () => void;
   onRecoverThreadRuntime?: (
@@ -378,6 +379,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
   conversationLightweightModeEnabled,
   messageNodeByIdRef,
   onOpenDiffPath,
+  onPreviewFileDiff,
   onConversationDetailHydrationRequest,
   onConversationLightweightModeEnable,
   onRecoverThreadRuntime,
@@ -1657,7 +1659,10 @@ export const MessagesTimeline = memo(function MessagesTimeline({
             />
           </div>
           {turnFilesChangedSummary && (
-            <TurnFilesChangedCard summary={turnFilesChangedSummary} />
+            <TurnFilesChangedCard
+              summary={turnFilesChangedSummary}
+              onPreviewFileDiff={onPreviewFileDiff}
+            />
           )}
           {shouldRenderFinalBoundary && (
             <Marker
@@ -2234,9 +2239,12 @@ export const MessagesTimeline = memo(function MessagesTimeline({
           </div>
         )}
         {shouldVirtualizeTimeline ? renderVirtualProjectionRows() : renderStaticProjectionRows()}
-        {sessionFileChangesSummary && !hasPendingUserTurn && (
+        {sessionFileChangesSummary && !isWorking && !hasPendingUserTurn && (
           <div className="messages-session-files-changed">
-            <TurnFilesChangedCard summary={sessionFileChangesSummary} />
+            <TurnFilesChangedCard
+              summary={sessionFileChangesSummary}
+              onPreviewFileDiff={onPreviewFileDiff}
+            />
           </div>
         )}
         <div ref={bottomRef} />

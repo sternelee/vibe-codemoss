@@ -403,6 +403,37 @@ describe("GenericToolBlock", () => {
     expect(screen.getByText("const x = 1;")).toBeTruthy();
   });
 
+  it("keeps apply_patch added-file content inside the conversation canvas", () => {
+    const onOpenDiffPath = vi.fn();
+    const view = render(
+      <GenericToolBlock
+        item={{
+          ...fileChangeItem,
+          id: "tool-added-apply-patch-diff",
+          changes: [
+            {
+              path: "src/New.tsx",
+              kind: "added",
+              diff: [
+                "*** Add File: src/New.tsx",
+                "+const value = 1;",
+                "*** End Patch",
+              ].join("\n"),
+            },
+          ],
+        }}
+        isExpanded
+        onToggle={vi.fn()}
+        onOpenDiffPath={onOpenDiffPath}
+      />,
+    );
+
+    fireEvent.click(view.container.querySelector('[data-slot="marker"]') as HTMLElement);
+
+    expect(onOpenDiffPath).not.toHaveBeenCalled();
+    expect(screen.getByText("const value = 1;")).toBeTruthy();
+  });
+
   it("omits file-count label for single file changes", () => {
     render(
       <GenericToolBlock

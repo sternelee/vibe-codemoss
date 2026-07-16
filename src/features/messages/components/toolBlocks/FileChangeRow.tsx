@@ -45,8 +45,11 @@ export function unifiedDiffToPreview(
   maxLines = DEFAULT_DIFF_PREVIEW_MAX_LINES,
 ): FileChangeDiffPreview {
   const parsed = parseDiff(diffText);
-  const truncated = parsed.length > maxLines;
-  const visible = truncated ? parsed.slice(0, maxLines) : parsed;
+  const parsedLines = parsed.some((line) => line.type !== 'hunk' && line.type !== 'meta')
+    ? parsed
+    : parseApplyPatchFileBody(diffText);
+  const truncated = parsedLines.length > maxLines;
+  const visible = truncated ? parsedLines.slice(0, maxLines) : parsedLines;
   return {
     lines: visible.map(
       (line): FileChangeDiffLine => ({
@@ -63,6 +66,29 @@ export function unifiedDiffToPreview(
     ),
     truncated,
   };
+}
+
+function parseApplyPatchFileBody(diffText: string): ReturnType<typeof parseDiff> {
+  const lines = diffText.split(/\r?\n/);
+  const fileHeaderIndex = lines.findIndex((line) =>
+    /^\*\*\* (?:Add|Delete) File: /.test(line.trim()),
+  );
+  if (fileHeaderIndex < 0) {
+    return [];
+  }
+
+  const parsed: ReturnType<typeof parseDiff> = [];
+  for (const line of lines.slice(fileHeaderIndex + 1)) {
+    if (line.trim().startsWith('*** ')) {
+      break;
+    }
+    if (line.startsWith('+')) {
+      parsed.push({ type: 'add', oldLine: null, newLine: null, text: line.slice(1) });
+    } else if (line.startsWith('-')) {
+      parsed.push({ type: 'del', oldLine: null, newLine: null, text: line.slice(1) });
+    }
+  }
+  return parsed;
 }
 
 interface FileChangeRowProps {

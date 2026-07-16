@@ -13,9 +13,11 @@ import { useTranslation } from "react-i18next";
 
 import { ThreadList } from "./ThreadList";
 import { ThreadEmptyState } from "./ThreadEmptyState";
+import { ThreadLoadingState } from "./ThreadLoadingState";
 import { WorktreeSection } from "./WorktreeSection";
 import { PinnedThreadList } from "./PinnedThreadList";
 import { WorkspaceCard } from "./WorkspaceCard";
+import type { WorkspaceRowPinnedAction } from "./WorkspaceCard";
 import { WorkspaceGroup } from "./WorkspaceGroup";
 import { WorkspaceSessionFolderTree } from "./WorkspaceSessionFolderTree";
 import { SidebarFolderMovePicker } from "./SidebarFolderMovePicker";
@@ -29,6 +31,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { RendererContextMenu } from "../../../components/ui/RendererContextMenu";
 import { useCollapsedGroups } from "../hooks/useCollapsedGroups";
 import { useExitedSessionVisibility } from "../hooks/useExitedSessionVisibility";
+import {
+  PINNABLE_WORKSPACE_ACTION_IDS,
+  useSidebarWorkspacePinnedActions,
+} from "../hooks/useSidebarWorkspacePinnedActions";
 import { registerKeydownHandler } from "../hooks/keyboardDispatcher";
 import { useSidebarMenus } from "../hooks/useSidebarMenus";
 import type { ThreadMoveFolderTarget } from "../hooks/useSidebarMenus";
@@ -65,6 +71,10 @@ import {
 } from "./sidebarInternals";
 import ChevronsDownUp from "lucide-react/dist/esm/icons/chevrons-down-up";
 import Copy from "lucide-react/dist/esm/icons/copy";
+import ArrowRight from "lucide-react/dist/esm/icons/arrow-right";
+import Eye from "lucide-react/dist/esm/icons/eye";
+import EyeOff from "lucide-react/dist/esm/icons/eye-off";
+import FolderTree from "lucide-react/dist/esm/icons/folder-tree";
 import GitBranch from "lucide-react/dist/esm/icons/git-branch";
 import House from "lucide-react/dist/esm/icons/house";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
@@ -183,6 +193,7 @@ type SidebarProps = {
   onLoadOlderThreads: (workspaceId: string) => void;
   onReloadWorkspaceThreads: (workspaceId: string) => void;
   onQuickReloadWorkspaceThreads?: (workspaceId: string) => void;
+  onRequestRootSessionFolderDraft?: (workspaceId: string) => void;
   workspaceDropTargetRef: RefObject<HTMLElement | null>;
   isWorkspaceDropActive: boolean;
   workspaceDropText: string;
@@ -197,11 +208,14 @@ type SidebarProps = {
   onOpenProjectMemory: () => void;
   onOpenReleaseNotes: () => void;
   onOpenSpecHub: () => void;
-  onOpenWorkspaceHome: () => void;
+  onOpenWorkspaceHome: (workspaceId?: string) => void;
   onOpenGlobalSearch: () => void;
   globalSearchShortcut: string | null;
   openChatShortcut: string | null;
   openKanbanShortcut: string | null;
+  isExitedSessionsHidden?: (workspacePath: string) => boolean;
+  onToggleExitedSessionsHidden?: (workspacePath: string) => void;
+  rootSessionFolderDraftRequestByWorkspaceId?: Record<string, number>;
   showLoadingProgressDialog?: LoadingProgressController["showLoadingProgressDialog"];
   hideLoadingProgressDialog?: LoadingProgressController["hideLoadingProgressDialog"];
   topbarNode?: ReactNode;
@@ -273,6 +287,7 @@ function SidebarImpl({
   onLoadOlderThreads,
   onReloadWorkspaceThreads,
   onQuickReloadWorkspaceThreads,
+  onRequestRootSessionFolderDraft,
   workspaceDropTargetRef,
   isWorkspaceDropActive,
   workspaceDropText,
@@ -287,11 +302,14 @@ function SidebarImpl({
   onOpenProjectMemory,
   onOpenReleaseNotes,
   onOpenSpecHub,
-  onOpenWorkspaceHome: _onOpenWorkspaceHome,
+  onOpenWorkspaceHome,
   onOpenGlobalSearch,
   globalSearchShortcut,
   openChatShortcut,
   openKanbanShortcut,
+  isExitedSessionsHidden: controlledIsExitedSessionsHidden,
+  onToggleExitedSessionsHidden: controlledToggleExitedSessionsHidden,
+  rootSessionFolderDraftRequestByWorkspaceId: controlledRootSessionFolderDraftRequestByWorkspaceId,
   showLoadingProgressDialog,
   hideLoadingProgressDialog,
   topbarNode,
@@ -336,7 +354,7 @@ function SidebarImpl({
   const [codexProviderProfiles, setCodexProviderProfiles] = useState<
     CodexProviderProfileOption[]
   >([]);
-  const [rootSessionFolderDraftRequestByWorkspaceId, setRootSessionFolderDraftRequestByWorkspaceId] = useState<
+  const [localRootSessionFolderDraftRequestByWorkspaceId, setLocalRootSessionFolderDraftRequestByWorkspaceId] = useState<
     Record<string, number>
   >(() => ({}));
   const [collapsedSessionFolderIdsByWorkspaceId, setCollapsedSessionFolderIdsByWorkspaceId] = useState<
@@ -349,8 +367,88 @@ function SidebarImpl({
     new Map<string, WorkspaceSessionFolderWorkspaceProjectionCacheEntry>(),
   );
   const [folderMovePickerQuery, setFolderMovePickerQuery] = useState("");
-  const { isExitedSessionsHidden, toggleExitedSessionsHidden } =
-    useExitedSessionVisibility();
+  const internalExitedSessionVisibility = useExitedSessionVisibility();
+  const isExitedSessionsHidden =
+    controlledIsExitedSessionsHidden ??
+    internalExitedSessionVisibility.isExitedSessionsHidden;
+  const toggleExitedSessionsHidden =
+    controlledToggleExitedSessionsHidden ??
+    internalExitedSessionVisibility.toggleExitedSessionsHidden;
+  const handleOpenRootSessionFolderDraft = useCallback((workspaceId: string) => {
+    onToggleWorkspaceCollapse(workspaceId, false);
+    if (onRequestRootSessionFolderDraft) {
+      onRequestRootSessionFolderDraft(workspaceId);
+      return;
+    }
+    setLocalRootSessionFolderDraftRequestByWorkspaceId((current) => ({
+      ...current,
+      [workspaceId]: (current[workspaceId] ?? 0) + 1,
+    }));
+  }, [onRequestRootSessionFolderDraft, onToggleWorkspaceCollapse]);
+  // 项目行外显的快捷动作：由「...」菜单勾选决定，事件驱动同步。
+  const { pinnedIds: pinnedRowActionIds } = useSidebarWorkspacePinnedActions();
+  const buildWorkspaceRowPinnedActions = useCallback(
+    (
+      entry: WorkspaceInfo,
+      hideExitedSessions: boolean,
+    ): WorkspaceRowPinnedAction[] => {
+      if (pinnedRowActionIds.length === 0) {
+        return [];
+      }
+      const byId: Record<
+        (typeof PINNABLE_WORKSPACE_ACTION_IDS)[number],
+        WorkspaceRowPinnedAction
+      > = {
+        "activate-workspace": {
+          id: "activate-workspace",
+          label: t("sidebar.activateWorkspace"),
+          icon: <ArrowRight size={16} aria-hidden />,
+          onSelect: () => onSelectWorkspace(entry.id),
+        },
+        "reload-threads": {
+          id: "reload-threads",
+          label: t("threads.reloadThreads"),
+          icon: <RefreshCw size={16} aria-hidden />,
+          onSelect: () =>
+            (onQuickReloadWorkspaceThreads ?? onReloadWorkspaceThreads)(
+              entry.id,
+            ),
+        },
+        "toggle-exited-sessions": {
+          id: "toggle-exited-sessions",
+          label: hideExitedSessions
+            ? t("threads.showExitedSessions")
+            : t("threads.hideExitedSessions"),
+          icon: hideExitedSessions ? (
+            <EyeOff size={16} aria-hidden />
+          ) : (
+            <Eye size={16} aria-hidden />
+          ),
+          active: hideExitedSessions,
+          className: "workspace-exited-toggle",
+          onSelect: () => toggleExitedSessionsHidden(entry.path),
+        },
+        "create-session-folder": {
+          id: "create-session-folder",
+          label: t("sidebar.newSessionFolder"),
+          icon: <FolderTree size={16} aria-hidden />,
+          onSelect: () => handleOpenRootSessionFolderDraft(entry.id),
+        },
+      };
+      return PINNABLE_WORKSPACE_ACTION_IDS.filter((id) =>
+        pinnedRowActionIds.includes(id),
+      ).map((id) => byId[id]);
+    },
+    [
+      pinnedRowActionIds,
+      t,
+      onSelectWorkspace,
+      onQuickReloadWorkspaceThreads,
+      onReloadWorkspaceThreads,
+      toggleExitedSessionsHidden,
+      handleOpenRootSessionFolderDraft,
+    ],
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [isSearchOpen] = useState(false);
@@ -753,6 +851,39 @@ function SidebarImpl({
     threadsByWorkspace,
     t,
   ]);
+  const shouldShowExitedSessionsToggle = useCallback(
+    (workspace: WorkspaceInfo) => {
+      const threads = getProjectedThreads(workspace.id);
+      const isExpanded = expandedWorkspaces.has(workspace.id);
+      const visibleThreadRootCount = normalizeVisibleThreadRootCount(
+        workspace.settings.visibleThreadRootCount,
+      );
+      const { unpinnedRows } = getThreadRows(
+        threads,
+        isExpanded,
+        workspace.id,
+        getPinTimestamp,
+        visibleThreadRootCount,
+      );
+      const hideExitedSessions = isExitedSessionsHidden(workspace.path);
+      const visibility = getExitedSessionRowVisibility(unpinnedRows, {
+        hideExitedSessions,
+        isExitedThread: (thread) => {
+          const status = threadStatusById[thread.id];
+          return !status?.isProcessing && !status?.isReviewing;
+        },
+      });
+      return visibility.hasExitedSessions || visibility.hiddenExitedCount > 0;
+    },
+    [
+      expandedWorkspaces,
+      getPinTimestamp,
+      getProjectedThreads,
+      getThreadRows,
+      isExitedSessionsHidden,
+      threadStatusById,
+    ],
+  );
   const {
     showThreadMenu,
     showWorkspaceMenu,
@@ -802,7 +933,12 @@ function SidebarImpl({
         setFolderMovePickerQuery("");
       },
       onOpenClaudeTui,
-      onReloadWorkspaceThreads,
+      onReloadWorkspaceThreads: onQuickReloadWorkspaceThreads ?? onReloadWorkspaceThreads,
+      onActivateWorkspace: onSelectWorkspace,
+      onCreateSessionFolder: handleOpenRootSessionFolderDraft,
+      onToggleExitedSessions: toggleExitedSessionsHidden,
+      shouldShowExitedSessionsToggle,
+      isExitedSessionsHidden,
       onDeleteWorkspace,
       onDeleteWorktree,
       onRenameWorkspaceAlias,
@@ -836,6 +972,14 @@ function SidebarImpl({
         return <EngineIcon engine="gemini" size={14} />;
       case "reload":
         return <RefreshCw size={13} />;
+      case "activate":
+        return <ArrowRight size={13} />;
+      case "exited-sessions-hidden":
+        return <EyeOff size={13} />;
+      case "exited-sessions-visible":
+        return <Eye size={13} />;
+      case "new-folder":
+        return <FolderTree size={13} />;
       case "new-shared":
         return <SharedSessionIcon size={13} />;
       case "alias":
@@ -1472,14 +1616,6 @@ function SidebarImpl({
     [mergeSessionFolder, refreshWorkspaceSessionFolders, t],
   );
 
-  const handleOpenRootSessionFolderDraft = useCallback((workspaceId: string) => {
-    onToggleWorkspaceCollapse(workspaceId, false);
-    setRootSessionFolderDraftRequestByWorkspaceId((current) => ({
-      ...current,
-      [workspaceId]: (current[workspaceId] ?? 0) + 1,
-    }));
-  }, [onToggleWorkspaceCollapse]);
-
   const handleOpenSessionFolderSessionMenu = useCallback(
     (event: ReactMouseEvent, workspaceId: string, folderId: string) => {
       const workspace = workspaces.find((entry) => entry.id === workspaceId);
@@ -1554,14 +1690,6 @@ function SidebarImpl({
     [refreshWorkspaceSessionFolders, removeSessionFolder, t],
   );
 
-  const hasDegradedThreadList = useCallback((threads: ThreadSummary[]) => {
-    return threads.some((thread) => {
-      const partialSource =
-        typeof thread.partialSource === "string" ? thread.partialSource.trim() : "";
-      return thread.isDegraded || partialSource.length > 0;
-    });
-  }, []);
-
   const moveFolderTargetsByWorkspaceId = useMemo(() => {
     const targetsByWorkspaceId: Record<string, ThreadMoveFolderTarget[]> = {};
     for (const [workspaceId, folders] of Object.entries(sessionFoldersByWorkspaceId)) {
@@ -1607,23 +1735,25 @@ function SidebarImpl({
     const totalThreadRoots = threadRows?.totalRoots ?? 0;
     const nextCursor =
       threadListCursorByWorkspace[entry.id] ?? null;
-    const showThreadList =
-      !isCollapsed && (threads.length > 0 || Boolean(nextCursor));
+    const isThreadListHydrated = hydratedThreadListWorkspaceIds.has(entry.id);
     const isPaging = threadListPagingByWorkspace[entry.id] ?? false;
     const worktrees = worktreesByParent.get(entry.id) ?? [];
+    // Until a workspace finishes its first hydration, show a loading placeholder
+    // instead of leaving the expanded region blank or leaking stale/fallback-named
+    // ("Agent 1", "Agent 2") preview threads before real data lands.
+    const showThreadLoadingState =
+      !isThreadListHydrated &&
+      worktrees.length === 0;
+    const showThreadList =
+      !showThreadLoadingState &&
+      (threads.length > 0 || Boolean(nextCursor));
     const isWorktreeSectionCollapsed =
       collapsedWorktreeSections.has(entry.id);
     const showThreadEmptyState =
-      !isCollapsed &&
       !showThreadList &&
+      !showThreadLoadingState &&
       worktrees.length === 0 &&
-      hydratedThreadListWorkspaceIds.has(entry.id);
-    const isThreadListDegraded =
-      hasDegradedThreadList(threads) ||
-      worktrees.some((worktree) => hasDegradedThreadList(threadsByWorkspace[worktree.id] ?? []));
-    const isThreadListRefreshing =
-      Boolean(_threadListLoadingByWorkspace[entry.id]) ||
-      worktrees.some((worktree) => Boolean(_threadListLoadingByWorkspace[worktree.id]));
+      isThreadListHydrated;
     const hasPrimaryActiveThread =
       entry.id === activeWorkspaceId && Boolean(activeThreadId);
     const hasRunningSession = hasRunningSessionByProjectId.get(entry.id) ?? false;
@@ -1632,26 +1762,19 @@ function SidebarImpl({
       entry.settings.visibleThreadRootCount,
     );
     const hideExitedSessions = isExitedSessionsHidden(entry.path);
-    const exitedSessionVisibility = getExitedSessionRowVisibility(unpinnedRows, {
-      hideExitedSessions,
-      isExitedThread: (thread) => {
-        const status = threadStatusById[thread.id];
-        return !status?.isProcessing && !status?.isReviewing;
-      },
-    });
     const sessionFolders = sessionFoldersByWorkspaceId[entry.id] ?? EMPTY_SESSION_FOLDERS;
     const collapsedSessionFolderIds = new Set(
       collapsedSessionFolderIdsByWorkspaceId[entry.id] ?? [],
     );
     const rootFolderDraftRequestKey =
-      rootSessionFolderDraftRequestByWorkspaceId[entry.id] ?? 0;
+      (localRootSessionFolderDraftRequestByWorkspaceId[entry.id] ?? 0) +
+      (controlledRootSessionFolderDraftRequestByWorkspaceId?.[entry.id] ?? 0);
     const { folderMoveTargets, folderProjection } =
       getWorkspaceSessionFolderProjection(entry.id, unpinnedRows);
     const hasVisibleFolderTree =
       sessionFolders.length > 0 || folderProjection.rootRows.length > 0;
     const hasRootFolderDraftRequest = rootFolderDraftRequestKey > 0;
     const showFolderProjection =
-      !isCollapsed &&
       (showThreadList || hasRootFolderDraftRequest) &&
       (hasVisibleFolderTree || hasRootFolderDraftRequest);
     return (
@@ -1661,25 +1784,16 @@ function SidebarImpl({
         workspaceName={renderHighlightedName(getWorkspaceSidebarLabel(entry))}
         workspaceAliasOriginalName={workspaceSidebarAlias ? entry.name : null}
         isActive={entry.id === activeWorkspaceId}
-        isThreadListDegraded={isThreadListDegraded}
-        isThreadListRefreshing={isThreadListRefreshing}
         hasPrimaryActiveThread={hasPrimaryActiveThread}
         hasRunningSession={hasRunningSession}
-        showExitedSessionsToggle={
-          exitedSessionVisibility.hasExitedSessions
-          || exitedSessionVisibility.hiddenExitedCount > 0
-        }
-        hideExitedSessions={hideExitedSessions}
-        hiddenExitedSessionsCount={exitedSessionVisibility.hiddenExitedCount}
         isCollapsed={isCollapsed}
         onShowWorkspaceMenu={showWorkspaceMenu}
-        onCreateSessionFolder={handleOpenRootSessionFolderDraft}
-        onQuickReloadWorkspaceThreads={onQuickReloadWorkspaceThreads}
+        onOpenWorkspaceHome={onOpenWorkspaceHome}
         onSelectWorkspace={onSelectWorkspace}
         onToggleWorkspaceCollapse={onToggleWorkspaceCollapse}
-        onToggleExitedSessions={toggleExitedSessionsHidden}
+        pinnedRowActions={buildWorkspaceRowPinnedActions(entry, hideExitedSessions)}
       >
-        {!isCollapsed && worktrees.length > 0 && (
+        {worktrees.length > 0 && (
           <WorktreeSection
             parentWorkspaceId={entry.id}
             worktrees={worktrees}
@@ -1807,6 +1921,7 @@ function SidebarImpl({
             {t("sidebar.sessionFolderLoadFailed")}
           </div>
         ) : null}
+        {showThreadLoadingState ? <ThreadLoadingState /> : null}
         {showThreadEmptyState ? <ThreadEmptyState /> : null}
       </WorkspaceCard>
     );
@@ -1827,13 +1942,12 @@ function SidebarImpl({
     handleToggleExpanded,
     handleToggleWorktreeSection,
     handleCreateSessionFolder,
-    handleOpenRootSessionFolderDraft,
     handleOpenSessionFolderSessionMenu,
     handleRenameSessionFolder,
     handleDeleteSessionFolder,
     handleToggleSessionFolderCollapsed,
     getWorkspaceSessionFolderProjection,
-    hasDegradedThreadList,
+    buildWorkspaceRowPinnedActions,
     isThreadAutoNaming,
     isThreadPinned,
     hasRunningSessionByProjectId,
@@ -1842,6 +1956,7 @@ function SidebarImpl({
     onConfirmDeleteConfirm,
     onConnectWorkspace,
     onLoadOlderThreads,
+    onOpenWorkspaceHome,
     onSelectWorkspace,
     onSelectThread,
     showThreadMenu,
@@ -1858,7 +1973,8 @@ function SidebarImpl({
     moveFolderTargetsByWorkspaceId,
     sessionFolderErrorByWorkspaceId,
     sessionFoldersByWorkspaceId,
-    rootSessionFolderDraftRequestByWorkspaceId,
+    localRootSessionFolderDraftRequestByWorkspaceId,
+    controlledRootSessionFolderDraftRequestByWorkspaceId,
     t,
     threadListCursorByWorkspace,
     threadListPagingByWorkspace,
@@ -2063,11 +2179,9 @@ function SidebarImpl({
               t={t}
               onToggleOpen={() => setIsSettingsMenuOpen((prev) => !prev)}
               onClose={() => setIsSettingsMenuOpen(false)}
-              onOpenSkillsComingSoon={handleOpenSkillsComingSoon}
               onLockPanel={onLockPanel}
               onOpenSpecHub={onOpenSpecHub}
               onOpenProjectMemory={onOpenProjectMemory}
-              onOpenReleaseNotes={onOpenReleaseNotes}
               onOpenSettings={onOpenSettings}
               onAppModeChange={onAppModeChange}
             />

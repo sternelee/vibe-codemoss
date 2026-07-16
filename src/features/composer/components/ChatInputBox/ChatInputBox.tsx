@@ -184,7 +184,6 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
       providerModelCatalogs,
       permissionMode = 'bypassPermissions',
       currentProvider = 'claude',
-      providerProfileLabel = null,
       providerAvailability,
       providerVersions,
       providerStatusLabels,
@@ -360,8 +359,12 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
       ],
     );
 
-    // Flag to track if we're updating from external value
-    const isExternalUpdateRef = useRef(false);
+    // Records the exact text of the latest programmatic (external) write.
+    // Programmatic innerText assignment fires no input event, so this must NOT
+    // be a boolean "swallow next input" flag: a real user edit (e.g. clearing
+    // the box) would be the next input and get silently dropped, leaving the
+    // parent draft stale. Only an input whose text equals this value is an echo.
+    const isExternalUpdateRef = useRef<string | null>(null);
 
     // Shared composing state ref - created early so it can be used by detectAndTriggerCompletion
     // This ref is synced with useIMEComposition's isComposingRef
@@ -740,6 +743,9 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
         pendingCommitOptionsRef.current = null;
         lastBeforeInputTypeRef.current = undefined;
         lastBeforeInputSelectionReplaceRef.current = false;
+        // Drop any stale external-echo record; the box is programmatically
+        // cleared and the parent is notified directly below.
+        isExternalUpdateRef.current = null;
         // Notify parent component that input is cleared
         onInput?.('');
       }
@@ -811,10 +817,15 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
     const debouncedOnInput = useMemo(
       () =>
         debounce((text: string) => {
-          // Skip if this is an external value update to avoid loops
-          if (isExternalUpdateRef.current) {
-            isExternalUpdateRef.current = false;
-            return;
+          // Skip only true echoes of an external value update (identical text).
+          // A differing text means the user actually edited since the external
+          // write and MUST propagate — swallowing it desyncs the parent draft.
+          if (isExternalUpdateRef.current !== null) {
+            const externalValue = isExternalUpdateRef.current;
+            isExternalUpdateRef.current = null;
+            if (text === externalValue) {
+              return;
+            }
           }
           // Skip during active IME composition to prevent parent re-renders
           // that can disrupt Korean/CJK input in JCEF environments.
@@ -1680,7 +1691,6 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
               models={models}
               permissionMode={permissionMode}
               currentProvider={currentProvider}
-              providerProfileLabel={providerProfileLabel}
               workspaceId={workspaceId}
               providerAvailability={providerAvailability}
               providerVersions={providerVersions}

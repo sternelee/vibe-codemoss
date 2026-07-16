@@ -21,6 +21,12 @@ import type {
   EngineRefreshResult,
 } from "../../engine/hooks/useEngineController";
 import {
+  PINNABLE_WORKSPACE_ACTION_IDS,
+  SIDEBAR_WORKSPACE_PINNED_ACTIONS_CHANGED_EVENT,
+  readSidebarWorkspacePinnedActionIds,
+  toggleSidebarWorkspacePinnedActionId,
+} from "./useSidebarWorkspacePinnedActions";
+import {
   CODEX_DISK_PROVIDER_PROFILE_ID,
   CODEX_DISK_PROVIDER_PROFILE_NAME,
   type CodexProviderProfileSelection,
@@ -28,6 +34,10 @@ import {
 } from "../../threads/constants/codexProviderProfiles";
 
 const CODEX_LAST_PROVIDER_PROFILE_KEY = "codexLastProviderProfileId";
+
+const PINNABLE_WORKSPACE_ACTION_ID_SET = new Set<string>(
+  PINNABLE_WORKSPACE_ACTION_IDS,
+);
 
 function readCodexLastProviderProfileId(): string | null {
   try {
@@ -52,6 +62,10 @@ export type WorkspaceMenuIconKind =
   | "engine-gemini"
   | "new-shared"
   | "alias"
+  | "activate"
+  | "exited-sessions-hidden"
+  | "exited-sessions-visible"
+  | "new-folder"
   | "reload"
   | "remove"
   | "new-worktree"
@@ -71,6 +85,9 @@ export type WorkspaceMenuAction = {
   refreshing?: boolean;
   selected?: boolean;
   keepMenuOpen?: boolean;
+  pinnable?: boolean;
+  pinned?: boolean;
+  onTogglePinned?: () => void;
   /** Hint shown inside the submenu after one of its children is selected. */
   selectionHint?: string;
   onSelect: () => void;
@@ -142,6 +159,11 @@ type SidebarMenuHandlers = {
     sessionId: string;
   }) => void;
   onReloadWorkspaceThreads: (workspaceId: string) => void;
+  onActivateWorkspace?: (workspaceId: string) => void;
+  onCreateSessionFolder?: (workspaceId: string) => void;
+  onToggleExitedSessions?: (workspacePath: string) => void;
+  shouldShowExitedSessionsToggle?: (workspace: WorkspaceInfo) => boolean;
+  isExitedSessionsHidden?: (workspacePath: string) => boolean;
   onDeleteWorkspace: (workspaceId: string) => void;
   onDeleteWorktree: (workspaceId: string) => void;
   onRenameWorkspaceAlias: (workspace: WorkspaceInfo) => void;
@@ -190,6 +212,11 @@ export function useSidebarMenus({
   onOpenThreadFolderPicker,
   onOpenClaudeTui,
   onReloadWorkspaceThreads,
+  onActivateWorkspace,
+  onCreateSessionFolder,
+  onToggleExitedSessions,
+  shouldShowExitedSessionsToggle,
+  isExitedSessionsHidden,
   onDeleteWorkspace,
   onDeleteWorktree,
   onRenameWorkspaceAlias,
@@ -214,10 +241,52 @@ export function useSidebarMenus({
   const workspaceOpenCodeLoginRequestIdRef = useRef<Record<string, number>>({});
   const workspaceEngineRefreshRequestIdRef = useRef<Record<string, number>>({});
   const latestEngineOptionsRef = useRef(engineOptions);
+  const [pinnedActionIds, setPinnedActionIds] = useState<string[]>(() =>
+    readSidebarWorkspacePinnedActionIds(),
+  );
 
   useEffect(() => {
     latestEngineOptionsRef.current = engineOptions;
   }, [engineOptions]);
+
+  useEffect(() => {
+    const handlePinnedActionsChanged = (event: Event) => {
+      const next = (event as CustomEvent<unknown>).detail;
+      if (!Array.isArray(next)) {
+        return;
+      }
+      setPinnedActionIds(
+        next.filter((id): id is string => typeof id === "string"),
+      );
+    };
+    window.addEventListener(
+      SIDEBAR_WORKSPACE_PINNED_ACTIONS_CHANGED_EVENT,
+      handlePinnedActionsChanged,
+    );
+    return () => {
+      window.removeEventListener(
+        SIDEBAR_WORKSPACE_PINNED_ACTIONS_CHANGED_EVENT,
+        handlePinnedActionsChanged,
+      );
+    };
+  }, []);
+
+  // 仅 PINNABLE_WORKSPACE_ACTION_IDS 里的动作出勾选框；其余菜单项返回空对象。
+  const createRowPinMeta = useCallback(
+    (id: string) => {
+      if (!PINNABLE_WORKSPACE_ACTION_ID_SET.has(id)) {
+        return {};
+      }
+      return {
+        pinnable: true,
+        pinned: pinnedActionIds.includes(id),
+        onTogglePinned: () => {
+          setPinnedActionIds(toggleSidebarWorkspacePinnedActionId(id));
+        },
+      };
+    },
+    [pinnedActionIds],
+  );
 
   const isMatchingEngineInfo = useCallback(
     (left: EngineDisplayInfo, right: EngineDisplayInfo) =>
@@ -693,62 +762,6 @@ export function useSidebarMenus({
     ],
   );
 
-  useEffect(() => {
-    if (!workspaceMenuState?.workspace) {
-      return;
-    }
-    setWorkspaceMenuState((prev) => {
-      if (!prev?.workspace) {
-        return prev;
-      }
-      const sessionGroup = buildSessionMenuGroup(prev.workspace, {
-        targetFolderId: prev.targetFolderId,
-      });
-      const nextGroups = prev.groups.map((group) =>
-        group.id === "new-session" ? sessionGroup : group
-      );
-      const prevSignature = JSON.stringify(
-        prev.groups.find((group) => group.id === "new-session")?.actions.map((action) => ({
-          id: action.id,
-          unavailable: action.unavailable,
-          statusLabel: action.statusLabel ?? null,
-          refreshing: action.refreshing ?? false,
-          children: action.children?.map((child) => ({
-            id: child.id,
-            unavailable: child.unavailable,
-            statusLabel: child.statusLabel ?? null,
-            selected: child.selected ?? false,
-          })) ?? null,
-        })) ?? [],
-      );
-      const nextSignature = JSON.stringify(
-        sessionGroup.actions.map((action) => ({
-          id: action.id,
-          unavailable: action.unavailable,
-          statusLabel: action.statusLabel ?? null,
-          refreshing: action.refreshing ?? false,
-          children: action.children?.map((child) => ({
-            id: child.id,
-            unavailable: child.unavailable,
-            statusLabel: child.statusLabel ?? null,
-            selected: child.selected ?? false,
-          })) ?? null,
-        })),
-      );
-      if (prevSignature === nextSignature) {
-        return prev;
-      }
-      return {
-        ...prev,
-        groups: nextGroups,
-      };
-    });
-  }, [
-    buildSessionMenuGroup,
-    workspaceMenuState?.workspace,
-    workspaceOpenCodeLoginState,
-  ]);
-
   const resolveWorkspaceMenuPosition = useCallback((event: MouseEvent) => {
     const menuWidthEstimate = 328;
     const menuHeightEstimate = 420;
@@ -767,6 +780,185 @@ export function useSidebarMenus({
       y: Math.min(Math.max(event.clientY, viewportPadding), maxY),
     };
   }, []);
+
+  const buildWorkspaceMenuGroup = useCallback(
+    (workspace: WorkspaceInfo): WorkspaceMenuGroup => {
+      const workspaceId = workspace.id;
+      const hideExitedSessions = isExitedSessionsHidden?.(workspace.path) ?? false;
+      const showExitedSessionsToggle =
+        Boolean(onToggleExitedSessions) &&
+        (shouldShowExitedSessionsToggle?.(workspace) ?? false);
+
+      return {
+        id: "workspace-actions",
+        label: t("sidebar.workspaceActionsGroup"),
+        actions: [
+          ...(onActivateWorkspace
+            ? [
+                {
+                  id: "activate-workspace",
+                  label: t("sidebar.activateWorkspace"),
+                  iconKind: "activate" as const,
+                  ...createRowPinMeta("activate-workspace"),
+                  onSelect: () => onActivateWorkspace(workspaceId),
+                },
+              ]
+            : []),
+          {
+            id: "reload-threads",
+            label: t("threads.reloadThreads"),
+            iconKind: "reload",
+            ...createRowPinMeta("reload-threads"),
+            onSelect: () => onReloadWorkspaceThreads(workspaceId),
+          },
+          ...(showExitedSessionsToggle && onToggleExitedSessions
+            ? [
+                {
+                  id: "toggle-exited-sessions",
+                  label: hideExitedSessions
+                    ? t("threads.showExitedSessions")
+                    : t("threads.hideExitedSessions"),
+                  iconKind: hideExitedSessions
+                    ? ("exited-sessions-hidden" as const)
+                    : ("exited-sessions-visible" as const),
+                  ...createRowPinMeta("toggle-exited-sessions"),
+                  onSelect: () => onToggleExitedSessions(workspace.path),
+                },
+              ]
+            : []),
+          ...(onCreateSessionFolder
+            ? [
+                {
+                  id: "create-session-folder",
+                  label: t("sidebar.newSessionFolder"),
+                  iconKind: "new-folder" as const,
+                  ...createRowPinMeta("create-session-folder"),
+                  onSelect: () => onCreateSessionFolder(workspaceId),
+                },
+              ]
+            : []),
+          {
+            id: "rename-workspace-alias",
+            label: t("sidebar.setWorkspaceAlias"),
+            iconKind: "alias",
+            ...createRowPinMeta("rename-workspace-alias"),
+            onSelect: () => onRenameWorkspaceAlias(workspace),
+          },
+          {
+            id: "remove-workspace",
+            label: t("sidebar.removeWorkspace"),
+            iconKind: "remove",
+            tone: "danger",
+            ...createRowPinMeta("remove-workspace"),
+            onSelect: () => onDeleteWorkspace(workspaceId),
+          },
+          {
+            id: "new-worktree-agent",
+            label: t("sidebar.newWorktreeAgent"),
+            iconKind: "new-worktree",
+            ...createRowPinMeta("new-worktree-agent"),
+            onSelect: () => onAddWorktreeAgent(workspace),
+          },
+          {
+            id: "new-clone-agent",
+            label: t("sidebar.newCloneAgent"),
+            iconKind: "new-clone",
+            deprecated: true,
+            ...createRowPinMeta("new-clone-agent"),
+            onSelect: () => onAddCloneAgent(workspace),
+          },
+        ],
+      };
+    },
+    [
+      t,
+      createRowPinMeta,
+      onReloadWorkspaceThreads,
+      onActivateWorkspace,
+      onCreateSessionFolder,
+      onToggleExitedSessions,
+      shouldShowExitedSessionsToggle,
+      isExitedSessionsHidden,
+      onDeleteWorkspace,
+      onRenameWorkspaceAlias,
+      onAddWorktreeAgent,
+      onAddCloneAgent,
+    ],
+  );
+
+  useEffect(() => {
+    if (!workspaceMenuState?.workspace) {
+      return;
+    }
+    setWorkspaceMenuState((prev) => {
+      if (!prev?.workspace) {
+        return prev;
+      }
+      const sessionGroup = buildSessionMenuGroup(prev.workspace, {
+        targetFolderId: prev.targetFolderId,
+      });
+      const workspaceGroup = buildWorkspaceMenuGroup(prev.workspace);
+      const nextGroups = prev.groups.map((group) =>
+        group.id === "new-session"
+          ? sessionGroup
+          : group.id === "workspace-actions"
+            ? workspaceGroup
+            : group
+      );
+      const prevSignature = JSON.stringify(
+        prev.groups.map((group) => ({
+          id: group.id,
+          actions: group.actions.map((action) => ({
+            id: action.id,
+            label: action.label,
+            iconKind: action.iconKind,
+            unavailable: action.unavailable,
+            statusLabel: action.statusLabel ?? null,
+            refreshing: action.refreshing ?? false,
+            pinned: action.pinned ?? false,
+            children: action.children?.map((child) => ({
+              id: child.id,
+              unavailable: child.unavailable,
+              statusLabel: child.statusLabel ?? null,
+              selected: child.selected ?? false,
+            })) ?? null,
+          })),
+        })),
+      );
+      const nextSignature = JSON.stringify(
+        nextGroups.map((group) => ({
+          id: group.id,
+          actions: group.actions.map((action) => ({
+            id: action.id,
+            label: action.label,
+            iconKind: action.iconKind,
+            unavailable: action.unavailable,
+            statusLabel: action.statusLabel ?? null,
+            refreshing: action.refreshing ?? false,
+            pinned: action.pinned ?? false,
+            children: action.children?.map((child) => ({
+              id: child.id,
+              unavailable: child.unavailable,
+              statusLabel: child.statusLabel ?? null,
+              selected: child.selected ?? false,
+            })) ?? null,
+          })),
+        })),
+      );
+      if (prevSignature === nextSignature) {
+        return prev;
+      }
+      return {
+        ...prev,
+        groups: nextGroups,
+      };
+    });
+  }, [
+    buildSessionMenuGroup,
+    buildWorkspaceMenuGroup,
+    workspaceMenuState?.workspace,
+    workspaceOpenCodeLoginState,
+  ]);
 
   const showThreadMenu = useCallback(
     (
@@ -981,44 +1173,7 @@ export function useSidebarMenus({
 
       const groups: WorkspaceMenuGroup[] = [
         buildSessionMenuGroup(workspace),
-        {
-          id: "workspace-actions",
-          label: t("sidebar.workspaceActionsGroup"),
-          actions: [
-            {
-              id: "reload-threads",
-              label: t("threads.reloadThreads"),
-              iconKind: "reload",
-              onSelect: () => onReloadWorkspaceThreads(workspaceId),
-            },
-            {
-              id: "rename-workspace-alias",
-              label: t("sidebar.setWorkspaceAlias"),
-              iconKind: "alias",
-              onSelect: () => onRenameWorkspaceAlias(workspace),
-            },
-            {
-              id: "remove-workspace",
-              label: t("sidebar.removeWorkspace"),
-              iconKind: "remove",
-              tone: "danger",
-              onSelect: () => onDeleteWorkspace(workspaceId),
-            },
-            {
-              id: "new-worktree-agent",
-              label: t("sidebar.newWorktreeAgent"),
-              iconKind: "new-worktree",
-              onSelect: () => onAddWorktreeAgent(workspace),
-            },
-            {
-              id: "new-clone-agent",
-              label: t("sidebar.newCloneAgent"),
-              iconKind: "new-clone",
-              deprecated: true,
-              onSelect: () => onAddCloneAgent(workspace),
-            },
-          ],
-        },
+        buildWorkspaceMenuGroup(workspace),
       ];
 
       setWorkspaceMenuState({
@@ -1030,14 +1185,9 @@ export function useSidebarMenus({
       });
     },
     [
-      t,
       buildSessionMenuGroup,
+      buildWorkspaceMenuGroup,
       resolveWorkspaceMenuPosition,
-      onReloadWorkspaceThreads,
-      onDeleteWorkspace,
-      onRenameWorkspaceAlias,
-      onAddWorktreeAgent,
-      onAddCloneAgent,
     ],
   );
 

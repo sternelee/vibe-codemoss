@@ -9,6 +9,7 @@ const translations: Record<string, string> = {
   "sidebar.workspaceActionsGroup": "Workspace actions",
   "sidebar.unavailableTag": "Unavailable",
   "common.refresh": "Refresh",
+  "common.showOnWorkspaceRow": "Show on project row",
 };
 
 function t(key: string) {
@@ -156,6 +157,51 @@ describe("SidebarWorkspaceMenuOverlay", () => {
     expect(
       screen.getByText("Selected. Click Codex to create a session."),
     ).toBeTruthy();
+  });
+
+  it("toggles pinned workspace actions without running the action", () => {
+    const onAction = vi.fn();
+    const onSelect = vi.fn();
+    const onTogglePinned = vi.fn();
+
+    render(
+      <SidebarWorkspaceMenuOverlay
+        menu={{
+          x: 32,
+          y: 28,
+          groups: [
+            {
+              id: "workspace-actions",
+              label: "Workspace actions",
+              actions: [
+                {
+                  id: "reload-threads",
+                  label: "Reload threads",
+                  iconKind: "reload",
+                  onSelect,
+                  pinnable: true,
+                  pinned: true,
+                  onTogglePinned,
+                },
+              ],
+            },
+          ],
+        }}
+        t={t}
+        onClose={vi.fn()}
+        onAction={onAction}
+        renderIcon={() => null}
+      />,
+    );
+
+    const checkbox = screen.getByRole("checkbox", { name: "Show on project row" });
+    expect((checkbox as HTMLInputElement).checked).toBe(true);
+
+    fireEvent.click(checkbox);
+
+    expect(onTogglePinned).toHaveBeenCalledTimes(1);
+    expect(onAction).not.toHaveBeenCalled();
+    expect(onSelect).not.toHaveBeenCalled();
   });
 
   it("opens the child flyout to the left of the root menu near the viewport edge", () => {

@@ -492,7 +492,6 @@ export interface ChatInputBoxAdapterProps {
   // Model/Engine
   selectedModelId: string | null;
   selectedEngine?: EngineType;
-  providerProfileLabel?: string | null;
   isSharedSession?: boolean;
   engines?: AdapterEngineInfo[];
   onSelectEngine?: (engine: EngineType) => void;
@@ -816,6 +815,8 @@ function normalizeReasoningEffort(effort?: string | null): ReasoningEffort | nul
       return 'xhigh';
     case 'max':
       return 'max';
+    case 'ultra':
+      return 'ultra';
     default:
       return null;
   }
@@ -1065,7 +1066,6 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
       onModeSelect,
       selectedModelId,
       selectedEngine,
-      providerProfileLabel = null,
       isSharedSession = false,
       engines,
       onSelectEngine,
@@ -2147,7 +2147,6 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
         providerModelCatalogs={normalizedProviderModelCatalogs}
         permissionMode={permissionMode}
         currentProvider={engineToProvider(selectedEngine)}
-        providerProfileLabel={providerProfileLabel}
         providerAvailability={providerAvailability}
         providerVersions={providerVersions}
         providerStatusLabels={providerStatusLabels}

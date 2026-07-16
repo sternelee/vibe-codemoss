@@ -359,3 +359,30 @@ Codex disk create-session loading MUST only settle as ready when the disk sessio
 - **WHEN** the user creates or resumes a Claude Code session
 - **THEN** Codex disk loading hardening MUST NOT change Claude Code runtime acquisition, session creation, recovery, or user-facing copy
 
+### Requirement: One-click Codex creation remembers the last valid provider
+
+One-click Codex session creation MUST 记忆最近一次用户明确选择且仍可用的 provider profile，并 MUST 将该选择仅用于未来新会话。
+
+#### Scenario: Create another Codex session
+
+- **WHEN** 用户此前选择 managed provider 创建会话且该 provider 仍存在
+- **THEN** 下一次 one-click creation MUST 默认使用该 provider，同时保持用户可切换
+
+#### Scenario: Remembered provider was removed
+
+- **WHEN** 最近 provider 已删除或不可用
+- **THEN** one-click creation MUST 回退到 disk/default provider contract，且不得改变既有 thread binding
+
+### Requirement: Codex User Fork MUST Be A Top-Level Sidebar Conversation
+
+系统 MUST 将用户主动创建的 Codex Fork 作为独立顶层 conversation 投影；native `thread/fork` 返回的 lineage MUST NOT 被 frontend generic Subagent relationship store 解释为 Subagent ownership。
+
+#### Scenario: Codex fork is visible without expanding parent
+- **WHEN** 用户从 Codex conversation 创建 Fork
+- **THEN** parent 与 forked conversation MUST 在 Sidebar 顶层并列可见
+- **AND** forked conversation MUST NOT 显示 `子代理` 标签
+
+#### Scenario: Codex fork does not mutate real subagent projection
+- **WHEN** workspace 同时包含 user-created Codex Fork 与 engine-created Codex Subagent
+- **THEN** 只有 engine-created Subagent MUST 嵌套于其 parent
+- **AND** user-created Fork MUST 保持顶层会话

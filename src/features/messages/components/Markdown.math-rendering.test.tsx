@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { normalizeMarkdownMathForMessage } from "../../markdown/markdownMath";
 import { Markdown, prewarmKatexAssets } from "./Markdown";
 
 describe("Markdown math rendering", () => {
@@ -256,6 +257,64 @@ describe("Markdown math rendering", () => {
     });
   });
 
+  it("preserves ordered-list boundaries for multiline bracket display math", async () => {
+    const value = [
+      "1. 准备两个模板：",
+      "   \\[",
+      "   B_0,\\qquad B_{180}=R_\\pi B_0;",
+      "   \\]",
+      "",
+      "2. 比较两个分数：",
+      "   \\[",
+      "   \\Delta=|s_0-s_{180}|;",
+      "   \\]",
+      "",
+      "后续正文必须保持普通文本。",
+    ].join("\n");
+
+    const { container } = render(
+      <Markdown value={value} className="markdown" codeBlockStyle="message" />,
+    );
+
+    await waitFor(() => {
+      expect(container.querySelectorAll(".katex, .katex-error").length).toBeGreaterThan(0);
+    });
+    expect(container.querySelectorAll(".katex-display").length).toBe(2);
+    expect(container.querySelector(".katex-error")).toBeFalsy();
+    expect(container.textContent).toContain("后续正文必须保持普通文本。");
+    expect(
+      Array.from(container.querySelectorAll(".katex")).some((node) =>
+        node.textContent?.includes("后续正文必须保持普通文本。"),
+      ),
+    ).toBe(false);
+  });
+
+  it("does not rewrap parenthesized latex inside bracket display math", async () => {
+    const value = [
+      "\\[",
+      "(\\theta,t_x,t_y),",
+      "\\]",
+    ].join("\n");
+    const normalized = normalizeMarkdownMathForMessage(value);
+
+    expect(normalized).toContain([
+      "$$",
+      "(\\theta,t_x,t_y),",
+      "$$",
+    ].join("\n"));
+    expect(normalized).not.toContain("$\\theta,t_x,t_y$");
+
+    const { container } = render(
+      <Markdown value={value} className="markdown" codeBlockStyle="message" />,
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector(".katex-display")).toBeTruthy();
+    });
+    expect(container.querySelector(".katex-error")).toBeFalsy();
+    expect(container.querySelector(".katex-display .katex")).toBeTruthy();
+  });
+
   it("does not double-wrap existing multi-line display math blocks", async () => {
     const value = [
       "1. 定义如下：",
@@ -271,6 +330,118 @@ describe("Markdown math rendering", () => {
     await waitFor(() => {
       expect(container.querySelectorAll(".katex-display").length).toBe(1);
     });
+  });
+
+  it("renders compact aligned display math without consuming trailing prose", async () => {
+    const value = [
+      "麦克斯韦方程组：",
+      "",
+      String.raw`$$\begin{aligned}`,
+      String.raw`\nabla \cdot \mathbf{E} &= \frac{\rho}{\varepsilon_0} \\`,
+      String.raw`\nabla \cdot \mathbf{B} &= 0 \\`,
+      String.raw`\nabla \times \mathbf{E} &= -\frac{\partial \mathbf{B}}{\partial t} \\`,
+      String.raw`\nabla \times \mathbf{B} &= \mu_0 \mathbf{J} + \mu_0 \varepsilon_0 \frac{\partial \mathbf{E}}{\partial t}`,
+      String.raw`\end{aligned}$$ 矩阵与行列式：`,
+      "",
+      String.raw`A = \begin{pmatrix} a_{11} & a_{12} \\ a_{21} & a_{22} \end{pmatrix}`,
+    ].join("\n");
+
+    const { container } = render(
+      <Markdown value={value} className="markdown" codeBlockStyle="message" />,
+    );
+
+    await waitFor(() => {
+      expect(container.querySelectorAll(".katex-display").length).toBeGreaterThanOrEqual(2);
+    });
+    expect(container.querySelector(".katex-error")).toBeFalsy();
+    expect(container.textContent).toContain("矩阵与行列式：");
+    expect(
+      Array.from(container.querySelectorAll(".katex")).some((node) =>
+        node.textContent?.includes("矩阵与行列式"),
+      ),
+    ).toBe(false);
+  });
+
+  it("canonicalizes compact display math idempotently", () => {
+    const compactValue = [
+      String.raw`$$\begin{aligned}`,
+      String.raw`x &= y + 1 \\`,
+      String.raw`z &= x^2`,
+      String.raw`\end{aligned}$$ 结论。`,
+    ].join("\n");
+    const normalized = normalizeMarkdownMathForMessage(compactValue);
+
+    expect(normalized).toBe([
+      "$$",
+      String.raw`\begin{aligned}`,
+      String.raw`x &= y + 1 \\`,
+      String.raw`z &= x^2`,
+      String.raw`\end{aligned}`,
+      "$$",
+      "结论。",
+    ].join("\n"));
+    expect(normalizeMarkdownMathForMessage(normalized)).toBe(normalized);
+  });
+
+  it("promotes a standalone bare matrix environment after compact display math", () => {
+    const matrixValue = String.raw`A = \begin{pmatrix} a_{11} & a_{12} \\ a_{21} & a_{22} \end{pmatrix}`;
+    const normalized = normalizeMarkdownMathForMessage([
+      "矩阵与行列式：",
+      "",
+      matrixValue,
+    ].join("\n"));
+
+    expect(normalized).toBe([
+      "矩阵与行列式：",
+      "",
+      "$$",
+      matrixValue,
+      "$$",
+    ].join("\n"));
+  });
+
+  it("keeps unmatched compact display candidates unchanged", () => {
+    const unmatchedValue = [
+      String.raw`$$\begin{aligned}`,
+      String.raw`x &= y + 1 \\`,
+      "后续说明不能被公式吞掉。",
+    ].join("\n");
+
+    expect(normalizeMarkdownMathForMessage(unmatchedValue)).toBe(unmatchedValue);
+  });
+
+  it("keeps compact display-like content inside code fences unchanged", () => {
+    const fencedValue = [
+      "```latex",
+      String.raw`$$\begin{aligned}`,
+      String.raw`x &= y + 1`,
+      String.raw`\end{aligned}$$ 说明`,
+      "```",
+    ].join("\n");
+
+    expect(normalizeMarkdownMathForMessage(fencedValue)).toBe(fencedValue);
+  });
+
+  it("switches compact math from lightweight source to settled KaTeX", async () => {
+    const value = [
+      String.raw`$$\begin{aligned}`,
+      String.raw`x &= y + 1 \\`,
+      String.raw`z &= x^2`,
+      String.raw`\end{aligned}$$`,
+    ].join("\n");
+    const { container, rerender } = render(
+      <Markdown value={value} liveRenderMode="lightweight" />,
+    );
+
+    expect(container.querySelector(".katex")).toBeFalsy();
+    expect(container.textContent).toContain(String.raw`\begin{aligned}`);
+
+    rerender(<Markdown value={value} liveRenderMode="full" />);
+
+    await waitFor(() => {
+      expect(container.querySelector(".katex-display")).toBeTruthy();
+    });
+    expect(container.querySelector(".katex-error")).toBeFalsy();
   });
 
   it("renders latex fenced blocks even when the source includes outer delimiters", async () => {

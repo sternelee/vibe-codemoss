@@ -18,6 +18,7 @@ import {
 } from "../../../utils/workspacePaths";
 import type { FileCompareSession } from "../../files/types/fileCompare";
 import { FILE_COMPARE_MAX_WORKSPACE_FILES } from "../../files/types/fileCompare";
+import { applyStrictTabPermutation } from "../../files/utils/fileTabOrder";
 
 const GIT_DIFF_LIST_VIEW_BY_WORKSPACE_KEY = "gitDiffListViewByWorkspace";
 const GIT_DIFF_PRELOAD_MAX_CHANGED_FILES = 80;
@@ -681,6 +682,16 @@ export function useGitPanelController({
     setEditorSplitCompanion("chat");
     setCenterMode(editorSplitCompanion === "projectMap" ? "projectMap" : "chat");
   }, [editorSplitCompanion, fileTabWorkspaceKey]);
+  const handleReorderFileTabs = useCallback(
+    (nextOrder: string[]) => {
+      setFileTabsByWorkspace((states) =>
+        updateWorkspaceFileTabs(states, fileTabWorkspaceKey, (current) =>
+          applyStrictTabPermutation(current, nextOrder),
+        ),
+      );
+    },
+    [fileTabWorkspaceKey],
+  );
 
   const handleExitEditor = useCallback(() => {
     setCenterMode(editorSplitCompanion === "projectMap" ? "projectMap" : "chat");
@@ -780,6 +791,7 @@ export function useGitPanelController({
     handleActivateFileTab,
     handleCloseFileTab,
     handleCloseAllFileTabs,
+    handleReorderFileTabs,
     handleExitEditor,
     compactTab,
     activeWorkspaceIdRef,

@@ -67,6 +67,7 @@ export type UseAppShellSectionsContext = {
   handleActivateFileTab: any;
   handleCloseFileTab: any;
   handleCloseAllFileTabs: any;
+  handleReorderFileTabs: any;
   handleExitEditor: any;
   selectedDiffPath: any;
   isTablet: any;

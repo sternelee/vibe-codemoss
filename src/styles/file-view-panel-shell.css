@@ -133,3 +133,18 @@
   border-radius: 0;
   background: color-mix(in srgb, var(--border-accent) 88%, #7aa2ff 12%);
 }
+
+/* Drag-to-reorder feedback (VSCode-style) */
+.fvp-tab {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.fvp-tab.is-dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
+.fvp-tab.is-drag-over {
+  box-shadow: inset 2px 0 0 0 var(--border-accent);
+}

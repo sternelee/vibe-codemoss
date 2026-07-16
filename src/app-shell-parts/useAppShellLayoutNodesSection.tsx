@@ -3,6 +3,7 @@ import { useEventCallback } from "../utils/useEventCallback";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { useLayoutNodes } from "../features/layout/hooks/useLayoutNodes";
 import { useMainHeaderActionItems } from "../features/app/components/MainHeaderActions";
+import { useExitedSessionVisibility } from "../features/app/hooks/useExitedSessionVisibility";
 import { WorkspaceAliasPrompt } from "../features/workspaces/components/WorkspaceAliasPrompt";
 import { useClientUiVisibility } from "../features/client-ui-visibility/hooks/useClientUiVisibility";
 import { useProjectMapDataset } from "../features/project-map/hooks/useProjectMapDataset";
@@ -132,6 +133,16 @@ export function useAppShellLayoutNodesSection(
   const runtimeRunState = input.appShellDomainContexts.runtimeContext
     .runtimeRunState as any;
   const clientUiVisibility = useClientUiVisibility();
+  const { isExitedSessionsHidden, toggleExitedSessionsHidden } =
+    useExitedSessionVisibility();
+  const [rootSessionFolderDraftRequestByWorkspaceId, setRootSessionFolderDraftRequestByWorkspaceId] =
+    useState<Record<string, number>>({});
+  const onRequestRootSessionFolderDraft = useCallback((workspaceId: string) => {
+    setRootSessionFolderDraftRequestByWorkspaceId((current) => ({
+      ...current,
+      [workspaceId]: (current[workspaceId] ?? 0) + 1,
+    }));
+  }, []);
   const [workspaceAliasPrompt, setWorkspaceAliasPrompt] =
     useState<WorkspaceAliasPromptState | null>(null);
   const [
@@ -311,6 +322,7 @@ export function useAppShellLayoutNodesSection(
     handleCheckoutBranch,
     handleCloseAllWorkspaceFileTabs,
     handleCloseWorkspaceFileTab,
+    handleReorderWorkspaceFileTabs,
     handleCommit,
     handleCommitAndPush,
     handleCommitAndSync,
@@ -533,7 +545,6 @@ export function useAppShellLayoutNodesSection(
     unpinThread,
     updateCustomInstructions,
     updateSharedSessionEngineSelection,
-    updateThreadParent,
     updateWorkspaceSettings,
     updaterState,
     userInputRequests,
@@ -898,7 +909,6 @@ export function useAppShellLayoutNodesSection(
       alertError(error instanceof Error ? error.message : String(error));
     });
   }, [activeWorkspace?.name, activeWorkspaceId, alertError]);
-
   const mainHeaderActions = useMainHeaderActionItems({
     isCompact,
     rightPanelCollapsed,
@@ -1429,17 +1439,13 @@ export function useAppShellLayoutNodesSection(
         {
           activate: true,
           mode: "messages-only",
+          operation: "fork",
           providerProfileId: options?.providerProfileId ?? null,
           providerProfile: options?.providerProfile ?? null,
         },
       );
       if (!forkedThreadId) {
         throw new Error("Fork did not return a child conversation.");
-      }
-      if (forkedThreadId && forkedThreadId !== activeThreadId) {
-        if (typeof updateThreadParent === "function") {
-          updateThreadParent(activeThreadId, [forkedThreadId]);
-        }
       }
     },
   );
@@ -1662,6 +1668,10 @@ export function useAppShellLayoutNodesSection(
       onLoadOlderThreads: handleLoadOlderThreads,
       onQuickReloadWorkspaceThreads: handleQuickReloadWorkspaceThreads,
       onReloadWorkspaceThreads: handleReloadWorkspaceThreads,
+      isExitedSessionsHidden,
+      onToggleExitedSessionsHidden: toggleExitedSessionsHidden,
+      rootSessionFolderDraftRequestByWorkspaceId,
+      onRequestRootSessionFolderDraft,
       updaterState,
       onUpdate: startUpdate,
       onDismissUpdate: dismissUpdate,
@@ -1728,6 +1738,7 @@ export function useAppShellLayoutNodesSection(
       onActivateEditorTab: handleActivateWorkspaceFileTab,
       onCloseEditorTab: handleCloseWorkspaceFileTab,
       onCloseAllEditorTabs: handleCloseAllWorkspaceFileTabs,
+      onReorderEditorTabs: handleReorderWorkspaceFileTabs,
       onActiveEditorLineRangeChange: setActiveEditorLineRange,
       onOpenFile: handleOpenWorkspaceFile,
       onCompareFiles: handleOpenWorkspaceFileCompare,

@@ -102,6 +102,35 @@ describe("useThreads UX integration", () => {
     vi.useRealTimers();
   });
 
+  it("refreshes the active workspace model catalog when Codex connects", async () => {
+    const onWorkspaceConnected = vi.fn();
+    const onWorkspaceModelsRefresh = vi.fn();
+
+    renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected,
+        onWorkspaceModelsRefresh,
+      }),
+    );
+
+    await act(async () => {
+      handlers?.onWorkspaceConnected?.("ws-1");
+      await Promise.resolve();
+    });
+
+    expect(onWorkspaceConnected).toHaveBeenCalledWith("ws-1");
+    expect(onWorkspaceModelsRefresh).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      handlers?.onWorkspaceConnected?.("ws-2");
+      await Promise.resolve();
+    });
+
+    expect(onWorkspaceConnected).toHaveBeenCalledWith("ws-2");
+    expect(onWorkspaceModelsRefresh).toHaveBeenCalledTimes(1);
+  });
+
   it("resumes selected threads when no local items exist", async () => {
     vi.mocked(resumeThread).mockResolvedValue({
       result: {
@@ -812,6 +841,47 @@ describe("useThreads UX integration", () => {
     expect(result.current.threadStatusById["thread-parallel-a"]?.isProcessing).toBe(false);
     expect(result.current.threadStatusById["thread-parallel-b"]?.isProcessing).toBe(false);
     expect(result.current.activeTurnIdByThread["thread-parallel-b"]).toBeNull();
+  });
+
+  it("keeps a settled Codex sibling idle while the parallel turn continues progress", async () => {
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      handlers?.onTurnStarted?.("ws-1", "thread-authority-a", "turn-a-1");
+      handlers?.onTurnStarted?.("ws-1", "thread-authority-b", "turn-b-1");
+      handlers?.onTurnCompleted?.("ws-1", "thread-authority-a", "turn-a-1");
+    });
+
+    await act(async () => {
+      handlers?.onItemUpdated?.("ws-1", "thread-authority-b", {
+        id: "tool-b-1",
+        type: "commandExecution",
+        status: "inProgress",
+        turnId: "turn-b-1",
+      });
+      handlers?.onItemUpdated?.("ws-1", "thread-authority-a", {
+        id: "tool-a-late",
+        type: "commandExecution",
+        status: "inProgress",
+      });
+    });
+
+    expect(result.current.threadStatusById["thread-authority-a"]?.isProcessing).toBe(false);
+    expect(result.current.activeTurnIdByThread["thread-authority-a"]).toBeNull();
+    expect(result.current.threadStatusById["thread-authority-b"]?.isProcessing).toBe(true);
+    expect(result.current.activeTurnIdByThread["thread-authority-b"]).toBe("turn-b-1");
+
+    await act(async () => {
+      handlers?.onTurnStarted?.("ws-1", "thread-authority-a", "turn-a-2");
+    });
+
+    expect(result.current.threadStatusById["thread-authority-a"]?.isProcessing).toBe(true);
+    expect(result.current.activeTurnIdByThread["thread-authority-a"]).toBe("turn-a-2");
   });
 
   it("exposes a Codex fallback owner only when exactly one Codex thread is processing", async () => {

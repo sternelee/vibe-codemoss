@@ -137,6 +137,7 @@ export function useAppShellSections(input: UseAppShellSectionsInput) {
     handleActivateFileTab,
     handleCloseFileTab,
     handleCloseAllFileTabs,
+    handleReorderFileTabs,
     handleExitEditor,
     selectedDiffPath,
     isTablet,
@@ -213,6 +214,7 @@ export function useAppShellSections(input: UseAppShellSectionsInput) {
         {
           activate: true,
           mode: options?.mode,
+          operation: "rewind",
         },
       );
       if (!forkedThreadId) {
@@ -843,35 +845,6 @@ export function useAppShellSections(input: UseAppShellSectionsInput) {
     });
   }, [t]);
 
-  const handleOpenWorkspaceHome = useCallback(() => {
-    exitDiffView();
-    resetPullRequestSelection();
-    setHomeOpen(false);
-    setAppMode("chat");
-    setCenterMode("chat");
-    setActiveTab("codex");
-    if (activeWorkspaceId) {
-      setWorkspaceHomeWorkspaceId(activeWorkspaceId);
-      selectWorkspace(activeWorkspaceId);
-      setActiveThreadId(null, activeWorkspaceId);
-      return;
-    }
-    setWorkspaceHomeWorkspaceId(null);
-    selectHome();
-  }, [
-    activeWorkspaceId,
-    exitDiffView,
-    resetPullRequestSelection,
-    setActiveTab,
-    setAppMode,
-    setCenterMode,
-    setHomeOpen,
-    setWorkspaceHomeWorkspaceId,
-    selectHome,
-    selectWorkspace,
-    setActiveThreadId,
-  ]);
-
   const handleOpenHomeChat = useCallback(() => {
     exitDiffView();
     resetPullRequestSelection();
@@ -896,6 +869,23 @@ export function useAppShellSections(input: UseAppShellSectionsInput) {
     setActiveWorkspaceId,
     setHomeOpen,
     setWorkspaceHomeWorkspaceId,
+  ]);
+
+  const handleOpenWorkspaceHome = useCallback((workspaceId?: string) => {
+    const targetWorkspaceId = workspaceId ?? activeWorkspaceId;
+    handleOpenHomeChat();
+    if (!targetWorkspaceId) {
+      return;
+    }
+    setActiveTab("codex");
+    setActiveWorkspaceId(targetWorkspaceId);
+    setActiveThreadId(null, targetWorkspaceId);
+  }, [
+    activeWorkspaceId,
+    handleOpenHomeChat,
+    setActiveTab,
+    setActiveThreadId,
+    setActiveWorkspaceId,
   ]);
 
   const handleSelectHomeWorkspace = useCallback(
@@ -1104,6 +1094,9 @@ export function useAppShellSections(input: UseAppShellSectionsInput) {
     ...taskRunActions,
     ...navigationActions,
     ...contextActions,
+    // Tab reorder is purely cosmetic (no active-file/navigation change), so it
+    // skips the live-edit-preview navigation marking the other tab actions use.
+    handleReorderWorkspaceFileTabs: handleReorderFileTabs,
     selectedComposerKanbanPanelId,
     setSelectedComposerKanbanPanelId,
     composerKanbanContextMode,

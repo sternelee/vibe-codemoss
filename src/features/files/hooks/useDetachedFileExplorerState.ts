@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { EditorNavigationTarget } from "../../app/hooks/useGitPanelController";
 import { resolveWorkspaceRelativePath } from "../../../utils/workspacePaths";
+import { isStrictTabPermutation } from "../utils/fileTabOrder";
 
 type EditorNavigationLocation = {
   line: number;
@@ -138,6 +139,16 @@ export function useDetachedFileExplorerState(
     setNavigationTarget(null);
   };
 
+  const reorderTabs = (nextOrder: string[]) => {
+    setOpenTabs((current) => {
+      // Only accept a permutation of the current tabs; never add/drop paths.
+      if (!isStrictTabPermutation(nextOrder, current)) {
+        return current;
+      }
+      return nextOrder;
+    });
+  };
+
   return {
     openTabs,
     activeFilePath,
@@ -146,5 +157,6 @@ export function useDetachedFileExplorerState(
     activateTab,
     closeTab,
     closeAllTabs,
+    reorderTabs,
   };
 }

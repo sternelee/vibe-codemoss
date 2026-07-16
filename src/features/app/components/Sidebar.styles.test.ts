@@ -37,4 +37,13 @@ describe("Sidebar styles", () => {
     expect(body).toMatch(/max-height:\s*360px/);
     expect(body).toMatch(/overflow-y:\s*auto/);
   });
+
+  it("keeps the active file tab indicator contract", () => {
+    const css = readFileSync(
+      resolve(process.cwd(), "src/styles/file-view-panel-shell.css"),
+      "utf8",
+    );
+    expect(css).toMatch(/\.fvp-tab\.is-active::after\s*\{/);
+    expect(css).toMatch(/\.fvp-tab\.is-active::after[\s\S]*?background:\s*color-mix\([^;]*var\(--border-accent\)/);
+  });
 });

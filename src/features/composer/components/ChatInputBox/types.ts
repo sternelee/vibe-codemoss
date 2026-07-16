@@ -360,9 +360,9 @@ export const AVAILABLE_PROVIDERS: ProviderInfo[] = [
 /**
  * Reasoning effort (thinking depth)
  * Controls the depth of reasoning for engines that expose a runtime effort option.
- * Valid values: low, medium, high, xhigh, max
+ * Valid values: low, medium, high, xhigh, max, ultra
  */
-export type ReasoningEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+export type ReasoningEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'ultra';
 
 /**
  * Reasoning level information
@@ -407,6 +407,12 @@ export const REASONING_LEVELS: ReasoningInfo[] = [
     label: 'Max',
     icon: 'codicon-search-sparkle',
     description: 'Maximum reasoning depth',
+  },
+  {
+    id: 'ultra',
+    label: 'Ultra',
+    icon: 'codicon-rocket',
+    description: 'Maximum reasoning with automatic task delegation',
   },
 ];
 
@@ -523,8 +529,6 @@ export interface ChatInputBoxProps {
   permissionMode?: PermissionMode;
   /** Current provider */
   currentProvider?: string;
-  /** Active thread provider/source label rendered as a compact footer tag */
-  providerProfileLabel?: string | null;
   /** Provider availability override (installed state from host app) */
   providerAvailability?: Partial<Record<ProviderId, boolean>>;
   /** Provider CLI versions (from host app detection) */
@@ -763,8 +767,6 @@ export interface ButtonAreaProps {
   permissionMode?: PermissionMode;
   /** Current provider */
   currentProvider?: string;
-  /** Active thread provider/source label rendered as a compact footer tag */
-  providerProfileLabel?: string | null;
   /** Provider availability override (installed state from host app) */
   providerAvailability?: Partial<Record<ProviderId, boolean>>;
   /** Provider CLI versions (from host app detection) */

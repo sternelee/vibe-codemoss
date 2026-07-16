@@ -254,6 +254,10 @@ export type LayoutNodesFlatOptions = {
   onLoadOlderThreads: (workspaceId: string) => void;
   onReloadWorkspaceThreads: (workspaceId: string) => void;
   onQuickReloadWorkspaceThreads?: (workspaceId: string) => void;
+  onRequestRootSessionFolderDraft?: (workspaceId: string) => void;
+  isExitedSessionsHidden?: (workspacePath: string) => boolean;
+  onToggleExitedSessionsHidden?: (workspacePath: string) => void;
+  rootSessionFolderDraftRequestByWorkspaceId?: Record<string, number>;
   workspaceDropTargetRef: RefObject<HTMLElement | null>;
   isWorkspaceDropActive: boolean;
   workspaceDropText: string;
@@ -284,7 +288,7 @@ export type LayoutNodesFlatOptions = {
   findInFileShortcut: string | null;
   toggleGitDiffListViewShortcut: string | null;
   onOpenSpecHub: () => void;
-  onOpenWorkspaceHome: () => void;
+  onOpenWorkspaceHome: (workspaceId?: string) => void;
   updaterState: UpdateState;
   onUpdate: () => void;
   onDismissUpdate: () => void;
@@ -345,6 +349,7 @@ export type LayoutNodesFlatOptions = {
   onActivateEditorTab: (path: string) => void;
   onCloseEditorTab: (path: string) => void;
   onCloseAllEditorTabs: () => void;
+  onReorderEditorTabs: (nextOrder: string[]) => void;
   onActiveEditorLineRangeChange: (
     range: { startLine: number; endLine: number } | null,
   ) => void;
@@ -821,6 +826,10 @@ export type ChromeLayoutNodesOptions = Pick<
   | "onLoadOlderThreads"
   | "onQuickReloadWorkspaceThreads"
   | "onReloadWorkspaceThreads"
+  | "onRequestRootSessionFolderDraft"
+  | "isExitedSessionsHidden"
+  | "onToggleExitedSessionsHidden"
+  | "rootSessionFolderDraftRequestByWorkspaceId"
   | "updaterState"
   | "onUpdate"
   | "onDismissUpdate"
@@ -889,6 +898,7 @@ export type EditorLayoutNodesOptions = Pick<
   | "onActivateEditorTab"
   | "onCloseEditorTab"
   | "onCloseAllEditorTabs"
+  | "onReorderEditorTabs"
   | "onActiveEditorLineRangeChange"
   | "onOpenFile"
   | "onCompareFiles"

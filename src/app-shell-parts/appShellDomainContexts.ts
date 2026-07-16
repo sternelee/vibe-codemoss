@@ -291,6 +291,7 @@ export const APP_SHELL_DOMAIN_CONTEXT_OWNED_KEYS: Record<
     "handleOpenMailSession",
     "handleOpenModelSettings",
     "handleRefreshModelConfig",
+    "handleReorderFileTabs",
     "handleOpenRenameWorktree",
     "handleResolvedClaudeThinkingVisibleChange",
     "handlePickGitRoot",

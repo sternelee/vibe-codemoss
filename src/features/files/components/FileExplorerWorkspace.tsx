@@ -50,6 +50,7 @@ type FileExplorerWorkspaceProps = {
   onActivateTab: (path: string) => void;
   onCloseTab: (path: string) => void;
   onCloseAllTabs: () => void;
+  onReorderTabs?: (nextOrder: string[]) => void;
   onRefreshFiles?: () => void;
   externalChangeMonitoringEnabled?: boolean;
   externalChangeTransportMode?: "watcher" | "polling";
@@ -82,6 +83,7 @@ export function FileExplorerWorkspace({
   onActivateTab,
   onCloseTab,
   onCloseAllTabs,
+  onReorderTabs,
   onRefreshFiles,
   externalChangeMonitoringEnabled = false,
   externalChangeTransportMode = "polling",
@@ -262,6 +264,7 @@ export function FileExplorerWorkspace({
             onActivateTab={onActivateTab}
             onCloseTab={onCloseTab}
             onCloseAllTabs={onCloseAllTabs}
+            onReorderTabs={onReorderTabs}
             openTargets={openTargets}
             openAppIconById={openAppIconById}
             selectedOpenAppId={selectedOpenAppId}

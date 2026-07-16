@@ -168,8 +168,8 @@ export function useWorkspaceDropZone({
     if (relatedTarget && event.currentTarget.contains(relatedTarget)) {
       return;
     }
-    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
-    if (dragDepthRef.current === 0 && isDragOver) {
+    dragDepthRef.current = 0;
+    if (isDragOver) {
       setIsDragOver(false);
       lastClientPositionRef.current = null;
     }

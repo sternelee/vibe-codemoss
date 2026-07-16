@@ -479,6 +479,29 @@ describe("usePasteAndDrop path insertion", () => {
     harness.unmount();
   });
 
+  it("settles window leave without position hit-testing", () => {
+    const harness = createHarness();
+    const getBoundingClientRect = vi.spyOn(harness.editable, "getBoundingClientRect");
+
+    act(() => {
+      windowDropHandler?.({
+        payload: { type: "enter", position: { x: 10, y: 10 } },
+      });
+    });
+    expect(harness.result.isDragOver).toBe(true);
+
+    getBoundingClientRect.mockClear();
+    act(() => {
+      windowDropHandler?.({
+        payload: { type: "leave", position: { x: 0, y: 0 } },
+      });
+    });
+
+    expect(getBoundingClientRect).not.toHaveBeenCalled();
+    expect(harness.result.isDragOver).toBe(false);
+    harness.unmount();
+  });
+
   it("normalizes window drag-drop position for high DPI coordinates", () => {
     const harness = createHarness();
     const originalDpr = window.devicePixelRatio;
