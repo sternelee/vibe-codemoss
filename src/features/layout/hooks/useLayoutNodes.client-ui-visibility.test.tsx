@@ -139,10 +139,12 @@ vi.mock("../../messages/components/Messages", () => ({
     showMessageAnchors,
     conversationState,
     activeEngine,
+    isHistoryLoading,
     onForkFromMessage,
   }: {
     showMessageAnchors: boolean;
     activeEngine?: string;
+    isHistoryLoading?: boolean;
     onForkFromMessage?: (messageId: string) => void;
     conversationState?: {
       meta?: {
@@ -155,6 +157,7 @@ vi.mock("../../messages/components/Messages", () => ({
       data-testid="messages"
       data-message-anchors={String(showMessageAnchors)}
       data-active-engine={String(activeEngine ?? "")}
+      data-history-loading={String(Boolean(isHistoryLoading))}
       data-conversation-engine={String(conversationState?.meta?.engine ?? "")}
       data-history-restored-at={String(
         conversationState?.meta?.historyRestoredAtMs ?? "",
@@ -1005,6 +1008,24 @@ describe("useLayoutNodes client UI visibility", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "settings" }));
     expect(onOpenSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows loading for a freshly opened pending thread without visible items", async () => {
+    const { result } = await renderUseLayoutNodes(
+      createLayoutOptions({
+        activeThreadId: "codex-pending-123",
+        activeItems: [],
+      }),
+    );
+
+    render(
+      <>
+        {result.current.messagesNode}
+        {result.current.composerNode}
+      </>,
+    );
+
+    expect(screen.getByTestId("messages").dataset.historyLoading).toBe("true");
   });
 
   it("does not forward duplicate resolved Claude thinking visibility", async () => {

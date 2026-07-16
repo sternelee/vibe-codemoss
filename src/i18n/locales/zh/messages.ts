@@ -42,7 +42,7 @@ const messages = {
     emptyThread: "今天想构建什么？向AI提问吧",
     linkedRunEyebrow: "关联运行",
     openLinkedRun: "打开运行详情",
-    restoringHistory: "正在恢复会话历史…",
+    restoringHistory: "正在加载对话窗口…",
     restoringHistoryHint: "正在加载本地 transcript 和会话状态。",
     generatingResponse: "正在生成响应...",
     codexWaitingForFirstText: "Codex 已启动，正在等待首段文本...",

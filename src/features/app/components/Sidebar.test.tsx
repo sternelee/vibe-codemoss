@@ -223,7 +223,7 @@ describe("Sidebar", () => {
     expect(screen.getByRole("button", { name: "Search" }).getAttribute("title")).toContain("Not set");
   });
 
-  it("hides chat/automation/open-home entries in settings dropdown", async () => {
+  it("hides removed and primary navigation entries in settings dropdown", async () => {
     const onToggleTerminal = vi.fn();
     const { container } = render(
       <Sidebar
@@ -246,13 +246,12 @@ describe("Sidebar", () => {
 
     expect(menu.queryByRole("menuitem", { name: "Home" })).toBeNull();
     expect(menu.queryByRole("menuitem", { name: "Automation" })).toBeNull();
-    const skillsEntry = menu.getByRole("menuitem", { name: "Skills" });
-    expect((skillsEntry as HTMLButtonElement).disabled).toBe(true);
+    expect(menu.queryByRole("menuitem", { name: "Skills" })).toBeNull();
     expect(menu.getByRole("menuitem", { name: "Lock" })).toBeTruthy();
     expect(menu.queryByRole("menuitem", { name: "Long-term Memory" })).toBeNull();
     expect(menu.getByRole("menuitem", { name: "Spec Hub" })).toBeTruthy();
     expect(menu.getByRole("menuitem", { name: "Project Memory" })).toBeTruthy();
-    expect(menu.getByRole("menuitem", { name: "Release Notes" })).toBeTruthy();
+    expect(menu.queryByRole("menuitem", { name: "Release Notes" })).toBeNull();
     expect(menu.queryByRole("menuitem", { name: "Terminal" })).toBeNull();
     expect(menu.getByRole("menuitem", { name: "Git" })).toBeTruthy();
     expect(menu.queryByRole("menuitem", { name: "Open home" })).toBeNull();

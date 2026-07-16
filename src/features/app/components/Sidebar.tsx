@@ -2179,11 +2179,9 @@ function SidebarImpl({
               t={t}
               onToggleOpen={() => setIsSettingsMenuOpen((prev) => !prev)}
               onClose={() => setIsSettingsMenuOpen(false)}
-              onOpenSkillsComingSoon={handleOpenSkillsComingSoon}
               onLockPanel={onLockPanel}
               onOpenSpecHub={onOpenSpecHub}
               onOpenProjectMemory={onOpenProjectMemory}
-              onOpenReleaseNotes={onOpenReleaseNotes}
               onOpenSettings={onOpenSettings}
               onAppModeChange={onAppModeChange}
             />

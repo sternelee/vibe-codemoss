@@ -118,6 +118,7 @@ import { resolvePresentationProfile } from "../../messages/presentation/presenta
 import { appendQueuedHandoffBubbleIfNeeded } from "../../threads/utils/queuedHandoffBubble";
 import { isBackgroundRenderGatingEnabled } from "../../threads/utils/realtimePerfFlags";
 import { useWorkspaceSessionActivity } from "../../session-activity/hooks/useWorkspaceSessionActivity";
+import { isPendingThreadId } from "../../threads/hooks/useThreadActions.helpers";
 import { useClientUiVisibility } from "../../client-ui-visibility/hooks/useClientUiVisibility";
 import {
   getHomeWorkspaceOptions,
@@ -345,6 +346,10 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
   const activeHistoryRestoredAtMs = options.activeThreadId
     ? (historyRestoredAtMsByThread[options.activeThreadId] ?? null)
     : null;
+  const activeThreadBootstrapLoading =
+    options.activeThreadId !== null &&
+    isPendingThreadId(options.activeThreadId) &&
+    options.activeItems.length === 0;
   const activeThreadHistoryLoading = options.activeThreadId
     ? options.historyLoadingByThreadId[options.activeThreadId] === true
     : false;
@@ -930,7 +935,8 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
       conversationState,
       plan: options.plan,
       isThinking: isThreadThinking,
-      isHistoryLoading: activeThreadHistoryLoading,
+      isHistoryLoading:
+        activeThreadHistoryLoading || activeThreadBootstrapLoading,
       isContextCompacting: activeThreadStatus?.isContextCompacting ?? false,
       processingStartedAt: activeThreadStatus?.processingStartedAt ?? null,
       lastDurationMs: activeThreadStatus?.lastDurationMs ?? null,
@@ -963,6 +969,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
       sidebarThreadStatusById,
       options.activeTokenUsage,
       options.activeRateLimits,
+      activeThreadBootstrapLoading,
     ],
   );
 

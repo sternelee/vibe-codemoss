@@ -1,6 +1,4 @@
 import Brain from "lucide-react/dist/esm/icons/brain";
-import BriefcaseBusiness from "lucide-react/dist/esm/icons/briefcase-business";
-import FileText from "lucide-react/dist/esm/icons/file-text";
 import GitBranch from "lucide-react/dist/esm/icons/git-branch";
 import LayoutDashboard from "lucide-react/dist/esm/icons/layout-dashboard";
 import Lock from "lucide-react/dist/esm/icons/lock";
@@ -16,11 +14,9 @@ type SidebarSettingsMenuProps = {
   t: (key: string) => string;
   onToggleOpen: () => void;
   onClose: () => void;
-  onOpenSkillsComingSoon: () => void;
   onLockPanel?: () => void;
   onOpenSpecHub: () => void;
   onOpenProjectMemory: () => void;
-  onOpenReleaseNotes: () => void;
   onOpenSettings: () => void;
   onAppModeChange: (mode: AppMode) => void;
 };
@@ -33,11 +29,9 @@ export function SidebarSettingsMenu({
   t,
   onToggleOpen,
   onClose,
-  onOpenSkillsComingSoon,
   onLockPanel,
   onOpenSpecHub,
   onOpenProjectMemory,
-  onOpenReleaseNotes,
   onOpenSettings,
   onAppModeChange,
 }: SidebarSettingsMenuProps) {
@@ -49,19 +43,6 @@ export function SidebarSettingsMenu({
           ref={menuRef}
           role="menu"
         >
-          <button
-            type="button"
-            role="menuitem"
-            className="sidebar-settings-dropdown-item"
-            disabled
-            onClick={() => {
-              onClose();
-              onOpenSkillsComingSoon();
-            }}
-          >
-            <BriefcaseBusiness size={14} aria-hidden />
-            <span>{t("sidebar.quickSkills")}</span>
-          </button>
           <button
             type="button"
             role="menuitem"
@@ -109,18 +90,6 @@ export function SidebarSettingsMenu({
           >
             <GitBranch size={14} aria-hidden />
             <span>{t("git.logMode")}</span>
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className="sidebar-settings-dropdown-item"
-            onClick={() => {
-              onClose();
-              onOpenReleaseNotes();
-            }}
-          >
-            <FileText size={14} aria-hidden />
-            <span>{t("sidebar.releaseNotes")}</span>
           </button>
           <button
             type="button"

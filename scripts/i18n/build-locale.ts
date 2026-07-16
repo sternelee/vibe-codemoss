@@ -84,10 +84,7 @@ const fileBanner = (source: string): string =>
   `// Machine translation of ${source}; keys mirror the English source.\n`;
 
 for (const ns of namespaces) {
-  // Keep generated locale modules compact so adding languages does not trip the
-  // source-file line-count guard. The translation source remains inspectable in
-  // scripts/i18n/.work/<lang>.flat.json when review needs a pretty JSON shape.
-  const body = `const ${ns} = ${JSON.stringify(built[ns])};\n\nexport default ${ns};\n`;
+  const body = `const ${ns} = ${JSON.stringify(built[ns], null, 2)};\n\nexport default ${ns};\n`;
   writeFileSync(resolve(outDir, `${ns}.ts`), fileBanner(`src/i18n/locales/en/${ns}.ts`) + body);
 }
 
