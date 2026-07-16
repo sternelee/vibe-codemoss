@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-25.md`
-- **Total Sessions**: 1006
-- **Last Active**: 2026-07-16
+- **Total Sessions**: 1013
+- **Last Active**: 2026-07-17
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-25.md` | ~1304 | Active |
+| `journal-25.md` | ~1536 | Active |
 | `journal-24.md` | ~1994 | Archived |
 | `journal-23.md` | ~1965 | Archived |
 | `journal-22.md` | ~1969 | Archived |
@@ -53,6 +53,13 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 1013 | 2026-07-17 | 提交剩余 Rust 格式调整 | `46b205d5` | `feature/v-0.7.4` |
+| 1012 | 2026-07-17 | 恢复多仓 Git 文件回退入口 | `e73cc3f3` | `feature/v-0.7.4` |
+| 1011 | 2026-07-17 | 收口并归档文件历史视图 | `432a0f14`, `1db3de6a` | `feature/v-0.7.4` |
+| 1010 | 2026-07-17 | 完善文件追溯与多仓路径隔离 | `6031d97e` | `feature/v-0.7.4` |
+| 1009 | 2026-07-17 | 收敛 Git History 三栏布局 | `42647ff9` | `feature/v-0.7.4` |
+| 1008 | 2026-07-17 | 加固 react-scan 崩溃熔断恢复 | `d8f9ed40` | `feature/v-0.7.4` |
+| 1007 | 2026-07-17 | 完善多仓 Git History 仓库隔离 | `a215bac9` | `feature/v-0.7.4` |
 | 1006 | 2026-07-16 | 安全合并上游 0.7.4 更新 | `27b547e7` | `feature/v-0.7.4` |
 | 1005 | 2026-07-16 | 收口多仓库 Git 提交与文件树状态能力 | `6454397b`, `9da8688b`, `6ca8b891` | `feature/v-0.7.4` |
 | 1004 | 2026-07-16 | 稳定 Git 分支菜单并优化层级交互 | `57e50e3d` | `feature/v-0.7.4` |

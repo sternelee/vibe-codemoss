@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { appendRendererDiagnostic } from "../services/rendererDiagnostics";
+import { recoverFromReactScanUpdateDepthError } from "../services/reactScanController";
 
 type ErrorBoundaryProps = {
   children: ReactNode;
@@ -23,6 +24,20 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    const reactScanRecoveryStatus = recoverFromReactScanUpdateDepthError(error);
+    if (reactScanRecoveryStatus === "recovered") {
+      appendRendererDiagnostic("react/error-boundary-react-scan-recovery", {
+        errorClass: "maximum-update-depth",
+        componentStack: errorInfo.componentStack || null,
+      });
+      return;
+    }
+    if (reactScanRecoveryStatus === "failed") {
+      appendRendererDiagnostic("react/error-boundary-react-scan-recovery-failed", {
+        errorClass: "maximum-update-depth",
+        componentStack: errorInfo.componentStack || null,
+      });
+    }
     this.setState({ errorInfo });
     appendRendererDiagnostic("react/error-boundary", {
       error: `${error.name}: ${error.message}`,

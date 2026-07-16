@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { CommitMessageEngine } from "../../../services/tauri";
 import type { RepositoryGitStatus } from "../hooks/useMultiRepositoryGitStatus";
 import { normalizeGitPath } from "../utils/commitScope";
-import { DiffSection } from "./GitDiffPanelFileSections";
+import { DiffSection, type DiffFile } from "./GitDiffPanelFileSections";
 import { InclusionToggle, type InclusionState } from "./GitDiffPanelInclusion";
 import { CommitMessageEngineIcon } from "./CommitMessageEngineIcon";
 
@@ -31,7 +31,14 @@ type GitMultiRepositoryChangesProps = {
   ) => void;
   onStageFile?: (repositoryRoot: string, path: string) => Promise<void>;
   onUnstageFile?: (repositoryRoot: string, path: string) => Promise<void>;
+  onDiscardFile?: (repositoryRoot: string, path: string) => Promise<void> | void;
   onStageAll?: (repositoryRoot: string) => Promise<void>;
+  onOpenFile?: (repositoryRoot: string, path: string) => void;
+  onOpenFilePreview?: (
+    repositoryRoot: string,
+    file: DiffFile,
+    section: "staged" | "unstaged",
+  ) => void;
   onRefresh?: () => Promise<void> | void;
 };
 
@@ -57,7 +64,10 @@ export function GitMultiRepositoryChanges({
   onOpenGenerateMenu,
   onStageFile,
   onUnstageFile,
+  onDiscardFile,
   onStageAll,
+  onOpenFile,
+  onOpenFilePreview,
   onRefresh,
 }: GitMultiRepositoryChangesProps) {
   const { t } = useTranslation();
@@ -178,13 +188,21 @@ export function GitMultiRepositoryChanges({
               partialPaths={lockedPathsList}
               selectedFiles={EMPTY_SELECTED_FILES}
               selectedPath={null}
+              onSelectFile={(path) => {
+                if (path) onOpenFile?.(status.repositoryRoot, path);
+              }}
               onUnstageFile={onUnstageFile ? async (path) => {
                 await onUnstageFile(status.repositoryRoot, path);
                 await onRefresh?.();
               } : undefined}
               isCommitPathLocked={isCommitPathLocked}
               onSetCommitSelection={(paths, selected) => setGroupSelection(status.repositoryRoot, paths, selected, stagedPaths)}
-              onFileClick={() => {}}
+              onFileClick={(_event, path) => onOpenFile?.(status.repositoryRoot, path)}
+              onOpenFilePreview={(file, section) => onOpenFilePreview?.(
+                status.repositoryRoot,
+                file,
+                section,
+              )}
               onShowFileMenu={() => {}}
             />
           ) : null}
@@ -198,6 +216,9 @@ export function GitMultiRepositoryChanges({
               partialPaths={lockedPathsList}
               selectedFiles={EMPTY_SELECTED_FILES}
               selectedPath={null}
+              onSelectFile={(path) => {
+                if (path) onOpenFile?.(status.repositoryRoot, path);
+              }}
               onStageAllChanges={onStageAll ? async () => {
                 await onStageAll(status.repositoryRoot);
                 await onRefresh?.();
@@ -206,9 +227,15 @@ export function GitMultiRepositoryChanges({
                 await onStageFile(status.repositoryRoot, path);
                 await onRefresh?.();
               } : undefined}
+              onDiscardFile={onDiscardFile ? (path) => onDiscardFile(status.repositoryRoot, path) : undefined}
               isCommitPathLocked={isCommitPathLocked}
               onSetCommitSelection={(paths, selected) => setGroupSelection(status.repositoryRoot, paths, selected, stagedPaths)}
-              onFileClick={() => {}}
+              onFileClick={(_event, path) => onOpenFile?.(status.repositoryRoot, path)}
+              onOpenFilePreview={(file, section) => onOpenFilePreview?.(
+                status.repositoryRoot,
+                file,
+                section,
+              )}
               onShowFileMenu={() => {}}
             />
           ) : null}

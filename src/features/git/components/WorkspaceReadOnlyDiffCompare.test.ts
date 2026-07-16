@@ -11,11 +11,28 @@ vi.mock("react-i18next", () => ({
 
 vi.mock("../../files/components/WorkspaceFileComparePanel", () => ({
   useFileCompareEditorTheme: () => ({}),
-  CompareEditorColumn: ({ draft }: { draft: { id: string; content: string } }) =>
-    createElement("pre", { "data-testid": draft.id }, draft.content),
+  CompareEditorColumn: ({
+    draft,
+    diffTone,
+    markers,
+  }: {
+    draft: { id: string; content: string; editable: boolean; readOnlyReason: string | null };
+    diffTone: "deletion" | "addition" | null;
+    markers: { added: number[]; modified: number[] };
+  }) =>
+    createElement("pre", {
+      "data-testid": draft.id,
+      "data-diff-tone": diffTone,
+      "data-editable": String(draft.editable),
+      "data-read-only-reason": draft.readOnlyReason ?? "",
+      "data-marker-count": String(markers.added.length + markers.modified.length),
+    }, draft.content),
 }));
 
-import { buildReadOnlyCompareSources } from "./WorkspaceReadOnlyDiffCompare";
+import {
+  buildReadOnlyCompareModel,
+  buildReadOnlyCompareSources,
+} from "./WorkspaceReadOnlyDiffCompare";
 import { WorkspaceReadOnlyDiffCompare } from "./WorkspaceReadOnlyDiffCompare";
 
 afterEach(cleanup);
@@ -42,9 +59,38 @@ describe("buildReadOnlyCompareSources", () => {
       "new one\n\nnew ten",
     ]);
   });
+
+  it("preserves old and new source coordinates across separated hunks", () => {
+    expect(
+      buildReadOnlyCompareModel(
+        "@@ -56,2 +60,2 @@\n same\n-old\n+new\n@@ -90 +94 @@\n-old later\n+new later\n",
+      ).lineNumberLabels,
+    ).toEqual([
+      [56, 57, null, 90],
+      [60, 61, null, 94],
+    ]);
+  });
 });
 
 describe("WorkspaceReadOnlyDiffCompare", () => {
+  it("keeps both semantic diff columns read-only without requesting plain-text fallback", () => {
+    render(createElement(WorkspaceReadOnlyDiffCompare, {
+      filePath: "example.ts",
+      diff: "@@ -1 +1 @@\n-old\n+new\n",
+    }));
+
+    const previous = screen.getByTestId("previous:example.ts");
+    const source = screen.getByTestId("source:example.ts");
+    expect(previous.getAttribute("data-diff-tone")).toBe("deletion");
+    expect(source.getAttribute("data-diff-tone")).toBe("addition");
+    expect(previous.getAttribute("data-editable")).toBe("false");
+    expect(source.getAttribute("data-editable")).toBe("false");
+    expect(previous.getAttribute("data-read-only-reason")).toBe("");
+    expect(source.getAttribute("data-read-only-reason")).toBe("");
+    expect(Number(previous.getAttribute("data-marker-count"))).toBeGreaterThan(0);
+    expect(Number(source.getAttribute("data-marker-count"))).toBeGreaterThan(0);
+  });
+
   it("replaces the fallback patch with the loaded full-context patch", async () => {
     render(createElement(WorkspaceReadOnlyDiffCompare, {
       filePath: "example.ts",

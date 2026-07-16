@@ -37,3 +37,27 @@ Conversation renderer measurement, anchor, tooltip, and popover logic MUST avoid
 - **WHEN** the selected thread changes, a heavy row unmounts, lightweight mode changes, or an async hydration/precompute request becomes stale
 - **THEN** observers, timers, pending callbacks, hydration queue entries, and measurement cache entries associated with the stale surface MUST be released or ignored
 - **AND** diagnostics SHOULD expose bounded live resource counts without conversation content
+
+### Requirement: Optional Render Diagnostics MUST Fail Safe
+
+Production render diagnostics MUST NOT trap the client in a persistent startup or reload loop when their instrumentation amplifies a React maximum-update-depth failure.
+
+#### Scenario: persisted react-scan overlay encounters React #185
+
+- **WHEN** the persisted react-scan overlay is enabled
+- **AND** the global renderer boundary catches `Maximum update depth exceeded` or minified React error `#185`
+- **THEN** the client MUST clear the optional react-scan startup state
+- **AND** it MUST retry once without react-scan instrumentation
+- **AND** repeated recovery MUST be bounded to prevent an automatic reload loop
+
+#### Scenario: unrelated renderer error keeps normal recovery
+
+- **WHEN** the global renderer boundary catches an error outside the maximum-update-depth class
+- **THEN** the client MUST retain the normal ErrorBoundary details and manual reload path
+- **AND** it MUST NOT disable react-scan solely because an unrelated component failed
+
+#### Scenario: persisted overlay cleanup fails
+
+- **WHEN** the client cannot clear the persisted react-scan startup state
+- **THEN** it MUST roll back the one-shot recovery guard so a later attempt remains possible
+- **AND** it MUST retain the normal ErrorBoundary path and record a content-safe recovery-failure diagnostic

@@ -1302,3 +1302,235 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1007: 完善多仓 Git History 仓库隔离
+
+**Date**: 2026-07-17
+**Task**: 完善多仓 Git History 仓库隔离
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+完成多仓 Git History 二级仓库选择、worktree scoped status/mutation/AI generation 与 repository lifecycle 隔离；补充异步切仓、同路径 selection、summary reset 回归测试，并同步 OpenSpec/Trellis contract。focused tests 71/71、lint、typecheck、runtime contracts、doctor strict 与 OpenSpec strict 均通过。全量测试被既有 Sidebar active tab CSS contract 失败阻断。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a215bac9` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1008: 加固 react-scan 崩溃熔断恢复
+
+**Date**: 2026-07-17
+**Task**: 加固 react-scan 崩溃熔断恢复
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+为 production React #185 增加 react-scan one-shot circuit breaker；恢复失败时回滚 persisted state 与 session guard，保留普通 ErrorBoundary，并补齐 content-safe diagnostics、storage failure、测试隔离和 focused regression。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d8f9ed40` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1009: 收敛 Git History 三栏布局
+
+**Date**: 2026-07-17
+**Task**: 收敛 Git History 三栏布局
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+隐藏 Git History 左侧 overview，保留顶部 worktree summary 数据源，并将 desktop 三栏默认比例调整为 3:4:3；focused Vitest 45/45、typecheck、lint、large-file report、diff check 与 OpenSpec strict validation 均通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `42647ff9` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1010: 完善文件追溯与多仓路径隔离
+
+**Date**: 2026-07-17
+**Task**: 完善文件追溯与多仓路径隔离
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+完成 File History、Git Blame、多仓 Diff preview、文件直接打开与 repository scope 修复；相关测试、typecheck、lint 与 OpenSpec strict validation 通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6031d97e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1011: 收口并归档文件历史视图
+
+**Date**: 2026-07-17
+**Task**: 收口并归档文件历史视图
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+完成 File History review closure：修复 rename historical path、真实 diff gutter 行号、Desktop/daemon image 与 binary parity；同步主 specs，归档 add-file-history-view，并通过 focused frontend/Rust、lint、typecheck、runtime contracts、strict doctor 与 OpenSpec strict validation。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `432a0f14` | (see git log) |
+| `1db3de6a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1012: 恢复多仓 Git 文件回退入口
+
+**Date**: 2026-07-17
+**Task**: 恢复多仓 Git 文件回退入口
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+为多仓 unstaged 文件恢复共享回退 icon，复用确认框并以 repositoryRoot + path 隔离同名路径；补充确认、取消和 scoped refresh 测试，完成 OpenSpec/Trellis contract 与质量门禁。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e73cc3f3` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1013: 提交剩余 Rust 格式调整
+
+**Date**: 2026-07-17
+**Task**: 提交剩余 Rust 格式调整
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+审计并提交剩余 5 个 Rust 文件的纯 rustfmt 格式调整；目标文件 rustfmt 定向校验通过，全仓 fmt check 仅受其他未修改文件既有差异影响。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `46b205d5` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

@@ -454,7 +454,7 @@ export function renderGitHistoryPanelView(scope: any) {
         ref={workbenchGridRef}
         style={workbenchGridStyle}
       >
-        <aside className="git-history-overview">
+        <aside className="git-history-overview" hidden aria-hidden="true">
           <div className="git-history-overview-toolbar is-files-top-row">
             <div className="git-history-overview-list-toggle" role="group" aria-label={t("git.listView")}>
               <button
@@ -503,7 +503,9 @@ export function renderGitHistoryPanelView(scope: any) {
             </div>
           </div>
           <GitHistoryWorktreePanel
+            key={`${workspace.id}:${selectedRepositoryRoot === null ? "legacy" : `repository:${selectedRepositoryRoot}`}`}
             workspaceId={workspace.id}
+            repositoryRoot={selectedRepositoryRoot}
             listView={overviewListView}
             commitSectionCollapsed={overviewCommitSectionCollapsed}
             rootFolderName={repositoryRootName}
@@ -514,19 +516,6 @@ export function renderGitHistoryPanelView(scope: any) {
             }}
           />
         </aside>
-
-        {desktopSplitLayout && (
-          <div
-            className="git-history-vertical-resizer"
-            role="separator"
-            aria-orientation="vertical"
-            onMouseDown={handleOverviewSplitResizeStart}
-            onDoubleClick={() => {
-              const defaults = getCurrentDefaultColumnWidths();
-              setOverviewWidth(defaults.overviewWidth);
-            }}
-          />
-        )}
 
         <div
           className={`git-history-main-grid${desktopSplitLayout ? " with-vertical-resizers" : ""}`}
