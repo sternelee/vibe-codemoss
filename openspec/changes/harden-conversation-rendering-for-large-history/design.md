@@ -21,6 +21,8 @@ Issue #721 描述的是 conversation history surface 的结构性压力，而不
 
 **Goals:**
 
+- 确保 opt-in production react-scan overlay 不会把客户端困在持续的 React #185 reload loop；恢复仅禁用诊断 overlay，并且最多自动重试一次。
+
 - 把 restored heavy conversation 的初始渲染成本限制在 viewport + overscan + active/selected rows。
 - 让 render weight 覆盖 #721 的实际重元素：Markdown tables/code blocks、tool-call raw payload、read-file batches、diff/file snippets、images、anchor/outline/popover surfaces。
 - heavy Markdown/tool/diff rows 先渲染 bounded summary 或 placeholder，再按 viewport entry / explicit expansion hydrate rich detail。
