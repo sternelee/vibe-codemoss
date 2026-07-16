@@ -9,6 +9,7 @@ import { ProxyStatusBadge } from "../../../components/ProxyStatusBadge";
 import { EngineIcon } from "../../engine/components/EngineIcon";
 import { SharedSessionIcon } from "../../shared-session/components/SharedSessionIcon";
 import { resolveCodexProviderLabel } from "../utils/codexProviderLabel";
+import { THREAD_ROW_TOOLTIP_DELAY_MS } from "../constants";
 import {
   ThreadRowStatusProvider,
   useThreadRowStatus,
@@ -164,7 +165,7 @@ const PinnedThreadRowItem = memo(function PinnedThreadRowItem({
       tooltipAlign="start"
       tooltipSideOffset={4}
       tooltipClassName="max-w-[400px] break-words"
-      tooltipDelay={450}
+      tooltipDelay={THREAD_ROW_TOOLTIP_DELAY_MS}
       tooltipDisabled={isDeleteConfirmOpen}
       className={`thread-row ${
         workspaceId === activeWorkspaceId && thread.id === activeThreadId

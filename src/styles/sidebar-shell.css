@@ -39,6 +39,12 @@
   transition: opacity 200ms ease, transform 200ms ease;
 }
 
+.sidebar-topbar-placeholder {
+  width: calc(100% + var(--sidebar-padding) * 2);
+  margin-inline: calc(var(--sidebar-padding) * -1);
+  padding-inline: var(--sidebar-padding);
+}
+
 :root[data-theme="light"] .sidebar {
   --sidebar-session-running-text: #065f46;
   --sidebar-session-running-border: rgba(5, 150, 105, 0.4);

@@ -132,6 +132,7 @@ export const FloatingTooltipButton = forwardRef<
     onClick,
     onPointerCancel,
     onPointerDown,
+    onWheel,
     disabled,
     children,
     ...buttonProps
@@ -231,6 +232,10 @@ export const FloatingTooltipButton = forwardRef<
         }}
         onPointerDown={(event) => {
           onPointerDown?.(event);
+          closeNow();
+        }}
+        onWheel={(event) => {
+          onWheel?.(event);
           closeNow();
         }}
         {...buttonProps}

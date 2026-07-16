@@ -6,6 +6,10 @@ const fileViewPanelCss = readFileSync(
   fileURLToPath(new URL("./file-view-panel.css", import.meta.url)),
   "utf8",
 );
+const fileViewPanelShellCss = readFileSync(
+  fileURLToPath(new URL("./file-view-panel-shell.css", import.meta.url)),
+  "utf8",
+);
 const diffViewerCss = readFileSync(
   fileURLToPath(new URL("./diff-viewer.css", import.meta.url)),
   "utf8",
@@ -20,6 +24,10 @@ function getCssRuleBlock(css: string, selector: string): string {
 }
 
 describe("file view visual contracts", () => {
+  it("does not draw an accent underline under the active file tab", () => {
+    expect(getCssRuleBlock(fileViewPanelShellCss, ".fvp-tab.is-active::after")).toBe("");
+  });
+
   it("keeps annotation cards compact with unified small action buttons", () => {
     expect(getCssRuleBlock(fileViewPanelCss, ".fvp-annotation-draft")).toContain(
       "border-radius: 8px;",

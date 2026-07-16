@@ -103,6 +103,19 @@ describe("client typography font-size coverage", () => {
     expect(getCssRuleBlock(sidebarShellCss, ".sidebar")).toContain(
       "--sidebar-content-font-size: var(--client-content-font-size, 14px);",
     );
+    const sidebarTopbarPlaceholderRule = getCssRuleBlock(
+      sidebarShellCss,
+      ".sidebar-topbar-placeholder",
+    );
+    expect(sidebarTopbarPlaceholderRule).toContain(
+      "width: calc(100% + var(--sidebar-padding) * 2);",
+    );
+    expect(sidebarTopbarPlaceholderRule).toContain(
+      "margin-inline: calc(var(--sidebar-padding) * -1);",
+    );
+    expect(sidebarTopbarPlaceholderRule).toContain(
+      "padding-inline: var(--sidebar-padding);",
+    );
     expect(getCssRuleBlock(sidebarCss, ".sidebar-primary-nav-item")).toContain(
       "font-size: var(--sidebar-content-font-size);",
     );

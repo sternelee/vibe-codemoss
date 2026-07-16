@@ -5,6 +5,7 @@ export const DEFAULT_OPEN_APP_ID = "vscode";
 export const DEFAULT_VISIBLE_THREAD_ROOT_COUNT = 5;
 export const MIN_VISIBLE_THREAD_ROOT_COUNT = 1;
 export const MAX_VISIBLE_THREAD_ROOT_COUNT = 200;
+export const THREAD_ROW_TOOLTIP_DELAY_MS = 650;
 
 export function normalizeVisibleThreadRootCount(
   value: number | null | undefined,
