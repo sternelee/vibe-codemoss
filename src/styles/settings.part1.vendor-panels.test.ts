@@ -73,6 +73,7 @@ describe("vendor settings panel compact layout", () => {
       ".vendor-settings-panel [data-slot=\"badge\"]",
     );
     const logoRule = getCssRuleBlock(vendorPanelsCss, ".vendor-cli-logo-img");
+    const brandTitleRule = getCssRuleBlock(vendorPanelsCss, ".vendor-brand-title");
     const monoLogoRule = getCssRuleBlock(
       vendorPanelsCss,
       ".vendor-cli-logo-img-mono",
@@ -127,6 +128,7 @@ describe("vendor settings panel compact layout", () => {
     expect(iconRule).toContain("border-radius: 5px;");
     expect(logoRule).toContain("width: 15px;");
     expect(logoRule).toContain("height: 15px;");
+    expect(brandTitleRule).toContain("font-weight: 400;");
     expect(monoLogoRule).toContain("filter: grayscale(1) brightness(0);");
     expect(iflowLogoRule).not.toContain("linear-gradient");
   });
