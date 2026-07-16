@@ -731,6 +731,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
         onLoadOlderThreads={options.onLoadOlderThreads}
         onReloadWorkspaceThreads={options.onReloadWorkspaceThreads}
         onQuickReloadWorkspaceThreads={options.onQuickReloadWorkspaceThreads}
+        onRequestRootSessionFolderDraft={options.onRequestRootSessionFolderDraft}
         isExitedSessionsHidden={options.isExitedSessionsHidden}
         onToggleExitedSessionsHidden={options.onToggleExitedSessionsHidden}
         rootSessionFolderDraftRequestByWorkspaceId={

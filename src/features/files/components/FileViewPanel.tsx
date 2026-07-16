@@ -61,6 +61,7 @@ import {
   resolveGitStatusPathCandidates,
   resolveWorkspacePathCandidates,
 } from "../../../utils/workspacePaths";
+import { reorderTabPathsAtTarget } from "../utils/fileTabOrder";
 import { reduceExternalChangeSyncState } from "../externalChangeStateMachine";
 import {
   resolveFileRenderProfile,
@@ -1432,12 +1433,8 @@ export function FileViewPanel({
         const source = origin.tabPath;
         const targetPath = resolveTabPathAtPoint(event.clientX, event.clientY);
         if (targetPath && targetPath !== source) {
-          const fromIndex = visibleTabs.indexOf(source);
-          const toIndex = visibleTabs.indexOf(targetPath);
-          if (fromIndex >= 0 && toIndex >= 0) {
-            const nextOrder = [...visibleTabs];
-            nextOrder.splice(fromIndex, 1);
-            nextOrder.splice(toIndex, 0, source);
+          const nextOrder = reorderTabPathsAtTarget(visibleTabs, source, targetPath);
+          if (nextOrder.some((path, index) => path !== visibleTabs[index])) {
             onReorderTabs?.(nextOrder);
           }
         }

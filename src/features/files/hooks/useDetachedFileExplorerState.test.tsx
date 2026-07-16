@@ -220,4 +220,17 @@ describe("useDetachedFileExplorerState", () => {
     expect(result.current.openTabs).toEqual(["build.gradle.kts", "Dockerfile"]);
     expect(result.current.activeFilePath).toBe("Dockerfile");
   });
+
+  it("rejects duplicate paths when reordering detached tabs", () => {
+    const { result } = renderHook(() =>
+      useDetachedFileExplorerState("ws-1", "/repo", "src/first.ts"),
+    );
+
+    act(() => {
+      result.current.openFile("src/second.ts");
+      result.current.reorderTabs(["src/first.ts", "src/first.ts"]);
+    });
+
+    expect(result.current.openTabs).toEqual(["src/first.ts", "src/second.ts"]);
+  });
 });

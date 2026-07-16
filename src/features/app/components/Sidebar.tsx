@@ -193,6 +193,7 @@ type SidebarProps = {
   onLoadOlderThreads: (workspaceId: string) => void;
   onReloadWorkspaceThreads: (workspaceId: string) => void;
   onQuickReloadWorkspaceThreads?: (workspaceId: string) => void;
+  onRequestRootSessionFolderDraft?: (workspaceId: string) => void;
   workspaceDropTargetRef: RefObject<HTMLElement | null>;
   isWorkspaceDropActive: boolean;
   workspaceDropText: string;
@@ -286,6 +287,7 @@ function SidebarImpl({
   onLoadOlderThreads,
   onReloadWorkspaceThreads,
   onQuickReloadWorkspaceThreads,
+  onRequestRootSessionFolderDraft,
   workspaceDropTargetRef,
   isWorkspaceDropActive,
   workspaceDropText,
@@ -374,11 +376,15 @@ function SidebarImpl({
     internalExitedSessionVisibility.toggleExitedSessionsHidden;
   const handleOpenRootSessionFolderDraft = useCallback((workspaceId: string) => {
     onToggleWorkspaceCollapse(workspaceId, false);
+    if (onRequestRootSessionFolderDraft) {
+      onRequestRootSessionFolderDraft(workspaceId);
+      return;
+    }
     setLocalRootSessionFolderDraftRequestByWorkspaceId((current) => ({
       ...current,
       [workspaceId]: (current[workspaceId] ?? 0) + 1,
     }));
-  }, [onToggleWorkspaceCollapse]);
+  }, [onRequestRootSessionFolderDraft, onToggleWorkspaceCollapse]);
   // 项目行外显的快捷动作：由「...」菜单勾选决定，事件驱动同步。
   const { pinnedIds: pinnedRowActionIds } = useSidebarWorkspacePinnedActions();
   const buildWorkspaceRowPinnedActions = useCallback(
@@ -845,6 +851,39 @@ function SidebarImpl({
     threadsByWorkspace,
     t,
   ]);
+  const shouldShowExitedSessionsToggle = useCallback(
+    (workspace: WorkspaceInfo) => {
+      const threads = getProjectedThreads(workspace.id);
+      const isExpanded = expandedWorkspaces.has(workspace.id);
+      const visibleThreadRootCount = normalizeVisibleThreadRootCount(
+        workspace.settings.visibleThreadRootCount,
+      );
+      const { unpinnedRows } = getThreadRows(
+        threads,
+        isExpanded,
+        workspace.id,
+        getPinTimestamp,
+        visibleThreadRootCount,
+      );
+      const hideExitedSessions = isExitedSessionsHidden(workspace.path);
+      const visibility = getExitedSessionRowVisibility(unpinnedRows, {
+        hideExitedSessions,
+        isExitedThread: (thread) => {
+          const status = threadStatusById[thread.id];
+          return !status?.isProcessing && !status?.isReviewing;
+        },
+      });
+      return visibility.hasExitedSessions || visibility.hiddenExitedCount > 0;
+    },
+    [
+      expandedWorkspaces,
+      getPinTimestamp,
+      getProjectedThreads,
+      getThreadRows,
+      isExitedSessionsHidden,
+      threadStatusById,
+    ],
+  );
   const {
     showThreadMenu,
     showWorkspaceMenu,
@@ -898,29 +937,7 @@ function SidebarImpl({
       onActivateWorkspace: onSelectWorkspace,
       onCreateSessionFolder: handleOpenRootSessionFolderDraft,
       onToggleExitedSessions: toggleExitedSessionsHidden,
-      shouldShowExitedSessionsToggle: (workspace) => {
-        const threads = getProjectedThreads(workspace.id);
-        const isExpanded = expandedWorkspaces.has(workspace.id);
-        const visibleThreadRootCount = normalizeVisibleThreadRootCount(
-          workspace.settings.visibleThreadRootCount,
-        );
-        const { unpinnedRows } = getThreadRows(
-          threads,
-          isExpanded,
-          workspace.id,
-          getPinTimestamp,
-          visibleThreadRootCount,
-        );
-        const hideExitedSessions = isExitedSessionsHidden(workspace.path);
-        const visibility = getExitedSessionRowVisibility(unpinnedRows, {
-          hideExitedSessions,
-          isExitedThread: (thread) => {
-            const status = threadStatusById[thread.id];
-            return !status?.isProcessing && !status?.isReviewing;
-          },
-        });
-        return visibility.hasExitedSessions || visibility.hiddenExitedCount > 0;
-      },
+      shouldShowExitedSessionsToggle,
       isExitedSessionsHidden,
       onDeleteWorkspace,
       onDeleteWorktree,

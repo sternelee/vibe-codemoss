@@ -3,6 +3,7 @@ import { useEventCallback } from "../utils/useEventCallback";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { useLayoutNodes } from "../features/layout/hooks/useLayoutNodes";
 import { useMainHeaderActionItems } from "../features/app/components/MainHeaderActions";
+import { useExitedSessionVisibility } from "../features/app/hooks/useExitedSessionVisibility";
 import { WorkspaceAliasPrompt } from "../features/workspaces/components/WorkspaceAliasPrompt";
 import { useClientUiVisibility } from "../features/client-ui-visibility/hooks/useClientUiVisibility";
 import { useProjectMapDataset } from "../features/project-map/hooks/useProjectMapDataset";
@@ -132,6 +133,16 @@ export function useAppShellLayoutNodesSection(
   const runtimeRunState = input.appShellDomainContexts.runtimeContext
     .runtimeRunState as any;
   const clientUiVisibility = useClientUiVisibility();
+  const { isExitedSessionsHidden, toggleExitedSessionsHidden } =
+    useExitedSessionVisibility();
+  const [rootSessionFolderDraftRequestByWorkspaceId, setRootSessionFolderDraftRequestByWorkspaceId] =
+    useState<Record<string, number>>({});
+  const onRequestRootSessionFolderDraft = useCallback((workspaceId: string) => {
+    setRootSessionFolderDraftRequestByWorkspaceId((current) => ({
+      ...current,
+      [workspaceId]: (current[workspaceId] ?? 0) + 1,
+    }));
+  }, []);
   const [workspaceAliasPrompt, setWorkspaceAliasPrompt] =
     useState<WorkspaceAliasPromptState | null>(null);
   const [
@@ -1657,6 +1668,10 @@ export function useAppShellLayoutNodesSection(
       onLoadOlderThreads: handleLoadOlderThreads,
       onQuickReloadWorkspaceThreads: handleQuickReloadWorkspaceThreads,
       onReloadWorkspaceThreads: handleReloadWorkspaceThreads,
+      isExitedSessionsHidden,
+      onToggleExitedSessionsHidden: toggleExitedSessionsHidden,
+      rootSessionFolderDraftRequestByWorkspaceId,
+      onRequestRootSessionFolderDraft,
       updaterState,
       onUpdate: startUpdate,
       onDismissUpdate: dismissUpdate,

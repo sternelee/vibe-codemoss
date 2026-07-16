@@ -226,6 +226,19 @@ describe("useAppShellLayoutNodesSection adapter contract", () => {
     expect(layoutNodesOptions).toContain("setEditorSplitCompanion,");
   });
 
+  it("owns and forwards Sidebar session visibility and folder draft state", () => {
+    const source = readFileSync(
+      join(currentDir, "useAppShellLayoutNodesSection.tsx"),
+      "utf8",
+    );
+
+    expect(source).toContain("useExitedSessionVisibility");
+    expect(source).toContain("isExitedSessionsHidden,");
+    expect(source).toContain("onToggleExitedSessionsHidden:");
+    expect(source).toContain("rootSessionFolderDraftRequestByWorkspaceId");
+    expect(source).toContain("onRequestRootSessionFolderDraft,");
+  });
+
   it("forwards file compare panel node from useLayoutNodes to the renderer context", () => {
     const source = readFileSync(
       join(currentDir, "useAppShellLayoutNodesSection.tsx"),

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { afterEach } from "vitest";
 import { baseProps, resetSidebarTestMocks } from "./Sidebar.test-utils";
@@ -67,6 +67,44 @@ describe("Sidebar", () => {
     expect(container.querySelector(".sidebar-content-column")).toBeTruthy();
     expect(container.querySelector(".workspace-list")).toBeTruthy();
     expect(container.querySelector(".sidebar-section-title-icon-image")).toBeNull();
+  });
+
+  it("routes root session folder drafts through the controlled owner", async () => {
+    const workspace = {
+      id: "ws-1",
+      name: "codemoss",
+      path: "/tmp/codemoss",
+      connected: true,
+      kind: "main" as const,
+      settings: {
+        sidebarCollapsed: false,
+        worktreeSetupScript: null,
+      },
+    };
+    const onRequestRootSessionFolderDraft = vi.fn();
+
+    render(
+      <Sidebar
+        {...baseProps}
+        workspaces={[workspace]}
+        groupedWorkspaces={[{ id: null, name: "Ungrouped", workspaces: [workspace] }]}
+        onRequestRootSessionFolderDraft={onRequestRootSessionFolderDraft}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText("codemoss")).toBeTruthy());
+    const workspaceCard = screen.getByText("codemoss").closest(".workspace-card");
+    expect(workspaceCard).toBeTruthy();
+    if (!workspaceCard) {
+      throw new Error("Missing workspace card");
+    }
+
+    const menu = openWorkspaceActionsMenu(workspaceCard as HTMLElement);
+    act(() => {
+      fireEvent.click(within(menu).getByRole("menuitem", { name: "New folder" }));
+    });
+
+    expect(onRequestRootSessionFolderDraft).toHaveBeenCalledWith("ws-1");
   });
 
   it("renders the runtime notice entry in the same bottom action group as settings", () => {

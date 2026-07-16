@@ -254,6 +254,7 @@ export type LayoutNodesFlatOptions = {
   onLoadOlderThreads: (workspaceId: string) => void;
   onReloadWorkspaceThreads: (workspaceId: string) => void;
   onQuickReloadWorkspaceThreads?: (workspaceId: string) => void;
+  onRequestRootSessionFolderDraft?: (workspaceId: string) => void;
   isExitedSessionsHidden?: (workspacePath: string) => boolean;
   onToggleExitedSessionsHidden?: (workspacePath: string) => void;
   rootSessionFolderDraftRequestByWorkspaceId?: Record<string, number>;
@@ -825,6 +826,7 @@ export type ChromeLayoutNodesOptions = Pick<
   | "onLoadOlderThreads"
   | "onQuickReloadWorkspaceThreads"
   | "onReloadWorkspaceThreads"
+  | "onRequestRootSessionFolderDraft"
   | "isExitedSessionsHidden"
   | "onToggleExitedSessionsHidden"
   | "rootSessionFolderDraftRequestByWorkspaceId"
