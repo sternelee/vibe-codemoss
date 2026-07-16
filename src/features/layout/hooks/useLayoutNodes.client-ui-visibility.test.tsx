@@ -1010,7 +1010,7 @@ describe("useLayoutNodes client UI visibility", () => {
     expect(onOpenSettings).toHaveBeenCalledTimes(1);
   });
 
-  it("shows loading for a freshly opened pending thread without visible items", async () => {
+  it("does not show history loading for a freshly opened pending draft", async () => {
     const { result } = await renderUseLayoutNodes(
       createLayoutOptions({
         activeThreadId: "codex-pending-123",
@@ -1025,7 +1025,7 @@ describe("useLayoutNodes client UI visibility", () => {
       </>,
     );
 
-    expect(screen.getByTestId("messages").dataset.historyLoading).toBe("true");
+    expect(screen.getByTestId("messages").dataset.historyLoading).toBe("false");
   });
 
   it("does not forward duplicate resolved Claude thinking visibility", async () => {
