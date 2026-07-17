@@ -137,3 +137,103 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1030: 统一 Git Graph 菜单入口
+
+**Date**: 2026-07-18
+**Task**: 统一 Git Graph 菜单入口
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+统一 Sidebar 与 Git Diff 菜单的 Git Graph 文案和 GitCommitHorizontal 图标，隐藏旧 Git 下拉入口并保留既有回调与 log mode 兼容性；focused tests、lint、typecheck 与 OpenSpec strict validation 通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `745a472e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1031: 同步并归档 Git Graph 菜单规范
+
+**Date**: 2026-07-18
+**Task**: 同步并归档 Git Graph 菜单规范
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+将 Git Graph 菜单行为 delta spec 智能合并到 git-panel-diff-view 主规范，修正旧 Hub action 契约冲突，并归档 refine-git-graph-menu-entry；OpenSpec strict validation 408/408 通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1edc4bfa` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1032: 动态派生 Codex 限额标题并稳定测试契约
+
+**Date**: 2026-07-18
+**Task**: 动态派生 Codex 限额标题并稳定测试契约
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+基于 windowDurationMins 动态生成限额标题，统一 Composer、Usage 菜单与本地 status 展示；补充 formatter 和界面回归测试，清理过期 Sidebar 视觉断言，并修复 useModels 异步测试竞态。lint、typecheck、OpenSpec strict validation 通过；全量测试通过原第 19 与 117 批，停在已知且未扩展处理的 Settings 过期测试契约。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d20c2d7d` | (see git log) |
+| `3f10c2b0` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

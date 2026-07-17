@@ -23,6 +23,7 @@ import Check from "lucide-react/dist/esm/icons/check";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import FolderTree from "lucide-react/dist/esm/icons/folder-tree";
+import GitCommitHorizontal from "lucide-react/dist/esm/icons/git-commit-horizontal";
 import GitPullRequest from "lucide-react/dist/esm/icons/git-pull-request";
 import HardDrive from "lucide-react/dist/esm/icons/hard-drive";
 import History from "lucide-react/dist/esm/icons/history";
@@ -2194,7 +2195,7 @@ function GitDiffPanelImpl({
                   }}
                 >
                   <div className="git-panel-select-menu-title">{currentModeOption.label}</div>
-                  {modeOptions.map((option) => {
+                  {modeOptions.filter((option) => option.value !== "log").map((option) => {
                     const isActive = option.value === mode;
                     return (
                       <button
@@ -2268,7 +2269,7 @@ function GitDiffPanelImpl({
                       <div className="git-panel-select-menu-divider" role="separator" />
                       <button
                         type="button"
-                        className={`git-panel-select-option${isGitHistoryOpen ? " is-active" : ""}`}
+                        className={`git-panel-select-option git-panel-select-option--git-graph${isGitHistoryOpen ? " is-active" : ""}`}
                         role="menuitem"
                         onClick={() => {
                           setIsModeMenuOpen(false);
@@ -2277,7 +2278,7 @@ function GitDiffPanelImpl({
                       >
                         <span className="git-panel-select-option-text">
                           <span className="git-panel-select-option-icon" aria-hidden>
-                            <History size={13} />
+                            <GitCommitHorizontal size={13} />
                           </span>
                           <span className="git-panel-select-option-copy">
                             <span className="git-panel-select-option-label">

@@ -59,7 +59,7 @@ const git = {
     listView: "文件列表视图",
     listFlat: "平铺",
     listTree: "树形",
-    historyQuickAction: "Hub",
+    historyQuickAction: "Git Graph",
     previewInline: "在中间区域预览",
     previewInlineAction: "在中间区域预览差异",
     previewModal: "弹窗预览",

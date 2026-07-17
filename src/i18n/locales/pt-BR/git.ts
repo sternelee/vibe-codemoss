@@ -62,7 +62,7 @@ const git = {
     "listView": "Visualização em lista de arquivos",
     "listFlat": "Plana",
     "listTree": "Árvore",
-    "historyQuickAction": "Hub",
+    "historyQuickAction": "Git Graph",
     "previewInline": "Visualizar no painel central",
     "previewInlineAction": "Visualizar diff no painel central",
     "previewModal": "Visualizar em modal",

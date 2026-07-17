@@ -12,6 +12,7 @@ import { AgentIcon } from '../../../../../components/AgentIcon';
 import { agentProvider, CREATE_NEW_AGENT_ID, EMPTY_STATE_ID, type AgentItem } from '../providers/agentProvider';
 import type { AccountRateLimitsInfo, CodexSpeedMode, ProviderId, SelectedAgent } from '../types';
 import { formatRelativeTime } from '../../../../../utils/time';
+import { formatRateLimitWindowLabel } from '../../../../../utils/rateLimitLabels';
 
 interface ConfigSelectProps {
   currentProvider: string;
@@ -123,6 +124,12 @@ export const ConfigSelect = ({
     return {
       sessionPercent,
       weeklyPercent,
+      sessionLimitLabel: formatRateLimitWindowLabel(
+        accountRateLimits?.primary?.windowDurationMins,
+      ),
+      weeklyLimitLabel: formatRateLimitWindowLabel(
+        accountRateLimits?.secondary?.windowDurationMins,
+      ),
       showWeekly: Boolean(accountRateLimits?.secondary),
       sessionResetLabel: formatUsageReset(
         accountRateLimits?.primary?.resetsAt,
@@ -362,7 +369,7 @@ export const ConfigSelect = ({
 
       <div className="selector-usage-row">
         <div className="selector-usage-row-top">
-          <span>5h limit</span>
+          <span>{usageSnapshot.sessionLimitLabel}</span>
           <span>
             {usageSnapshot.sessionPercent === null
               ? '--'
@@ -385,7 +392,7 @@ export const ConfigSelect = ({
       {usageSnapshot.showWeekly && (
         <div className="selector-usage-row">
           <div className="selector-usage-row-top">
-            <span>Weekly limit</span>
+            <span>{usageSnapshot.weeklyLimitLabel}</span>
             <span>
               {usageSnapshot.weeklyPercent === null
                 ? '--'
@@ -718,7 +725,7 @@ export const ConfigSelect = ({
                 </div>
                 <div className="selector-usage-row">
                   <div className="selector-usage-row-top">
-                    <span>5h limit</span>
+                    <span>{usageSnapshot.sessionLimitLabel}</span>
                     <span>
                       {usageSnapshot.sessionPercent === null
                         ? '--'
@@ -738,7 +745,7 @@ export const ConfigSelect = ({
                 {usageSnapshot.showWeekly && (
                   <div className="selector-usage-row">
                     <div className="selector-usage-row-top">
-                      <span>Weekly limit</span>
+                      <span>{usageSnapshot.weeklyLimitLabel}</span>
                       <span>
                         {usageSnapshot.weeklyPercent === null
                           ? '--'

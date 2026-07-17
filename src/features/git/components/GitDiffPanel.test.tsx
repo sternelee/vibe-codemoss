@@ -108,7 +108,7 @@ vi.mock("react-i18next", () => ({
         "git.discardChangeMultiple": "Discard changes",
         "git.statusUnavailable": "Git status unavailable",
         "git.noRepositoriesFound": "No repositories found.",
-        "git.historyQuickAction": "Hub",
+        "git.historyQuickAction": "Git Graph",
         "git.switchRepository": "Switch Git repository",
         "git.switchRepositoryDescription": "Choose which repo the Diff panel uses",
         "menu.maximize": "Maximize",
@@ -2170,7 +2170,7 @@ describe("GitDiffPanel", () => {
     expect(onGitDiffListViewChange).not.toHaveBeenCalled();
   });
 
-  it("opens git history panel from Hub button", () => {
+  it("opens git history from Git Graph while hiding the legacy Git mode option", () => {
     const onOpenGitHistoryPanel = vi.fn();
     render(
       <GitDiffPanel
@@ -2183,7 +2183,13 @@ describe("GitDiffPanel", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Git panel view" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Hub" }));
+    expect(screen.queryByRole("menuitemradio", { name: /^Git\b/ })).toBeNull();
+
+    const gitGraphAction = screen.getByRole("menuitem", { name: "Git Graph" });
+    expect(gitGraphAction.querySelector(".lucide-git-commit-horizontal")).toBeTruthy();
+    expect(gitGraphAction.classList.contains("git-panel-select-option--git-graph")).toBe(true);
+
+    fireEvent.click(gitGraphAction);
     expect(onOpenGitHistoryPanel).toHaveBeenCalledTimes(1);
   });
 

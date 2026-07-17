@@ -48,6 +48,7 @@ import { ReviewInlinePrompt } from "./ReviewInlinePrompt";
 import type { ReviewPromptState, ReviewPromptStep } from "../../threads/hooks/useReviewPrompt";
 import { ContextUsageIndicator } from "./ContextUsageIndicator";
 import { formatRelativeTime } from "../../../utils/time";
+import { formatRateLimitWindowLabel } from "../../../utils/rateLimitLabels";
 import { resolveManualMemoryPreview } from "../utils/manualMemoryPreview";
 
 type ComposerInputProps = {
@@ -628,6 +629,12 @@ export function ComposerInput({
     return {
       sessionPercent,
       weeklyPercent,
+      sessionLimitLabel: formatRateLimitWindowLabel(
+        accountRateLimits?.primary?.windowDurationMins,
+      ),
+      weeklyLimitLabel: formatRateLimitWindowLabel(
+        accountRateLimits?.secondary?.windowDurationMins,
+      ),
       showWeekly: Boolean(accountRateLimits?.secondary),
       sessionResetLabel: formatUsageReset(
         accountRateLimits?.primary?.resetsAt,
@@ -1217,7 +1224,7 @@ export function ComposerInput({
                     </div>
                     <div className="composer-usage-row">
                       <div className="composer-usage-row-top">
-                        <span>5h limit</span>
+                        <span>{usageSnapshot.sessionLimitLabel}</span>
                         <span>
                           {usageSnapshot.sessionPercent === null
                             ? "--"
@@ -1239,7 +1246,7 @@ export function ComposerInput({
                     {usageSnapshot.showWeekly && (
                       <div className="composer-usage-row">
                         <div className="composer-usage-row-top">
-                          <span>Weekly limit</span>
+                          <span>{usageSnapshot.weeklyLimitLabel}</span>
                           <span>
                             {usageSnapshot.weeklyPercent === null
                               ? "--"

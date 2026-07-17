@@ -82,6 +82,7 @@ vi.mock("react-i18next", () => ({
         "common.refresh": "Refresh",
         "common.toggleTerminalPanel": "Toggle terminal panel",
         "git.logMode": "Git",
+        "git.historyQuickAction": "Git Graph",
         "sidebar.releaseNotes": "Release Notes",
         "sidebar.comingSoon": "Coming soon",
         "sidebar.comingSoonMessage": "This feature is coming soon",

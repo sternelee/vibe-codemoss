@@ -237,6 +237,51 @@ describe('ConfigSelect usage entry', () => {
     });
   });
 
+  it('derives limit titles from each runtime window duration', async () => {
+    const { container } = render(
+      <ConfigSelect
+        currentProvider="codex"
+        onProviderChange={() => {}}
+        accountRateLimits={{
+          primary: { usedPercent: 26, windowDurationMins: 10080, resetsAt: null },
+          secondary: { usedPercent: 40, windowDurationMins: 720, resetsAt: null },
+        }}
+      />,
+    );
+
+    fireEvent.click(container.querySelector('.config-button') as HTMLElement);
+    fireEvent.mouseEnter(
+      container.querySelector('.selector-option-live-usage') as HTMLElement,
+    );
+
+    await waitFor(() => {
+      expect(container.textContent).toContain('Weekly limit');
+      expect(container.textContent).toContain('12h limit');
+      expect(container.textContent).not.toContain('5h limit');
+    });
+  });
+
+  it('falls back to a generic title when the runtime omits window duration', async () => {
+    const { container } = render(
+      <ConfigSelect
+        currentProvider="codex"
+        onProviderChange={() => {}}
+        accountRateLimits={{
+          primary: { usedPercent: 26, windowDurationMins: null, resetsAt: null },
+        }}
+      />,
+    );
+
+    fireEvent.click(container.querySelector('.config-button') as HTMLElement);
+    fireEvent.mouseEnter(
+      container.querySelector('.selector-option-live-usage') as HTMLElement,
+    );
+
+    await waitFor(() => {
+      expect(container.textContent).toContain('Rate limit');
+    });
+  });
+
   it('shows and toggles plan mode switch only for codex', async () => {
     const onSelectCollaborationMode = vi.fn();
     const { container, rerender } = render(

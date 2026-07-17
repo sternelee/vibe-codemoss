@@ -59,7 +59,7 @@ const git = {
     listView: "File list view",
     listFlat: "Flat",
     listTree: "Tree",
-    historyQuickAction: "Hub",
+    historyQuickAction: "Git Graph",
     previewInline: "Preview in center pane",
     previewInlineAction: "Preview diff in center pane",
     previewModal: "Preview in modal",

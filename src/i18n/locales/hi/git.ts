@@ -62,7 +62,7 @@ const git = {
     "listView": "फ़ाइल सूची दृश्य",
     "listFlat": "फ़्लैट",
     "listTree": "ट्री",
-    "historyQuickAction": "हब",
+    "historyQuickAction": "Git Graph",
     "previewInline": "केंद्र फलक में पूर्वावलोकन",
     "previewInlineAction": "केंद्र फलक में diff पूर्वावलोकन करें",
     "previewModal": "मोडल में पूर्वावलोकन",

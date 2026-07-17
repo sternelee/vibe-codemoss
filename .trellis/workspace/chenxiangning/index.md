@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-26.md`
-- **Total Sessions**: 1029
+- **Total Sessions**: 1032
 - **Last Active**: 2026-07-18
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-26.md` | ~139 | Active |
+| `journal-26.md` | ~239 | Active |
 | `journal-25.md` | ~1976 | Archived |
 | `journal-24.md` | ~1994 | Archived |
 | `journal-23.md` | ~1965 | Archived |
@@ -54,6 +54,9 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 1032 | 2026-07-18 | 动态派生 Codex 限额标题并稳定测试契约 | `d20c2d7d`, `3f10c2b0` | `feature/v-0.7.4` |
+| 1031 | 2026-07-18 | 同步并归档 Git Graph 菜单规范 | `1edc4bfa` | `feature/v-0.7.4` |
+| 1030 | 2026-07-18 | 统一 Git Graph 菜单入口 | `745a472e` | `feature/v-0.7.4` |
 | 1029 | 2026-07-18 | 归档性能提案并同步主规范 | `1b3418425e3fb7d4aa40f23332c9b55c2b565924` | `feature/v-0.7.4` |
 | 1028 | 2026-07-18 | 校准并归档旧 OpenSpec 提案 | `01edb4bb` | `feature/v-0.7.4` |
 | 1027 | 2026-07-18 | 修复 Git 重命名与删除文件路径身份 | `e3c8e569` | `feature/v-0.7.4` |
