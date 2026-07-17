@@ -21,4 +21,4 @@
 - [x] 4.1 [P0, depends: 1.1] 输入 raw libgit2 working-tree diff，抽取 shared rename detection/alias pathspec helper并接入 Desktop/daemon diff、stats、full-diff；用真实 repository test 覆盖 unchanged/modified rename、单一 `R` projection 与准确 stats。
 - [x] 4.2 [P0, depends: 1.3] 让 rename mutation resolver 接收 `GitStatusLayer` intent；stage/discard 选择 Workdir、unstage 选择 Index，并用 `HEAD a → Index b → Workdir c` regression test 覆盖 source/destination 两侧输入。
 - [x] 4.3 [P0, depends: 2.2] single-repository mouse click 与 Enter/Space 复用 `(path, section)` activation callback；用 `GitDiffPanel.test.tsx` 覆盖 rename destination 与 deleted read-only preview parity。
-- [ ] 4.4 [P0, depends: 4.1, 4.2, 4.3] 运行 focused Rust/Vitest、daemon check、typecheck、lint、runtime contracts 与 strict OpenSpec validation；最后执行 change-scoped diff audit，确认未触碰 README、main specs、archive 或其他 change。
+- [x] 4.4 [P0, depends: 4.1, 4.2, 4.3] 运行 focused Rust/Vitest、daemon check、typecheck、lint、runtime contracts 与 strict OpenSpec validation；最后执行 change-scoped diff audit，确认未触碰 README、main specs、archive 或其他 change。

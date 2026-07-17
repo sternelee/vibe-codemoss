@@ -24,7 +24,7 @@
 **Non-Goals:**
 
 - 不新增 rename UI、old → new 文案或颜色。
-- 不改变 Git diff similarity、commit history rename-follow 或文件树 decoration。
+- 不自定义 Git diff similarity threshold，不改变 commit history rename-follow 或文件树 decoration。
 - 不引入新 command 或 dependency。
 - 不处理其他 OpenSpec/README/main spec 改动。
 
@@ -81,7 +81,7 @@ shared TypeScript `GitFileStatus` 增加 `oldPath?: string | null`；`DiffFile` 
 
 ### 6. libgit2 diff 在消费前完成 rename detection
 
-`diff_tree_to_workdir_with_index` 只生成 raw delta；它不会自动执行 similarity pairing。Desktop/daemon 在遍历 delta 前统一调用 `Diff::find_similar`，只启用 libgit2 内建 rename detection，不引入自定义算法。
+`diff_tree_to_workdir_with_index` 只生成 raw delta；它不会自动执行 similarity pairing。Desktop/daemon 在遍历 delta 前统一调用 `Diff::find_similar`，启用 `renames(true) + for_untracked(true)`，让未 staged rename 的 untracked destination 也参与 pairing；不引入自定义算法。
 
 stats/full-diff 使用同一次 diff 中的 source + destination pathspec；对于 chained rename，preview alias resolver 收集与 target 连通的 Index/Workdir identities。canonical frontend projection 因而只接收一个 `R` row，不再从 raw old-path delete 合成 fallback。
 
@@ -117,4 +117,4 @@ Rollback 可按相反顺序移除 frontend routing、shared helper 使用及 opt
 
 ## Open Questions
 
-无。rename 的 deep diff pairing 与 old → new UI 展示明确留作独立需求。
+无。自定义 similarity policy 与 old → new UI 展示明确留作独立需求；本 change 仅启用 libgit2 内建 rename detection。
