@@ -31,4 +31,13 @@ describe("Git commit composer layout", () => {
       /\.git-repository-change-group\s+\.diff-row\s*\{[^}]*(?:min-height|font-size|padding):/s,
     );
   });
+
+  it("reveals multi-repository refresh actions from hover or keyboard focus", () => {
+    expect(diffCss).toMatch(
+      /\.git-repository-change-group__refresh\s*\{[^}]*opacity:\s*0[^}]*pointer-events:\s*none/s,
+    );
+    expect(diffCss).toMatch(
+      /\.git-repository-change-group__header:hover \.git-repository-change-group__refresh,[\s\S]*?\.git-repository-change-group__header:focus-within \.git-repository-change-group__refresh\s*\{[^}]*opacity:\s*1[^}]*pointer-events:\s*auto/s,
+    );
+  });
 });

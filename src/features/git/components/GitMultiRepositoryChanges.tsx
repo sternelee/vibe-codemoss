@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
+import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import type { CommitMessageEngine } from "../../../services/tauri";
 import type { RepositoryGitStatus } from "../hooks/useMultiRepositoryGitStatus";
 import { normalizeGitPath } from "../utils/commitScope";
@@ -172,6 +173,23 @@ export function GitMultiRepositoryChanges({
               )}
             />
             <span className="git-repository-change-group__name">{status.displayName}</span>
+            {onRefresh ? (
+              <span className="git-repository-change-group__refresh">
+                <button
+                  type="button"
+                  className={`git-status-refresh-button${isLoading ? " is-spinning" : ""}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    void onRefresh();
+                  }}
+                  disabled={isLoading}
+                  aria-label={t("git.refreshStatus")}
+                  title={t("git.refreshStatus")}
+                >
+                  <RefreshCw className="git-status-refresh-icon" size={13} aria-hidden />
+                </button>
+              </span>
+            ) : null}
             <span className="git-repository-change-group__count">
               {t("git.filesChanged", { count: orderedPaths.length })}
             </span>

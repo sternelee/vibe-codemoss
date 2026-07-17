@@ -23,6 +23,55 @@ const repositoryStatus = (repositoryRoot: string): RepositoryGitStatus => ({
 });
 
 describe("GitMultiRepositoryChanges", () => {
+  it("restores an aggregate status refresh action in every repository header", () => {
+    const onRefresh = vi.fn(async () => undefined);
+    render(
+      <GitMultiRepositoryChanges
+        workspaceId="ws-1"
+        statuses={[repositoryStatus("a"), repositoryStatus("b")]}
+        isLoading={false}
+        commitMessage=""
+        commitLoading={false}
+        onRefresh={onRefresh}
+      />,
+    );
+
+    const groups = document.querySelectorAll<HTMLElement>(".git-repository-change-group");
+    expect(groups).toHaveLength(2);
+    groups.forEach((group) => {
+      expect(within(group).getByRole("button", { name: "git.refreshStatus" })).not.toBeNull();
+    });
+
+    fireEvent.click(within(groups[1] as HTMLElement).getByRole("button", {
+      name: "git.refreshStatus",
+    }));
+
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables repository refresh actions while the aggregate refresh is loading", () => {
+    const onRefresh = vi.fn(async () => undefined);
+    render(
+      <GitMultiRepositoryChanges
+        workspaceId="ws-1"
+        statuses={[repositoryStatus("a"), repositoryStatus("b")]}
+        isLoading
+        commitMessage=""
+        commitLoading={false}
+        onRefresh={onRefresh}
+      />,
+    );
+
+    const refreshButtons = screen.getAllByRole("button", { name: "git.refreshStatus" });
+    expect(refreshButtons).toHaveLength(2);
+    refreshButtons.forEach((button) => {
+      expect(button.getAttribute("disabled")).not.toBeNull();
+      expect(button.classList.contains("is-spinning")).toBe(true);
+      fireEvent.click(button);
+    });
+    expect(onRefresh).not.toHaveBeenCalled();
+  });
+
   it("renders repository groups and isolates the same relative path selection", () => {
     const onCommitRepositories = vi.fn();
     const onOpenGenerateMenu = vi.fn();
