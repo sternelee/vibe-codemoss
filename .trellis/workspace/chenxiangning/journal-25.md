@@ -1838,3 +1838,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1022: 迁移 Git Diff 选择器并完成兼容性收口
+
+**Date**: 2026-07-17
+**Task**: 迁移 Git Diff 选择器并完成兼容性收口
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+将 Git Diff 模式选择器迁移到右侧工具栏，保留原有行为；修复旧 WebView overflow 兼容与菜单首开定位边界，补充 Portal、窄宽度、左右对齐及 CSS contract 测试。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b3f48d24` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
