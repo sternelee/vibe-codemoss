@@ -62,7 +62,7 @@ const git = {
     "listView": "檔案清單檢視",
     "listFlat": "平面",
     "listTree": "樹狀",
-    "historyQuickAction": "中心",
+    "historyQuickAction": "Git Graph",
     "previewInline": "在中央窗格預覽",
     "previewInlineAction": "在中央窗格預覽差異",
     "previewModal": "以彈出視窗預覽",

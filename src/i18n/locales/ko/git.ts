@@ -62,7 +62,7 @@ const git = {
     "listView": "파일 목록 보기",
     "listFlat": "평면",
     "listTree": "트리",
-    "historyQuickAction": "허브",
+    "historyQuickAction": "Git Graph",
     "previewInline": "가운데 창에서 미리 보기",
     "previewInlineAction": "가운데 창에서 diff 미리 보기",
     "previewModal": "모달에서 미리 보기",
