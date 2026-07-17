@@ -1772,3 +1772,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1020: 补充 0.7.4 与 0.7.5 变更日志
+
+**Date**: 2026-07-17
+**Task**: 补充 0.7.4 与 0.7.5 变更日志
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+基于 v0.7.3..v0.7.4 与 v0.7.4..HEAD 的 Git 历史和关联 OpenSpec，按既有中英文 Features、Improvements、Fixes 格式补充 0.7.4 与 0.7.5 release notes；仅修改 CHANGELOG.md，并通过 git diff --check 与双语条目数量核对。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `3f5f1b25` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
