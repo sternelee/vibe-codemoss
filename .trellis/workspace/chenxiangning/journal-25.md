@@ -1805,3 +1805,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1021: 优化 Git History 标题栏视觉层级与密度
+
+**Date**: 2026-07-17
+**Task**: 优化 Git History 标题栏视觉层级与密度
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+将 Git History 顶部标题层调整为一体化 window chrome，使用全局主题分隔线并将垂直留白从 8px 压缩至 2px；同步 OpenSpec 设计、场景与验证任务。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7b7dfc71` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
