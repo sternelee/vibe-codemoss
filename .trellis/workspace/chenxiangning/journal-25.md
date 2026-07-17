@@ -1721,3 +1721,54 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1019: 压缩 Git History 变更文件目录层级
+
+**Date**: 2026-07-17
+**Task**: 压缩 Git History 变更文件目录层级
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| 模块 | 完成内容 |
+|------|----------|
+| Compact Folders | Git History selected-commit details 与 Push Preview 复用 shared `buildDiffTree()` / `compactDiffTree()`，将安全的单子目录链显示为 dot-separated row |
+| Boundary | 在 direct file、directory branch、leaf 和 repository root 处停止压缩，并使用 compact chain deepest canonical path 维护 expansion identity |
+| Compatibility | 规范化 Windows `\\` path，保留 original file path 驱动 selection/diff；dotted display-label collision 保持 distinct ids |
+| Review Fix | 将 synthetic root identity 从可能冲突的 `__repo_root__` 改为 Git-relative path 不可能出现的 `/`，覆盖真实同名目录 fixture |
+| OpenSpec | 完成 `compact-git-history-changed-file-tree` 7/7 tasks 与 strict validation，change 保持未归档 |
+
+**Review 结论**：通过；Critical / High / Medium 均为 0。
+
+**验证结果**：
+- Focused Vitest：56 passed
+- `npm run lint`
+- `npm run typecheck`
+- `git diff --check`
+- `openspec validate compact-git-history-changed-file-tree --strict --no-interactive`
+
+**提交**：`698d649c feat(git-history): 压缩变更文件目录层级`
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `698d649c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

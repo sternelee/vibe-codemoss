@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-25.md`
-- **Total Sessions**: 1018
+- **Total Sessions**: 1019
 - **Last Active**: 2026-07-17
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-25.md` | ~1723 | Active |
+| `journal-25.md` | ~1774 | Active |
 | `journal-24.md` | ~1994 | Archived |
 | `journal-23.md` | ~1965 | Archived |
 | `journal-22.md` | ~1969 | Archived |
@@ -53,6 +53,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 1019 | 2026-07-17 | 压缩 Git History 变更文件目录层级 | `698d649c` | `feature/v-0.7.4` |
 | 1018 | 2026-07-17 | 增强 Git History 提交筛选与查询稳定性 | `17cf39e2` | `feature/v-0.7.4` |
 | 1017 | 2026-07-17 | 增强 Git History 作者时间线配色 | `1e19e0fa` | `feature/v-0.7.4` |
 | 1016 | 2026-07-17 | 全局接口搜索与源码定位 | `cf76ad31`, `307424cc` | `feature/v-0.7.4` |
