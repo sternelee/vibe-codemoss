@@ -1534,3 +1534,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1014: 恢复 Git 多仓状态刷新入口
+
+**Date**: 2026-07-17
+**Task**: 恢复 Git 多仓状态刷新入口
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+在 GitMultiRepositoryChanges 的每个 repository header 恢复手动状态刷新按钮，复用 aggregate refresh 与 loading guard；新增组件和 CSS contract 回归测试，同步并归档 OpenSpec change，focused 81 tests、lint、typecheck 与 OpenSpec strict validation 通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b2d5fc12` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
