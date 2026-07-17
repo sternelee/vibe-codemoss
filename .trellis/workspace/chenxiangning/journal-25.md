@@ -1634,3 +1634,207 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1017: 增强 Git History 作者时间线配色
+
+**Date**: 2026-07-17
+**Task**: 增强 Git History 作者时间线配色
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+为 Git History 提交时间线增加稳定的作者配色映射，保留时间线与选中态；补充 utility/component 回归测试，同步并归档 OpenSpec 变更。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1e19e0fa` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1018: 增强 Git History 提交筛选与查询稳定性
+
+**Date**: 2026-07-17
+**Task**: 增强 Git History 提交筛选与查询稳定性
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| 模块 | 完成内容 |
+|------|----------|
+| Filter UI | 将 Branch、User、Date 与 Clear 收拢到“提交”标题行，保留独立搜索框并移除仓库路径筛选 |
+| Query lifecycle | 修复 debounce 清空与 workspace 切换串扰，统一首屏、分页和 snapshot retry 的 canonical filter payload，并让相对日期在重新查询时重新锚定 |
+| Git backend | Desktop 与 daemon 复用 branch scope helper，补齐 `all` / `*` 的全仓分支历史语义 |
+| Display & UX | 支持 partial email filter 的邮箱回显、日期菜单右对齐和长邮箱省略，补齐输入框可访问性属性 |
+| Contracts | 完成 OpenSpec `add-git-history-commit-filters` 19/19 tasks，并同步 Trellis executable contract |
+
+**验证结果**：
+- `npm run lint`
+- `npm run typecheck`
+- Git History targeted Vitest：63 passed，127 skipped
+- `npm run check:git-history:runtime-contract`
+- `npm run check:git-history:static-imports`
+- `npm run doctor:strict`
+- Rust Desktop / daemon focused tests
+- `rustfmt --edition 2021 --check`
+- `openspec validate add-git-history-commit-filters --strict --no-interactive`
+- `git diff --check`
+
+**备注**：`check:large-files:gate` 仍命中 36 个既有 baseline files，本次变更未新增命中项。OpenSpec change 保持未归档，等待单独归档指令。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `17cf39e2` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1019: 压缩 Git History 变更文件目录层级
+
+**Date**: 2026-07-17
+**Task**: 压缩 Git History 变更文件目录层级
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| 模块 | 完成内容 |
+|------|----------|
+| Compact Folders | Git History selected-commit details 与 Push Preview 复用 shared `buildDiffTree()` / `compactDiffTree()`，将安全的单子目录链显示为 dot-separated row |
+| Boundary | 在 direct file、directory branch、leaf 和 repository root 处停止压缩，并使用 compact chain deepest canonical path 维护 expansion identity |
+| Compatibility | 规范化 Windows `\\` path，保留 original file path 驱动 selection/diff；dotted display-label collision 保持 distinct ids |
+| Review Fix | 将 synthetic root identity 从可能冲突的 `__repo_root__` 改为 Git-relative path 不可能出现的 `/`，覆盖真实同名目录 fixture |
+| OpenSpec | 完成 `compact-git-history-changed-file-tree` 7/7 tasks 与 strict validation，change 保持未归档 |
+
+**Review 结论**：通过；Critical / High / Medium 均为 0。
+
+**验证结果**：
+- Focused Vitest：56 passed
+- `npm run lint`
+- `npm run typecheck`
+- `git diff --check`
+- `openspec validate compact-git-history-changed-file-tree --strict --no-interactive`
+
+**提交**：`698d649c feat(git-history): 压缩变更文件目录层级`
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `698d649c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1020: 补充 0.7.4 与 0.7.5 变更日志
+
+**Date**: 2026-07-17
+**Task**: 补充 0.7.4 与 0.7.5 变更日志
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+基于 v0.7.3..v0.7.4 与 v0.7.4..HEAD 的 Git 历史和关联 OpenSpec，按既有中英文 Features、Improvements、Fixes 格式补充 0.7.4 与 0.7.5 release notes；仅修改 CHANGELOG.md，并通过 git diff --check 与双语条目数量核对。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `3f5f1b25` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1021: 优化 Git History 标题栏视觉层级与密度
+
+**Date**: 2026-07-17
+**Task**: 优化 Git History 标题栏视觉层级与密度
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+将 Git History 顶部标题层调整为一体化 window chrome，使用全局主题分隔线并将垂直留白从 8px 压缩至 2px；同步 OpenSpec 设计、场景与验证任务。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7b7dfc71` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

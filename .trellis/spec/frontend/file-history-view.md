@@ -4,7 +4,7 @@
 
 ## 1. Scope / Trigger
 
-- Trigger：修改 FileTree 文件历史入口、`FileHistoryTarget`、`getGitCommitHistory` 的 `path`、snapshot identity、rename-follow、remote forwarding、File History layout 或 selected diff renderer。
+- Trigger：修改 FileTree/Git Diff 文件历史入口、`FileHistoryTarget`、`getGitCommitHistory` 的 `path`、snapshot identity、rename-follow、remote forwarding、File History layout 或 selected diff renderer。
 - 目标：root/nested repository 都只查询目标文件，Desktop local 与 remote daemon 保持 payload/response parity。
 - 禁止：frontend 遍历 commits 后逐个拉 diff 做 N+1 filtering；禁止把 file mode 塞入通用 `GitHistoryPanelImpl`。
 
@@ -93,6 +93,10 @@ Daemon method 使用同字段顺序与语义，其中 pagination 的 `offset/lim
 - File History scope MUST 将 `.editable-diff-compare-columns` 和 `.file-compare-column` 的 fixed minimum 收敛为 `minmax(0, 1fr)` / `min-width: 0`，让 compare 消费剩余宽度；long lines 由 CodeMirror pane 自己滚动。
 - `loadFileHistoryStyles()` MUST 同时加载 diff、file-view compare 和 file-history styles。
 - `FileTreePanel.onOpenFileHistory` MUST optional；callback 缺失、folder target、invalid/escaping path、没有 owning repository 时不显示入口。
+- `GitDiffPanel.onOpenFileHistory` MUST optional；single/multi changed-file menu 只在 callback、workspace identity 与 valid repository-relative target 同时存在时显示 History。
+- Git Diff History MUST capture the clicked row only；single bulk mutation selection MUST NOT alter `FileHistoryTarget.path`。
+- Git Diff `mutationDisabled` / diff-only row MAY retain read-only History，但 MUST expose zero Stage/Unstage/Discard actions。
+- Git Diff single root MUST normalize absent/empty/workspace-equal `gitRoot` to `repositoryRoot=""`；nested root MUST be workspace-relative；multi mode MUST preserve row-owned explicit root including `""`。
 
 ## 4. Validation & Error Matrix
 
@@ -119,6 +123,11 @@ Daemon method 使用同字段顺序与语义，其中 pagination 的 `offset/lim
 | previous/source change | red deletion / green addition | 不得两栏都显示 generic blue modified |
 | difference navigation | read-only editor scrolls to active line | 不得把 programmatic navigation 当 mutation 禁用 |
 | long source line | editor-local horizontal scroll | 不得撑宽 File History workspace |
+| Git Diff single multi-selection | clicked row target only | selected paths 不得替换 History path |
+| Git Diff multi A/B same path | clicked `repositoryRoot + path` | 不得 path-only 串仓 |
+| Git Diff explicit root `""` | empty string preserved | 不得 fallback configured root |
+| Git Diff mutation-disabled row | History-only when target valid | 不得暴露 mutation 或隐藏 read-only capability |
+| Git Diff missing callback/workspace/valid scope | omit History item | 不得显示 dead entry |
 
 ## 5. Good / Base / Bad Cases
 
@@ -130,11 +139,15 @@ Daemon method 使用同字段顺序与语义，其中 pagination 的 `offset/lim
 - Good：File History container 变窄时，layout 自己切换上下结构，right panel 是否打开不影响 breakpoint truth。
 - Good：historical text column 使用 `{ editable: false, readOnlyReason: null }`，因此 CodeMirror/markers 保留但 user mutation 被禁用。
 - Good：rename 前 commit 暴露 `filePath="src/before.ts"`，diff request 与 exact-match 都使用该 historical path。
+- Good：multi repository `services/api + pom.xml` → `{ repositoryRoot: "services/api", path: "pom.xml", displayPath: "services/api/pom.xml" }`。
+- Good：single selected A/B，right-click B → History target B；Stage/Discard 仍可使用 A/B bulk target。
 - Good：`@@ -56,2 +60,2 @@` 后接 `@@ -90 +94 @@` 时，两栏 gutter 分别延续为 `56,57,90` 与 `60,61,94`。
 - Bad：用 `@media (max-width: ...)` 推断 center surface 宽度，导致 window 很宽但 center panel 很窄时仍保持左右挤压。
 - Bad：为复刻 Diff UI 再写一套 previous/source reconstruction 或 CodeMirror columns。
 - Bad：用 `readOnlyReason: t("files.readOnly")` 表示普通只读，意外触发 `<pre>` fallback 并丢失全部 decorations。
 - Bad：selected response 未命中 path 时渲染 `diffs[0]`，可能把同一 commit 的另一个文件冒充目标文件。
+- Bad：`mutationDisabled` early return 同时移除 History，混淆 write capability 与 read capability。
+- Bad：multi same-path History 根据 flat path 反查 repository，导致打开另一仓文件。
 
 ## 6. Tests Required
 
@@ -150,6 +163,9 @@ Daemon method 使用同字段顺序与语义，其中 pagination 的 `offset/lim
 - `file-history-layout.test.ts`：assert named container、bounded wide grid、narrow stacked rows、fluid two-pane column override。
 - `file-history-layout.test.ts`：assert deletion/addition scoped selectors 与 red/green theme colors 存在。
 - `useGitPanelController.test.tsx`：assert open/switch/close 与切换其他 center surface 后 target 清空。
+- `GitDiffPanelFileContextMenu.test.ts`：assert History ordering、History-only 与 empty action set。
+- `GitDiffPanel.test.tsx`：assert root/nested/Windows/invalid target mapping、single clicked-only bulk selection、multi same-path/empty-root、mutation-disabled History-only 与 stale callback close。
+- `useLayoutNodes.client-ui-visibility.test.tsx`：assert existing `onOpenFileHistory` capability 透传到 Git Diff。
 - Rust `git::tests`：真实 repository fixture assert root rename-follow 的 OID + commit-time path、invalid paths 与不同 path snapshot identity。
 - Rust `git_utils::tests`：assert shared image mapper 同时输出 old/new MIME 与 base64 payload；daemon target 必须 compile。
 - Gate：`npm run typecheck`、focused Vitest、`cargo test ... file_history --lib`、daemon target compile、`npm run check:runtime-contracts`、strict OpenSpec validation。
@@ -241,4 +257,112 @@ const selectedDiff = diffs.find((entry) => entry.path === target.path) ?? diffs[
 ```ts
 const selectedFilePath = selectedCommit.filePath ?? target.path;
 const selectedDiff = diffs.find((entry) => entry.path === selectedFilePath) ?? null;
+```
+
+## 8. Scenario: Repository-wide Git History Filter Stability
+
+### 1. Scope / Trigger
+
+- Trigger：修改 `GitHistoryCommitFilters` debounce/clear/scope restore、`useGitHistoryCommitFilters` request mapping、repository-wide history pagination、Date preset、branch `"all"` / `"*"`，或 Desktop/daemon revwalk 初始化。
+- 目标：first-page request 建立 canonical filter payload；同一 snapshot 的 append/retry 精确复用；新 snapshot 重新锚定 Date range；Desktop 与 daemon 使用同一 branch-scope resolver。
+
+### 2. Signatures
+
+```ts
+type GitHistoryRequestFilters = {
+  branch: string;
+  query: string | null;
+  author: string | null;
+  dateFrom: number | null;
+  dateTo: number | null;
+  repositoryRoot?: string;
+};
+
+createHistoryRequestFilters(): GitHistoryRequestFilters
+
+GitHistoryCommitFilters({
+  draftScopeKey,
+  values,
+  onFiltersChange,
+  onClear,
+}: GitHistoryCommitFiltersProps): JSX.Element
+```
+
+```rust
+fn push_git_history_branch_scope(
+    repo: &git2::Repository,
+    revwalk: &mut git2::Revwalk<'_>,
+    branch: Option<&str>,
+) -> Result<(), String>
+```
+
+### 3. Contracts
+
+- `loadHistory(false)` MUST 调用 `createHistoryRequestFilters()` 创建新 payload，并写入 `historyRequestFiltersRef`；Date resolver 在这里重新读取 clock。
+- `loadHistory(true)` 与 snapshot-expired retry MUST 复用该 ref/local payload，禁止重新计算 `dateFrom/dateTo`。
+- `"all"`（case-insensitive）与 `"*"` MUST 由 shared `push_git_history_branch_scope` 推入 `refs/heads/*` + `refs/remotes/*`；其他 branch 按 local ref、remote ref、revparse 顺序解析。
+- Desktop `src-tauri/src/git/commands.rs` 与 daemon `src-tauri/src/bin/cc_gui_daemon/git.rs` MUST 调用同一个 shared helper，禁止复制两套特殊值判断。
+- Clear MUST 先同步清空 child query/author draft，再通知 parent；`draftScopeKey` MUST 同时参与 external value sync 与 debounce cleanup dependency。
+- partial author filter 只在 email 命中且 display name 未命中时显示 email；长 email MUST bounded/ellipsis。
+
+### 4. Validation & Error Matrix
+
+| 场景 | 必须行为 | 禁止行为 |
+|---|---|---|
+| new first page + unchanged `7d` | 使用当前 clock 重新生成 range | 复用上一个 snapshot 的旧 `dateTo` |
+| append / snapshot retry | exact reuse first-page filters | append 时再次调用 `Date.now()` |
+| branch=`all` / `*` | Desktop/daemon 遍历 local + remote refs | daemon 报 `Branch or ref not found: all` |
+| unknown branch | stable `Branch or ref not found: <name>` | fallback 到 HEAD 隐藏错误 |
+| Clear before 300ms | draft 立即清空且 timer cancelled | stale query 延迟回填 |
+| workspace switch before 300ms | old scope timer cancelled | old workspace draft 应用到新 workspace |
+| partial email match | display name 保留并显示 matching email | 只有输入含 `@` 才显示 email |
+
+### 5. Good / Base / Bad Cases
+
+- Good：first page at 10:00 creates `{ dateFrom, dateTo }`；append/retry exact reuse；manual refresh at 11:00 creates a new pair。
+- Good：shared helper 的 `"all"` revwalk 同时包含 local HEAD 与 remote-only tracking commit。
+- Base：omitted branch pushes HEAD；Date preset `all` maps to `dateFrom/dateTo = null`。
+- Bad：hook `useMemo([datePreset])` 固定 range，导致 Today 跨午夜后刷新仍查询昨天边界。
+- Bad：daemon 对 `"all"` 运行 `push_ref("refs/heads/all")`。
+- Bad：Clear 只清 parent applied values，child pending timer 随后重新发布旧 draft。
+
+### 6. Tests Required
+
+- `GitHistoryCommitFilters.test.tsx`：fake timer assert Clear-before-settle 与 `draftScopeKey` switch 都不发布 stale filters；assert Date picker end alignment 与 input browser hints。
+- `GitHistoryPanel.test.tsx`：fake clock assert unchanged Date preset 的两个 first-page request 重新锚定；append + snapshot retry exact reuse first payload；partial email visible。
+- `shared::git_core::tests::all_branch_scope_traverses_local_and_remote_refs`：在 `--lib` 与 `--bin cc_gui_daemon` target 都必须通过，assert `"all"` 与 `"*"` 包含 local + remote-only OID。
+- Gate：targeted ESLint/Vitest、`npm run typecheck`、Git History runtime/static-import contracts、Rust focused tests、strict OpenSpec validation。
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```ts
+const dateRange = useMemo(
+  () => resolveGitHistoryDateRange(datePreset),
+  [datePreset],
+);
+await getGitCommitHistory(workspaceId, {
+  ...filters,
+  ...resolveGitHistoryDateRange(datePreset),
+  snapshotId,
+});
+```
+
+第一种让新 snapshot 永久复用旧 clock，第二种让 append 改变 snapshot identity。
+
+#### Correct
+
+```ts
+const requestFilters = append
+  ? historyRequestFiltersRef.current ?? createHistoryRequestFilters()
+  : createHistoryRequestFilters();
+
+if (!append) {
+  historyRequestFiltersRef.current = requestFilters;
+}
+```
+
+```rust
+git_core::push_git_history_branch_scope(&repo, &mut revwalk, branch.as_deref())?;
 ```
