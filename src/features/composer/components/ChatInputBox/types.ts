@@ -474,6 +474,7 @@ export interface ClaudeContextUsageViewModel {
 
 export interface RateLimitWindowInfo {
   usedPercent?: number | null;
+  windowDurationMins?: number | null;
   resetsAt?: number | null;
 }
 

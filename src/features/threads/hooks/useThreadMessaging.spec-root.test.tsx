@@ -415,7 +415,7 @@ describe("useThreadMessaging spec root", () => {
 });
 
 describe("useThreadMessaging status", () => {
-  it("formats /status output with CLI-aligned labels and remaining limits", async () => {
+  it("derives /status labels from runtime windows and formats remaining limits", async () => {
     const dispatch = vi.fn();
     const { result } = makeCodexHook({
       accessMode: "full-access",
@@ -424,8 +424,8 @@ describe("useThreadMessaging status", () => {
       model: "gpt-5.3-codex",
       rateLimitsByWorkspace: {
         [workspace.id]: {
-          primary: { usedPercent: 15, windowDurationMins: 300, resetsAt: null },
-          secondary: { usedPercent: 65, windowDurationMins: 10080, resetsAt: null },
+          primary: { usedPercent: 15, windowDurationMins: 10080, resetsAt: null },
+          secondary: { usedPercent: 65, windowDurationMins: 720, resetsAt: null },
           credits: null,
           planType: null,
         },
@@ -450,12 +450,42 @@ describe("useThreadMessaging status", () => {
     );
     expect(dispatch).toHaveBeenCalledWith(
       expect.objectContaining({
-        text: expect.stringContaining("5h limit: 85% left"),
+        text: expect.stringContaining("Weekly limit: 85% left"),
       }),
     );
     expect(dispatch).toHaveBeenCalledWith(
       expect.objectContaining({
-        text: expect.stringContaining("Weekly limit: 35% left"),
+        text: expect.stringContaining("12h limit: 35% left"),
+      }),
+    );
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: expect.stringContaining("5h limit"),
+      }),
+    );
+  });
+
+  it("uses a generic /status label when the runtime omits window duration", async () => {
+    const dispatch = vi.fn();
+    const { result } = makeCodexHook({
+      dispatch,
+      rateLimitsByWorkspace: {
+        [workspace.id]: {
+          primary: { usedPercent: 15, windowDurationMins: null, resetsAt: null },
+          secondary: null,
+          credits: null,
+          planType: null,
+        },
+      },
+    });
+
+    await act(async () => {
+      await result.current.startStatus("/status");
+    });
+
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: expect.stringContaining("Rate limit: 85% left"),
       }),
     );
   });

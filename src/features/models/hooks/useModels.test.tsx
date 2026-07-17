@@ -287,15 +287,16 @@ describe("useModels", () => {
       useModels({ activeWorkspace: workspace }),
     );
 
-    await waitFor(() => expect(result.current.selectedModelId).toBe("gpt-5.6-sol"));
-
-    expect(result.current.reasoningOptions).toEqual([
-      "low",
-      "medium",
-      "high",
-      "xhigh",
-    ]);
-    expect(result.current.selectedEffort).toBe("high");
+    await waitFor(() => {
+      expect(result.current.selectedModelId).toBe("gpt-5.6-sol");
+      expect(result.current.reasoningOptions).toEqual([
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+      ]);
+      expect(result.current.selectedEffort).toBe("high");
+    });
   });
 
   it("keeps the selected reasoning effort when switching models", async () => {
