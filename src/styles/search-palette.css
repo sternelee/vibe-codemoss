@@ -168,6 +168,15 @@
   padding: 4px;
 }
 
+.search-palette-file-index-status {
+  margin: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
 .search-palette-empty {
   padding: 28px 16px;
   text-align: center;

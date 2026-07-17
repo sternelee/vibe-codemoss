@@ -242,6 +242,7 @@ export function renderAppShell(ctx: RenderAppShellContext) {
     scaleShortcutText,
     scaleShortcutTitle,
     searchContentFilters,
+    searchFileHydrationStatus,
     searchPaletteQuery,
     searchPaletteSelectedIndex,
     searchResults,
@@ -678,6 +679,7 @@ export function renderAppShell(ctx: RenderAppShellContext) {
             workspaceName={activeWorkspace?.name ?? null}
             query={searchPaletteQuery}
             results={searchResults}
+            fileHydrationStatus={searchFileHydrationStatus}
             selectedIndex={searchPaletteSelectedIndex}
             onQueryChange={setSearchPaletteQuery}
             onMoveSelection={handleSearchPaletteMoveSelection}

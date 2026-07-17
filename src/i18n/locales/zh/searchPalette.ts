@@ -1,7 +1,7 @@
 // searchPalette — Simplified Chinese UI strings
 const searchPalette = {
   searchPalette: {
-    placeholder: "搜索文件、看板、会话、消息、Skills、Commands…",
+    placeholder: "搜索文件、接口、看板、会话、消息、Skills、Commands…",
     placeholderFiltered: "搜索 {{content}}…",
     inputAria: "搜索输入",
     scope: "范围",
@@ -12,7 +12,10 @@ const searchPalette = {
     allWorkspaces: "所有空间",
     noResults: "没有搜索结果",
     noResultsHint:
-      "可尝试文件路径、任务标题、会话标题、消息正文、Skill 名称或 Command 名称。",
+      "可尝试接口路径、HTTP method、文件路径、任务标题、会话标题、消息正文、Skill 名称或 Command 名称。",
+    fileIndexLoading: "正在补齐文件索引…",
+    fileIndexPartial: "文件索引不完整，当前结果可能遗漏部分文件。",
+    fileIndexError: "文件索引加载失败，当前结果可能不完整；重新打开搜索可重试。",
     navigate: "导航",
     open: "打开",
     close: "关闭",

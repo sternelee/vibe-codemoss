@@ -8,6 +8,18 @@ export type SearchResultKind =
   | "command";
 
 export type SearchScope = "active-workspace" | "global";
+export type SearchFileHydrationStatus =
+  | "idle"
+  | "loading"
+  | "complete"
+  | "partial"
+  | "error";
+export type WorkspaceSearchFileSnapshot = {
+  files: string[];
+  status: "shallow" | Exclude<SearchFileHydrationStatus, "idle">;
+  sourceVersion: string | null;
+  error: string | null;
+};
 export type SearchContentFilter =
   | "all"
   | "files"

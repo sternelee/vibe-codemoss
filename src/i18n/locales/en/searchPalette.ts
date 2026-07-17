@@ -1,7 +1,7 @@
 // searchPalette — English UI strings
 const searchPalette = {
   searchPalette: {
-    placeholder: "Search files, kanban, threads, messages, skills, commands...",
+    placeholder: "Search files, APIs, kanban, threads, messages, skills, commands...",
     placeholderFiltered: "Search {{content}}...",
     inputAria: "Search input",
     scope: "Scope",
@@ -12,7 +12,10 @@ const searchPalette = {
     allWorkspaces: "All workspaces",
     noResults: "No results",
     noResultsHint:
-      "Try keywords from file path, task title, thread title, message text, skill name, or command name.",
+      "Try an API path, HTTP method, file path, task title, thread title, message text, skill name, or command name.",
+    fileIndexLoading: "Completing the file index...",
+    fileIndexPartial: "The file index is partial, so some files may be missing.",
+    fileIndexError: "The file index failed to load. Reopen search to retry.",
     navigate: "Navigate",
     open: "Open",
     close: "Close",

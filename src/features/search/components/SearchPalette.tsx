@@ -4,7 +4,12 @@ import SearchIcon from "lucide-react/dist/esm/icons/search";
 import { isComposingEvent } from "../../../utils/keys";
 import { loadSearchPaletteStyles } from "../../../styles/featureStyleLoaders";
 import { useFeatureStylesReady } from "../../../styles/useFeatureStylesReady";
-import type { SearchContentFilter, SearchResult, SearchScope } from "../types";
+import type {
+  SearchContentFilter,
+  SearchFileHydrationStatus,
+  SearchResult,
+  SearchScope,
+} from "../types";
 
 const INVISIBLE_QUERY_CHARS_REGEX = /[\u200B-\u200D\uFEFF]/g;
 // Debounce before the typed query reaches the app-shell root (see commitQuery below).
@@ -44,6 +49,7 @@ type SearchPaletteProps = {
   workspaceName?: string | null;
   query: string;
   results: SearchResult[];
+  fileHydrationStatus?: SearchFileHydrationStatus;
   selectedIndex: number;
   onQueryChange: (value: string) => void;
   onMoveSelection: (direction: "up" | "down") => void;
@@ -60,6 +66,7 @@ export function SearchPalette({
   workspaceName,
   query,
   results,
+  fileHydrationStatus = "idle",
   selectedIndex,
   onQueryChange,
   onMoveSelection,
@@ -175,7 +182,14 @@ export function SearchPalette({
     [results, shouldShowResults],
   );
   const resultGroups = useMemo(() => groupSearchResults(visibleResults), [visibleResults]);
-
+  const fileHydrationMessage =
+    fileHydrationStatus === "loading"
+      ? t("searchPalette.fileIndexLoading")
+      : fileHydrationStatus === "partial"
+        ? t("searchPalette.fileIndexPartial")
+        : fileHydrationStatus === "error"
+          ? t("searchPalette.fileIndexError")
+          : null;
   useEffect(() => {
     if (!isOpen) {
       return;
@@ -295,9 +309,18 @@ export function SearchPalette({
           </div>
         </div>
         <div className="search-palette-results">
+          {shouldShowResults && fileHydrationMessage ? (
+            <div className="search-palette-file-index-status" role="status">
+              {fileHydrationMessage}
+            </div>
+          ) : null}
           {visibleResults.length === 0 ? (
             <div className="search-palette-empty">
-              <div className="search-palette-empty-title">{t("searchPalette.noResults")}</div>
+              <div className="search-palette-empty-title">
+                {fileHydrationStatus === "loading"
+                  ? t("searchPalette.fileIndexLoading")
+                  : t("searchPalette.noResults")}
+              </div>
               <div className="search-palette-empty-hint">
                 {t("searchPalette.noResultsHint")}
               </div>

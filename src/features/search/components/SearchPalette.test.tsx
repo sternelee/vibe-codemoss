@@ -339,4 +339,61 @@ describe("SearchPalette", () => {
     fireEvent.compositionEnd(input, { target: { value: "search-again" } });
     expect(screen.getByText("search-again")).toBeTruthy();
   });
+
+  it("distinguishes file hydration from a confirmed empty result", () => {
+    render(
+      <SearchPalette
+        isOpen
+        scope="active-workspace"
+        contentFilters={["files"]}
+        query="nested"
+        results={[]}
+        fileHydrationStatus="loading"
+        selectedIndex={0}
+        onQueryChange={() => undefined}
+        onMoveSelection={() => undefined}
+        onSelect={() => undefined}
+        onScopeChange={() => undefined}
+        onContentFilterToggle={() => undefined}
+        onClose={() => undefined}
+      />,
+    );
+
+    expect(
+      screen.getAllByText("searchPalette.fileIndexLoading").length,
+    ).toBeGreaterThan(0);
+    expect(screen.queryByText("searchPalette.noResults")).toBeNull();
+  });
+
+  it("shows partial file-index coverage without hiding available results", () => {
+    render(
+      <SearchPalette
+        isOpen
+        scope="global"
+        contentFilters={["files"]}
+        query="app"
+        results={[
+          {
+            id: "file:ws:src/App.tsx",
+            kind: "file",
+            title: "App.tsx",
+            score: 1,
+          },
+        ]}
+        fileHydrationStatus="partial"
+        selectedIndex={0}
+        onQueryChange={() => undefined}
+        onMoveSelection={() => undefined}
+        onSelect={() => undefined}
+        onScopeChange={() => undefined}
+        onContentFilterToggle={() => undefined}
+        onClose={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText("searchPalette.fileIndexPartial")).toBeTruthy();
+    expect(screen.getByText("App.tsx")).toBeTruthy();
+  });
+
+
 });
