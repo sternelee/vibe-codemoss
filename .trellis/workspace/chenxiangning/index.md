@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-25.md`
-- **Total Sessions**: 1024
+- **Total Sessions**: 1025
 - **Last Active**: 2026-07-17
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-25.md` | ~1941 | Active |
+| `journal-25.md` | ~1976 | Active |
 | `journal-24.md` | ~1994 | Archived |
 | `journal-23.md` | ~1965 | Archived |
 | `journal-22.md` | ~1969 | Archived |
@@ -53,6 +53,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 1025 | 2026-07-17 | 归档近完成 OpenSpec 提案并建立全量索引 | `f75ccf8e`, `c1e2bba9`, `947f7150` | `feature/v-0.7.4` |
 | 1024 | 2026-07-17 | 归档已验证 OpenSpec 提案 | `aa6ca752`, `ed1234a2`, `ccdf84d7` | `feature/v-0.7.4` |
 | 1023 | 2026-07-17 | 优化 Git 操作说明与命令视觉 | `e0c5f293` | `feature/v-0.7.4` |
 | 1022 | 2026-07-17 | 迁移 Git Diff 选择器并完成兼容性收口 | `b3f48d24` | `feature/v-0.7.4` |
