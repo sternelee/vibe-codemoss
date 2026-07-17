@@ -4,6 +4,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import type {
   Dispatch,
@@ -15,10 +16,19 @@ import { useComposerInsert } from "../features/app/hooks/useComposerInsert";
 import { loadHistoryWithImportance } from "../features/composer/hooks/useInputHistoryStore";
 import type { HistoryItem } from "../features/composer/hooks/useInputHistoryStore";
 import type { KanbanTask } from "../features/kanban/types";
+import {
+  readProjectMapRelationships,
+  scanProjectMapRelationships,
+} from "../features/project-map/services/projectMapPersistence";
+import { normalizeProjectMapRelationshipDashboardData } from "../features/project-map/utils/relationshipDashboardModel";
 import { useUnifiedSearch } from "../features/search/hooks/useUnifiedSearch";
 import type {
   SearchContentFilter,
+  SearchApiHydrationStatus,
+  SearchFileHydrationStatus,
   SearchScope,
+  WorkspaceSearchApiSnapshot,
+  WorkspaceSearchFileSnapshot,
 } from "../features/search/types";
 import { useWorkspaceSessionActivity } from "../features/session-activity/hooks/useWorkspaceSessionActivity";
 import { useSessionRadarFeed } from "../features/session-activity/hooks/useSessionRadarFeed";
@@ -112,7 +122,7 @@ type UseAppShellSearchRadarSectionOptions = {
   fileTreeSourceVersion?: string | null;
   files: string[];
   getActiveDraft: () => string;
-  globalSearchFilesByWorkspace: Record<string, string[]>;
+  globalSearchFilesByWorkspace: Record<string, WorkspaceSearchFileSnapshot>;
   handleDraftChange: (next: string) => void;
   isCompact: boolean;
   isFilesLoading: boolean;
@@ -129,7 +139,7 @@ type UseAppShellSearchRadarSectionOptions = {
   searchPaletteQuery: string;
   searchScope: SearchScope;
   setGlobalSearchFilesByWorkspace: Dispatch<
-    SetStateAction<Record<string, string[]>>
+    SetStateAction<Record<string, WorkspaceSearchFileSnapshot>>
   >;
   skills: SkillOption[];
   t: Translator;
@@ -258,6 +268,17 @@ export function useAppShellSearchRadarSection({
   }, []);
 
   const activePath = activeWorkspace?.path ?? null;
+  const globalSearchFilesByWorkspaceRef = useRef(globalSearchFilesByWorkspace);
+  globalSearchFilesByWorkspaceRef.current = globalSearchFilesByWorkspace;
+  const attemptedSearchFileHydrationWorkspaceIdsRef = useRef(new Set<string>());
+  const [apiSnapshotsByWorkspace, setApiSnapshotsByWorkspace] = useState<
+    Record<string, WorkspaceSearchApiSnapshot>
+  >({});
+  const apiSnapshotsByWorkspaceRef = useRef(apiSnapshotsByWorkspace);
+  apiSnapshotsByWorkspaceRef.current = apiSnapshotsByWorkspace;
+  const apiHydrationInFlightByWorkspaceRef = useRef(
+    new Map<string, Promise<import("../features/project-map/types").ProjectMapApiEndpoint[]>>(),
+  );
   const backgroundRenderGatingEnabled = isBackgroundRenderGatingEnabled();
   const deferredThreadItemsByThreadValue =
     useDeferredValue(threadItemsByThread);
@@ -383,38 +404,93 @@ export function useAppShellSearchRadarSection({
       return;
     }
     setGlobalSearchFilesByWorkspace((prev) => {
-      const nextFiles = files;
-      const previousFiles = prev[activeWorkspaceId];
-      if (previousFiles === nextFiles) {
+      const previousSnapshot = prev[activeWorkspaceId];
+      if (
+        previousSnapshot?.status === "loading" ||
+        previousSnapshot?.status === "complete" ||
+        previousSnapshot?.status === "partial" ||
+        previousSnapshot?.status === "error"
+      ) {
+        return prev;
+      }
+      if (
+        previousSnapshot?.status === "shallow" &&
+        previousSnapshot.files === files &&
+        previousSnapshot.sourceVersion === fileTreeSourceVersion
+      ) {
         return prev;
       }
       return {
         ...prev,
-        [activeWorkspaceId]: nextFiles,
+        [activeWorkspaceId]: {
+          files,
+          status: "shallow",
+          sourceVersion: fileTreeSourceVersion,
+          error: null,
+        },
       };
     });
-  }, [activeWorkspaceId, files, setGlobalSearchFilesByWorkspace]);
+  }, [
+    activeWorkspaceId,
+    files,
+    fileTreeSourceVersion,
+    setGlobalSearchFilesByWorkspace,
+  ]);
 
   useEffect(() => {
-    if (!isSearchPaletteOpen || searchScope !== "global") {
+    if (!isSearchPaletteOpen) {
+      attemptedSearchFileHydrationWorkspaceIdsRef.current.clear();
       return;
     }
-    const targetWorkspaceIds = workspaces.map((workspace) => workspace.id);
-    const uncachedWorkspaceIds = targetWorkspaceIds.filter(
-      (workspaceId) => !(workspaceId in globalSearchFilesByWorkspace),
-    );
-    if (uncachedWorkspaceIds.length === 0) {
+    const includesFiles =
+      searchContentFilters.includes("all") ||
+      searchContentFilters.includes("files");
+    if (!includesFiles) {
       return;
     }
-    const prioritizedWorkspaceIds = activeWorkspaceId && uncachedWorkspaceIds.includes(activeWorkspaceId)
+    const targetWorkspaceIds =
+      searchScope === "global"
+        ? workspaces.map((workspace) => workspace.id)
+        : activeWorkspaceId
+          ? [activeWorkspaceId]
+          : [];
+    const workspaceIdsToHydrate = targetWorkspaceIds.filter((workspaceId) => {
+      const status =
+        globalSearchFilesByWorkspaceRef.current[workspaceId]?.status;
+      return (
+        !attemptedSearchFileHydrationWorkspaceIdsRef.current.has(workspaceId) &&
+        status !== "loading" &&
+        status !== "complete" &&
+        status !== "partial"
+      );
+    });
+    if (workspaceIdsToHydrate.length === 0) {
+      return;
+    }
+    const prioritizedWorkspaceIds = activeWorkspaceId && workspaceIdsToHydrate.includes(activeWorkspaceId)
       ? [
           activeWorkspaceId,
-          ...uncachedWorkspaceIds.filter((workspaceId) => workspaceId !== activeWorkspaceId),
+          ...workspaceIdsToHydrate.filter((workspaceId) => workspaceId !== activeWorkspaceId),
         ]
-      : uncachedWorkspaceIds;
+      : workspaceIdsToHydrate;
     let cancelled = false;
+    for (const workspaceId of prioritizedWorkspaceIds) {
+      attemptedSearchFileHydrationWorkspaceIdsRef.current.add(workspaceId);
+    }
+    setGlobalSearchFilesByWorkspace((prev) => {
+      const next = { ...prev };
+      for (const workspaceId of prioritizedWorkspaceIds) {
+        const previousSnapshot = next[workspaceId];
+        next[workspaceId] = {
+          files: previousSnapshot?.files ?? [],
+          status: "loading",
+          sourceVersion: previousSnapshot?.sourceVersion ?? null,
+          error: null,
+        };
+      }
+      return next;
+    });
     const hydrateWorkspaceFiles = async () => {
-      const entries: Array<readonly [string, string[]]> = [];
       const queue = [...prioritizedWorkspaceIds];
       const hydrateNext = async (): Promise<void> => {
         const workspaceId = queue.shift();
@@ -423,28 +499,43 @@ export function useAppShellSearchRadarSection({
         }
         try {
           const response = await getWorkspaceFiles(workspaceId);
-          entries.push([
-            workspaceId,
-            Array.isArray(response.files) ? response.files : ([] as string[]),
-          ] as const);
-        } catch {
-          entries.push([workspaceId, [] as string[]] as const);
+          if (cancelled) {
+            return;
+          }
+          setGlobalSearchFilesByWorkspace((prev) => ({
+            ...prev,
+            [workspaceId]: {
+              files: Array.isArray(response.files) ? response.files : [],
+              status:
+                response.scan_state === "partial" || response.limit_hit
+                  ? "partial"
+                  : "complete",
+              sourceVersion:
+                response.sourceVersion ??
+                response.listingBudget?.sourceVersion ??
+                null,
+              error: null,
+            },
+          }));
+        } catch (error) {
+          if (cancelled) {
+            return;
+          }
+          setGlobalSearchFilesByWorkspace((prev) => ({
+            ...prev,
+            [workspaceId]: {
+              files: prev[workspaceId]?.files ?? [],
+              status: "error",
+              sourceVersion: prev[workspaceId]?.sourceVersion ?? null,
+              error: error instanceof Error ? error.message : String(error),
+            },
+          }));
         }
         await hydrateNext();
       };
       await Promise.all(
         Array.from({ length: Math.min(2, queue.length) }, () => hydrateNext()),
       );
-      if (cancelled || entries.length === 0) {
-        return;
-      }
-      setGlobalSearchFilesByWorkspace((prev) => {
-        const next = { ...prev };
-        for (const [workspaceId, workspaceFiles] of entries) {
-          next[workspaceId] = workspaceFiles;
-        }
-        return next;
-      });
     };
     void hydrateWorkspaceFiles();
 
@@ -453,31 +544,184 @@ export function useAppShellSearchRadarSection({
     };
   }, [
     activeWorkspaceId,
-    globalSearchFilesByWorkspace,
     isSearchPaletteOpen,
+    searchContentFilters,
     searchScope,
     setGlobalSearchFilesByWorkspace,
     workspaces,
   ]);
+
+  useEffect(() => {
+    if (!isSearchPaletteOpen) return;
+    const includesApis =
+      searchContentFilters.includes("all") ||
+      searchContentFilters.includes("apis");
+    if (!includesApis) return;
+    const targetWorkspaceIds =
+      searchScope === "global"
+        ? workspaces.map((workspace) => workspace.id)
+        : activeWorkspaceId
+          ? [activeWorkspaceId]
+          : [];
+    const workspaceIdsToHydrate = targetWorkspaceIds.filter(
+      (workspaceId) =>
+        apiSnapshotsByWorkspaceRef.current[workspaceId]?.status !== "complete",
+    );
+    const queue =
+      activeWorkspaceId && workspaceIdsToHydrate.includes(activeWorkspaceId)
+        ? [
+            activeWorkspaceId,
+            ...workspaceIdsToHydrate.filter(
+              (workspaceId) => workspaceId !== activeWorkspaceId,
+            ),
+          ]
+        : workspaceIdsToHydrate;
+    if (queue.length > 0) {
+      setApiSnapshotsByWorkspace((current) => {
+        const next = { ...current };
+        for (const workspaceId of queue) {
+          next[workspaceId] = {
+            endpoints: current[workspaceId]?.endpoints ?? [],
+            status: "loading",
+            error: null,
+          };
+        }
+        return next;
+      });
+    }
+    let cancelled = false;
+    const refreshEndpoints = (workspaceId: string) => {
+      const inFlight =
+        apiHydrationInFlightByWorkspaceRef.current.get(workspaceId);
+      if (inFlight) return inFlight;
+      const request = (async () => {
+        await scanProjectMapRelationships({ workspaceId });
+        const refreshed = await readProjectMapRelationships({ workspaceId });
+        return (
+          normalizeProjectMapRelationshipDashboardData(refreshed)
+            .apiContracts?.endpoints ?? []
+        );
+      })();
+      apiHydrationInFlightByWorkspaceRef.current.set(workspaceId, request);
+      const clearCompletedRequest = () => {
+        if (
+          apiHydrationInFlightByWorkspaceRef.current.get(workspaceId) ===
+          request
+        ) {
+          apiHydrationInFlightByWorkspaceRef.current.delete(workspaceId);
+        }
+      };
+      void request.then(clearCompletedRequest, clearCompletedRequest);
+      return request;
+    };
+    const hydrate = async (workspaceId: string) => {
+      try {
+        const response = await readProjectMapRelationships({ workspaceId });
+        const dashboard =
+          normalizeProjectMapRelationshipDashboardData(response);
+        const graph = dashboard.apiContracts;
+        if (graph && dashboard.staleSummary?.isFresh === false && !cancelled) {
+          setApiSnapshotsByWorkspace((current) => ({
+            ...current,
+            [workspaceId]: {
+              endpoints: graph?.endpoints ?? [],
+              status: "refreshing",
+              error: null,
+            },
+          }));
+        }
+        if (!graph || dashboard.staleSummary?.isFresh === false) {
+          const endpoints = await refreshEndpoints(workspaceId);
+          if (!cancelled) {
+            setApiSnapshotsByWorkspace((current) => ({
+              ...current,
+              [workspaceId]: {
+                endpoints,
+                status: "complete",
+                error: null,
+              },
+            }));
+          }
+          return;
+        }
+        if (!cancelled) {
+          setApiSnapshotsByWorkspace((current) => ({
+            ...current,
+            [workspaceId]: {
+              endpoints: graph?.endpoints ?? [],
+              status: "complete",
+              error: null,
+            },
+          }));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setApiSnapshotsByWorkspace((current) => ({
+            ...current,
+            [workspaceId]: {
+              endpoints: current[workspaceId]?.endpoints ?? [],
+              status: "error",
+              error: error instanceof Error ? error.message : String(error),
+            },
+          }));
+        }
+      }
+    };
+    void (async () => {
+      while (!cancelled && queue.length > 0) {
+        const workspaceId = queue.shift();
+        if (workspaceId) await hydrate(workspaceId);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeWorkspaceId,
+    isSearchPaletteOpen,
+    searchContentFilters,
+    searchScope,
+    workspaces,
+  ]);
+
+  const apiSearchSources = useMemo(
+    () =>
+      (searchScope === "global"
+        ? workspaces
+        : activeWorkspace
+          ? [activeWorkspace]
+          : []
+      ).map((workspace) => ({
+        workspaceId: workspace.id,
+        workspaceName: workspace.name,
+        endpoints: apiSnapshotsByWorkspace[workspace.id]?.endpoints ?? [],
+      })),
+    [activeWorkspace, apiSnapshotsByWorkspace, searchScope, workspaces],
+  );
 
   const workspaceSearchSources = useMemo(() => {
     if (searchScope === "global") {
       return workspaces.map((workspace) => ({
         workspaceId: workspace.id,
         workspaceName: workspace.name,
-        files: globalSearchFilesByWorkspace[workspace.id] ?? [],
+        files: globalSearchFilesByWorkspace[workspace.id]?.files ?? [],
+        sourceVersion:
+          globalSearchFilesByWorkspace[workspace.id]?.sourceVersion ?? null,
         threads: threadsByWorkspace[workspace.id] ?? [],
       }));
     }
     if (!activeWorkspaceId || !activeWorkspace) {
       return [];
     }
+    const activeSearchSnapshot =
+      globalSearchFilesByWorkspace[activeWorkspaceId];
     return [
       {
         workspaceId: activeWorkspaceId,
         workspaceName: activeWorkspace.name,
-        files,
-        sourceVersion: fileTreeSourceVersion,
+        files: activeSearchSnapshot?.files ?? files,
+        sourceVersion:
+          activeSearchSnapshot?.sourceVersion ?? fileTreeSourceVersion,
         threads: activeWorkspaceThreads,
       },
     ];
@@ -490,6 +734,80 @@ export function useAppShellSearchRadarSection({
     globalSearchFilesByWorkspace,
     searchScope,
     threadsByWorkspace,
+    workspaces,
+  ]);
+  const searchFileHydrationStatus = useMemo<SearchFileHydrationStatus>(() => {
+    const includesFiles =
+      searchContentFilters.includes("all") ||
+      searchContentFilters.includes("files");
+    if (!isSearchPaletteOpen || !includesFiles) {
+      return "idle";
+    }
+    const targetWorkspaceIds =
+      searchScope === "global"
+        ? workspaces.map((workspace) => workspace.id)
+        : activeWorkspaceId
+          ? [activeWorkspaceId]
+          : [];
+    if (targetWorkspaceIds.length === 0) {
+      return "idle";
+    }
+    const statuses = targetWorkspaceIds.map(
+      (workspaceId) => globalSearchFilesByWorkspace[workspaceId]?.status,
+    );
+    if (
+      statuses.some(
+        (status) => !status || status === "shallow" || status === "loading",
+      )
+    ) {
+      return "loading";
+    }
+    if (statuses.some((status) => status === "error")) {
+      return "error";
+    }
+    if (statuses.some((status) => status === "partial")) {
+      return "partial";
+    }
+    return "complete";
+  }, [
+    activeWorkspaceId,
+    globalSearchFilesByWorkspace,
+    isSearchPaletteOpen,
+    searchContentFilters,
+    searchScope,
+    workspaces,
+  ]);
+  const searchApiHydrationStatus = useMemo<SearchApiHydrationStatus>(() => {
+    const includesApis =
+      searchContentFilters.includes("all") ||
+      searchContentFilters.includes("apis");
+    if (!isSearchPaletteOpen || !includesApis) return "idle";
+    const targetWorkspaceIds =
+      searchScope === "global"
+        ? workspaces.map((workspace) => workspace.id)
+        : activeWorkspaceId
+          ? [activeWorkspaceId]
+          : [];
+    if (targetWorkspaceIds.length === 0) return "idle";
+    const statuses = targetWorkspaceIds.map(
+      (workspaceId) => apiSnapshotsByWorkspace[workspaceId]?.status,
+    );
+    const hasSearchableEndpoints = targetWorkspaceIds.some(
+      (workspaceId) =>
+        (apiSnapshotsByWorkspace[workspaceId]?.endpoints.length ?? 0) > 0,
+    );
+    if (statuses.some((status) => !status || status === "loading")) {
+      return hasSearchableEndpoints ? "refreshing" : "loading";
+    }
+    if (statuses.some((status) => status === "refreshing")) return "refreshing";
+    if (statuses.some((status) => status === "error")) return "error";
+    return "complete";
+  }, [
+    activeWorkspaceId,
+    apiSnapshotsByWorkspace,
+    isSearchPaletteOpen,
+    searchContentFilters,
+    searchScope,
     workspaces,
   ]);
 
@@ -515,6 +833,7 @@ export function useAppShellSearchRadarSection({
     historyItems: historySearchItems,
     skills,
     commands,
+    apiSources: apiSearchSources,
     activeWorkspaceId,
     workspaceNameByPath,
   });
@@ -684,6 +1003,8 @@ export function useAppShellSearchRadarSection({
     RECENT_THREAD_LIMIT,
     recentThreads,
     scopedKanbanTasks,
+    searchApiHydrationStatus,
+    searchFileHydrationStatus,
     searchResults,
     sessionRadarFeed,
     workspaceActivity,

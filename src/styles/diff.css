@@ -908,13 +908,31 @@ button.diff-section-indicator:focus-visible {
 
 .git-repository-change-group__header {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: var(--git-filetree-row-gap);
   min-height: var(--git-filetree-row-min-height);
   padding: var(--git-filetree-row-pad-y) var(--git-filetree-row-pad-x);
   border-bottom: 1px solid var(--border-subtle);
   font-size: var(--git-filetree-name-font-size);
+}
+
+.git-repository-change-group__refresh {
+  display: inline-flex;
+  align-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.git-repository-change-group__header:hover .git-repository-change-group__refresh,
+.git-repository-change-group__header:focus-within .git-repository-change-group__refresh {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.git-repository-change-group__refresh .git-status-refresh-button:disabled {
+  cursor: wait;
 }
 
 .git-repository-change-group__name,

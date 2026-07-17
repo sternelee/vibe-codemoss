@@ -1,7 +1,7 @@
 // searchPalette — English UI strings
 const searchPalette = {
   searchPalette: {
-    placeholder: "Search files, kanban, threads, messages, skills, commands...",
+    placeholder: "Search files, APIs, kanban, threads, messages, skills, commands...",
     placeholderFiltered: "Search {{content}}...",
     inputAria: "Search input",
     scope: "Scope",
@@ -12,7 +12,13 @@ const searchPalette = {
     allWorkspaces: "All workspaces",
     noResults: "No results",
     noResultsHint:
-      "Try keywords from file path, task title, thread title, message text, skill name, or command name.",
+      "Try an API path, HTTP method, file path, task title, thread title, message text, skill name, or command name.",
+    fileIndexLoading: "Completing the file index...",
+    fileIndexPartial: "The file index is partial, so some files may be missing.",
+    fileIndexError: "The file index failed to load. Reopen search to retry.",
+    apiIndexLoading: "Scanning the workspace and building the API endpoint index...",
+    apiIndexRefreshing: "Refreshing the API endpoint index in the background. Current results remain available.",
+    apiIndexError: "The API endpoint index failed to load. Reopen search to retry.",
     navigate: "Navigate",
     open: "Open",
     close: "Close",
@@ -21,6 +27,7 @@ const searchPalette = {
     sourceTag: "Source",
     locationTag: "Location",
     typeFile: "File",
+    typeApi: "API",
     typeKanban: "Kanban",
     typeThread: "Thread",
     typeMessage: "Message",
@@ -28,6 +35,7 @@ const searchPalette = {
     typeSkill: "Skill",
     typeCommand: "Command",
     sourceFiles: "File index",
+    sourceApis: "API endpoints",
     sourceKanban: "Kanban data",
     sourceThreads: "Thread titles",
     sourceMessages: "Message content",
@@ -36,6 +44,7 @@ const searchPalette = {
     sourceCommands: "Commands list",
     contentAll: "All",
     contentFiles: "Files",
+    contentApis: "APIs",
     contentKanban: "Kanban",
     contentThreads: "Threads",
     contentMessages: "Messages",

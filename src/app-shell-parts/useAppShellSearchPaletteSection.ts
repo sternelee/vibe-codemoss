@@ -2,6 +2,7 @@ import { useState } from "react";
 import type {
   SearchContentFilter,
   SearchScope,
+  WorkspaceSearchFileSnapshot,
 } from "../features/search/types";
 
 export function useAppShellSearchPaletteSection() {
@@ -15,7 +16,7 @@ export function useAppShellSearchPaletteSection() {
   const [searchPaletteSelectedIndex, setSearchPaletteSelectedIndex] =
     useState(0);
   const [globalSearchFilesByWorkspace, setGlobalSearchFilesByWorkspace] =
-    useState<Record<string, string[]>>({});
+    useState<Record<string, WorkspaceSearchFileSnapshot>>({});
 
   return {
     globalSearchFilesByWorkspace,

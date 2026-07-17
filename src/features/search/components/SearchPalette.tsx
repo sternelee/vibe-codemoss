@@ -4,13 +4,20 @@ import SearchIcon from "lucide-react/dist/esm/icons/search";
 import { isComposingEvent } from "../../../utils/keys";
 import { loadSearchPaletteStyles } from "../../../styles/featureStyleLoaders";
 import { useFeatureStylesReady } from "../../../styles/useFeatureStylesReady";
-import type { SearchContentFilter, SearchResult, SearchScope } from "../types";
+import type {
+  SearchContentFilter,
+  SearchApiHydrationStatus,
+  SearchFileHydrationStatus,
+  SearchResult,
+  SearchScope,
+} from "../types";
 
 const INVISIBLE_QUERY_CHARS_REGEX = /[\u200B-\u200D\uFEFF]/g;
 // Debounce before the typed query reaches the app-shell root (see commitQuery below).
 const SEARCH_QUERY_DEBOUNCE_MS = 150;
 const SEARCH_RESULT_KIND_ORDER: SearchResult["kind"][] = [
   "file",
+  "api",
   "kanban",
   "thread",
   "message",
@@ -44,6 +51,8 @@ type SearchPaletteProps = {
   workspaceName?: string | null;
   query: string;
   results: SearchResult[];
+  apiHydrationStatus?: SearchApiHydrationStatus;
+  fileHydrationStatus?: SearchFileHydrationStatus;
   selectedIndex: number;
   onQueryChange: (value: string) => void;
   onMoveSelection: (direction: "up" | "down") => void;
@@ -60,6 +69,8 @@ export function SearchPalette({
   workspaceName,
   query,
   results,
+  apiHydrationStatus = "idle",
+  fileHydrationStatus = "idle",
   selectedIndex,
   onQueryChange,
   onMoveSelection,
@@ -132,6 +143,7 @@ export function SearchPalette({
   }, [isOpen]);
   const badgeLabelByKind: Record<SearchResult["kind"], string> = {
     file: t("searchPalette.typeFile"),
+    api: t("searchPalette.typeApi"),
     kanban: t("searchPalette.typeKanban"),
     thread: t("searchPalette.typeThread"),
     message: t("searchPalette.typeMessage"),
@@ -142,6 +154,7 @@ export function SearchPalette({
 
   const sourceLabelByKind: Record<NonNullable<SearchResult["sourceKind"]>, string> = {
     files: t("searchPalette.sourceFiles"),
+    apis: t("searchPalette.sourceApis"),
     kanban: t("searchPalette.sourceKanban"),
     threads: t("searchPalette.sourceThreads"),
     messages: t("searchPalette.sourceMessages"),
@@ -155,6 +168,7 @@ export function SearchPalette({
   }> = [
     { value: "all", label: t("searchPalette.contentAll") },
     { value: "files", label: t("searchPalette.contentFiles") },
+    { value: "apis", label: t("searchPalette.contentApis") },
     { value: "kanban", label: t("searchPalette.contentKanban") },
     { value: "threads", label: t("searchPalette.contentThreads") },
     { value: "messages", label: t("searchPalette.contentMessages") },
@@ -175,6 +189,22 @@ export function SearchPalette({
     [results, shouldShowResults],
   );
   const resultGroups = useMemo(() => groupSearchResults(visibleResults), [visibleResults]);
+  const fileHydrationMessage =
+    fileHydrationStatus === "loading"
+      ? t("searchPalette.fileIndexLoading")
+      : fileHydrationStatus === "partial"
+        ? t("searchPalette.fileIndexPartial")
+        : fileHydrationStatus === "error"
+          ? t("searchPalette.fileIndexError")
+          : null;
+  const apiHydrationMessage =
+    apiHydrationStatus === "loading"
+      ? t("searchPalette.apiIndexLoading")
+      : apiHydrationStatus === "refreshing"
+        ? t("searchPalette.apiIndexRefreshing")
+      : apiHydrationStatus === "error"
+        ? t("searchPalette.apiIndexError")
+        : null;
 
   useEffect(() => {
     if (!isOpen) {
@@ -295,9 +325,25 @@ export function SearchPalette({
           </div>
         </div>
         <div className="search-palette-results">
+          {shouldShowResults && fileHydrationMessage ? (
+            <div className="search-palette-file-index-status" role="status">
+              {fileHydrationMessage}
+            </div>
+          ) : null}
+          {shouldShowResults && apiHydrationMessage ? (
+            <div className="search-palette-file-index-status" role="status">
+              {apiHydrationMessage}
+            </div>
+          ) : null}
           {visibleResults.length === 0 ? (
             <div className="search-palette-empty">
-              <div className="search-palette-empty-title">{t("searchPalette.noResults")}</div>
+              <div className="search-palette-empty-title">
+                {apiHydrationStatus === "loading"
+                  ? t("searchPalette.apiIndexLoading")
+                  : fileHydrationStatus === "loading"
+                  ? t("searchPalette.fileIndexLoading")
+                  : t("searchPalette.noResults")}
+              </div>
               <div className="search-palette-empty-hint">
                 {t("searchPalette.noResultsHint")}
               </div>

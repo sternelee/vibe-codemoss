@@ -1534,3 +1534,103 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1014: 恢复 Git 多仓状态刷新入口
+
+**Date**: 2026-07-17
+**Task**: 恢复 Git 多仓状态刷新入口
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+在 GitMultiRepositoryChanges 的每个 repository header 恢复手动状态刷新按钮，复用 aggregate refresh 与 loading guard；新增组件和 CSS contract 回归测试，同步并归档 OpenSpec change，focused 81 tests、lint、typecheck 与 OpenSpec strict validation 通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b2d5fc12` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1015: 修复全局文件搜索索引补齐
+
+**Date**: 2026-07-17
+**Task**: 修复全局文件搜索索引补齐
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+复用完整 workspace file listing 补齐 active/global 文件搜索，增加 shallow/loading/partial/error 状态与重试语义、搜索面板提示和回归测试；通过 detached staged snapshot typecheck 与 20 项定向测试，并精准排除并发 API endpoint 搜索改动。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6aa59601` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1016: 全局接口搜索与源码定位
+
+**Date**: 2026-07-17
+**Task**: 全局接口搜索与源码定位
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+新增基于 Project Map 的全局接口搜索，支持 cache hydration、stale-while-revalidate、workspace 扫描去重和跨 workspace 导航；补齐 endpoint evidence 行号定位、居中聚焦与 lazy CodeMirror boundary，并完成 OpenSpec、Trellis contract 与回归测试。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `cf76ad31` | (see git log) |
+| `307424cc` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

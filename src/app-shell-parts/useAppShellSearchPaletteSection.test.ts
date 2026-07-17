@@ -28,7 +28,12 @@ describe("useAppShellSearchPaletteSection", () => {
       view.result.current.setSearchPaletteQuery("config");
       view.result.current.setSearchPaletteSelectedIndex(3);
       view.result.current.setGlobalSearchFilesByWorkspace({
-        workspaceA: ["README.md"],
+        workspaceA: {
+          files: ["README.md"],
+          status: "complete",
+          sourceVersion: "source-v1",
+          error: null,
+        },
       });
     });
 
@@ -38,7 +43,12 @@ describe("useAppShellSearchPaletteSection", () => {
     expect(view.result.current.searchPaletteQuery).toBe("config");
     expect(view.result.current.searchPaletteSelectedIndex).toBe(3);
     expect(view.result.current.globalSearchFilesByWorkspace).toEqual({
-      workspaceA: ["README.md"],
+      workspaceA: {
+        files: ["README.md"],
+        status: "complete",
+        sourceVersion: "source-v1",
+        error: null,
+      },
     });
   });
 });
