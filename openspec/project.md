@@ -1,7 +1,7 @@
 # Project Context
 
 - Type: OpenSpec Workspace
-- Updated At: 2026-07-17T22:57:27+08:00
+- Updated At: 2026-07-17T23:57:51+08:00
 - Scope: governance snapshot for the current `mossx` repository workspace
 - Product version fact: `ccgui@0.7.5` from `package.json` and `src-tauri/tauri.conf.json`
 
@@ -20,7 +20,7 @@ The product in this repository is `ccgui`: a Tauri 2 desktop AI engineering work
 - Change workflow artifacts: `openspec/changes/<change-id>/{proposal,design,tasks,verification}.md`
 - Archive: `openspec/changes/archive/*`
 - Implementation rules: `.trellis/spec/**`
-- Current workspace state: tracked active changes = `10`, archive changes = `631`, main specs = `403`
+- Current workspace state: active changes = `11`, archive changes = `631`, main specs = `403`
 
 ## Entry Surfaces
 
@@ -28,6 +28,8 @@ The product in this repository is `ccgui`: a Tauri 2 desktop AI engineering work
   - repository entry, rule priority, PlanFirst gate, OpenSpec/Trellis boundary, merge guardrails
 - `README.md` / `README.zh-CN.md`
   - product overview, development commands, documentation map
+- `docs/README.md`
+  - repository documentation hub and current-truth / dated-snapshot boundary
 - `openspec/README.md`
   - concise OpenSpec navigation and common commands
 - `openspec/project.md`
@@ -36,6 +38,10 @@ The product in this repository is `ccgui`: a Tauri 2 desktop AI engineering work
   - active proposal index, progress, current closure gates, and links to change-local artifacts
 - `openspec/changes/archive/README.md`
   - complete proposal index for all archived changes, grouped by month and archive date
+- `openspec/specs/README.md`
+  - complete index for synced mainline capability specs
+- `openspec/docs/README.md`
+  - durable OpenSpec references and dated audit/evidence snapshots
 - `openspec/changes/<change-id>/*`
   - change-local truth for proposal, design, tasks, and verification
 - `openspec/specs/*`
@@ -58,7 +64,7 @@ The product in this repository is `ccgui`: a Tauri 2 desktop AI engineering work
 
 ## Current Inventory
 
-- Active changes: `10`
+- Active changes: `11`
 - Archive changes: `631`
 - Main specs: `403`
 - Completed task sets still active: `0`
@@ -67,7 +73,7 @@ The product in this repository is `ccgui`: a Tauri 2 desktop AI engineering work
 
 ## Active Changes
 
-Active OpenSpec changes after the 2026-07-17 near-complete closure batch:
+Active OpenSpec changes in the current working tree:
 
 - [`add-askuserquestion-default-mode-mcp-bridge`](changes/add-askuserquestion-default-mode-mcp-bridge/proposal.md) — 10/12; blocked on deferred `cargo test` and manual multi-select queue acceptance.
 - [`add-linux-native-menu-localization`](changes/add-linux-native-menu-localization/proposal.md) — 3/5; blocked on deferred Rust validation and Linux startup localization smoke test.
@@ -79,6 +85,7 @@ Active OpenSpec changes after the 2026-07-17 near-complete closure batch:
 - [`2026-06-22-release-pipeline-cache-sccache`](changes/2026-06-22-release-pipeline-cache-sccache/proposal.md) — 7/13; blocked on live release run, artifact, cache-size, and fallback evidence.
 - [`fix-sidebar-session-catalog-progressive-loading`](changes/fix-sidebar-session-catalog-progressive-loading/proposal.md) — 0/8; documentation-restored backlog covering bounded first-page projection, continuation semantics, stale-result rejection, and large-history evidence.
 - [`redesign-workspace-sidebar-session-loading`](changes/redesign-workspace-sidebar-session-loading/proposal.md) — 0/11; documentation-restored cross-capability backlog covering staged hydration, per-workspace deduplication, stale-result rejection, and engine-scoped continuity.
+- [`fix-git-renamed-deleted-file-path-identity`](changes/fix-git-renamed-deleted-file-path-identity/proposal.md) — 9/13; review remediation remains for rename diff/stats detection, layer-aware mutations, activation parity, and the final gate matrix.
 
 Calibration rule: `openspec validate --strict` proves artifact structure only. Implementation verification requires the evidence explicitly named by each change's remaining tasks; no active change is considered verified solely because its schema validates.
 
@@ -270,14 +277,30 @@ Validation: each change passed `openspec validate <change> --strict --no-interac
 
 Current-branch implementation substrate includes:
 
-- Primary runtime surfaces: Claude Code and Codex, plus custom provider configuration; OpenCode/Gemini frontend retirement remains tracked as an explicit migration backlog.
+- Runtime adapters: Claude Code, Codex CLI, Gemini CLI, and OpenCode. Gemini is enabled by default; OpenCode is optional. OpenCode/Gemini retirement remains an active migration backlog.
 - Project intelligence: Project Map / Project X-Ray, Project Memory, Context Ledger, SpecHub, and governance evidence panels.
 - Execution surfaces: Task Center / TaskRun, Kanban, Plan panel, Session Activity, runtime log, terminal, Git history, and engine task output inspection.
 - Runtime reliability: realtime batching, runtime evidence gates, lifecycle hardening, stalled recovery contracts, global client error log, and startup orchestration.
-- Model output safety: provider-agnostic structured-output parser/repair/validator path for untrusted model JSON.
+- Model output safety: shared parser/repair/validator handling is used by Project Map model-JSON flows; this is not a claim that every model response follows that path.
 - Cross-platform shell/app behavior: Tauri 2 backend, platform build scripts, Linux startup guard, Windows config, macOS private API/title integration.
 
 This snapshot is evidence-oriented. It does not claim full product QA for every surface. Archive notes must record exact focused tests, manual checks, skipped gates, and platform qualifiers.
+
+## Volatile Fact Sources
+
+易漂移事实必须回到代码或 manifest，不从历史 plan / audit snapshot 反推：
+
+| Fact | Canonical source |
+|---|---|
+| Product version and npm scripts | `package.json`, `package-lock.json` |
+| Tauri product version and bundle | `src-tauri/tauri.conf.json` |
+| Rust crate metadata | `src-tauri/Cargo.toml` |
+| Runtime engine model | `src/types/engine.ts`, `src-tauri/src/engine/mod.rs`, `src-tauri/src/command_registry.rs` |
+| WebView locales | `src/i18n/index.ts`, `src/i18n/locales/*` |
+| Theme presets | `src/features/theme/constants/vscodeThemePresets.ts` |
+| CI triggers | `.github/workflows/ci.yml` |
+| Large-file gates | `scripts/check-large-files.policy.json`, `package.json`, `.github/workflows/large-file-governance.yml` |
+| Active/archive/spec inventory | `openspec/changes/*`, `openspec/changes/archive/*`, `openspec/specs/*` |
 
 ## Namespace Policy
 
@@ -319,16 +342,18 @@ npm run check:large-files
 - `openspec/README.md` stays concise and navigation-oriented.
 - `openspec/project.md` keeps durable governance context and current inventory only.
 - `openspec/changes/README.md` keeps the active proposal index; `openspec/changes/archive/README.md` keeps the complete archived proposal index.
+- `openspec/specs/README.md` indexes all mainline capability contracts; `openspec/docs/README.md` separates durable references from dated evidence.
 - High-drift implementation evidence, commit matrices, and temporary backfill snapshots should live in the relevant change artifacts or archive notes, not here.
 - Host-specific session-start logic belongs in `.claude/**` or `.codex/**`, not in OpenSpec workspace docs.
 - Product-facing overview belongs in `README.md` and `README.zh-CN.md`, not in OpenSpec change artifacts.
 
 ## Owners
 
-- CodeMoss Team
+- ccgui contributors
 
 ## Update History
 
+- 2026-07-17: Re-audited project documentation against manifests, workflows, and current code; refreshed the working-tree inventory to active=11, archive=631, specs=403; added complete docs/OpenSpec navigation indexes; corrected runtime, locale, storage, CI, and workflow facts; and repaired project-owned documentation links. No business code was modified.
 - 2026-07-17: Added a two-level proposal index linking all 10 active and 631 archived changes, connected the root/OpenSpec navigation surfaces, and refreshed current planning context to product version 0.7.5 with active=10, archive=631, specs=403. Historical snapshot counts were preserved.
 - 2026-07-17: Archived five near-complete changes after evidence review: two reached full task closure, while three retained explicit manual QA gaps under a user-authorized waiver. Synced one new and six existing main capabilities, calibrated one stale cross-capability delta, and refreshed counts to active=10, archive=631, specs=403. No product code was modified.
 - 2026-07-17: Archived 22 verified Git, search, file-view, conversation, and Codex changes; synced six new and 17 existing main capabilities; calibrated one stale requirement rename; and refreshed tracked counts to active=15, archive=626, specs=402. All 402 main specs pass strict validation, and no product code was modified.

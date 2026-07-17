@@ -1,4 +1,4 @@
-# CodeMoss OpenSpec Workspace
+# ccgui OpenSpec Workspace
 
 本目录是 `mossx` 的 behavior-spec 工作区，负责 proposal / design / tasks / specs / archive 的生命周期管理。
 
@@ -8,8 +8,9 @@
 - 若正在修改规则入口、文档治理边界或 ignore policy：[`../.trellis/spec/guides/project-instruction-layering-guide.md`](../.trellis/spec/guides/project-instruction-layering-guide.md)
 - 工作区总览与治理状态：[`project.md`](project.md)
 - 当前提案与执行状态：[`changes/README.md`](changes/README.md)
-- 主 capability specs：[`specs/`](specs/)
+- 主 capability specs：[`specs/README.md`](specs/README.md)
 - 完整归档提案索引：[`changes/archive/README.md`](changes/archive/README.md)
+- 审计、同步与 evidence 文档：[`docs/README.md`](docs/README.md)
 
 ## 目录说明
 
@@ -20,9 +21,9 @@
 - `changes/archive/`
   - 已归档 change artifacts；`README.md` 按月份 / 归档日期索引全部 proposal
 - `specs/`
-  - 当前主线 capability 规范
+  - 当前主线 capability 规范；`README.md` 完整索引 403 个已同步 capability
 - `docs/`
-  - 审计、验证、同步与研究辅助文档
+  - 审计、验证、同步与研究辅助文档；`README.md` 区分 durable reference 与 dated snapshot
 - `config.yaml`
   - OpenSpec 1.3.x planning context 配置
 
@@ -47,3 +48,5 @@ python3 .claude/skills/osp-openspec-sync/scripts/validate-consistency.py --proje
 - `openspec/README.md` 只做导航和使用入口
 - 详细治理说明、快照统计、active backlog 与审计历史统一维护在 `openspec/project.md`
 - active / archived proposal 的逐项链接统一维护在 `openspec/changes/README.md` 与 `openspec/changes/archive/README.md`
+- main capability spec 的完整导航维护在 `openspec/specs/README.md`
+- audit/evidence artifact 的事实分层维护在 `openspec/docs/README.md`
