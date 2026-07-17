@@ -137,3 +137,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1030: 统一 Git Graph 菜单入口
+
+**Date**: 2026-07-18
+**Task**: 统一 Git Graph 菜单入口
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+统一 Sidebar 与 Git Diff 菜单的 Git Graph 文案和 GitCommitHorizontal 图标，隐藏旧 Git 下拉入口并保留既有回调与 log mode 兼容性；focused tests、lint、typecheck 与 OpenSpec strict validation 通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `745a472e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
