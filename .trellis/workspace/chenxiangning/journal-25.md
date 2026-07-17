@@ -1904,3 +1904,38 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1024: 归档已验证 OpenSpec 提案
+
+**Date**: 2026-07-17
+**Task**: 归档已验证 OpenSpec 提案
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+归档 22 个 artifacts/tasks 完成且 strict validation 通过的 OpenSpec changes，按首次入库顺序同步共享 capability deltas；补齐一处 stale Requirement rename；刷新 inventory 至 active=15、archive=626、main specs=402。验证 openspec validate --all --strict 与 git diff --check 通过，未修改产品代码；同步归档两个已完成 Trellis tasks。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `aa6ca752` | (see git log) |
+| `ed1234a2` | (see git log) |
+| `ccdf84d7` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
