@@ -1600,3 +1600,37 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1016: 全局接口搜索与源码定位
+
+**Date**: 2026-07-17
+**Task**: 全局接口搜索与源码定位
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+新增基于 Project Map 的全局接口搜索，支持 cache hydration、stale-while-revalidate、workspace 扫描去重和跨 workspace 导航；补齐 endpoint evidence 行号定位、居中聚焦与 lazy CodeMirror boundary，并完成 OpenSpec、Trellis contract 与回归测试。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `cf76ad31` | (see git log) |
+| `307424cc` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
