@@ -12,7 +12,7 @@
 
 ## Outstanding Gates
 
-- Run one rebuilt-app trace shared with `harden-conversation-rendering-for-large-history`.
+- Run one rebuilt-app trace using the heavy-history scenario retained by the archived `harden-conversation-rendering-for-large-history` change.
 - Measure current FPS/frame gaps/long tasks; the historical “6 → 30–50+” target is not accepted as current evidence.
 - In the same run, visually confirm lightweight streaming fidelity and lossless transition to the full finalized message.
 - After human acceptance, run strict validation, sync main specs, and archive.

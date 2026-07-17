@@ -2,7 +2,7 @@
 
 ## Status
 
-**NOT READY FOR ARCHIVE** — 11/13 tasks complete; live SLO failed.
+**APPROVED FOR FAILED-EXPERIMENT ARCHIVE** — 11/13 tasks complete; live SLO failed.
 
 ## Confirmed Evidence
 
@@ -24,12 +24,13 @@
   All remain below the proposal's 5% contract.
 - No cache quota or `cache size exceeded` error was observed.
 
-## Outstanding Gates
+## Unresolved Follow-Up
 
 - Record the SLO miss as residual risk and open a bounded follow-up for the
   Tauri build-step bottleneck / runner architecture / cargo invocation.
-- Archive only after that follow-up ownership exists; do not claim the cache
-  configuration achieved the intended speedup.
+- Do not claim the cache configuration achieved the intended speedup.
+- On 2026-07-18, the product owner explicitly authorized closing this change
+  without continuing the cache experiment.
 
 ## Fallback
 
@@ -39,5 +40,9 @@ If sccache fails or becomes incompatible on a runner, disable the
 
 ## Archive Decision
 
-The artifact contract passed, but the performance contract failed. Redirect the
-remaining work; adding another cache layer inside this change is not justified.
+Archive as a failed performance experiment with the two remaining tasks left
+unchecked. Skip delta-spec synchronization: the proposed
+`release-pipeline-ci-cache-perf` contract requires sccache as a successful
+cold-start fallback, but live evidence shows that requirement did not achieve
+its intended performance outcome. Any renewed release-build optimization must
+start as a bounded follow-up change rather than extending this archive.

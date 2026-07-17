@@ -9,7 +9,7 @@
 - **裁定：继续推进，但只保留共享性能验收**。Claude staged streaming、稳定 render callback、rAF/longtask attribution、`topRenders`、runtime diagnostics toggle 与报告导出均已实现。
 - **代码事实源**：`messagesStreamingComplexity.ts`、`MessagesRows.tsx`、`Messages.tsx`、`services/perfBaseline/*`、`rendererDiagnostics` 与 `OtherSection`。
 - 原 proposal 中 “FPS 6 → 30–50+” 是历史目标，不是当前事实。归档前必须以新构建重新测量，不得把目标数写成已达成结论。
-- `4.4/4.5` 与 `harden-conversation-rendering-for-large-history` 的 heavy-history trace 合并执行；一次 trace 同时验证 Claude streaming frame attribution、final full-fidelity convergence 与 large-history interaction budget。
+- `harden-conversation-rendering-for-large-history` 已在 product-owner acceptance 下归档。`4.4/4.5` 继续复用其 heavy-history 场景，但只负责验证 Claude streaming frame attribution 与 final full-fidelity convergence，不再作为已归档 change 的关闭依赖。
 
 ## What Changes
 
