@@ -1667,3 +1667,57 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1018: 增强 Git History 提交筛选与查询稳定性
+
+**Date**: 2026-07-17
+**Task**: 增强 Git History 提交筛选与查询稳定性
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| 模块 | 完成内容 |
+|------|----------|
+| Filter UI | 将 Branch、User、Date 与 Clear 收拢到“提交”标题行，保留独立搜索框并移除仓库路径筛选 |
+| Query lifecycle | 修复 debounce 清空与 workspace 切换串扰，统一首屏、分页和 snapshot retry 的 canonical filter payload，并让相对日期在重新查询时重新锚定 |
+| Git backend | Desktop 与 daemon 复用 branch scope helper，补齐 `all` / `*` 的全仓分支历史语义 |
+| Display & UX | 支持 partial email filter 的邮箱回显、日期菜单右对齐和长邮箱省略，补齐输入框可访问性属性 |
+| Contracts | 完成 OpenSpec `add-git-history-commit-filters` 19/19 tasks，并同步 Trellis executable contract |
+
+**验证结果**：
+- `npm run lint`
+- `npm run typecheck`
+- Git History targeted Vitest：63 passed，127 skipped
+- `npm run check:git-history:runtime-contract`
+- `npm run check:git-history:static-imports`
+- `npm run doctor:strict`
+- Rust Desktop / daemon focused tests
+- `rustfmt --edition 2021 --check`
+- `openspec validate add-git-history-commit-filters --strict --no-interactive`
+- `git diff --check`
+
+**备注**：`check:large-files:gate` 仍命中 36 个既有 baseline files，本次变更未新增命中项。OpenSpec change 保持未归档，等待单独归档指令。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `17cf39e2` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
