@@ -203,3 +203,37 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1032: 动态派生 Codex 限额标题并稳定测试契约
+
+**Date**: 2026-07-18
+**Task**: 动态派生 Codex 限额标题并稳定测试契约
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+基于 windowDurationMins 动态生成限额标题，统一 Composer、Usage 菜单与本地 status 展示；补充 formatter 和界面回归测试，清理过期 Sidebar 视觉断言，并修复 useModels 异步测试竞态。lint、typecheck、OpenSpec strict validation 通过；全量测试通过原第 19 与 117 批，停在已知且未扩展处理的 Settings 过期测试契约。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d20c2d7d` | (see git log) |
+| `3f10c2b0` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
