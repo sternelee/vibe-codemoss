@@ -5,6 +5,7 @@ import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GitHistoryPanel, buildFileTreeItems, getDefaultColumnWidths } from "./GitHistoryPanel";
 import { publishGitRepositoryActionIntent } from "../../git/types/gitRepositoryActions";
+import { getGitHistoryAuthorColorSlot } from "./git-history-panel/utils/gitHistoryAuthorPalette";
 
 vi.mock("@tanstack/react-virtual", () => ({
   useVirtualizer: ({ count }: { count: number }) => {
@@ -373,6 +374,68 @@ describe("GitHistoryPanel interactions", () => {
     expect(mainGrid?.querySelector(":scope > .git-history-branches")).toBeTruthy();
     expect(mainGrid?.querySelector(":scope > .git-history-commits")).toBeTruthy();
     expect(mainGrid?.querySelector(":scope > .git-history-details")).toBeTruthy();
+  });
+
+  it("projects stable author colors onto virtualized commit rows", async () => {
+    vi.mocked(tauriService.getGitCommitHistory).mockResolvedValueOnce({
+      snapshotId: "snap-author-colors",
+      total: 3,
+      offset: 0,
+      limit: 100,
+      hasMore: false,
+      commits: [
+        {
+          sha: "a".repeat(40),
+          shortSha: "aaaaaaa",
+          summary: "feat: alice one",
+          message: "alice one",
+          author: "Alice",
+          authorEmail: "alice@example.com",
+          timestamp: 1739300000,
+          parents: [],
+          refs: [],
+        },
+        {
+          sha: "b".repeat(40),
+          shortSha: "bbbbbbb",
+          summary: "feat: alice two",
+          message: "alice two",
+          author: "Renamed Alice",
+          authorEmail: "ALICE@EXAMPLE.COM",
+          timestamp: 1739299000,
+          parents: [],
+          refs: [],
+        },
+        {
+          sha: "c".repeat(40),
+          shortSha: "ccccccc",
+          summary: "fix: bob",
+          message: "bob",
+          author: "Bob",
+          authorEmail: "bob@example.com",
+          timestamp: 1739298000,
+          parents: [],
+          refs: [],
+        },
+      ],
+    });
+
+    render(<GitHistoryPanel workspace={workspace as never} />);
+
+    const firstAliceRow = (await screen.findByText("feat: alice one")).closest(
+      ".git-history-commit-row",
+    );
+    const secondAliceRow = screen.getByText("feat: alice two").closest(
+      ".git-history-commit-row",
+    );
+    const bobRow = screen.getByText("fix: bob").closest(".git-history-commit-row");
+    const aliceSlot = getGitHistoryAuthorColorSlot("alice@example.com", "Alice");
+    const bobSlot = getGitHistoryAuthorColorSlot("bob@example.com", "Bob");
+
+    expect(aliceSlot).not.toBe(bobSlot);
+    expect(firstAliceRow?.classList.contains(`git-history-author-color-${aliceSlot}`)).toBe(true);
+    expect(secondAliceRow?.classList.contains(`git-history-author-color-${aliceSlot}`)).toBe(true);
+    expect(bobRow?.classList.contains(`git-history-author-color-${bobSlot}`)).toBe(true);
   });
 
   it("switches a multi-repository history target through the repository picker", async () => {
