@@ -71,3 +71,69 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1028: 校准并归档旧 OpenSpec 提案
+
+**Date**: 2026-07-18
+**Task**: 校准并归档旧 OpenSpec 提案
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+以当前代码为事实源校准 10 个旧提案；用自动化证据关闭可替代的人工 gate；同步 4 个已实现 change 的 main specs，强制归档 2 个失效或无当前价值的 change；active change 收敛至 4 个。验证包含 OpenSpec 410/410、Rust 全量测试、frontend lint/typecheck 与 sidebar focused tests。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `01edb4bb` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1029: 归档性能提案并同步主规范
+
+**Date**: 2026-07-18
+**Task**: 归档性能提案并同步主规范
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+归档大历史渲染与 release sccache 两个 OpenSpec change；将前者 10 条已实现 Requirement 同步至 5 个 main specs，后者按失败性能实验跳过 spec 同步；刷新 active/archive 库存为 2/640。验证：lint、typecheck、OpenSpec 408/408 通过；全量测试仅命中既有 Sidebar.styles CSS 基线失败。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1b3418425e3fb7d4aa40f23332c9b55c2b565924` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
