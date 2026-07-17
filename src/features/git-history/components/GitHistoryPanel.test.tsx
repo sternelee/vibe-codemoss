@@ -333,7 +333,7 @@ beforeEach(() => {
 });
 
 describe("GitHistoryPanel helpers", () => {
-  it("keeps changed file tree directories expanded from root", () => {
+  it("keeps compact changed file tree directories expanded from root", () => {
     const items = buildFileTreeItems(
       [
         {
@@ -348,7 +348,7 @@ describe("GitHistoryPanel helpers", () => {
       ],
       new Set(["a", "a/b", "a/b/c"]),
     );
-    expect(items.map((item) => item.label)).toEqual(["a", "b", "c", "d.txt"]);
+    expect(items.map((item) => item.label)).toEqual(["a.b.c", "d.txt"]);
   });
 
   it("returns exact 3:4:3 defaults for the visible desktop columns", () => {
