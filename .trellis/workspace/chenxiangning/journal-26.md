@@ -104,3 +104,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1029: 归档性能提案并同步主规范
+
+**Date**: 2026-07-18
+**Task**: 归档性能提案并同步主规范
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+归档大历史渲染与 release sccache 两个 OpenSpec change；将前者 10 条已实现 Requirement 同步至 5 个 main specs，后者按失败性能实验跳过 spec 同步；刷新 active/archive 库存为 2/640。验证：lint、typecheck、OpenSpec 408/408 通过；全量测试仅命中既有 Sidebar.styles CSS 基线失败。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1b3418425e3fb7d4aa40f23332c9b55c2b565924` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
