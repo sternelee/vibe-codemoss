@@ -237,3 +237,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1033: 修复客户端运行时异常与 Gemini 执行旁路
+
+**Date**: 2026-07-18
+**Task**: 修复客户端运行时异常与 Gemini 执行旁路
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+完成 Fast Markdown Worker、Timeline streaming、history reopen、model probe、diagnostics retention 与 Gemini hard-disable/owned child lifecycle 修复；人工回归通过，change-focused gates 通过，并保留全仓 4 个既有测试红点、large-file debt 与量化性能 trace 缺口。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2692bced` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
