@@ -303,3 +303,108 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1035: 优化 PR 大范围变更确认门禁
+
+**Date**: 2026-07-19
+**Task**: 优化 PR 大范围变更确认门禁
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+将 PR 大范围 changed-files 检查从硬阻断改为带 revision 指纹的分级确认，并加固 daemon 预检错误边界。
+
+### Main Changes
+
+- PR changed-files Range Gate：240 以内直接通过，241–300 与 300 以上分级确认。
+- 用 rangeFingerprint 将确认授权绑定到精确 base/head revision，避免 stale confirmation。
+- daemon precheck 增加 120s timeout、non-interactive Git 与 structured failure settlement。
+- 同步 Tauri/daemon/TypeScript/UI contract、双语文案与 OpenSpec artifacts。
+
+验证：191 项 frontend tests、typecheck、target ESLint、Rust targeted tests、daemon cargo check、runtime contracts、OpenSpec strict validation、diff check 全部通过。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5db2623a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1036: 修复 Mermaid 大图全屏预览异常
+
+**Date**: 2026-07-19
+**Task**: 修复 Mermaid 大图全屏预览异常
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+修复 Mermaid SVG 中 HTML br 序列化导致的全屏预览失败；将 SVG normalization 移出 React render 并加入单条缓存，补充脱敏 fallback diagnostic、回归测试及 OpenSpec 验证归档。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f0e06a03` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1037: 对齐 agent catalog Rust 代码格式
+
+**Date**: 2026-07-19
+**Task**: 对齐 agent catalog Rust 代码格式
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+确认四个剩余 Rust diff 与当前 rustfmt 1.8.0 输出逐字节一致，仅包含格式调整；通过 cargo fmt check 后独立提交，未引入业务逻辑变化。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `13d05cda` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
