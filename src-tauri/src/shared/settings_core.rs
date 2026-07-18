@@ -197,10 +197,9 @@ fn sanitize_enabled_curated_skill_ids(settings: &mut AppSettings) {
 }
 
 fn sanitize_enabled_builtin_agent_ids(settings: &mut AppSettings) {
-    settings.enabled_builtin_agent_ids =
-        crate::agent_catalog::normalized_enabled_builtin_agent_ids(
-            &settings.enabled_builtin_agent_ids,
-        );
+    settings.enabled_builtin_agent_ids = crate::agent_catalog::normalized_enabled_builtin_agent_ids(
+        &settings.enabled_builtin_agent_ids,
+    );
 }
 
 pub(crate) fn resolve_window_theme_preference(settings: &AppSettings) -> String {

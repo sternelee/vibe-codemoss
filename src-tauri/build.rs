@@ -36,24 +36,21 @@ fn validate_agent_catalog_bundled_in_conf() {
             e
         )
     });
-    let conf: serde_json::Value =
-        serde_json::from_str(&conf_raw).unwrap_or_else(|e| panic!("invalid tauri.conf.json: {}", e));
+    let conf: serde_json::Value = serde_json::from_str(&conf_raw)
+        .unwrap_or_else(|e| panic!("invalid tauri.conf.json: {}", e));
     let bundled = conf
         .get("bundle")
         .and_then(|value| value.get("resources"))
         .and_then(|value| value.get("resources/agent-catalogs"))
         .and_then(|value| value.as_str());
     if bundled != Some("agent-catalogs") {
-        panic!(
-            "tauri.conf.json must bundle `resources/agent-catalogs` as `agent-catalogs`"
-        );
+        panic!("tauri.conf.json must bundle `resources/agent-catalogs` as `agent-catalogs`");
     }
 }
 
 fn validate_agent_catalog() {
     const EXPECTED_PROVIDER: &str = "agency-agents";
-    const EXPECTED_SOURCE_URL: &str =
-        "https://github.com/msitarzewski/agency-agents";
+    const EXPECTED_SOURCE_URL: &str = "https://github.com/msitarzewski/agency-agents";
     const EXPECTED_REVISION: &str = "459dce837db3bdfdc4763d3fefd1fd854e73c8f1";
     const EXPECTED_DIVISIONS: usize = 17;
     const EXPECTED_AGENTS: usize = 248;
@@ -67,17 +64,18 @@ fn validate_agent_catalog() {
     println!("cargo:rerun-if-changed={}", catalog_root.display());
 
     let manifest: serde_json::Value = read_json_file(&manifest_path, "agent catalog manifest");
-    if manifest.get("schemaVersion").and_then(|value| value.as_u64()) != Some(1) {
+    if manifest
+        .get("schemaVersion")
+        .and_then(|value| value.as_u64())
+        != Some(1)
+    {
         panic!("agent catalog manifest schemaVersion must be 1");
     }
     if manifest.get("providerId").and_then(|value| value.as_str()) != Some(EXPECTED_PROVIDER) {
         panic!("agent catalog providerId must be `{}`", EXPECTED_PROVIDER);
     }
     if manifest.get("sourceUrl").and_then(|value| value.as_str()) != Some(EXPECTED_SOURCE_URL) {
-        panic!(
-            "agent catalog sourceUrl must be `{}`",
-            EXPECTED_SOURCE_URL
-        );
+        panic!("agent catalog sourceUrl must be `{}`", EXPECTED_SOURCE_URL);
     }
     if manifest
         .get("sourceRevision")
@@ -118,7 +116,10 @@ fn validate_agent_catalog() {
             .and_then(|value| value.as_str())
             .unwrap_or("");
         if en.trim().is_empty() || zh.trim().is_empty() {
-            panic!("agent catalog division `{}` is missing localized labels", id);
+            panic!(
+                "agent catalog division `{}` is missing localized labels",
+                id
+            );
         }
         if !division_ids.insert(id.to_string()) {
             panic!("duplicate agent catalog division id `{}`", id);
@@ -170,9 +171,8 @@ fn validate_agent_catalog() {
         let prompt_path = required_json_string(agent, "promptPath", id);
         validate_agent_catalog_relative_path(id, prompt_path);
         let expected_hash = required_json_string(agent, "promptHash", id);
-        let actual_hash = sha256_file(&catalog_root.join(prompt_path)).unwrap_or_else(|e| {
-            panic!("could not hash agent catalog prompt `{}`: {}", id, e)
-        });
+        let actual_hash = sha256_file(&catalog_root.join(prompt_path))
+            .unwrap_or_else(|e| panic!("could not hash agent catalog prompt `{}`: {}", id, e));
         if !actual_hash.eq_ignore_ascii_case(expected_hash) {
             panic!(
                 "agent catalog prompt hash mismatch for `{}`: expected {}, got {}",
@@ -193,11 +193,7 @@ fn read_json_file(path: &Path, label: &str) -> serde_json::Value {
         .unwrap_or_else(|e| panic!("{} at {} is invalid JSON: {}", label, path.display(), e))
 }
 
-fn required_json_string<'a>(
-    value: &'a serde_json::Value,
-    field: &str,
-    context: &str,
-) -> &'a str {
+fn required_json_string<'a>(value: &'a serde_json::Value, field: &str, context: &str) -> &'a str {
     value
         .get(field)
         .and_then(|entry| entry.as_str())

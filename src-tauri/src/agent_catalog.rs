@@ -563,21 +563,14 @@ mod tests {
         ));
         fs::create_dir_all(&root).expect("fixture dir");
         let mut manifest: serde_json::Value =
-            read_json(&bundled_root.join("manifest.json"), "fixture manifest")
-                .expect("manifest");
-        manifest["sourceUrl"] = serde_json::Value::String(
-            "javascript:alert(1)".to_string(),
-        );
+            read_json(&bundled_root.join("manifest.json"), "fixture manifest").expect("manifest");
+        manifest["sourceUrl"] = serde_json::Value::String("javascript:alert(1)".to_string());
         fs::write(
             root.join("manifest.json"),
             serde_json::to_vec(&manifest).expect("serialize manifest"),
         )
         .expect("write manifest");
-        fs::copy(
-            bundled_root.join("agents.json"),
-            root.join("agents.json"),
-        )
-        .expect("copy agents");
+        fs::copy(bundled_root.join("agents.json"), root.join("agents.json")).expect("copy agents");
 
         assert!(load_catalog_from_root(root.clone())
             .expect_err("tampered source identity must fail")
