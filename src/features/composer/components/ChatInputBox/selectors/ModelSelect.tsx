@@ -36,10 +36,6 @@ const MODEL_LABEL_KEYS: Record<string, string> = {
   'gpt-5.6-luna': 'models.codex.gpt56luna.label',
   'gpt-5.5': 'models.codex.gpt55.label',
   'gpt-5.4': 'models.codex.gpt54.label',
-  'gpt-5.4-mini': 'models.codex.gpt54mini.label',
-  'gpt-5.3-codex': 'models.codex.gpt53codex.label',
-  'gpt-5.3-codex-spark': 'models.codex.gpt53codexSpark.label',
-  'gpt-5.2': 'models.codex.gpt52.label',
 };
 
 const MODEL_DESCRIPTION_KEYS: Record<string, string> = {
@@ -48,10 +44,6 @@ const MODEL_DESCRIPTION_KEYS: Record<string, string> = {
   'gpt-5.6-luna': 'models.codex.gpt56luna.description',
   'gpt-5.5': 'models.codex.gpt55.description',
   'gpt-5.4': 'models.codex.gpt54.description',
-  'gpt-5.4-mini': 'models.codex.gpt54mini.description',
-  'gpt-5.3-codex': 'models.codex.gpt53codex.description',
-  'gpt-5.3-codex-spark': 'models.codex.gpt53codexSpark.description',
-  'gpt-5.2': 'models.codex.gpt52.description',
 };
 
 /**

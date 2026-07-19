@@ -131,9 +131,9 @@ describe('ChatInputBox model options', () => {
           source: 'custom',
         },
         {
-          id: 'gpt-5.3-codex-spark',
-          model: 'gpt-5.3-codex-spark',
-          label: 'gpt-5.3-codex-spark',
+          id: 'gpt-5.6-luna',
+          model: 'gpt-5.6-luna',
+          label: 'gpt-5.6-luna',
           source: 'catalog',
         },
       ],
@@ -144,7 +144,7 @@ describe('ChatInputBox model options', () => {
 
     expect(modelList).toContain('gpt-5.5:gpt-5.5:settings-override:gpt-5.5 (config)');
     expect(modelList).toContain('demo:demo:custom:Demo Override');
-    expect(modelList).toContain('gpt-5.3-codex-spark:gpt-5.3-codex-spark:catalog:gpt-5.3-codex-spark');
+    expect(modelList).toContain('gpt-5.6-luna:gpt-5.6-luna:catalog:gpt-5.6-luna');
     expect(modelList).toContain('user-custom-codex:::User Custom Codex');
     expect(modelEntries.filter((entry) => entry.startsWith('gpt-5.5:'))).toHaveLength(1);
     expect(modelEntries.filter((entry) => entry.startsWith('demo:'))).toHaveLength(1);
@@ -162,7 +162,10 @@ describe('ChatInputBox model options', () => {
 
     expect(modelList).toContain('gpt-5.5:::gpt-5.5');
     expect(modelList).toContain('gpt-5.4:::gpt-5.4');
-    expect(modelList).toContain('gpt-5.3-codex:::gpt-5.3-codex');
+    expect(modelList).not.toContain('gpt-5.4-mini');
+    expect(modelList).not.toContain('gpt-5.3-codex');
+    expect(modelList).not.toContain('gpt-5.3-codex-spark');
+    expect(modelList).not.toContain('gpt-5.2');
   });
 
   it('keeps custom Codex model labels while deduplicating built-in matches', () => {

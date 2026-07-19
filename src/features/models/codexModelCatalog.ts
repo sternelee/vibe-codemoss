@@ -49,32 +49,4 @@ export const CODEX_MODEL_CATALOG: CodexModelCatalogEntry[] = [
     supportedReasoningEfforts: STANDARD_CODEX_REASONING_EFFORTS,
     defaultReasoningEffort: "medium",
   },
-  {
-    id: "gpt-5.4-mini",
-    label: "gpt-5.4-mini",
-    description: "Small, fast, and cost-efficient model for simpler coding tasks.",
-    supportedReasoningEfforts: STANDARD_CODEX_REASONING_EFFORTS,
-    defaultReasoningEffort: "medium",
-  },
-  {
-    id: "gpt-5.3-codex",
-    label: "gpt-5.3-codex",
-    description: "Coding-optimized model.",
-    supportedReasoningEfforts: STANDARD_CODEX_REASONING_EFFORTS,
-    defaultReasoningEffort: "medium",
-  },
-  {
-    id: "gpt-5.3-codex-spark",
-    label: "gpt-5.3-codex-spark",
-    description: "Ultra-fast coding model.",
-    supportedReasoningEfforts: STANDARD_CODEX_REASONING_EFFORTS,
-    defaultReasoningEffort: "high",
-  },
-  {
-    id: "gpt-5.2",
-    label: "gpt-5.2",
-    description: "Optimized for professional work and long-running agents.",
-    supportedReasoningEfforts: STANDARD_CODEX_REASONING_EFFORTS,
-    defaultReasoningEffort: "medium",
-  },
 ];
