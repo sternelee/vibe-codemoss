@@ -8,11 +8,23 @@ const buttonsCss = readFileSync(
 );
 
 describe("chat input button styles", () => {
+  it("keeps send and stop actions on the same compact geometry scale", () => {
+    expect(buttonsCss).toMatch(/\.submit-button\s*\{[^}]*width:\s*26px/s);
+    expect(buttonsCss).toMatch(/\.submit-button\s*\{[^}]*height:\s*26px/s);
+    expect(buttonsCss).toMatch(/\.submit-button\s*\{[^}]*border-radius:\s*8px/s);
+    expect(buttonsCss).toMatch(
+      /\.submit-button > svg\s*\{[^}]*width:\s*14px[^}]*height:\s*14px/s,
+    );
+    expect(buttonsCss).toMatch(
+      /\.submit-button\.stop-button > svg\s*\{[^}]*width:\s*10px[^}]*height:\s*10px/s,
+    );
+  });
+
   it("renders the streaming stop button as a solid rounded square with a visible stop icon", () => {
-    expect(buttonsCss).toMatch(/\.stop-button\s*\{[^}]*width:\s*30px/s);
-    expect(buttonsCss).toMatch(/\.stop-button\s*\{[^}]*height:\s*30px/s);
+    expect(buttonsCss).toMatch(/\.stop-button\s*\{[^}]*width:\s*26px/s);
+    expect(buttonsCss).toMatch(/\.stop-button\s*\{[^}]*height:\s*26px/s);
     expect(buttonsCss).toMatch(/\.stop-button\s*\{[^}]*aspect-ratio:\s*1 \/ 1/s);
-    expect(buttonsCss).toMatch(/\.stop-button\s*\{[^}]*border-radius:\s*10px/s);
+    expect(buttonsCss).toMatch(/\.stop-button\s*\{[^}]*border-radius:\s*8px/s);
     // 用纯色填充 + 显示 codicon 停止图标，不再用旋转的位图背景
     expect(buttonsCss).not.toMatch(/icon\.png/s);
     expect(buttonsCss).toMatch(/\.stop-button \.codicon\s*\{[^}]*opacity:\s*1/s);

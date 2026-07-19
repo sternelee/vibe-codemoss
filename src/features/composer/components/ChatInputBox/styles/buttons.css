@@ -44,13 +44,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  flex: 0 0 30px;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
   padding: 0;
   background: var(--composer-submit-button-bg);
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   color: #ffffff;
   cursor: pointer;
   box-shadow: none;
@@ -92,13 +92,13 @@
 
 /* lucide 图标（ArrowUp / Square）：箭头略大、停止方块略小 */
 .submit-button > svg {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
 }
 
 .submit-button.stop-button > svg {
-  width: 11px;
-  height: 11px;
+  width: 10px;
+  height: 10px;
 }
 
 .stop-button {
@@ -106,18 +106,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  min-width: 30px;
-  min-height: 30px;
-  max-width: 30px;
-  max-height: 30px;
-  flex: 0 0 30px;
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  min-height: 26px;
+  max-width: 26px;
+  max-height: 26px;
+  flex: 0 0 26px;
   aspect-ratio: 1 / 1;
   padding: 0;
   background: var(--error-color, #f44336);
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   color: #ffffff;
   box-shadow: 0 6px 18px color-mix(in srgb, var(--error-color, #f44336) 26%, transparent);
   transition: background 0.2s, box-shadow 0.2s, opacity 0.2s, transform 0.12s;
@@ -126,7 +126,7 @@
 /* 白色停止方块图标（codicon-debug-stop），清晰可见、不旋转 */
 .stop-button .codicon {
   opacity: 1;
-  font-size: 12px;
+  font-size: 10px;
 }
 
 /* 等待首个 token：缓慢的呼吸光晕，提示「正在思考」 */
