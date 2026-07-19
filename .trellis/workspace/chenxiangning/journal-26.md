@@ -615,3 +615,49 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1044: 修复冷启更新循环与 Project Map 过期模型断言
+
+**Date**: 2026-07-20
+**Task**: 修复冷启更新循环与 Project Map 过期模型断言
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+修复 persisted selected agent、异步 catalog readiness 与 thread identity migration 叠加时的 React 更新循环，并让 Project Map 测试跟随当前 Codex catalog 默认值。
+
+### Main Changes
+
+| 模块 | 变更 |
+|---|---|
+| Agent 冷启动 | selected-agent cache 改为同步 ref 快照与 equality gate，切断 reload effect 自反馈。 |
+| AppShell | 删除重复的 mount-time Agent catalog reload，保留 Settings 关闭刷新语义。 |
+| Project Map | 测试改为验证当前 catalog 首项默认值，不再要求已删除的 gpt-5.3-codex。 |
+| OpenSpec | 新增 agent startup selection stability 的 proposal、design、spec 与 tasks。 |
+
+**验证结果**：
+- focused Vitest：17/17 passed
+- npm run typecheck：passed
+- npm run lint：passed
+- OpenSpec strict validation：416/416 passed
+- npm test：目标批次通过；在 146/214 被无关 SettingsView 旧断言阻断
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7d7d072e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
