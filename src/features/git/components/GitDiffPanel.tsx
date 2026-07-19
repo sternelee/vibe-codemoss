@@ -82,6 +82,10 @@ import {
   GitMultiRepositoryChanges,
   type RepositoryCommitSelection,
 } from "./GitMultiRepositoryChanges";
+import {
+  useGitCommitComposerPlacement,
+  writeGitCommitComposerPlacement,
+} from "../hooks/useGitCommitComposerPlacement";
 import { buildGitDiffPanelFileContextMenuItems } from "./GitDiffPanelFileContextMenu";
 import {
   resolveGitDiffFileHistoryTarget,
@@ -92,6 +96,20 @@ type ModeMenuLayout = {
   align: "left" | "right";
   width: number;
 };
+
+export function resolveBottomCommitMessageMenuPosition(
+  triggerRect: Pick<DOMRect, "right" | "top">,
+  menuSize: { width: number; height: number },
+  viewport: { width: number; height: number },
+) {
+  const padding = 12;
+  const maxX = Math.max(padding, viewport.width - menuSize.width - padding);
+  const maxY = Math.max(padding, viewport.height - menuSize.height - padding);
+  return {
+    x: Math.min(Math.max(triggerRect.right - menuSize.width, padding), maxX),
+    y: Math.min(Math.max(triggerRect.top - menuSize.height - 8, padding), maxY),
+  };
+}
 
 function GitModeSelectorMount({ target, children }: { target: HTMLElement | null; children: ReactNode }) {
   return target ? createPortal(children, target) : children;
@@ -873,6 +891,7 @@ function GitDiffPanelImpl({
     align: "right",
     width: 246,
   });
+  const commitComposerPlacement = useGitCommitComposerPlacement();
   const panelRef = useRef<HTMLElement | null>(null);
   const modeTriggerRef = useRef<HTMLButtonElement | null>(null);
   const modeMenuRef = useRef<HTMLDivElement | null>(null);
@@ -2098,10 +2117,21 @@ function GitDiffPanelImpl({
       if (!onGenerateCommitMessage || commitMessageLoading || commitLoading || !canGenerate) {
         return;
       }
-      const position = clampRendererContextMenuPosition(event.clientX, event.clientY, {
+      const menuSize = {
         width: 260,
-        height: 230,
-      });
+        height: 300,
+      };
+      const triggerRect = event.currentTarget.getBoundingClientRect();
+      const position = commitComposerPlacement === "bottom"
+        ? resolveBottomCommitMessageMenuPosition(triggerRect, menuSize, {
+            width: window.innerWidth,
+            height: window.innerHeight,
+          })
+        : clampRendererContextMenuPosition(
+            triggerRect.right - menuSize.width,
+            triggerRect.bottom + 8,
+            menuSize,
+          );
       const lastConfig = readLastCommitMessageConfig();
       const engineItems: Array<{ engine: CommitMessageEngine; label: string }> = [
         { engine: "codex", label: t("git.generateCommitMessageEngineCodex") },
@@ -2142,11 +2172,34 @@ function GitDiffPanelImpl({
               }, 0);
             },
           })),
+          { type: "separator", id: "commit-message-placement-separator" },
+          {
+            type: "submenu",
+            id: "commit-message-placement",
+            label: t("git.commitComposerPlacementMenuLabel"),
+            items: [
+              {
+                type: "item",
+                id: "commit-message-placement-bottom",
+                label: t("git.commitComposerPlacementBottom"),
+                disabled: commitComposerPlacement === "bottom",
+                onSelect: () => writeGitCommitComposerPlacement("bottom"),
+              },
+              {
+                type: "item",
+                id: "commit-message-placement-top",
+                label: t("git.commitComposerPlacementTop"),
+                disabled: commitComposerPlacement === "top",
+                onSelect: () => writeGitCommitComposerPlacement("top"),
+              },
+            ],
+          },
         ],
       });
     },
     [
       canGenerateCommitMessage,
+      commitComposerPlacement,
       commitLoading,
       commitMessageLoading,
       generateCommitMessageWithConfig,
@@ -2155,6 +2208,65 @@ function GitDiffPanelImpl({
       t,
     ],
   );
+  const singleCommitComposer =
+    showGenerateCommitMessage && !multiRepositoryMode ? (
+      <div className={`commit-message-section git-commit-composer git-commit-composer--${commitComposerPlacement}`}>
+        <div className="commit-message-input-wrapper">
+          <textarea
+            className="commit-message-input"
+            placeholder={t("git.commitMessage")}
+            value={commitMessage}
+            onChange={(e) => onCommitMessageChange?.(e.target.value)}
+            disabled={commitMessageLoading}
+            rows={2}
+          />
+          <button
+            type="button"
+            className={`commit-message-generate-button${commitMessageLoading ? " commit-message-generate-button--loading" : ""}`}
+            onClick={(event) => {
+              void showCommitMessageEngineMenu(event);
+            }}
+            disabled={commitMessageLoading || !canGenerateCommitMessage}
+            aria-haspopup="menu"
+            title={
+              stagedFiles.length > 0
+                ? t("git.generateCommitMessageStaged")
+                : t("git.generateCommitMessageUnstaged")
+            }
+            aria-label={t("git.generateCommitMessage")}
+          >
+            <CommitMessageEngineIcon
+              engine={commitMessageMenuEngine}
+              size={14}
+              className={`commit-message-engine-icon${commitMessageLoading ? " commit-message-engine-icon--spinning" : ""}`}
+            />
+          </button>
+        </div>
+        {commitMessageError && (
+          <div className="commit-message-error">{commitMessageError}</div>
+        )}
+        {commitError && (
+          <div className="commit-message-error">{commitError}</div>
+        )}
+        {pushError && (
+          <div className="commit-message-error">{pushError}</div>
+        )}
+        {syncError && (
+          <div className="commit-message-error">{syncError}</div>
+        )}
+        <CommitButton
+          commitMessage={commitMessage}
+          selectedCount={selectedCommitCount}
+          hasAnyChanges={hasAnyChanges}
+          commitLoading={commitLoading}
+          selectedPaths={selectedCommitPaths}
+          onCommit={onCommit}
+        />
+        <div className="commit-message-hint" aria-live="polite">
+          {commitScopeHint}
+        </div>
+      </div>
+    ) : null;
   return (
     <aside
       className={`diff-panel diff-panel--floating-git-actions${
@@ -2475,6 +2587,7 @@ function GitDiffPanelImpl({
               commitMessageError={commitMessageError}
               commitSummary={repositoryCommitSummary}
               commitMessageEngine={commitMessageMenuEngine}
+              commitComposerPlacement={commitComposerPlacement}
               onCommitMessageChange={onCommitMessageChange}
               onCommitRepositories={onCommitRepositories}
               onOpenGenerateMenu={showCommitMessageEngineMenu}
@@ -2488,6 +2601,7 @@ function GitDiffPanelImpl({
               onRefresh={onRefreshRepositoryStatuses}
             />
           ) : null}
+          {commitComposerPlacement === "top" ? singleCommitComposer : null}
           {!multiRepositoryMode ? <div className="diff-commit-workspace-content">
           {/* Show Push button when there are commits to push */}
           {commitsAhead > 0 && !stagedFiles.length && (
@@ -2634,64 +2748,7 @@ function GitDiffPanelImpl({
             </>
           )}
           </div> : null}
-          {showGenerateCommitMessage && !multiRepositoryMode && (
-            <div className="commit-message-section git-commit-composer">
-              <div className="commit-message-input-wrapper">
-                <textarea
-                  className="commit-message-input"
-                  placeholder={t("git.commitMessage")}
-                  value={commitMessage}
-                  onChange={(e) => onCommitMessageChange?.(e.target.value)}
-                  disabled={commitMessageLoading}
-                  rows={2}
-                />
-                <button
-                  type="button"
-                  className={`commit-message-generate-button${commitMessageLoading ? " commit-message-generate-button--loading" : ""}`}
-                  onClick={(event) => {
-                    void showCommitMessageEngineMenu(event);
-                  }}
-                  disabled={commitMessageLoading || !canGenerateCommitMessage}
-                  aria-haspopup="menu"
-                  title={
-                    stagedFiles.length > 0
-                      ? t("git.generateCommitMessageStaged")
-                      : t("git.generateCommitMessageUnstaged")
-                  }
-                  aria-label={t("git.generateCommitMessage")}
-                >
-                  <CommitMessageEngineIcon
-                    engine={commitMessageMenuEngine}
-                    size={14}
-                    className={`commit-message-engine-icon${commitMessageLoading ? " commit-message-engine-icon--spinning" : ""}`}
-                  />
-                </button>
-              </div>
-              {commitMessageError && (
-                <div className="commit-message-error">{commitMessageError}</div>
-              )}
-              {commitError && (
-                <div className="commit-message-error">{commitError}</div>
-              )}
-              {pushError && (
-                <div className="commit-message-error">{pushError}</div>
-              )}
-              {syncError && (
-                <div className="commit-message-error">{syncError}</div>
-              )}
-              <CommitButton
-                commitMessage={commitMessage}
-                selectedCount={selectedCommitCount}
-                hasAnyChanges={hasAnyChanges}
-                commitLoading={commitLoading}
-                selectedPaths={selectedCommitPaths}
-                onCommit={onCommit}
-              />
-              <div className="commit-message-hint" aria-live="polite">
-                {commitScopeHint}
-              </div>
-            </div>
-          )}
+          {commitComposerPlacement === "bottom" ? singleCommitComposer : null}
         </div>
       ) : mode === "log" ? (
         <div className="git-log-list">

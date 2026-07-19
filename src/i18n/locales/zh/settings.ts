@@ -507,6 +507,17 @@ const settings = {
     behaviorAutoOpenFileDesc: "选中文件时自动在编辑器中打开。",
     behaviorDiffExpanded: "Diff 默认展开",
     behaviorDiffExpandedDesc: "代码差异区域默认展开显示完整内容。",
+    gitCommitComposerPlacementTitle: "Git 提交信息框",
+    gitCommitComposerPlacementDesc:
+      "选择提交信息框显示在变更文件上方还是底部。",
+    gitCommitComposerPlacement: {
+      bottom: "底部",
+      top: "上方",
+    },
+    gitCommitComposerPlacementDetail: {
+      bottom: "保持在提交按钮附近，位于文件列表底部。",
+      top: "放在变更文件列表上方。",
+    },
     otherDescription: "历史记录补全、模型映射等其他配置。",
     performanceDiagnosticsTitle: "性能诊断",
     performanceDiagnosticsDescription:

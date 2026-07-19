@@ -11,6 +11,10 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
+import {
+  resetClientStorageForTests,
+  writeClientStoreValue,
+} from "../../../services/clientStorage";
 import type { GitLogEntry } from "../../../types";
 
 const mockPreviewSave = vi.fn(async () => true);
@@ -72,6 +76,9 @@ vi.mock("react-i18next", () => ({
         "git.generateCommitMessageEngineGemini": "Use Gemini engine",
         "git.generateCommitMessageEngineOpenCode": "Use OpenCode engine",
         "git.generateCommitMessageLastConfig": "Use last configuration",
+        "git.commitComposerPlacementMenuLabel": "Commit box position",
+        "git.commitComposerPlacementBottom": "Bottom",
+        "git.commitComposerPlacementTop": "Top",
         "git.listFlat": "Flat",
         "git.listTree": "Tree",
         "git.listView": "List view",
@@ -143,6 +150,7 @@ import {
   GitDiffPanel,
   buildDiffTree,
   compactDiffTree,
+  resolveBottomCommitMessageMenuPosition,
 } from "./GitDiffPanel";
 import {
   resolveGitDiffFileHistoryTarget,
@@ -181,6 +189,7 @@ afterEach(() => {
   mockPreviewDiscard.mockReset();
   vi.mocked(invoke).mockReset();
   vi.mocked(invoke).mockResolvedValue(null);
+  resetClientStorageForTests();
   window.localStorage.clear();
 });
 
@@ -198,6 +207,16 @@ async function openGitFileContextMenu(row: HTMLElement) {
 }
 
 describe("GitDiffPanel", () => {
+  it("positions the bottom commit message menu above its trigger once", () => {
+    expect(
+      resolveBottomCommitMessageMenuPosition(
+        { right: 980, top: 820 },
+        { width: 260, height: 300 },
+        { width: 1000, height: 1000 },
+      ),
+    ).toEqual({ x: 720, y: 512 });
+  });
+
   it("resolves safe root, nested, Windows, and explicit repository File History targets", () => {
     expect(resolveGitDiffFileHistoryTarget({
       workspaceId: "ws-root",
@@ -268,6 +287,52 @@ describe("GitDiffPanel", () => {
       content && composer &&
       (content.compareDocumentPosition(composer) & Node.DOCUMENT_POSITION_FOLLOWING),
     )).toBe(true);
+  });
+
+  it("renders single-repository commit composer above changes when configured", () => {
+    writeClientStoreValue("layout", "git.commitComposerPlacement", "top");
+
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        stagedFiles={[{ path: "file.txt", status: "M", additions: 1, deletions: 0 }]}
+        commitMessage="fix: top composer"
+        onCommit={vi.fn()}
+        onGenerateCommitMessage={vi.fn()}
+      />,
+    );
+
+    const content = document.querySelector(".diff-commit-workspace-content");
+    const composer = document.querySelector(".git-commit-composer");
+    expect(content).toBeTruthy();
+    expect(composer).toBeTruthy();
+    expect(Boolean(
+      composer && content &&
+      (composer.compareDocumentPosition(content) & Node.DOCUMENT_POSITION_FOLLOWING),
+    )).toBe(true);
+    expect(composer?.classList.contains("git-commit-composer--top")).toBe(true);
+  });
+
+  it("falls back to bottom commit composer for invalid stored placement", () => {
+    writeClientStoreValue("layout", "git.commitComposerPlacement", "floating");
+
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        stagedFiles={[{ path: "file.txt", status: "M", additions: 1, deletions: 0 }]}
+        commitMessage="fix: fallback composer"
+        onCommit={vi.fn()}
+        onGenerateCommitMessage={vi.fn()}
+      />,
+    );
+
+    const content = document.querySelector(".diff-commit-workspace-content");
+    const composer = document.querySelector(".git-commit-composer");
+    expect(Boolean(
+      content && composer &&
+      (content.compareDocumentPosition(composer) & Node.DOCUMENT_POSITION_FOLLOWING),
+    )).toBe(true);
+    expect(composer?.classList.contains("git-commit-composer--bottom")).toBe(true);
   });
 
   it("maps nested repository diff paths to cross-platform workspace file paths", () => {
@@ -873,6 +938,31 @@ describe("GitDiffPanel", () => {
     });
   });
 
+  it("moves commit composer from the current page menu", async () => {
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        onGenerateCommitMessage={vi.fn()}
+        unstagedFiles={[{ path: "file.txt", status: "M", additions: 1, deletions: 0 }]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Generate commit message" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Commit box position" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Top" }));
+
+    await waitFor(() => {
+      const composer = document.querySelector(".git-commit-composer");
+      const content = document.querySelector(".diff-commit-workspace-content");
+      expect(composer).toBeTruthy();
+      expect(content).toBeTruthy();
+      expect(
+        composer?.compareDocumentPosition(content as Node) ?? 0,
+      ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      expect(composer?.classList.contains("git-commit-composer--top")).toBe(true);
+    });
+  });
+
   it("forwards repository-scoped selections from the multi-repository AI button", async () => {
     const onGenerateCommitMessage = vi.fn();
     render(
@@ -912,6 +1002,42 @@ describe("GitDiffPanel", () => {
         [{ repositoryRoot: "services/api", selectedPaths: ["pom.xml"] }],
       );
     });
+  });
+
+  it("renders multi-repository commit composer above repository groups when configured", () => {
+    writeClientStoreValue("layout", "git.commitComposerPlacement", "top");
+
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        workspaceId="ws-1"
+        multiRepositoryMode
+        repositoryStatuses={[
+          {
+            repositoryRoot: "services/api",
+            displayName: "api",
+            branchName: "main",
+            stagedFiles: [
+              { path: "pom.xml", status: "M", additions: 1, deletions: 0 },
+            ],
+            unstagedFiles: [],
+            totalAdditions: 1,
+            totalDeletions: 0,
+            error: null,
+          },
+        ]}
+        commitMessage="fix: multi top composer"
+        onGenerateCommitMessage={vi.fn()}
+      />,
+    );
+
+    const content = document.querySelector(".git-multi-repository-changes__content");
+    const composer = document.querySelector(".git-commit-composer");
+    expect(Boolean(
+      composer && content &&
+      (composer.compareDocumentPosition(content) & Node.DOCUMENT_POSITION_FOLLOWING),
+    )).toBe(true);
+    expect(composer?.classList.contains("git-commit-composer--top")).toBe(true);
   });
 
   it("forwards repository identity when a multi-repository file row opens", () => {

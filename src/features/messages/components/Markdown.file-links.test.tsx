@@ -29,6 +29,58 @@ describe("Markdown file links", () => {
     );
   });
 
+  it("linkifies bare Windows absolute paths in assistant text", async () => {
+    const onOpenFileLink = vi.fn();
+
+    render(
+      <Markdown
+        value={"数据源目录: D:\\AI\\AIchat\\突击队"}
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const link = await screen.findByRole("link", {
+      name: "D:\\AI\\AIchat\\突击队",
+    });
+    fireEvent.click(link);
+
+    expect(onOpenFileLink).toHaveBeenCalledWith("D:\\AI\\AIchat\\突击队");
+  });
+
+  it("linkifies bare Windows file paths that contain spaces", async () => {
+    const onOpenFileLink = vi.fn();
+    const path = "D:\\AI\\AIchat\\突击队\\输出\\My Deck 修订版.pptx";
+
+    render(
+      <Markdown
+        value={`PPTX: ${path}`}
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const link = await screen.findByRole("link", { name: path });
+    fireEvent.click(link);
+
+    expect(onOpenFileLink).toHaveBeenCalledWith(path);
+  });
+
+  it("linkifies bare macOS file paths that contain spaces", async () => {
+    const onOpenFileLink = vi.fn();
+    const path = "/Users/test/Desktop/My Folder/report final.pdf";
+
+    render(
+      <Markdown
+        value={`预览图: ${path}`}
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const link = await screen.findByRole("link", { name: path });
+    fireEvent.click(link);
+
+    expect(onOpenFileLink).toHaveBeenCalledWith(path);
+  });
+
   it("renders image tags declared with <image>url</image>", async () => {
     const { container } = render(<Markdown value="<image>https://example.com/a.png</image>" />);
 

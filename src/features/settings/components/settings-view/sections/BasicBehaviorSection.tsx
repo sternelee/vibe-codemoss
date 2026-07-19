@@ -28,6 +28,11 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import type { AppSettings } from "@/types";
+import {
+  useGitCommitComposerPlacement,
+  writeGitCommitComposerPlacement,
+  type GitCommitComposerPlacement,
+} from "@/features/git/hooks/useGitCommitComposerPlacement";
 
 type DiagnosticsBundleExportState = {
   status: "idle" | "exporting" | "exported" | "failed";
@@ -111,6 +116,8 @@ export function BasicBehaviorSection({
   handleBrowseNotificationSoundPath,
   handleSaveNotificationSoundPath,
 }: BasicBehaviorSectionProps) {
+  const gitCommitComposerPlacement = useGitCommitComposerPlacement();
+
   if (!active) {
     return null;
   }
@@ -189,6 +196,47 @@ export function BasicBehaviorSection({
             />
           </CardAction>
         </CardHeader>
+      </Card>
+      <Card className="settings-basic-group-card settings-basic-shadcn-card">
+        <CardHeader>
+          <CardTitle className="settings-toggle-title">
+            {t("settings.gitCommitComposerPlacementTitle")}
+          </CardTitle>
+          <CardDescription className="settings-toggle-subtitle">
+            {t("settings.gitCommitComposerPlacementDesc")}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="settings-shortcut-cards">
+            {(["bottom", "top"] satisfies GitCommitComposerPlacement[]).map(
+              (placement) => (
+                <button
+                  key={placement}
+                  type="button"
+                  role="radio"
+                  aria-label={t(`settings.gitCommitComposerPlacement.${placement}`)}
+                  aria-checked={gitCommitComposerPlacement === placement}
+                  className={`settings-shortcut-card ${
+                    gitCommitComposerPlacement === placement ? "active" : ""
+                  }`}
+                  onClick={() => writeGitCommitComposerPlacement(placement)}
+                >
+                  {gitCommitComposerPlacement === placement ? (
+                    <div className="settings-shortcut-card-check" aria-hidden>
+                      <Check size={12} />
+                    </div>
+                  ) : null}
+                  <div className="settings-shortcut-card-title">
+                    {t(`settings.gitCommitComposerPlacement.${placement}`)}
+                  </div>
+                  <div className="settings-shortcut-card-desc">
+                    {t(`settings.gitCommitComposerPlacementDetail.${placement}`)}
+                  </div>
+                </button>
+              ),
+            )}
+          </div>
+        </CardContent>
       </Card>
       <Card
         className={`settings-basic-group-card settings-basic-shadcn-card settings-basic-browser-agent-card${
