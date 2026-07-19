@@ -1297,23 +1297,18 @@
   padding: 2px 4px 6px;
 }
 
-.composer-tool-menu-surface-row .button-area-tool-surface,
-.composer-tool-menu-surface-row .button-area-main-surface {
+.composer-tool-menu-surface-row .button-area-tool-surface {
   display: inline-flex;
   align-items: center;
   height: 34px;
 }
 
-/* Curated-skill indicator + usage ring form a trailing status group. */
+/* Curated-skill indicator forms the trailing status group. */
 .composer-tool-menu-surface-row .button-area-curated-surface {
   display: inline-flex;
   align-items: center;
   height: 34px;
   margin-left: auto;
-}
-
-.composer-tool-menu-surface-row .button-area-main-surface {
-  margin-left: 0;
 }
 
 /* Reveal the text labels (hidden in the inline toolbar) so each tool reads

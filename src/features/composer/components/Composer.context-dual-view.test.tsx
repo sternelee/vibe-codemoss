@@ -29,25 +29,12 @@ vi.mock("./ChatInputBox/ChatInputBoxAdapter", () => ({
   ChatInputBoxAdapter: ({
     text,
     contextUsage,
-    contextDualViewEnabled,
-    dualContextUsage,
     claudeContextUsage,
     onTextChange,
-    onRequestContextCompaction,
   }: {
     text?: string;
     onTextChange?: (next: string, cursor: number | null) => void;
     contextUsage?: { used: number; total: number } | null;
-    contextDualViewEnabled?: boolean;
-    dualContextUsage?: {
-      usedTokens: number;
-      contextWindow: number;
-      percent: number;
-      hasUsage: boolean;
-      compactionState: string;
-      compactionSource: string | null;
-      usageSyncPendingAfterCompaction: boolean;
-    } | null;
     claudeContextUsage?: {
       usedTokens: number | null;
       contextWindow: number | null;
@@ -61,20 +48,11 @@ vi.mock("./ChatInputBox/ChatInputBoxAdapter", () => ({
       source: string | null;
       hasUsage: boolean;
     } | null;
-    onRequestContextCompaction?: () => Promise<void> | void;
   }) => (
     <div
       data-testid="chat-input-box-adapter"
-      data-dual-enabled={String(contextDualViewEnabled)}
       data-legacy-used={String(contextUsage?.used ?? "")}
       data-legacy-total={String(contextUsage?.total ?? "")}
-      data-dual-used={String(dualContextUsage?.usedTokens ?? "")}
-      data-dual-total={String(dualContextUsage?.contextWindow ?? "")}
-      data-dual-percent={String(dualContextUsage?.percent ?? "")}
-      data-dual-has-usage={String(dualContextUsage?.hasUsage ?? "")}
-      data-dual-state={String(dualContextUsage?.compactionState ?? "")}
-      data-dual-source={String(dualContextUsage?.compactionSource ?? "")}
-      data-dual-pending-sync={String(dualContextUsage?.usageSyncPendingAfterCompaction ?? "")}
       data-claude-used={String(claudeContextUsage?.usedTokens ?? "")}
       data-claude-total={String(claudeContextUsage?.contextWindow ?? "")}
       data-claude-total-tokens={String(claudeContextUsage?.totalTokens ?? "")}
@@ -95,6 +73,39 @@ vi.mock("./ChatInputBox/ChatInputBoxAdapter", () => ({
       >
         type
       </button>
+    </div>
+  ),
+}));
+
+vi.mock("./ChatInputBox/ContextBar", () => ({
+  ContextBar: ({
+    contextDualViewEnabled,
+    dualContextUsage,
+    onRequestContextCompaction,
+  }: {
+    contextDualViewEnabled?: boolean;
+    dualContextUsage?: {
+      usedTokens: number;
+      contextWindow: number;
+      percent: number;
+      hasUsage: boolean;
+      compactionState: string;
+      compactionSource: string | null;
+      usageSyncPendingAfterCompaction: boolean;
+    } | null;
+    onRequestContextCompaction?: () => Promise<void> | void;
+  }) => (
+    <div
+      data-testid="codex-context-footer"
+      data-dual-enabled={String(contextDualViewEnabled)}
+      data-dual-used={String(dualContextUsage?.usedTokens ?? "")}
+      data-dual-total={String(dualContextUsage?.contextWindow ?? "")}
+      data-dual-percent={String(dualContextUsage?.percent ?? "")}
+      data-dual-has-usage={String(dualContextUsage?.hasUsage ?? "")}
+      data-dual-state={String(dualContextUsage?.compactionState ?? "")}
+      data-dual-source={String(dualContextUsage?.compactionSource ?? "")}
+      data-dual-pending-sync={String(dualContextUsage?.usageSyncPendingAfterCompaction ?? "")}
+    >
       <button
         type="button"
         data-testid="compact-now"
@@ -184,8 +195,7 @@ describe("Composer dual context usage model", () => {
         contextDualViewEnabled={true}
       />,
     );
-    const adapter = screen.getByTestId("chat-input-box-adapter");
-    expect(adapter.getAttribute("data-dual-enabled")).toBe("false");
+    expect(screen.queryByTestId("codex-context-footer")).toBeNull();
   });
 
   it("passes Claude context-window telemetry without falling back to cumulative totals", () => {
@@ -293,14 +303,16 @@ describe("Composer dual context usage model", () => {
     );
 
     const adapter = screen.getByTestId("chat-input-box-adapter");
-    expect(adapter.getAttribute("data-dual-enabled")).toBe("true");
+    const footer = screen.getByTestId("codex-context-footer");
+    expect(footer.closest(".composer-branch-row-usage")).toBeTruthy();
+    expect(footer.getAttribute("data-dual-enabled")).toBe("true");
     expect(adapter.getAttribute("data-legacy-used")).toBe("220000");
     expect(adapter.getAttribute("data-legacy-total")).toBe("200000");
-    expect(adapter.getAttribute("data-dual-used")).toBe("60000");
-    expect(adapter.getAttribute("data-dual-total")).toBe("200000");
-    expect(adapter.getAttribute("data-dual-percent")).toBe("30");
-    expect(adapter.getAttribute("data-dual-has-usage")).toBe("true");
-    expect(adapter.getAttribute("data-dual-state")).toBe("idle");
+    expect(footer.getAttribute("data-dual-used")).toBe("60000");
+    expect(footer.getAttribute("data-dual-total")).toBe("200000");
+    expect(footer.getAttribute("data-dual-percent")).toBe("30");
+    expect(footer.getAttribute("data-dual-has-usage")).toBe("true");
+    expect(footer.getAttribute("data-dual-state")).toBe("idle");
   });
 
   it("converges deferred advisory context usage after typing becomes idle without changing draft text", async () => {
@@ -351,9 +363,10 @@ describe("Composer dual context usage model", () => {
       );
 
       let adapter = screen.getByTestId("chat-input-box-adapter");
+      let footer = screen.getByTestId("codex-context-footer");
       expect(adapter.getAttribute("data-text")).toBe("");
       expect(adapter.getAttribute("data-legacy-used")).toBe("220000");
-      expect(adapter.getAttribute("data-dual-used")).toBe("60000");
+      expect(footer.getAttribute("data-dual-used")).toBe("60000");
 
       fireEvent.click(screen.getByTestId("type-draft"));
 
@@ -374,9 +387,10 @@ describe("Composer dual context usage model", () => {
       });
 
       adapter = screen.getByTestId("chat-input-box-adapter");
+      footer = screen.getByTestId("codex-context-footer");
       expect(adapter.getAttribute("data-text")).toBe("typing");
       expect(adapter.getAttribute("data-legacy-used")).toBe("260000");
-      expect(adapter.getAttribute("data-dual-used")).toBe("90000");
+      expect(footer.getAttribute("data-dual-used")).toBe("90000");
     } finally {
       vi.useRealTimers();
     }
@@ -407,10 +421,10 @@ describe("Composer dual context usage model", () => {
       />,
     );
 
-    const adapter = screen.getByTestId("chat-input-box-adapter");
-    expect(adapter.getAttribute("data-dual-used")).toBe("0");
-    expect(adapter.getAttribute("data-dual-percent")).toBe("0");
-    expect(adapter.getAttribute("data-dual-has-usage")).toBe("false");
+    const footer = screen.getByTestId("codex-context-footer");
+    expect(footer.getAttribute("data-dual-used")).toBe("0");
+    expect(footer.getAttribute("data-dual-percent")).toBe("0");
+    expect(footer.getAttribute("data-dual-has-usage")).toBe("false");
   });
 
   it("keeps dual usage state idle during regular processing and shows compacted marker when present", () => {
@@ -422,8 +436,8 @@ describe("Composer dual context usage model", () => {
       />,
     );
 
-    let adapter = screen.getByTestId("chat-input-box-adapter");
-    expect(adapter.getAttribute("data-dual-state")).toBe("idle");
+    let footer = screen.getByTestId("codex-context-footer");
+    expect(footer.getAttribute("data-dual-state")).toBe("idle");
 
     rerender(
       <ComposerHarness
@@ -435,9 +449,9 @@ describe("Composer dual context usage model", () => {
       />,
     );
 
-    adapter = screen.getByTestId("chat-input-box-adapter");
-    expect(adapter.getAttribute("data-dual-state")).toBe("compacted");
-    expect(adapter.getAttribute("data-dual-pending-sync")).toBe("true");
+    footer = screen.getByTestId("codex-context-footer");
+    expect(footer.getAttribute("data-dual-state")).toBe("compacted");
+    expect(footer.getAttribute("data-dual-pending-sync")).toBe("true");
   });
 
   it("does not treat preserved historical compaction messages as current completed state", () => {
@@ -456,8 +470,8 @@ describe("Composer dual context usage model", () => {
       />,
     );
 
-    const adapter = screen.getByTestId("chat-input-box-adapter");
-    expect(adapter.getAttribute("data-dual-state")).toBe("idle");
+    const footer = screen.getByTestId("codex-context-footer");
+    expect(footer.getAttribute("data-dual-state")).toBe("idle");
   });
 
   it("keeps compacting state when context compaction event is in progress", () => {
@@ -471,9 +485,9 @@ describe("Composer dual context usage model", () => {
       />,
     );
 
-    const adapter = screen.getByTestId("chat-input-box-adapter");
-    expect(adapter.getAttribute("data-dual-state")).toBe("compacting");
-    expect(adapter.getAttribute("data-dual-source")).toBe("auto");
+    const footer = screen.getByTestId("codex-context-footer");
+    expect(footer.getAttribute("data-dual-state")).toBe("compacting");
+    expect(footer.getAttribute("data-dual-source")).toBe("auto");
   });
 
   it("clears pending-sync state after a newer usage snapshot arrives", () => {
@@ -487,8 +501,8 @@ describe("Composer dual context usage model", () => {
       />,
     );
 
-    const adapter = screen.getByTestId("chat-input-box-adapter");
-    expect(adapter.getAttribute("data-dual-pending-sync")).toBe("false");
+    const footer = screen.getByTestId("codex-context-footer");
+    expect(footer.getAttribute("data-dual-pending-sync")).toBe("false");
   });
 
   it("forwards manual compaction requests to the external handler when provided", () => {

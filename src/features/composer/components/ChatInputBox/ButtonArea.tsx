@@ -83,7 +83,6 @@ export const ButtonArea = ({
   onAgentSelect,
   onOpenAgentSettings,
   readinessSurface,
-  mainSurface,
   toolSurface,
   panelToggleSurface,
   curatedSkillSurface,
@@ -335,11 +334,6 @@ export const ButtonArea = ({
         </div>
 
         <div className="button-area-right">
-          {mainSurface ? (
-            <div className="button-area-main-surface">
-              {mainSurface}
-            </div>
-          ) : null}
           {isLoading ? (
             <Button
               type="button"

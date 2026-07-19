@@ -240,7 +240,7 @@ describe("ButtonArea custom model storage refresh", () => {
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
   });
 
-  it("keeps the usage ring and reasoning in the primary row while memory reference stays in the tool menu", () => {
+  it("keeps reasoning in the primary row while memory reference stays in the tool menu", () => {
     render(
       <ButtonArea
         currentProvider="claude"
@@ -252,13 +252,10 @@ describe("ButtonArea custom model storage refresh", () => {
         shortcutActions={[]}
         memoryReferenceMode="off"
         onSetMemoryReferenceMode={vi.fn()}
-        mainSurface={<span data-testid="main-surface">token</span>}
       />,
     );
 
-    // The usage ring and reasoning selector now live permanently in the primary
-    // row, so they are visible without opening the "+" tool menu.
-    expect(screen.getByTestId("main-surface")).toBeTruthy();
+    // Reasoning stays visible without opening the "+" tool menu.
     expect(screen.getByTestId("reasoning-select")).toBeTruthy();
 
     openToolDock();

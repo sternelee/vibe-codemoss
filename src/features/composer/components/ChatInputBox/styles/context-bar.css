@@ -165,11 +165,6 @@
   display: none;
 }
 
-.button-area-inline-tools .context-bar--tool-popover .context-dual-usage-ring {
-  width: 17px;
-  height: 17px;
-}
-
 .button-area-tool-popover .context-bar--tool-popover,
 .button-area-tool-popover .context-tools,
 .button-area-tool-popover .context-tools-right,
@@ -720,51 +715,11 @@
   pointer-events: auto;
 }
 
-.context-dual-usage-ring {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: conic-gradient(
-    var(--codex-token-fill) var(--dual-usage-percent, 0%),
-    var(--codex-token-track) 0
-  );
-  transition: background 0.2s ease;
-}
-
-.context-dual-usage-ring-inner {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--panel-bg, #fff);
-}
-
 .context-dual-usage-percent {
   color: var(--codex-token-fill);
   font-size: 11px;
   line-height: 1;
   white-space: nowrap;
-}
-
-.context-dual-usage--empty .context-dual-usage-ring {
-  --dual-usage-percent: 0%;
-}
-
-.context-dual-usage--compacting .context-dual-usage-ring {
-  background: linear-gradient(
-    90deg,
-    var(--codex-token-fill) 0%,
-    color-mix(in srgb, var(--codex-token-fill) 36%, transparent) 100%
-  );
-}
-
-.context-dual-usage--compacted .context-dual-usage-ring {
-  background: conic-gradient(
-    var(--codex-token-fill) var(--dual-usage-percent, 100%),
-    var(--codex-token-track) 0
-  );
 }
 
 .context-dual-tooltip {
@@ -786,6 +741,46 @@
   visibility: hidden;
   transition: opacity 0.16s ease, transform 0.16s ease;
   line-height: 1.35;
+}
+
+/* Codex dual-view 与 Claude Code 共用输入框下方的 usage slot。
+   仅对齐 presentation，tooltip 与 compaction behavior 继续由 ContextBar 提供。 */
+.composer-branch-row-usage .context-bar--tool-popover {
+  width: auto;
+}
+
+.composer-branch-row-usage .context-bar--tool-popover .context-tools {
+  gap: 0;
+}
+
+.composer-branch-row-usage .context-bar--tool-popover .context-dual-usage {
+  height: 28px;
+  gap: 6px;
+  margin: 0;
+  padding: 0 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.composer-branch-row-usage .context-dual-usage-percent {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.composer-branch-row-usage .context-dual-usage svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.composer-branch-row-usage .context-dual-tooltip {
+  right: 0;
+  left: auto;
 }
 
 .context-dual-usage:hover .context-dual-tooltip,

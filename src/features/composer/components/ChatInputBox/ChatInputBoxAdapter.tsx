@@ -23,7 +23,6 @@ import type {
   CodexSpeedMode,
   ClaudeContextUsageViewModel,
   ContextSelectionChip,
-  DualContextUsageViewModel,
   MemoryReferenceMode,
   ModelInfo,
   PermissionMode,
@@ -305,27 +304,6 @@ function areContextUsageEqual(
   return left.used === right.used && left.total === right.total;
 }
 
-function areDualContextUsageEqual(
-  left: ChatInputBoxAdapterProps['dualContextUsage'],
-  right: ChatInputBoxAdapterProps['dualContextUsage'],
-): boolean {
-  if (left === right) {
-    return true;
-  }
-  if (!left || !right) {
-    return left === right;
-  }
-  return (
-    left.usedTokens === right.usedTokens &&
-    left.contextWindow === right.contextWindow &&
-    left.percent === right.percent &&
-    left.hasUsage === right.hasUsage &&
-    left.compactionState === right.compactionState &&
-    left.compactionSource === right.compactionSource &&
-    left.usageSyncPendingAfterCompaction === right.usageSyncPendingAfterCompaction
-  );
-}
-
 function areClaudeContextUsageEqual(
   left: ChatInputBoxAdapterProps['claudeContextUsage'],
   right: ChatInputBoxAdapterProps['claudeContextUsage'],
@@ -400,12 +378,6 @@ function areChatInputBoxAdapterPropsEqual(
   for (const propKey of propKeys) {
     if (propKey === 'contextUsage') {
       if (!areContextUsageEqual(previousProps.contextUsage, nextProps.contextUsage)) {
-        return false;
-      }
-      continue;
-    }
-    if (propKey === 'dualContextUsage') {
-      if (!areDualContextUsageEqual(previousProps.dualContextUsage, nextProps.dualContextUsage)) {
         return false;
       }
       continue;
@@ -523,16 +495,7 @@ export interface ChatInputBoxAdapterProps {
 
   // Context usage
   contextUsage?: { used: number; total: number } | null;
-  contextDualViewEnabled?: boolean;
-  dualContextUsage?: DualContextUsageViewModel | null;
   claudeContextUsage?: ClaudeContextUsageViewModel | null;
-  onRequestContextCompaction?: () => Promise<void> | void;
-  codexAutoCompactionEnabled?: boolean;
-  codexAutoCompactionThresholdPercent?: number;
-  onCodexAutoCompactionSettingsChange?: (patch: {
-    enabled?: boolean;
-    thresholdPercent?: number;
-  }) => Promise<void> | void;
   accountRateLimits?: RateLimitSnapshot | null;
   usageShowRemaining?: boolean;
   onRefreshAccountRateLimits?: () => Promise<void> | void;
@@ -1089,13 +1052,7 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
       onAddAttachment,
       onRemoveAttachment,
       contextUsage,
-      contextDualViewEnabled = false,
-      dualContextUsage,
       claudeContextUsage,
-      onRequestContextCompaction,
-      codexAutoCompactionEnabled,
-      codexAutoCompactionThresholdPercent,
-      onCodexAutoCompactionSettingsChange,
       accountRateLimits,
       usageShowRemaining,
       onRefreshAccountRateLimits,
@@ -2209,13 +2166,7 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
         usageUsedTokens={contextUsage?.used}
         usageMaxTokens={contextUsage?.total}
         showUsage={true}
-        contextDualViewEnabled={contextDualViewEnabled}
-        dualContextUsage={dualContextUsage}
         claudeContextUsage={claudeContextUsage}
-        onRequestContextCompaction={onRequestContextCompaction}
-        codexAutoCompactionEnabled={codexAutoCompactionEnabled}
-        codexAutoCompactionThresholdPercent={codexAutoCompactionThresholdPercent}
-        onCodexAutoCompactionSettingsChange={onCodexAutoCompactionSettingsChange}
         accountRateLimits={accountRateLimits}
         usageShowRemaining={usageShowRemaining}
         onRefreshAccountRateLimits={onRefreshAccountRateLimits}
