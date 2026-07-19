@@ -30,10 +30,11 @@ const ENGINE_LABELS: Record<EngineType, string> = {
   claude: "Claude Code",
   codex: "Codex CLI",
   gemini: "Gemini CLI",
+  kimi: "Kimi CLI",
   opencode: "OpenCode",
 };
 
-const KNOWN_ENGINES: EngineType[] = ["codex", "claude", "opencode"];
+const KNOWN_ENGINES: EngineType[] = ["codex", "claude", "kimi", "opencode"];
 
 const NO_WORKSPACE_MODEL: ProjectMapGenerationModelOption = {
   id: "default",

@@ -520,6 +520,7 @@ describe("useEngineController", () => {
     expect(result.current.availableEngines.map((engine) => engine.type)).toEqual([
       "claude",
       "codex",
+      "kimi",
       "opencode",
     ]);
     expect(
@@ -686,6 +687,7 @@ describe("useEngineController", () => {
     expect(result.current.availableEngines.map((engine) => engine.type)).toEqual([
       "claude",
       "codex",
+      "kimi",
     ]);
     expect(result.current.activeEngine).toBe("claude");
   });

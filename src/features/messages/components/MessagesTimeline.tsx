@@ -1630,7 +1630,8 @@ export const MessagesTimeline = memo(function MessagesTimeline({
               isStreaming={
                 (activeEngine === "claude" ||
                   activeEngine === "codex" ||
-                  activeEngine === "gemini") &&
+                  activeEngine === "gemini" ||
+                  activeEngine === "kimi") &&
                 renderItem.role === "assistant" &&
                 renderItem.recoveredFromLiveShadow !== true &&
                 renderItem.id === liveAssistantMessageId

@@ -163,42 +163,68 @@ export function useAppShellComposerModelSection({
       if (id === null) {
         return;
       }
-      const nextSelectedModel =
+      let targetEngine = activeEngine;
+      let nextSelectedModel =
         effectiveModels.find((model) => model.id === id) ?? null;
+      if (!nextSelectedModel) {
+        // Cross-engine pick from the grouped provider dropdown: the engine
+        // switch runs async, so resolve the owning engine catalog now and
+        // store the selection under the target engine.
+        for (const [engine, catalog] of Object.entries(providerModelCatalogs)) {
+          if (engine === activeEngine) {
+            continue;
+          }
+          const found =
+            ((catalog as any[] | undefined) ?? []).find(
+              (model: any) => model.id === id,
+            ) ?? null;
+          if (found) {
+            targetEngine = engine;
+            nextSelectedModel = found;
+            break;
+          }
+        }
+      }
       if (!nextSelectedModel) {
         return;
       }
+      const isCrossEngineSelection = targetEngine !== activeEngine;
       const nextSelectedEffort =
         getEffectiveSelectedEffort({
-          activeEngine,
-          hasActiveThread: hasActiveComposerThread,
+          activeEngine: targetEngine,
+          hasActiveThread: isCrossEngineSelection
+            ? false
+            : hasActiveComposerThread,
           selectedEffort: effectiveSelectedEffort,
           activeThreadSelection:
-            hasActiveComposerThread || activeEngine === "claude"
+            !isCrossEngineSelection &&
+            (hasActiveComposerThread || activeEngine === "claude")
               ? {
                   modelId: nextSelectedModel.id,
                   effort: effectiveSelectedEffort,
                 }
               : null,
           reasoningOptions: getEffectiveReasoningOptions(
-            activeEngine,
+            targetEngine,
             getReasoningOptionsForModel(nextSelectedModel),
           ),
         });
       if (import.meta.env.DEV) {
         console.info("[model/select]", {
-          activeEngine,
+          activeEngine: targetEngine,
           selectedModelId: nextSelectedModel.id,
         });
       }
-      if (activeEngine === "codex" && !hasActiveComposerThread) {
-        setSelectedModelId(nextSelectedModel.id);
-      } else if (activeEngine !== "codex") {
+      if (targetEngine === "codex") {
+        if (isCrossEngineSelection || !hasActiveComposerThread) {
+          setSelectedModelId(nextSelectedModel.id);
+        }
+      } else {
         setEngineSelectedModelIdByType((prev) => ({
           ...prev,
-          [activeEngine]: nextSelectedModel.id,
+          [targetEngine]: nextSelectedModel.id,
         }));
-        persistComposerEnginePref?.(activeEngine, {
+        persistComposerEnginePref?.(targetEngine, {
           modelId: nextSelectedModel.id,
           effort: nextSelectedEffort,
         });
@@ -215,6 +241,7 @@ export function useAppShellComposerModelSection({
       handleSelectComposerSelection,
       hasActiveComposerThread,
       persistComposerEnginePref,
+      providerModelCatalogs,
       setSelectedModelId,
     ],
   );

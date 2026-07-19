@@ -241,7 +241,7 @@ fn apply_provider_to_claude_settings(
 
 /// Represents the ~/.ccgui/config.json file structure shared with idea-claude-code-gui
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
-struct CodemossConfig {
+pub(crate) struct CodemossConfig {
     #[serde(default)]
     version: Option<Value>,
     #[serde(default)]
@@ -250,6 +250,8 @@ struct CodemossConfig {
     codex: CodexSection,
     #[serde(default)]
     gemini: GeminiSection,
+    #[serde(default)]
+    pub(crate) kimi: KimiSection,
     /// Preserve all other top-level fields (mcpServers, agents, ui, etc.)
     #[serde(flatten)]
     extra: HashMap<String, Value>,
@@ -279,6 +281,14 @@ struct GeminiSection {
     env: HashMap<String, String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     auth_mode: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub(crate) struct KimiSection {
+    #[serde(default)]
+    pub(crate) providers: HashMap<String, Value>,
+    #[serde(default)]
+    pub(crate) current: Option<String>,
 }
 
 impl Default for GeminiSection {
@@ -334,8 +344,8 @@ pub(crate) struct GeminiVendorPreflightResult {
 
 #[derive(Debug, Serialize)]
 pub(crate) struct VendorModelListResult {
-    models: Vec<String>,
-    endpoint: String,
+    pub(crate) models: Vec<String>,
+    pub(crate) endpoint: String,
 }
 
 // ==================== Helpers ====================
@@ -346,7 +356,7 @@ fn push_unique_candidate(candidates: &mut Vec<String>, candidate: String) {
     }
 }
 
-fn derive_model_list_candidates(base_url: &str) -> Vec<String> {
+pub(crate) fn derive_model_list_candidates(base_url: &str) -> Vec<String> {
     let base = base_url.trim().trim_end_matches('/').to_string();
     if base.is_empty() {
         return Vec::new();
@@ -393,7 +403,7 @@ fn push_model_id(models: &mut Vec<String>, value: &Value) {
     }
 }
 
-fn extract_vendor_model_ids(value: &Value) -> Vec<String> {
+pub(crate) fn extract_vendor_model_ids(value: &Value) -> Vec<String> {
     let mut models = Vec::new();
 
     if let Some(data) = value.get("data").and_then(Value::as_array) {
@@ -423,7 +433,7 @@ fn config_path() -> PathBuf {
     app_paths::config_file_path().unwrap_or_else(|_| PathBuf::from("config.json"))
 }
 
-fn read_config() -> Result<CodemossConfig, String> {
+pub(crate) fn read_config() -> Result<CodemossConfig, String> {
     let path = config_path();
     if !path.exists() {
         return Ok(CodemossConfig::default());
@@ -436,7 +446,7 @@ fn read_config() -> Result<CodemossConfig, String> {
     serde_json::from_str(&content).map_err(|e| format!("Failed to parse config: {}", e))
 }
 
-fn write_config(config: &CodemossConfig) -> Result<(), String> {
+pub(crate) fn write_config(config: &CodemossConfig) -> Result<(), String> {
     let path = config_path();
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)
@@ -451,7 +461,7 @@ fn provider_created_at(value: &Value) -> Option<i64> {
     value.get("createdAt").and_then(Value::as_i64)
 }
 
-fn next_provider_created_at(providers: &HashMap<String, Value>) -> i64 {
+pub(crate) fn next_provider_created_at(providers: &HashMap<String, Value>) -> i64 {
     let next_from_existing = providers
         .values()
         .filter_map(provider_created_at)
@@ -466,7 +476,7 @@ fn next_provider_created_at(providers: &HashMap<String, Value>) -> i64 {
     now_ms.max(next_from_existing)
 }
 
-fn updated_provider_created_at(
+pub(crate) fn updated_provider_created_at(
     existing_provider: Option<&Value>,
     updates_created_at: Option<i64>,
 ) -> Option<i64> {
@@ -475,7 +485,7 @@ fn updated_provider_created_at(
         .or(updates_created_at)
 }
 
-fn set_provider_created_at(value: &mut Value, created_at: i64) {
+pub(crate) fn set_provider_created_at(value: &mut Value, created_at: i64) {
     if let Value::Object(map) = value {
         map.insert("createdAt".into(), Value::Number(created_at.into()));
     }

@@ -346,7 +346,8 @@ export const Messages = memo(function Messages({
   const supportsStreamingReadableWindowRecovery =
     activeEngine === "claude" ||
     activeEngine === "codex" ||
-    activeEngine === "gemini";
+    activeEngine === "gemini" ||
+    activeEngine === "kimi";
   const visibleStallRecoveryActive =
     supportsStreamingReadableWindowRecovery &&
     isThinking &&
@@ -1193,10 +1194,38 @@ export const Messages = memo(function Messages({
     }
     return findLastAssistantMessageIndex(deferredRenderSourceItems);
   }, [deferredRenderSourceItems, lastUserMessageIndex]);
+  const liveReasoningWindowStartIndex = useMemo(() => {
+    if (liveSourceLastUserMessageIndex >= 0) {
+      return liveSourceLastUserMessageIndex;
+    }
+    return findLastAssistantMessageIndex(renderSourceItems);
+  }, [liveSourceLastUserMessageIndex, renderSourceItems]);
+  const latestLiveReasoningItem = useMemo(() => {
+    if (!isThinking) {
+      return null;
+    }
+    for (
+      let index = renderSourceItems.length - 1;
+      index > liveReasoningWindowStartIndex;
+      index -= 1
+    ) {
+      const item = renderSourceItems[index];
+      if (isReasoningConversationItem(item)) {
+        return item;
+      }
+    }
+    return null;
+  }, [isThinking, liveReasoningWindowStartIndex, renderSourceItems]);
 
   const latestReasoningLabel = useMemo(() => {
     if (hideClaudeReasoning) {
       return null;
+    }
+    if (latestLiveReasoningItem) {
+      const parsed = parseReasoning(latestLiveReasoningItem);
+      if (parsed.workingLabel) {
+        return parsed.workingLabel;
+      }
     }
     for (
       let index = deferredRenderSourceItems.length - 1;
@@ -1216,11 +1245,12 @@ export const Messages = memo(function Messages({
   }, [
     deferredRenderSourceItems,
     hideClaudeReasoning,
+    latestLiveReasoningItem,
     reasoningMetaById,
     reasoningWindowStartIndex,
   ]);
 
-  const latestReasoningId = useMemo(() => {
+  const latestDeferredReasoningId = useMemo(() => {
     for (
       let index = deferredRenderSourceItems.length - 1;
       index > reasoningWindowStartIndex;
@@ -1233,6 +1263,7 @@ export const Messages = memo(function Messages({
     }
     return null;
   }, [deferredRenderSourceItems, reasoningWindowStartIndex]);
+  const latestReasoningId = latestLiveReasoningItem?.id ?? latestDeferredReasoningId;
   const claudeDockedReasoningItems = useMemo(() => {
     if (!legacyClaudeReasoningDockEnabled) {
       return [] as Array<{
@@ -1506,7 +1537,7 @@ export const Messages = memo(function Messages({
   const streamActivityPhase = useStreamActivityPhase({
     isProcessing:
       isThinking &&
-      (activeEngine === "codex" || activeEngine === "claude" || activeEngine === "gemini"),
+      (activeEngine === "codex" || activeEngine === "claude" || activeEngine === "gemini" || activeEngine === "kimi"),
     items: deferredRenderSourceItems,
   });
   // 把对话页当前的流式状态 / 可见行数写入性能上下文桥,供掉帧 / 长任务采集器在
@@ -1800,11 +1831,15 @@ export const Messages = memo(function Messages({
     supportsStreamingReadableWindowRecovery &&
     (isThinking || isAssistantFinalizing);
   const livePresentationOverrideItemIds = useMemo(() => {
-    if (!liveAssistantMessageId) {
+    if (!liveAssistantMessageId && !latestReasoningId) {
       return undefined;
     }
-    return new Set([liveAssistantMessageId]);
-  }, [liveAssistantMessageId]);
+    return new Set(
+      [liveAssistantMessageId, latestReasoningId].filter(
+        (id): id is string => Boolean(id),
+      ),
+    );
+  }, [latestReasoningId, liveAssistantMessageId]);
   const timelinePresentationItems = useMemo(() => {
     if (claudeHistoryTranscriptFallbackActive) {
       return timelineItems;
@@ -2189,7 +2224,7 @@ export const Messages = memo(function Messages({
 
   useEffect(() => {
     if (
-      (activeEngine !== "claude" && activeEngine !== "codex" && activeEngine !== "gemini") ||
+      (activeEngine !== "claude" && activeEngine !== "codex" && activeEngine !== "gemini" && activeEngine !== "kimi") ||
       (!isThinking && !isAssistantFinalizing) ||
       !threadId
     ) {

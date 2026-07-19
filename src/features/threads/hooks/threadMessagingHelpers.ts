@@ -291,6 +291,15 @@ export function pickLikelyGeminiSessionId(
   return null;
 }
 
+export function pickLikelyKimiSessionId(
+  payload: unknown,
+  minUpdatedAt: number,
+): string | null {
+  // Kimi session summaries share the Gemini summary shape, so the same
+  // single-candidate safety rule applies.
+  return pickLikelyGeminiSessionId(payload, minUpdatedAt);
+}
+
 export function resolveRecoverableCodexFirstPacketTimeout(
   engine: EngineType,
   rawMessage: string,

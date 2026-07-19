@@ -22,6 +22,7 @@ const PROGRESS_CHUNK_LIMIT: usize = 1_000;
 pub(crate) enum CliInstallEngine {
     Codex,
     Claude,
+    Kimi,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -29,6 +30,7 @@ pub(crate) enum CliInstallEngine {
 pub(crate) enum CliInstallAction {
     InstallLatest,
     UpdateLatest,
+    Uninstall,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -130,16 +132,33 @@ pub(crate) fn package_name_for_engine(engine: CliInstallEngine) -> &'static str 
     match engine {
         CliInstallEngine::Codex => "@openai/codex@latest",
         CliInstallEngine::Claude => "@anthropic-ai/claude-code@latest",
+        CliInstallEngine::Kimi => "@moonshot-ai/kimi-code@latest",
     }
 }
 
-fn command_preview_for(engine: CliInstallEngine) -> Vec<String> {
-    vec![
-        "npm".to_string(),
-        "install".to_string(),
-        "-g".to_string(),
-        package_name_for_engine(engine).to_string(),
-    ]
+fn uninstall_package_name_for_engine(engine: CliInstallEngine) -> &'static str {
+    match engine {
+        CliInstallEngine::Codex => "@openai/codex",
+        CliInstallEngine::Claude => "@anthropic-ai/claude-code",
+        CliInstallEngine::Kimi => "@moonshot-ai/kimi-code",
+    }
+}
+
+fn command_preview_for(engine: CliInstallEngine, action: CliInstallAction) -> Vec<String> {
+    match action {
+        CliInstallAction::InstallLatest | CliInstallAction::UpdateLatest => vec![
+            "npm".to_string(),
+            "install".to_string(),
+            "-g".to_string(),
+            package_name_for_engine(engine).to_string(),
+        ],
+        CliInstallAction::Uninstall => vec![
+            "npm".to_string(),
+            "uninstall".to_string(),
+            "-g".to_string(),
+            uninstall_package_name_for_engine(engine).to_string(),
+        ],
+    }
 }
 
 fn current_platform() -> CliInstallPlatform {
@@ -154,14 +173,15 @@ fn current_platform() -> CliInstallPlatform {
     }
 }
 
-fn manual_fallback_for(engine: CliInstallEngine) -> String {
-    command_preview_for(engine).join(" ")
+fn manual_fallback_for(engine: CliInstallEngine, action: CliInstallAction) -> String {
+    command_preview_for(engine, action).join(" ")
 }
 
 fn engine_binary_name(engine: CliInstallEngine) -> &'static str {
     match engine {
         CliInstallEngine::Codex => "codex",
         CliInstallEngine::Claude => "claude",
+        CliInstallEngine::Kimi => "kimi",
     }
 }
 
@@ -169,6 +189,7 @@ fn engine_explicit_bin<'a>(engine: CliInstallEngine, settings: &'a AppSettings) 
     match engine {
         CliInstallEngine::Codex => settings.codex_bin.as_deref(),
         CliInstallEngine::Claude => settings.claude_bin.as_deref(),
+        CliInstallEngine::Kimi => settings.kimi_bin.as_deref(),
     }
     .filter(|value| !value.trim().is_empty())
 }
@@ -285,6 +306,7 @@ async fn npm_prefix_blocker(path_env: Option<&String>) -> Option<String> {
 
 async fn resolve_installer_command(
     engine: CliInstallEngine,
+    action: CliInstallAction,
     settings: &AppSettings,
 ) -> Result<InstallerCommandSpec, String> {
     let path_env = build_codex_path_env(engine_explicit_bin(engine, settings));
@@ -292,8 +314,18 @@ async fn resolve_installer_command(
         .map(|path| path.to_string_lossy().to_string())
         .unwrap_or_else(|| "npm".to_string());
 
-    let mut args = vec!["install".to_string(), "-g".to_string()];
-    args.push(package_name_for_engine(engine).to_string());
+    let args = match action {
+        CliInstallAction::InstallLatest | CliInstallAction::UpdateLatest => vec![
+            "install".to_string(),
+            "-g".to_string(),
+            package_name_for_engine(engine).to_string(),
+        ],
+        CliInstallAction::Uninstall => vec![
+            "uninstall".to_string(),
+            "-g".to_string(),
+            uninstall_package_name_for_engine(engine).to_string(),
+        ],
+    };
 
     Ok(InstallerCommandSpec {
         npm_bin: npm_path,
@@ -359,6 +391,10 @@ pub(crate) async fn build_cli_install_plan_with_backend(
                 warnings.push(format!(
                     "{engine_binary} is not currently detected; npmGlobal will still install @latest."
                 ));
+            } else if action == CliInstallAction::Uninstall {
+                warnings.push(format!(
+                    "{engine_binary} is not currently detected; npmGlobal uninstall may be a no-op."
+                ));
             }
         }
     }
@@ -369,11 +405,11 @@ pub(crate) async fn build_cli_install_plan_with_backend(
         strategy,
         backend,
         platform,
-        command_preview: command_preview_for(engine),
+        command_preview: command_preview_for(engine, action),
         can_run: blockers.is_empty(),
         blockers,
         warnings,
-        manual_fallback: Some(manual_fallback_for(engine)),
+        manual_fallback: Some(manual_fallback_for(engine, action)),
     }
 }
 
@@ -430,13 +466,13 @@ pub(crate) async fn run_cli_installer_with_progress(
             backend: CliInstallBackend::Local,
             phase: CliInstallProgressPhase::Started,
             stream: None,
-            message: Some(manual_fallback_for(engine)),
+            message: Some(manual_fallback_for(engine, action)),
             exit_code: None,
             duration_ms: Some(0),
         },
     );
 
-    let command_spec = resolve_installer_command(engine, settings).await?;
+    let command_spec = resolve_installer_command(engine, action, settings).await?;
     let mut command = build_command_for_binary(&command_spec.npm_bin);
     if let Some(path_env) = &command_spec.path_env {
         command.env("PATH", path_env);
@@ -513,7 +549,7 @@ pub(crate) async fn run_cli_installer_with_progress(
         .map_err(|error| format!("failed to join CLI installer stderr reader: {error}"))??;
 
     let ok = status.success();
-    let (doctor_result, doctor_details) = if ok {
+    let (doctor_result, doctor_details) = if ok && action != CliInstallAction::Uninstall {
         match run_post_install_doctor(engine, settings).await {
             Ok(result) => (Some(result), None),
             Err(error) => (
@@ -594,6 +630,9 @@ async fn run_post_install_doctor(
         }
         CliInstallEngine::Claude => {
             crate::codex::run_claude_doctor_with_settings(None, settings).await
+        }
+        CliInstallEngine::Kimi => {
+            crate::codex::run_kimi_doctor_with_settings(None, settings).await
         }
     }
 }
@@ -714,7 +753,7 @@ mod tests {
     #[test]
     fn cli_installer_phase_one_command_matrix_is_bounded() {
         assert_eq!(
-            command_preview_for(CliInstallEngine::Codex),
+            command_preview_for(CliInstallEngine::Codex, CliInstallAction::InstallLatest),
             vec![
                 "npm".to_string(),
                 "install".to_string(),
@@ -723,12 +762,39 @@ mod tests {
             ]
         );
         assert_eq!(
-            command_preview_for(CliInstallEngine::Claude),
+            command_preview_for(CliInstallEngine::Claude, CliInstallAction::InstallLatest),
             vec![
                 "npm".to_string(),
                 "install".to_string(),
                 "-g".to_string(),
                 "@anthropic-ai/claude-code@latest".to_string()
+            ]
+        );
+        assert_eq!(
+            command_preview_for(CliInstallEngine::Kimi, CliInstallAction::InstallLatest),
+            vec![
+                "npm".to_string(),
+                "install".to_string(),
+                "-g".to_string(),
+                "@moonshot-ai/kimi-code@latest".to_string()
+            ]
+        );
+        assert_eq!(
+            command_preview_for(CliInstallEngine::Kimi, CliInstallAction::Uninstall),
+            vec![
+                "npm".to_string(),
+                "uninstall".to_string(),
+                "-g".to_string(),
+                "@moonshot-ai/kimi-code".to_string()
+            ]
+        );
+        assert_eq!(
+            command_preview_for(CliInstallEngine::Claude, CliInstallAction::Uninstall),
+            vec![
+                "npm".to_string(),
+                "uninstall".to_string(),
+                "-g".to_string(),
+                "@anthropic-ai/claude-code".to_string()
             ]
         );
     }

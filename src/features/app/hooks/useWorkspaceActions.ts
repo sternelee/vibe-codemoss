@@ -155,6 +155,8 @@ export function useWorkspaceActions({
           return t("workspace.engineCodex");
         case "gemini":
           return t("workspace.engineGemini");
+        case "kimi":
+          return t("workspace.engineKimi");
         case "opencode":
           return t("workspace.engineOpenCode");
         case "claude":

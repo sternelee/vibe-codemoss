@@ -63,6 +63,8 @@ function getEngineLabel(engine: EngineType): string {
       return "Claude";
     case "gemini":
       return "Gemini";
+    case "kimi":
+      return "Kimi";
     case "opencode":
       return "OpenCode";
     case "codex":

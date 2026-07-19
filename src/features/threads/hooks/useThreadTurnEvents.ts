@@ -36,14 +36,17 @@ import type { ThreadAction } from "./useThreadsReducer";
 
 /**
  * Infer engine type from thread ID.
- * Claude/Gemini/OpenCode threads use "<engine>:" or "<engine>-pending-" prefixes.
+ * Claude/Gemini/Kimi/OpenCode threads use "<engine>:" or "<engine>-pending-" prefixes.
  */
-function inferEngineFromThreadId(threadId: string): "claude" | "codex" | "gemini" | "opencode" {
+function inferEngineFromThreadId(threadId: string): "claude" | "codex" | "gemini" | "kimi" | "opencode" {
   if (isClaudeRuntimeThreadId(threadId)) {
     return "claude";
   }
   if (threadId.startsWith("gemini:") || threadId.startsWith("gemini-pending-")) {
     return "gemini";
+  }
+  if (threadId.startsWith("kimi:") || threadId.startsWith("kimi-pending-")) {
+    return "kimi";
   }
   if (threadId.startsWith("opencode:") || threadId.startsWith("opencode-pending-")) {
     return "opencode";
@@ -130,7 +133,7 @@ function extractThreadProviderMetadata(thread: Record<string, unknown>) {
 }
 
 function isPendingThreadForEngine(
-  engine: "claude" | "gemini" | "opencode",
+  engine: "claude" | "gemini" | "kimi" | "opencode",
   threadId: string | null | undefined,
 ): threadId is string {
   if (!threadId) {
@@ -179,11 +182,11 @@ type UseThreadTurnEventsOptions = {
   ) => Promise<void>;
   resolvePendingThreadForSession?: (
     workspaceId: string,
-    engine: "claude" | "gemini" | "opencode",
+    engine: "claude" | "gemini" | "kimi" | "opencode",
   ) => string | null;
   resolvePendingThreadForTurn?: (
     workspaceId: string,
-    engine: "claude" | "gemini" | "opencode",
+    engine: "claude" | "gemini" | "kimi" | "opencode",
     turnId: string | null | undefined,
   ) => string | null;
   getActiveTurnIdForThread?: (threadId: string) => string | null;
@@ -1058,7 +1061,7 @@ export function useThreadTurnEvents({
       workspaceId: string,
       threadId: string,
       sessionId: string,
-      engineHint?: "claude" | "opencode" | "codex" | "gemini" | null,
+      engineHint?: "claude" | "opencode" | "codex" | "gemini" | "kimi" | null,
       turnId?: string | null,
     ) => {
       const explicitEnginePrefix = threadId.startsWith("claude:")
@@ -1068,16 +1071,20 @@ export function useThreadTurnEvents({
         : threadId.startsWith("gemini:")
           || threadId.startsWith("gemini-pending-")
           ? "gemini"
+        : threadId.startsWith("kimi:")
+          || threadId.startsWith("kimi-pending-")
+          ? "kimi"
         : threadId.startsWith("opencode:")
           || threadId.startsWith("opencode-pending-")
           ? "opencode"
           : null;
       const hintedEngine =
-        engineHint === "claude" || engineHint === "gemini" || engineHint === "opencode"
+        engineHint === "claude" || engineHint === "gemini" || engineHint === "kimi" || engineHint === "opencode"
           ? engineHint
           : null;
       const pendingOpenCode = resolvePendingThreadForSession?.(workspaceId, "opencode") ?? null;
       const pendingGemini = resolvePendingThreadForSession?.(workspaceId, "gemini") ?? null;
+      const pendingKimi = resolvePendingThreadForSession?.(workspaceId, "kimi") ?? null;
       const pendingClaude = resolvePendingThreadForSession?.(workspaceId, "claude") ?? null;
       logSessionTrace("event", {
         workspaceId,
@@ -1088,17 +1095,20 @@ export function useThreadTurnEvents({
         explicitEnginePrefix,
         pendingOpenCode,
         pendingGemini,
+        pendingKimi,
         pendingClaude,
       });
 
       const enginePrefix =
         explicitEnginePrefix
         ?? hintedEngine
-        ?? (pendingOpenCode && !pendingGemini && !pendingClaude
+        ?? (pendingOpenCode && !pendingGemini && !pendingKimi && !pendingClaude
           ? "opencode"
-          : pendingGemini && !pendingOpenCode && !pendingClaude
+          : pendingGemini && !pendingOpenCode && !pendingKimi && !pendingClaude
             ? "gemini"
-          : pendingClaude && !pendingOpenCode && !pendingGemini
+          : pendingKimi && !pendingOpenCode && !pendingGemini && !pendingClaude
+            ? "kimi"
+          : pendingClaude && !pendingOpenCode && !pendingGemini && !pendingKimi
             ? "claude"
             : null);
       if (!enginePrefix) {
@@ -1109,6 +1119,7 @@ export function useThreadTurnEvents({
           engineHint: engineHint ?? null,
           pendingOpenCode,
           pendingGemini,
+          pendingKimi,
           pendingClaude,
         });
         return;
@@ -1125,11 +1136,14 @@ export function useThreadTurnEvents({
         || isClaudeForkThreadId(threadId)
         || threadId.startsWith("gemini:")
         || threadId.startsWith("gemini-pending-")
+        || threadId.startsWith("kimi:")
+        || threadId.startsWith("kimi-pending-")
         || threadId.startsWith("opencode:")
         || threadId.startsWith("opencode-pending-");
       const hasForeignEnginePrefix = (
         (enginePrefix !== "claude" && (threadId.startsWith("claude:") || threadId.startsWith("claude-pending-")))
         || (enginePrefix !== "gemini" && (threadId.startsWith("gemini:") || threadId.startsWith("gemini-pending-")))
+        || (enginePrefix !== "kimi" && (threadId.startsWith("kimi:") || threadId.startsWith("kimi-pending-")))
         || (enginePrefix !== "opencode" && (threadId.startsWith("opencode:") || threadId.startsWith("opencode-pending-")))
       );
 
@@ -1164,6 +1178,8 @@ export function useThreadTurnEvents({
           ? pendingOpenCode
           : enginePrefix === "gemini"
             ? pendingGemini
+          : enginePrefix === "kimi"
+            ? pendingKimi
             : pendingClaude;
         if (isPendingThreadForEngine(enginePrefix, turnBoundPendingThreadId)) {
           sourceThreadId = turnBoundPendingThreadId;
@@ -1201,6 +1217,8 @@ export function useThreadTurnEvents({
           ? pendingOpenCode
           : enginePrefix === "gemini"
             ? pendingGemini
+          : enginePrefix === "kimi"
+            ? pendingKimi
           : pendingClaude;
         // Safety boundary: for non-prefixed thread ids, only bind to the
         // currently active pending thread unless a turn-bound mapping exists.

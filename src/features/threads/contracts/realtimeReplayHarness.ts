@@ -149,12 +149,15 @@ function percentile(values: number[], ratio: number): number {
   return sorted[index] ?? 0;
 }
 
-function inferEngineFromThreadId(threadId: string): "codex" | "claude" | "gemini" | "opencode" {
+function inferEngineFromThreadId(threadId: string): "codex" | "claude" | "gemini" | "kimi" | "opencode" {
   if (threadId.startsWith("claude:") || threadId.startsWith("claude-")) {
     return "claude";
   }
   if (threadId.startsWith("gemini:") || threadId.startsWith("gemini-")) {
     return "gemini";
+  }
+  if (threadId.startsWith("kimi:") || threadId.startsWith("kimi-")) {
+    return "kimi";
   }
   if (threadId.startsWith("opencode:") || threadId.startsWith("opencode-")) {
     return "opencode";

@@ -21,6 +21,12 @@ export async function runClaudeDoctor(
   return invoke<CodexDoctorResult>("claude_doctor", { claudeBin });
 }
 
+export async function runKimiDoctor(
+  kimiBin: string | null,
+): Promise<CodexDoctorResult> {
+  return invoke<CodexDoctorResult>("kimi_doctor", { kimiBin });
+}
+
 export async function previewCodexLaunchProfile({
   codexBin,
   codexArgs,

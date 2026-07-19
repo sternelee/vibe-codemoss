@@ -22,6 +22,7 @@ import {
 } from "./threadReducerItemLookup";
 import {
   isGeminiReasoningThread,
+  isKimiReasoningThread,
   shouldAcceptReasoningDelta,
 } from "./threadReducerReasoningGuards";
 import { areEquivalentAssistantMessageTexts } from "../assembly/conversationNormalization";
@@ -502,6 +503,8 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         ? "claude"
         : action.threadId.startsWith("gemini:")
           ? "gemini"
+        : action.threadId.startsWith("kimi:")
+          ? "kimi"
         : action.threadId.startsWith("opencode:")
           ? "opencode"
           : null;
@@ -1860,7 +1863,8 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         return state;
       }
       const shouldInsertBeforeAssistant =
-        isGeminiReasoningThread(action.threadId) &&
+        (isGeminiReasoningThread(action.threadId) ||
+          isKimiReasoningThread(action.threadId)) &&
         !state.threadStatusById[action.threadId]?.isProcessing &&
         (state.activeTurnIdByThread[action.threadId] ?? null) === null;
       const segmentedReasoningId = resolveLiveReasoningItemId(
@@ -1926,7 +1930,8 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         return state;
       }
       const shouldInsertBeforeAssistant =
-        isGeminiReasoningThread(action.threadId) &&
+        (isGeminiReasoningThread(action.threadId) ||
+          isKimiReasoningThread(action.threadId)) &&
         !state.threadStatusById[action.threadId]?.isProcessing &&
         (state.activeTurnIdByThread[action.threadId] ?? null) === null;
       const segmentedReasoningId = resolveLiveReasoningItemId(
@@ -2105,7 +2110,8 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         return state;
       }
       const shouldInsertBeforeAssistant =
-        isGeminiReasoningThread(action.threadId) &&
+        (isGeminiReasoningThread(action.threadId) ||
+          isKimiReasoningThread(action.threadId)) &&
         !state.threadStatusById[action.threadId]?.isProcessing &&
         (state.activeTurnIdByThread[action.threadId] ?? null) === null;
       const segmentedReasoningId = resolveLiveReasoningItemId(

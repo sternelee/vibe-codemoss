@@ -27,6 +27,7 @@ const KNOWN_ENGINES: readonly EngineType[] = [
   "claude",
   "codex",
   "gemini",
+  "kimi",
   "opencode",
 ];
 const KNOWN_SCOPES: readonly CostProjectionScope[] = ["turn", "session"];

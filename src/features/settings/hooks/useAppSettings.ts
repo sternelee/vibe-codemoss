@@ -4,6 +4,7 @@ import {
   getAppSettings,
   runClaudeDoctor,
   runCodexDoctor,
+  runKimiDoctor,
   updateAppSettings,
 } from "../../../services/tauri";
 import {
@@ -185,6 +186,7 @@ function normalizeEnabledBuiltInAgentIds(value: unknown): string[] {
 
 const defaultSettings: AppSettings = {
   claudeBin: null,
+  kimiBin: null,
   codexBin: null,
   codexArgs: null,
   terminalShellPath: null,
@@ -366,6 +368,7 @@ function normalizeAppSettings(
     codexUnifiedExecPolicy: "inherit",
     experimentalUnifiedExecEnabled: undefined,
     claudeBin: settings.claudeBin?.trim() ? settings.claudeBin.trim() : null,
+    kimiBin: settings.kimiBin?.trim() ? settings.kimiBin.trim() : null,
     codexBin: settings.codexBin?.trim() ? settings.codexBin.trim() : null,
     codexArgs: settings.codexArgs?.trim() ? settings.codexArgs.trim() : null,
     terminalShellPath: settings.terminalShellPath?.trim()
@@ -613,12 +616,17 @@ export function useAppSettings() {
     return runClaudeDoctor(claudeBin);
   }, []);
 
+  const kimiDoctor = useCallback(async (kimiBin: string | null) => {
+    return runKimiDoctor(kimiBin);
+  }, []);
+
   return {
     settings,
     setSettings,
     saveSettings,
     doctor,
     claudeDoctor,
+    kimiDoctor,
     isLoading,
   };
 }

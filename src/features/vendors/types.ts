@@ -15,6 +15,8 @@ export const STORAGE_KEYS = {
 
 export const LOCAL_SETTINGS_PROVIDER_ID = "__local_settings_json__";
 
+export const LOCAL_KIMI_PROVIDER_ID = "__local_config_toml__";
+
 export const MODEL_ID_PATTERN = /^[a-zA-Z0-9._\-/:]+$/;
 
 // ============ Validation Helpers ============
@@ -115,6 +117,32 @@ export interface CodexProviderConfig {
   customModels?: CodexCustomModel[];
 }
 
+export interface KimiProviderConfig {
+  id: string;
+  name: string;
+  remark?: string;
+  websiteUrl?: string;
+  createdAt?: number;
+  sortOrder?: number;
+  isActive?: boolean;
+  isLocalProvider?: boolean;
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  providerType?: string;
+  maxContextSize?: number;
+  displayName?: string;
+}
+
+export interface KimiCurrentConfig {
+  apiKey: string;
+  baseUrl: string;
+  authType?: string;
+  defaultModel: string;
+  providerId?: string;
+  providerName?: string;
+}
+
 export const GEMINI_AUTH_MODES = [
   "custom",
   "login_google",
@@ -139,7 +167,7 @@ export interface GeminiVendorDraft {
   model: string;
 }
 
-export type VendorTab = "claude" | "codex";
+export type VendorTab = "claude" | "codex" | "kimi";
 
 export interface ClaudeProviderPreset {
   id: string;
@@ -238,5 +266,39 @@ export const CLAUDE_PROVIDER_PRESETS: ClaudeProviderPreset[] = [
       ANTHROPIC_DEFAULT_SONNET_MODEL: "anthropic/claude-sonnet-4.5",
       ANTHROPIC_DEFAULT_OPUS_MODEL: "anthropic/claude-opus-4.5",
     },
+  },
+];
+
+export interface KimiProviderPreset {
+  id: string;
+  nameKey: string;
+  baseUrl: string;
+  providerType: string;
+  model: string;
+  maxContextSize?: number;
+}
+
+export const KIMI_PROVIDER_PRESETS: KimiProviderPreset[] = [
+  {
+    id: "kimi-coding",
+    nameKey: "settings.vendor.kimiPresets.kimiCoding",
+    baseUrl: "https://api.kimi.com/coding/v1",
+    providerType: "kimi",
+    model: "kimi-for-coding",
+    maxContextSize: 262144,
+  },
+  {
+    id: "moonshot",
+    nameKey: "settings.vendor.kimiPresets.moonshotOpenPlatform",
+    baseUrl: "https://api.moonshot.cn/v1",
+    providerType: "openai",
+    model: "",
+  },
+  {
+    id: "custom",
+    nameKey: "settings.vendor.kimiPresets.custom",
+    baseUrl: "",
+    providerType: "openai",
+    model: "",
   },
 ];

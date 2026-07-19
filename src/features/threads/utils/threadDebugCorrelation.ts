@@ -24,6 +24,9 @@ function inferEngineFromThreadId(threadId: string | null | undefined): string | 
   if (normalized.startsWith("gemini:") || normalized.startsWith("gemini-pending-")) {
     return "gemini";
   }
+  if (normalized.startsWith("kimi:") || normalized.startsWith("kimi-pending-")) {
+    return "kimi";
+  }
   if (normalized.startsWith("opencode:") || normalized.startsWith("opencode-pending-")) {
     return "opencode";
   }

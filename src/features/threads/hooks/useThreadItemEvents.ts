@@ -49,14 +49,17 @@ const LIVE_TEXT_EXTERNALIZATION_ENABLED = isLiveTextExternalizationEnabled();
 
 /**
  * Infer engine type from thread ID.
- * Claude/Gemini/OpenCode threads use "<engine>:" or "<engine>-pending-" prefixes.
+ * Claude/Gemini/Kimi/OpenCode threads use "<engine>:" or "<engine>-pending-" prefixes.
  */
-function inferEngineFromThreadId(threadId: string): "claude" | "codex" | "gemini" | "opencode" {
+function inferEngineFromThreadId(threadId: string): "claude" | "codex" | "gemini" | "kimi" | "opencode" {
   if (threadId.startsWith("claude:") || threadId.startsWith("claude-pending-")) {
     return "claude";
   }
   if (threadId.startsWith("gemini:") || threadId.startsWith("gemini-pending-")) {
     return "gemini";
+  }
+  if (threadId.startsWith("kimi:") || threadId.startsWith("kimi-pending-")) {
+    return "kimi";
   }
   if (threadId.startsWith("opencode:") || threadId.startsWith("opencode-pending-")) {
     return "opencode";
@@ -65,7 +68,7 @@ function inferEngineFromThreadId(threadId: string): "claude" | "codex" | "gemini
 }
 
 export function canProgressEventStartProcessing(
-  engine: "claude" | "codex" | "gemini" | "opencode",
+  engine: "claude" | "codex" | "gemini" | "kimi" | "opencode",
 ) {
   return engine !== "codex";
 }
@@ -78,11 +81,15 @@ function isGeminiThread(threadId: string) {
   return threadId.startsWith("gemini:") || threadId.startsWith("gemini-pending-");
 }
 
+function isKimiThread(threadId: string) {
+  return threadId.startsWith("kimi:") || threadId.startsWith("kimi-pending-");
+}
+
 function readHighResolutionNowMs() {
   return typeof performance !== "undefined" ? performance.now() : Date.now();
 }
 
-type ReasoningEngineHint = "gemini" | null;
+type ReasoningEngineHint = "gemini" | "kimi" | null;
 
 function isGeminiEventThread(
   threadId: string,
@@ -91,10 +98,17 @@ function isGeminiEventThread(
   return engineHint === "gemini" || isGeminiThread(threadId);
 }
 
+function isKimiEventThread(
+  threadId: string,
+  engineHint?: ReasoningEngineHint,
+) {
+  return engineHint === "kimi" || isKimiThread(threadId);
+}
+
 function inferItemEngineSource(
   item: Record<string, unknown>,
   threadId: string,
-): "claude" | "codex" | "gemini" | "opencode" {
+): "claude" | "codex" | "gemini" | "kimi" | "opencode" {
   const rawEngineSource = asString(item.engineSource ?? item.engine_source ?? "")
     .trim()
     .toLowerCase();
@@ -102,6 +116,7 @@ function inferItemEngineSource(
     rawEngineSource === "claude" ||
     rawEngineSource === "codex" ||
     rawEngineSource === "gemini" ||
+    rawEngineSource === "kimi" ||
     rawEngineSource === "opencode"
   ) {
     return rawEngineSource;
@@ -546,7 +561,8 @@ export function useThreadItemEvents({
       const reasoningEngineHint =
         "engineHint" in operation ? operation.engineHint : undefined;
       const isGeminiReasoningDelta =
-        isGeminiEventThread(operation.threadId, reasoningEngineHint) &&
+        (isGeminiEventThread(operation.threadId, reasoningEngineHint) ||
+          isKimiEventThread(operation.threadId, reasoningEngineHint)) &&
         (operation.kind === "reasoningSummaryDelta" ||
           operation.kind === "reasoningSummaryBoundary" ||
           operation.kind === "reasoningContentDelta");
@@ -1157,7 +1173,8 @@ export function useThreadItemEvents({
       const itemId = asString(item?.id ?? "");
       const itemEngineSource = inferItemEngineSource(item, threadId);
       const shouldSuppressGeminiReasoningProcessing =
-        itemType === "reasoning" && itemEngineSource === "gemini";
+        itemType === "reasoning" &&
+        (itemEngineSource === "gemini" || itemEngineSource === "kimi");
       if (
         shouldMarkProcessing &&
         !shouldSuppressGeminiReasoningProcessing &&
@@ -1275,11 +1292,12 @@ export function useThreadItemEvents({
         const normalizedConverted =
           itemEngineSource === "claude" ||
           itemEngineSource === "gemini" ||
+          itemEngineSource === "kimi" ||
           itemEngineSource === "opencode" ||
           itemEngineSource === "codex"
             ? {
                 ...converted,
-                engineSource: itemEngineSource as "claude" | "codex" | "gemini" | "opencode",
+                engineSource: itemEngineSource as "claude" | "codex" | "gemini" | "kimi" | "opencode",
               }
             : converted;
         const threadEngine = inferEngineFromThreadId(threadId);

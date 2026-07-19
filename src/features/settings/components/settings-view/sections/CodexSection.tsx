@@ -40,6 +40,13 @@ type CodexSectionProps = {
   handleSaveClaudeSettings: () => Promise<void>;
   handleRunClaudeDoctor: () => Promise<void>;
   claudeDoctorState: DoctorState;
+  kimiPathDraft: string;
+  setKimiPathDraft: (value: string) => void;
+  kimiDirty: boolean;
+  handleBrowseKimi: () => Promise<void>;
+  handleSaveKimiSettings: () => Promise<void>;
+  handleRunKimiDoctor: () => Promise<void>;
+  kimiDoctorState: DoctorState;
   codexPathDraft: string;
   setCodexPathDraft: (value: string) => void;
   codexArgsDraft: string;
@@ -100,7 +107,7 @@ type PreviewState = {
 };
 
 const MAX_INSTALLER_LOG_LINES = 120;
-type CliValidationTab = "codex" | "claude";
+type CliValidationTab = "codex" | "claude" | "kimi";
 
 // Deprecated: Gemini CLI and OpenCode CLI validation entries are intentionally hidden.
 const DEPRECATED_CLI_VALIDATION_ENGINES = new Set(["gemini", "opencode"]);
@@ -493,6 +500,13 @@ export function CodexSection({
   handleSaveClaudeSettings,
   handleRunClaudeDoctor,
   claudeDoctorState,
+  kimiPathDraft,
+  setKimiPathDraft,
+  kimiDirty,
+  handleBrowseKimi,
+  handleSaveKimiSettings,
+  handleRunKimiDoctor,
+  kimiDoctorState,
   codexPathDraft,
   setCodexPathDraft,
   codexArgsDraft,
@@ -651,8 +665,9 @@ export function CodexSection({
   const requestInstallPlan = async (
     engine: CliInstallEngine,
     doctorResult: CodexDoctorResult | null,
+    actionOverride?: CliInstallAction,
   ) => {
-    const action = resolveInstallerAction(doctorResult);
+    const action = actionOverride ?? resolveInstallerAction(doctorResult);
     const requestSeq = installPlanRequestSeqRef.current + 1;
     installPlanRequestSeqRef.current = requestSeq;
     setInstallerState({
@@ -911,7 +926,9 @@ export function CodexSection({
             setActiveTab("codex");
             return;
           }
-          setActiveTab(value === "claude" ? "claude" : "codex");
+          setActiveTab(
+            value === "claude" ? "claude" : value === "kimi" ? "kimi" : "codex",
+          );
         }}
       >
         <TabsList>
@@ -919,6 +936,7 @@ export function CodexSection({
           <TabsTab value="claude">
             {t("settings.cliValidationTabClaudeCode")}
           </TabsTab>
+          <TabsTab value="kimi">{t("settings.cliValidationTabKimiCli")}</TabsTab>
         </TabsList>
 
         <TabsPanel value="codex">
@@ -1039,6 +1057,19 @@ export function CodexSection({
                 {resolveInstallerAction(doctorState.result) === "installLatest"
                   ? t("settings.cliInstallLatest")
                   : t("settings.cliUpdateLatest")}
+              </button>
+              <button
+                type="button"
+                className="ghost settings-button-compact"
+                onClick={() => {
+                  void requestInstallPlan("codex", doctorState.result, "uninstall");
+                }}
+                disabled={
+                  installerState.status === "planning" ||
+                  installerState.status === "running"
+                }
+              >
+                {t("settings.cliUninstall")}
               </button>
             </div>
 
@@ -1240,6 +1271,19 @@ export function CodexSection({
                   ? t("settings.cliInstallLatest")
                   : t("settings.cliUpdateLatest")}
               </button>
+              <button
+                type="button"
+                className="ghost settings-button-compact"
+                onClick={() => {
+                  void requestInstallPlan("claude", claudeDoctorState.result, "uninstall");
+                }}
+                disabled={
+                  installerState.status === "planning" ||
+                  installerState.status === "running"
+                }
+              >
+                {t("settings.cliUninstall")}
+              </button>
             </div>
 
             <DoctorResultCard
@@ -1247,6 +1291,104 @@ export function CodexSection({
               state={claudeDoctorState}
               successTitleKey="settings.claudeLooksGood"
               errorTitleKey="settings.claudeIssueDetected"
+              showAppServer={false}
+            />
+          </div>
+        </TabsPanel>
+
+        <TabsPanel value="kimi">
+          <div className="settings-field">
+            <label className="settings-field-label" htmlFor="kimi-path">
+              {t("settings.defaultKimiPath")}
+            </label>
+            <div className="settings-field-row">
+              <input
+                id="kimi-path"
+                className="settings-input"
+                value={kimiPathDraft}
+                placeholder={t("settings.kimiPlaceholder")}
+                onChange={(event) => setKimiPathDraft(event.target.value)}
+              />
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => void handleBrowseKimi()}
+              >
+                {t("settings.browse")}
+              </button>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => setKimiPathDraft("")}
+              >
+                {t("settings.usePath")}
+              </button>
+            </div>
+            <div className="settings-help">
+              {t("settings.pathResolutionDesc")}
+            </div>
+            <div className="settings-field-actions">
+              {kimiDirty ? (
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={() => {
+                    void handleSaveKimiSettings();
+                  }}
+                  disabled={isSavingSettings}
+                >
+                  {isSavingSettings ? t("settings.saving") : t("common.save")}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="ghost settings-button-compact"
+                onClick={() => {
+                  void handleRunKimiDoctor();
+                }}
+                disabled={kimiDoctorState.status === "running"}
+              >
+                <Stethoscope aria-hidden />
+                {kimiDoctorState.status === "running"
+                  ? t("settings.running")
+                  : t("settings.runKimiDoctor")}
+              </button>
+              <button
+                type="button"
+                className="ghost settings-button-compact"
+                onClick={() => {
+                  void requestInstallPlan("kimi", kimiDoctorState.result);
+                }}
+                disabled={
+                  installerState.status === "planning" ||
+                  installerState.status === "running"
+                }
+              >
+                {resolveInstallerAction(kimiDoctorState.result) ===
+                "installLatest"
+                  ? t("settings.cliInstallLatest")
+                  : t("settings.cliUpdateLatest")}
+              </button>
+              <button
+                type="button"
+                className="ghost settings-button-compact"
+                onClick={() => {
+                  void requestInstallPlan("kimi", kimiDoctorState.result, "uninstall");
+                }}
+                disabled={
+                  installerState.status === "planning" ||
+                  installerState.status === "running"
+                }
+              >
+                {t("settings.cliUninstall")}
+              </button>
+            </div>
+
+            <DoctorResultCard
+              t={t}
+              state={kimiDoctorState}
+              successTitleKey="settings.kimiLooksGood"
+              errorTitleKey="settings.kimiIssueDetected"
               showAppServer={false}
             />
           </div>

@@ -23,6 +23,8 @@ function hasKnownNonCodexThreadPrefix(threadId: string) {
     normalized.startsWith("claude-pending-") ||
     normalized.startsWith("gemini:") ||
     normalized.startsWith("gemini-pending-") ||
+    normalized.startsWith("kimi:") ||
+    normalized.startsWith("kimi-pending-") ||
     normalized.startsWith("opencode:") ||
     normalized.startsWith("opencode-pending-") ||
     normalized.startsWith("shared:")

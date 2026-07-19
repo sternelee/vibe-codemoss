@@ -6,6 +6,7 @@ import {
   listThreads as listThreadsService,
   listClaudeSessions as listClaudeSessionsForFallbackSeedService,
   listGeminiSessions as listGeminiSessionsService,
+  listKimiSessions as listKimiSessionsService,
   getOpenCodeSessionList as getOpenCodeSessionListService,
 } from "../../../services/tauri";
 import * as tauriServices from "../../../services/tauri";
@@ -47,8 +48,10 @@ import {
   mergeDegradedCodexContinuitySummaries,
   mergeDegradedClaudeContinuitySummaries,
   mergeGeminiSessionSummaries,
+  mergeKimiSessionSummaries,
   mergeThreadSummaryPreservingStableIdentity,
   normalizeGeminiSessionSummaries,
+  normalizeKimiSessionSummaries,
   normalizeThreadListPartialSource,
   resolveThreadSourceMeta,
   seedLastGoodClaudeIntoMerged,
@@ -58,6 +61,7 @@ import {
   shouldApplyClaudeSidebarContinuity,
   withTimeout,
   type GeminiSessionSummary,
+  type KimiSessionSummary,
 } from "./useThreadActions.helpers";
 import { buildPartialHistoryDiagnostic } from "../utils/stabilityDiagnostics";
 import { buildThreadDebugCorrelation } from "../utils/threadDebugCorrelation";
@@ -73,6 +77,8 @@ import { useThreadHistoryLoadingState } from "./useThreadHistoryLoadingState";
 import {
   GEMINI_SESSION_CACHE_TTL_MS,
   GEMINI_SESSION_FETCH_TIMEOUT_MS,
+  KIMI_SESSION_CACHE_TTL_MS,
+  KIMI_SESSION_FETCH_TIMEOUT_MS,
   NATIVE_SESSION_LIST_FETCH_TIMEOUT_MS,
   THREAD_LIST_LIVE_REQUEST_TIMEOUT_MS,
   THREAD_LIST_MAX_EMPTY_PAGES,
@@ -135,6 +141,10 @@ export function useThreadActions({
     Record<string, { fetchedAt: number; sessions: GeminiSessionSummary[] }>
   >({});
   const geminiRefreshAttemptedRef = useRef<Record<string, boolean>>({});
+  const kimiSessionCacheRef = useRef<
+    Record<string, { fetchedAt: number; sessions: KimiSessionSummary[] }>
+  >({});
+  const kimiRefreshAttemptedRef = useRef<Record<string, boolean>>({});
   const threadListRequestSeqRef = useRef<Record<string, number>>({});
   const lastGoodThreadSummariesByWorkspaceEngineRef = useRef<
     Record<string, LastGoodThreadSummariesByEngine>
@@ -413,6 +423,20 @@ export function useThreadActions({
         const hasFreshGeminiCache =
           !!cachedGemini &&
           Date.now() - cachedGemini.fetchedAt <= GEMINI_SESSION_CACHE_TTL_MS;
+        const hasKimiSignal =
+          existingThreads.some(
+            (thread) =>
+              thread.engineSource === "kimi" ||
+              thread.id.startsWith("kimi:") ||
+              thread.id.startsWith("kimi-pending-"),
+          ) ||
+          activeThreadId.startsWith("kimi:") ||
+          activeThreadId.startsWith("kimi-pending-") ||
+          Object.keys(mappedTitles).some((id) => id.startsWith("kimi:"));
+        const cachedKimi = kimiSessionCacheRef.current[workspace.id];
+        const hasFreshKimiCache =
+          !!cachedKimi &&
+          Date.now() - cachedKimi.fetchedAt <= KIMI_SESSION_CACHE_TTL_MS;
         const knownActivityByThread =
           threadActivityRef.current[workspace.id] ?? {};
         const hasKnownActivity = Object.keys(knownActivityByThread).length > 0;
@@ -1037,6 +1061,18 @@ export function useThreadActions({
             getCustomName,
           );
         }
+        if (hasFreshKimiCache && cachedKimi.sessions.length > 0) {
+          allSummaries = mergeKimiSessionSummaries(
+            allSummaries,
+            cachedKimi.sessions.filter(
+              (session) =>
+                !hiddenSharedBindingIds.has(`kimi:${session.sessionId}`),
+            ),
+            workspace.id,
+            mappedTitles,
+            getCustomName,
+          );
+        }
         if (sharedSessions.length > 0) {
           const sharedSummaries = sharedSessions.map(toSharedThreadSummary);
           const merged = new Map<string, ThreadSummary>();
@@ -1233,6 +1269,84 @@ export function useThreadActions({
               normalizedGeminiSessions.filter(
                 (session) =>
                   !hiddenSharedBindingIds.has(`gemini:${session.sessionId}`),
+              ),
+              workspace.id,
+              mappedTitles,
+              getCustomName,
+            );
+            const visibleNextSummaries = applySessionArchiveState(
+              nextSummaries,
+              await archivedSessionMapPromise,
+            );
+            const unchanged =
+              visibleNextSummaries.length === baselineSummaries.length &&
+              visibleNextSummaries.every((entry, index) => {
+                const prev = baselineSummaries[index];
+                return (
+                  !!prev &&
+                  prev.id === entry.id &&
+                  prev.name === entry.name &&
+                  prev.updatedAt === entry.updatedAt &&
+                  prev.engineSource === entry.engineSource &&
+                  prev.threadKind === entry.threadKind
+                );
+              });
+            if (!unchanged) {
+              dispatch({
+                type: "setThreads",
+                workspaceId: workspace.id,
+                threads: visibleNextSummaries,
+              });
+              latestThreadsByWorkspaceRef.current = {
+                ...latestThreadsByWorkspaceRef.current,
+                [workspace.id]: visibleNextSummaries,
+              };
+            }
+          })();
+        }
+
+        const hasAttemptedKimiRefresh =
+          kimiRefreshAttemptedRef.current[workspace.id] === true;
+        const shouldRefreshKimiSessions =
+          hasKimiSignal || !!cachedKimi || !hasAttemptedKimiRefresh;
+        if (shouldRefreshKimiSessions) {
+          void (async () => {
+            kimiRefreshAttemptedRef.current[workspace.id] = true;
+            const kimiResult = await withTimeout(
+              listKimiSessionsService(workspace.path, 50),
+              KIMI_SESSION_FETCH_TIMEOUT_MS,
+            );
+            if (threadListRequestSeqRef.current[workspace.id] !== requestSeq) {
+              return;
+            }
+            if (kimiResult === null) {
+              onDebug?.({
+                id: `${Date.now()}-client-kimi-session-timeout`,
+                timestamp: Date.now(),
+                source: "client",
+                label: "thread/list kimi timeout",
+                payload: {
+                  workspaceId: workspace.id,
+                  timeoutMs: KIMI_SESSION_FETCH_TIMEOUT_MS,
+                },
+              });
+              return;
+            }
+            const normalizedKimiSessions =
+              normalizeKimiSessionSummaries(kimiResult);
+            kimiSessionCacheRef.current[workspace.id] = {
+              fetchedAt: Date.now(),
+              sessions: normalizedKimiSessions,
+            };
+            const currentSnapshot =
+              latestThreadsByWorkspaceRef.current[workspace.id] ?? [];
+            const baselineSummaries =
+              currentSnapshot.length > 0 ? currentSnapshot : allSummaries;
+            const nextSummaries = mergeKimiSessionSummaries(
+              baselineSummaries,
+              normalizedKimiSessions.filter(
+                (session) =>
+                  !hiddenSharedBindingIds.has(`kimi:${session.sessionId}`),
               ),
               workspace.id,
               mappedTitles,

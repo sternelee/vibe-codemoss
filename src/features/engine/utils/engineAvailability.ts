@@ -5,6 +5,7 @@ const IMPLEMENTED_ENGINE_SET = new Set<EngineType>([
   "claude",
   "codex",
   "gemini",
+  "kimi",
   "opencode",
 ]);
 

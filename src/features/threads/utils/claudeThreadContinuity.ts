@@ -31,7 +31,7 @@ type ResolveClaudeContinuationThreadIdInput = {
   resolveCanonicalThreadId: (threadId: string) => string;
   resolvePendingThreadForSession?: (
     workspaceId: string,
-    engine: "claude" | "gemini" | "opencode",
+    engine: "claude" | "gemini" | "kimi" | "opencode",
   ) => string | null;
   getActiveTurnIdForThread?: (threadId: string) => string | null;
 };

@@ -75,12 +75,15 @@ export function parseStoredThreadAgentSelectionEntry(raw: unknown): {
   };
 }
 
-function resolveThreadEngine(threadId: string): "claude" | "gemini" | "opencode" | "codex" | null {
+function resolveThreadEngine(threadId: string): "claude" | "gemini" | "kimi" | "opencode" | "codex" | null {
   if (threadId.startsWith("claude:") || threadId.startsWith("claude-pending-")) {
     return "claude";
   }
   if (threadId.startsWith("gemini:") || threadId.startsWith("gemini-pending-")) {
     return "gemini";
+  }
+  if (threadId.startsWith("kimi:") || threadId.startsWith("kimi-pending-")) {
+    return "kimi";
   }
   if (threadId.startsWith("opencode:") || threadId.startsWith("opencode-pending-")) {
     return "opencode";

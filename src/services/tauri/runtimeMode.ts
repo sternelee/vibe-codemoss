@@ -76,7 +76,7 @@ function webServiceEngineFeatures(
 }
 
 export function webServiceCodexOnlyStatuses(): EngineStatus[] {
-  const types: EngineType[] = ["claude", "codex", "gemini", "opencode"];
+  const types: EngineType[] = ["claude", "codex", "gemini", "kimi", "opencode"];
   return types.map((engineType) => ({
     engineType,
     installed: engineType === "codex",

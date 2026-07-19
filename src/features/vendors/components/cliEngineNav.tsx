@@ -33,7 +33,6 @@ type UnsupportedCliEngineId =
   | "deveco"
   | "pi"
   | "iflow"
-  | "kimi"
   | "ruixing"
   | "feishu"
   | "kiro";
@@ -112,6 +111,7 @@ const COLOR_CLI_ICON_IDS = new Set<CliEngineId>(["claude", "codex"]);
 export function buildCliEngineNavItems(options: {
   claudeHasConfig: boolean;
   codexHasConfig: boolean;
+  kimiHasConfig: boolean;
 }): CliEngineNavItem[] {
   return [
     { key: "claude", label: "Claude Code CLI", hasConfig: options.claudeHasConfig, supported: true, docsUrl: CLI_DOCS_HREF_BY_ID.claude },
@@ -121,7 +121,7 @@ export function buildCliEngineNavItems(options: {
     { key: "glm", label: "GLM CLI", supported: false, docsUrl: CLI_DOCS_HREF_BY_ID.glm },
     { key: "trae", label: "Trae CLI", supported: false, docsUrl: CLI_DOCS_HREF_BY_ID.trae },
     { key: "cursor", label: "Cursor CLI", supported: false, docsUrl: CLI_DOCS_HREF_BY_ID.cursor },
-    { key: "kimi", label: "Kimi CLI", supported: false, docsUrl: CLI_DOCS_HREF_BY_ID.kimi },
+    { key: "kimi", label: "Kimi CLI", hasConfig: options.kimiHasConfig, supported: true, docsUrl: CLI_DOCS_HREF_BY_ID.kimi },
     { key: "ruixing", label: "瑞幸 CLI", supported: false, docsUrl: CLI_DOCS_HREF_BY_ID.ruixing },
     { key: "deveco", label: "DevEco CLI", supported: false, docsUrl: CLI_DOCS_HREF_BY_ID.deveco },
     { key: "pi", label: "PI CLI", supported: false, docsUrl: CLI_DOCS_HREF_BY_ID.pi },

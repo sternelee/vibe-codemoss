@@ -171,6 +171,7 @@ export const APP_SHELL_DOMAIN_CONTEXT_OWNED_KEYS: Record<
     "dismissUpdate",
     "doctor",
     "claudeDoctor",
+    "kimiDoctor",
     "editorHighlightTarget",
     "editorNavigationTarget",
     "editorSplitCompanion",

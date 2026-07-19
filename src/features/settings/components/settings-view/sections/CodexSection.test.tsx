@@ -113,6 +113,13 @@ function renderCodexSection(
       handleSaveClaudeSettings={vi.fn()}
       handleRunClaudeDoctor={vi.fn()}
       claudeDoctorState={{ status: "idle", result: null }}
+      kimiPathDraft=""
+      setKimiPathDraft={vi.fn()}
+      kimiDirty={false}
+      handleBrowseKimi={vi.fn()}
+      handleSaveKimiSettings={vi.fn()}
+      handleRunKimiDoctor={vi.fn()}
+      kimiDoctorState={{ status: "idle", result: null }}
       codexPathDraft=""
       setCodexPathDraft={vi.fn()}
       codexArgsDraft=""

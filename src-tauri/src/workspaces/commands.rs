@@ -1254,6 +1254,7 @@ pub(crate) async fn add_workspace(
         codex_bin.as_deref().or(codex_bin_setting.as_deref()),
         None,
         None,
+        None,
     )
     .await;
 
@@ -1285,6 +1286,10 @@ pub(crate) async fn add_workspace(
             // Gemini follows local CLI session model (no persistent daemon session).
             add_workspace_for_cli_engine(EngineType::Gemini, path, codex_bin, &state).await
         }
+        EngineType::Kimi => {
+            // Kimi follows local CLI session model (no persistent daemon session).
+            add_workspace_for_cli_engine(EngineType::Kimi, path, codex_bin, &state).await
+        }
     }
 }
 
@@ -1296,7 +1301,9 @@ async fn add_workspace_for_cli_engine(
     codex_bin: Option<String>,
     state: &AppState,
 ) -> Result<WorkspaceInfo, String> {
-    use crate::engine::status::{detect_claude_status, detect_opencode_status};
+    use crate::engine::status::{
+        detect_claude_status, detect_kimi_status, detect_opencode_status,
+    };
     use std::path::PathBuf;
 
     if !PathBuf::from(&path).is_dir() {
@@ -1307,6 +1314,7 @@ async fn add_workspace_for_cli_engine(
         EngineType::Claude => "claude",
         EngineType::Gemini => "gemini",
         EngineType::OpenCode => "opencode",
+        EngineType::Kimi => "kimi",
         _ => return Err(format!("Unsupported CLI engine: {:?}", engine_type)),
     };
 
@@ -1330,6 +1338,13 @@ async fn add_workspace_for_cli_engine(
         }
         EngineType::Gemini => false,
         EngineType::OpenCode => detect_opencode_status(None).await.installed,
+        EngineType::Kimi => {
+            let kimi_bin = {
+                let settings = state.app_settings.lock().await;
+                settings.kimi_bin.clone()
+            };
+            detect_kimi_status(kimi_bin.as_deref()).await.installed
+        }
         _ => false,
     };
     if !cli_installed {

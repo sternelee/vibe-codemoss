@@ -61,6 +61,7 @@ export type WorkspaceMenuIconKind =
   | "engine-codex"
   | "engine-opencode"
   | "engine-gemini"
+  | "engine-kimi"
   | "new-shared"
   | "alias"
   | "activate"
@@ -735,6 +736,16 @@ export function useSidebarMenus({
           ...resolveEngineActionMeta(workspace, "gemini"),
           onSelect: async () => {
             const threadId = await runAddAgent("gemini");
+            await handleCreatedSession(threadId);
+          },
+        },
+        {
+          id: "new-session-kimi",
+          label: t("workspace.engineKimi"),
+          iconKind: "engine-kimi",
+          ...resolveEngineActionMeta(workspace, "kimi"),
+          onSelect: async () => {
+            const threadId = await runAddAgent("kimi");
             await handleCreatedSession(threadId);
           },
         },

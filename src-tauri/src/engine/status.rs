@@ -316,6 +316,38 @@ pub async fn detect_gemini_status(custom_bin: Option<&str>) -> EngineStatus {
     }
 }
 
+/// Detect Kimi CLI installation status
+pub async fn detect_kimi_status(custom_bin: Option<&str>) -> EngineStatus {
+    let bin_path = resolve_bin_path("kimi", custom_bin);
+    let bin = bin_path
+        .as_ref()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|| "kimi".to_string());
+    let path_env = build_codex_path_env(custom_bin);
+
+    let (installed, version, error) = probe_cli_version(&bin, "kimi", path_env.as_ref()).await;
+
+    if !installed {
+        return not_installed_status(EngineType::Kimi, error);
+    }
+
+    let home_dir = get_kimi_home_dir();
+    let models = get_kimi_models(home_dir.as_deref());
+    let default_model = models.iter().find(|m| m.default).map(|m| m.id.clone());
+
+    EngineStatus {
+        engine_type: EngineType::Kimi,
+        installed: true,
+        version,
+        bin_path: Some(bin.to_string()),
+        home_dir: home_dir.map(|p| p.to_string_lossy().to_string()),
+        models,
+        default_model,
+        features: EngineFeatures::kimi(),
+        error: None,
+    }
+}
+
 /// Get Claude Code home directory
 fn get_claude_home_dir() -> Option<PathBuf> {
     dirs::home_dir().map(|home| home.join(".claude"))
@@ -349,6 +381,134 @@ fn get_gemini_home_dir() -> Option<PathBuf> {
         return Some(configured);
     }
     dirs::home_dir().map(|home| home.join(".gemini"))
+}
+
+/// Get Kimi home directory
+fn get_kimi_home_dir() -> Option<PathBuf> {
+    if let Some(home) = std::env::var_os("KIMI_CODE_HOME").filter(|v| !v.is_empty()) {
+        let configured = PathBuf::from(home);
+        let configured_text = configured.to_string_lossy();
+        if configured_text == "~" {
+            return dirs::home_dir();
+        }
+        if let Some(relative) = configured_text
+            .strip_prefix("~/")
+            .or_else(|| configured_text.strip_prefix("~\\"))
+            .filter(|value| !value.is_empty())
+        {
+            return dirs::home_dir().map(|home| home.join(relative));
+        }
+        return Some(configured);
+    }
+    dirs::home_dir().map(|home| home.join(".kimi-code"))
+}
+
+/// Built-in fallback models used when `~/.kimi-code/config.toml` is missing
+/// or has no `[models]` table yet (e.g. fresh install before first run).
+fn get_builtin_kimi_models() -> Vec<ModelInfo> {
+    vec![
+        ModelInfo::new("kimi-code/k3", "K3")
+            .as_default()
+            .with_provider("kimi")
+            .with_source("builtin"),
+        ModelInfo::new("kimi-code/kimi-for-coding", "Kimi for Coding")
+            .with_provider("kimi")
+            .with_source("builtin"),
+        ModelInfo::new("kimi-code/kimi-for-coding-highspeed", "Kimi for Coding (Highspeed)")
+            .with_provider("kimi")
+            .with_source("builtin"),
+    ]
+}
+
+/// Get Kimi CLI available models by parsing `$KIMI_CODE_HOME/config.toml`.
+/// Falls back to the built-in catalog when the config file is missing or
+/// defines no models.
+fn get_kimi_models(home_dir: Option<&std::path::Path>) -> Vec<ModelInfo> {
+    let mut models = read_kimi_models_from_config(home_dir).unwrap_or_default();
+
+    // KIMI_MODEL_NAME synthesizes a temporary model that takes priority over
+    // default_model in config.toml (mirrors the CLI's own precedence).
+    if let Ok(env_model) = std::env::var("KIMI_MODEL_NAME") {
+        let env_model = env_model.trim().to_string();
+        if !env_model.is_empty() {
+            for model in &mut models {
+                model.default = false;
+            }
+            if let Some(index) = models.iter().position(|model| model.id == env_model) {
+                let mut existing = models.remove(index);
+                existing.default = true;
+                models.insert(0, existing);
+            } else {
+                let display = std::env::var("KIMI_MODEL_DISPLAY_NAME")
+                    .ok()
+                    .map(|value| value.trim().to_string())
+                    .filter(|value| !value.is_empty())
+                    .unwrap_or_else(|| env_model.clone());
+                models.insert(
+                    0,
+                    ModelInfo::new(env_model, display)
+                        .as_default()
+                        .with_provider("kimi")
+                        .with_description("Configured via KIMI_MODEL_NAME")
+                        .with_source("env"),
+                );
+            }
+        }
+    }
+
+    if models.is_empty() {
+        return get_builtin_kimi_models();
+    }
+    models
+}
+
+/// Parse `[models.*]` entries and `default_model` from kimi's config.toml.
+fn read_kimi_models_from_config(home_dir: Option<&std::path::Path>) -> Option<Vec<ModelInfo>> {
+    let config_path = home_dir?.join("config.toml");
+    let content = std::fs::read_to_string(config_path).ok()?;
+    let root = content.parse::<toml::Value>().ok()?;
+    let default_alias = root
+        .get("default_model")
+        .and_then(|value| value.as_str())
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+    let models_table = root.get("models")?.as_table()?;
+
+    let mut models = Vec::new();
+    for (alias, entry) in models_table {
+        let display_name = entry
+            .get("display_name")
+            .and_then(|value| value.as_str())
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+            .or_else(|| {
+                entry
+                    .get("model")
+                    .and_then(|value| value.as_str())
+                    .map(|value| value.trim().to_string())
+                    .filter(|value| !value.is_empty())
+            })
+            .unwrap_or_else(|| alias.clone());
+        let provider = entry
+            .get("provider")
+            .and_then(|value| value.as_str())
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty());
+        let mut info = ModelInfo::new(alias.clone(), display_name).with_source("config");
+        if let Some(provider) = provider {
+            info = info.with_provider(provider);
+        }
+        if default_alias.as_deref() == Some(alias.as_str()) {
+            info = info.as_default();
+        }
+        models.push(info);
+    }
+    models.sort_by(|a, b| a.id.cmp(&b.id));
+    if let Some(index) = models.iter().position(|model| model.default) {
+        let default = models.remove(index);
+        models.insert(0, default);
+    }
+    Some(models)
 }
 
 /// Get Codex CLI available models (hardcoded as they don't change frequently)
@@ -770,11 +930,12 @@ pub async fn detect_all_engines(
     codex_bin: Option<&str>,
     gemini_bin: Option<&str>,
     opencode_bin: Option<&str>,
+    kimi_bin: Option<&str>,
     gemini_enabled: bool,
     opencode_enabled: bool,
 ) -> Vec<EngineStatus> {
     // Run detections in parallel
-    let (claude_status, codex_status, gemini_status, opencode_status) = tokio::join!(
+    let (claude_status, codex_status, gemini_status, opencode_status, kimi_status) = tokio::join!(
         detect_claude_status(claude_bin),
         detect_codex_status(codex_bin),
         async {
@@ -791,9 +952,16 @@ pub async fn detect_all_engines(
                 disabled_engine_status(EngineType::OpenCode)
             }
         },
+        detect_kimi_status(kimi_bin),
     );
 
-    vec![claude_status, codex_status, gemini_status, opencode_status]
+    vec![
+        claude_status,
+        codex_status,
+        gemini_status,
+        opencode_status,
+        kimi_status,
+    ]
 }
 
 /// Detect available engines and return the preferred default engine.
@@ -803,8 +971,9 @@ pub async fn detect_preferred_engine(
     codex_bin: Option<&str>,
     gemini_bin: Option<&str>,
     opencode_bin: Option<&str>,
+    kimi_bin: Option<&str>,
 ) -> EngineType {
-    let (claude_status, codex_status, gemini_status, opencode_status) = tokio::join!(
+    let (claude_status, codex_status, gemini_status, opencode_status, kimi_status) = tokio::join!(
         detect_claude_status(claude_bin),
         detect_codex_status(codex_bin),
         async {
@@ -815,6 +984,7 @@ pub async fn detect_preferred_engine(
             }
         },
         detect_opencode_status(opencode_bin),
+        detect_kimi_status(kimi_bin),
     );
 
     // Priority: Claude first (more users have it installed)
@@ -829,6 +999,9 @@ pub async fn detect_preferred_engine(
     }
     if opencode_status.installed {
         return EngineType::OpenCode;
+    }
+    if kimi_status.installed {
+        return EngineType::Kimi;
     }
 
     // Default to Claude so error message is helpful
@@ -847,6 +1020,7 @@ pub async fn resolve_engine_type(
     codex_bin: Option<&str>,
     gemini_bin: Option<&str>,
     opencode_bin: Option<&str>,
+    kimi_bin: Option<&str>,
 ) -> EngineType {
     // 1. Check workspace-specific setting
     if let Some(engine) = workspace_engine.filter(|s| !s.is_empty()) {
@@ -856,6 +1030,7 @@ pub async fn resolve_engine_type(
             "gemini" if crate::engine_policy::GEMINI_RUNTIME_ENABLED => return EngineType::Gemini,
             "gemini" => {}
             "opencode" => return EngineType::OpenCode,
+            "kimi" => return EngineType::Kimi,
             _ => {} // Invalid value, fall through
         }
     }
@@ -868,12 +1043,13 @@ pub async fn resolve_engine_type(
             "gemini" if crate::engine_policy::GEMINI_RUNTIME_ENABLED => return EngineType::Gemini,
             "gemini" => {}
             "opencode" => return EngineType::OpenCode,
+            "kimi" => return EngineType::Kimi,
             _ => {} // Invalid value, fall through
         }
     }
 
     // 3. Auto-detect based on installed CLIs
-    detect_preferred_engine(claude_bin, codex_bin, gemini_bin, opencode_bin).await
+    detect_preferred_engine(claude_bin, codex_bin, gemini_bin, opencode_bin, kimi_bin).await
 }
 
 #[cfg(test)]
@@ -1006,19 +1182,20 @@ mod tests {
         let _ = get_codex_home_dir();
         let _ = get_gemini_home_dir();
         let _ = get_opencode_home_dir();
+        let _ = get_kimi_home_dir();
     }
 
     #[tokio::test]
     async fn resolve_engine_type_supports_opencode() {
         let resolved =
-            resolve_engine_type(Some("opencode"), Some("claude"), None, None, None, None).await;
+            resolve_engine_type(Some("opencode"), Some("claude"), None, None, None, None, None).await;
         assert_eq!(resolved, EngineType::OpenCode);
     }
 
     #[tokio::test]
     async fn resolve_engine_type_normalizes_retired_workspace_gemini_to_allowed_default() {
         let resolved =
-            resolve_engine_type(Some("gemini"), Some("claude"), None, None, None, None).await;
+            resolve_engine_type(Some("gemini"), Some("claude"), None, None, None, None, None).await;
         assert_eq!(resolved, EngineType::Claude);
     }
 
@@ -1042,6 +1219,7 @@ mod tests {
             None,
             None,
             Some(script_path.to_string_lossy().as_ref()),
+            None,
             None,
         )
         .await;
@@ -1079,6 +1257,7 @@ mod tests {
             None,
             Some(script_path.to_string_lossy().as_ref()),
             None,
+            None,
         )
         .await;
 
@@ -1090,6 +1269,13 @@ mod tests {
         let _ = fs::remove_file(&script_path);
         let _ = fs::remove_file(&marker_path);
         let _ = fs::remove_dir_all(script_path.parent().unwrap_or(std::path::Path::new("")));
+    }
+
+    #[tokio::test]
+    async fn resolve_engine_type_supports_kimi() {
+        let resolved =
+            resolve_engine_type(Some("kimi"), Some("claude"), None, None, None, None, None).await;
+        assert_eq!(resolved, EngineType::Kimi);
     }
 
     #[test]

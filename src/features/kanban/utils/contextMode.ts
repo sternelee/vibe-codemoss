@@ -1,5 +1,5 @@
 export type KanbanContextMode = "new" | "inherit";
-export type KanbanTaskEngine = "claude" | "codex" | "gemini" | "opencode";
+export type KanbanTaskEngine = "claude" | "codex" | "gemini" | "kimi" | "opencode";
 
 type ResolveKanbanThreadCreationStrategyInput = {
   mode: KanbanContextMode;
@@ -29,6 +29,12 @@ function inferKanbanThreadEngine(
     normalized.startsWith("gemini-pending-")
   ) {
     return "gemini";
+  }
+  if (
+    normalized.startsWith("kimi:") ||
+    normalized.startsWith("kimi-pending-")
+  ) {
+    return "kimi";
   }
   if (
     normalized.startsWith("opencode:") ||

@@ -97,6 +97,8 @@ function formatEngineLabel(engine: EngineType | null | undefined): string | null
       return "Codex";
     case "gemini":
       return "Gemini";
+    case "kimi":
+      return "Kimi";
     case "opencode":
       return "OpenCode";
     default:

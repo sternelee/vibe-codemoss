@@ -975,6 +975,8 @@ pub(crate) struct AppSettings {
     pub(crate) codex_bin: Option<String>,
     #[serde(default, rename = "claudeBin")]
     pub(crate) claude_bin: Option<String>,
+    #[serde(default, rename = "kimiBin")]
+    pub(crate) kimi_bin: Option<String>,
     #[serde(default, rename = "codexArgs")]
     pub(crate) codex_args: Option<String>,
     #[serde(default, rename = "terminalShellPath")]
@@ -1808,6 +1810,7 @@ impl Default for AppSettings {
         Self {
             codex_bin: None,
             claude_bin: None,
+            kimi_bin: None,
             codex_args: None,
             terminal_shell_path: None,
             gemini_enabled: default_gemini_enabled(),
@@ -1973,6 +1976,37 @@ pub(crate) struct CodexProviderConfig {
     pub(crate) auth_json: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) custom_models: Option<Vec<CodexCustomModel>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct KimiProviderConfig {
+    pub(crate) id: String,
+    pub(crate) name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) remark: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) website_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) created_at: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) sort_order: Option<i64>,
+    #[serde(default)]
+    pub(crate) is_active: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) is_local_provider: Option<bool>,
+    #[serde(default)]
+    pub(crate) base_url: String,
+    #[serde(default)]
+    pub(crate) api_key: String,
+    #[serde(default)]
+    pub(crate) model: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) provider_type: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) max_context_size: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) display_name: Option<String>,
 }
 
 #[cfg(test)]

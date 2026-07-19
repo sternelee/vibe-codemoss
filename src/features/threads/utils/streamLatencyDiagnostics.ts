@@ -482,7 +482,8 @@ function isVisibleTextDiagnosticsStream(
   return (
     snapshot.engine === "claude" ||
     snapshot.engine === "codex" ||
-    snapshot.engine === "gemini"
+    snapshot.engine === "gemini" ||
+    snapshot.engine === "kimi"
   );
 }
 

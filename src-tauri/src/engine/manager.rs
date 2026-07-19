@@ -10,9 +10,11 @@ use tokio::sync::{Mutex, RwLock};
 
 use super::claude::{ClaudeSession, ClaudeSessionManager};
 use super::gemini::GeminiSession;
+use super::kimi::KimiSession;
 use super::opencode::OpenCodeSession;
 use super::status::{
     detect_all_engines, detect_claude_status, detect_codex_status, detect_opencode_status,
+    detect_kimi_status,
 };
 use super::{disabled_engine_status, EngineConfig, EngineStatus, EngineType};
 
@@ -33,6 +35,9 @@ pub struct EngineManager {
 
     /// Gemini sessions per workspace
     gemini_sessions: Mutex<GeminiSessionRegistry>,
+
+    /// Kimi sessions per workspace
+    kimi_sessions: Mutex<HashMap<String, Arc<KimiSession>>>,
 
     /// Engine configurations
     engine_configs: RwLock<HashMap<EngineType, EngineConfig>>,
@@ -55,6 +60,7 @@ impl EngineManager {
             claude_manager: Arc::new(ClaudeSessionManager::new()),
             opencode_sessions: Mutex::new(HashMap::new()),
             gemini_sessions: Mutex::new(GeminiSessionRegistry::default()),
+            kimi_sessions: Mutex::new(HashMap::new()),
             engine_configs: RwLock::new(HashMap::new()),
         }
     }
@@ -113,6 +119,7 @@ impl EngineManager {
             EngineType::Gemini => disabled_engine_status(engine_type),
             EngineType::OpenCode if !opencode_enabled => disabled_engine_status(engine_type),
             EngineType::OpenCode => detect_opencode_status(bin).await,
+            EngineType::Kimi => detect_kimi_status(bin).await,
         };
 
         // Cache the result
@@ -139,7 +146,7 @@ impl EngineManager {
         opencode_enabled: bool,
     ) -> Vec<EngineStatus> {
         let gemini_enabled = gemini_enabled && crate::engine_policy::GEMINI_RUNTIME_ENABLED;
-        let (claude_bin, codex_bin, gemini_bin, opencode_bin) = {
+        let (claude_bin, codex_bin, gemini_bin, opencode_bin, kimi_bin) = {
             let configs = self.engine_configs.read().await;
             (
                 configs
@@ -154,6 +161,9 @@ impl EngineManager {
                 configs
                     .get(&EngineType::OpenCode)
                     .and_then(|c| c.bin_path.clone()),
+                configs
+                    .get(&EngineType::Kimi)
+                    .and_then(|c| c.bin_path.clone()),
             )
         };
 
@@ -162,6 +172,7 @@ impl EngineManager {
             codex_bin.as_deref(),
             gemini_bin.as_deref(),
             opencode_bin.as_deref(),
+            kimi_bin.as_deref(),
             gemini_enabled,
             opencode_enabled,
         )
@@ -418,6 +429,53 @@ impl EngineManager {
                 cleanup_errors.join("; ")
             ))
         }
+    }
+
+    // ==================== Kimi Session Management ====================
+
+    /// Get or create a Kimi session for a workspace
+    pub async fn get_or_create_kimi_session(
+        &self,
+        workspace_id: &str,
+        workspace_path: &Path,
+    ) -> Arc<KimiSession> {
+        {
+            let sessions = self.kimi_sessions.lock().await;
+            if let Some(session) = sessions.get(workspace_id) {
+                return session.clone();
+            }
+        }
+
+        let config = self.get_engine_config(EngineType::Kimi).await;
+        let session = Arc::new(KimiSession::new(
+            workspace_id.to_string(),
+            workspace_path.to_path_buf(),
+            config,
+        ));
+        let mut sessions = self.kimi_sessions.lock().await;
+        sessions.insert(workspace_id.to_string(), session.clone());
+        session
+    }
+
+    /// Get Kimi session by workspace
+    pub async fn get_kimi_session(&self, workspace_id: &str) -> Option<Arc<KimiSession>> {
+        let sessions = self.kimi_sessions.lock().await;
+        sessions.get(workspace_id).cloned()
+    }
+
+    /// Snapshot all tracked Kimi sessions.
+    pub async fn list_kimi_sessions(&self) -> Vec<(String, Arc<KimiSession>)> {
+        let sessions = self.kimi_sessions.lock().await;
+        sessions
+            .iter()
+            .map(|(workspace_id, session)| (workspace_id.clone(), session.clone()))
+            .collect()
+    }
+
+    /// Remove a Kimi session
+    pub async fn remove_kimi_session(&self, workspace_id: &str) {
+        let mut sessions = self.kimi_sessions.lock().await;
+        sessions.remove(workspace_id);
     }
 
     // ==================== Utility Methods ====================

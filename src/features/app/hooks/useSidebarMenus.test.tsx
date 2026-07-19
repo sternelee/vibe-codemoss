@@ -57,6 +57,7 @@ vi.mock("react-i18next", () => ({
         "workspace.engineCodex": "Codex",
         "workspace.engineOpenCode": "OpenCode",
         "workspace.engineGemini": "Gemini",
+        "workspace.engineKimi": "Kimi CLI",
         "workspace.engineStatusLoading": "Checking...",
         "workspace.engineStatusRequiresLogin": "Sign in required",
         "threads.reloadThreads": "Reload threads",
@@ -326,6 +327,7 @@ describe("useSidebarMenus", () => {
   it.each([
     ["claude", "Claude Code", "new-session-claude"],
     ["codex", "Codex", "new-session-codex"],
+    ["kimi", "Kimi", "new-session-kimi"],
   ] as const)(
     "keeps %s refresh result visible before parent engine props rerender",
     async (engineType, expectedLabel, actionId) => {
@@ -1390,6 +1392,7 @@ describe("useSidebarMenus", () => {
       "new-session-claude",
       "new-session-codex",
       "new-session-opencode",
+      "new-session-kimi",
     ]);
   });
 });

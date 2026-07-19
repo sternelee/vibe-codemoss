@@ -1,7 +1,7 @@
 import type { EngineType } from "../../../types";
 import type { CostRecord, EngineCostAggregate, WorkspaceCostAggregate } from "./costTypes";
 
-const ENGINES: readonly EngineType[] = ["claude", "codex", "gemini", "opencode"];
+const ENGINES: readonly EngineType[] = ["claude", "codex", "gemini", "kimi", "opencode"];
 
 function sumKnownAmounts(records: readonly CostRecord[]) {
   return records.reduce((total, record) => total + (record.amountUsd ?? 0), 0);

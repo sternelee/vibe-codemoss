@@ -56,6 +56,17 @@
       "collaboration.mode": "unsupported",
       "session.continuation": "supported",
       "image.input": "unsupported"
+    },
+    "kimi": {
+      "streaming.text": "supported",
+      "streaming.reasoning": "supported",
+      "streaming.tool-output": "supported",
+      "tool.use": "supported",
+      "tool.mcp": "unsupported",
+      "reasoning.effort": "unsupported",
+      "collaboration.mode": "unsupported",
+      "session.continuation": "supported",
+      "image.input": "unsupported"
     }
   }
 }

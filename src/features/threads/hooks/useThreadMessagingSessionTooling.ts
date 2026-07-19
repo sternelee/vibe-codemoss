@@ -82,9 +82,9 @@ type UseThreadMessagingSessionToolingOptions = {
   resolveThreadEngine: (
     workspaceId: string,
     threadId: string,
-  ) => "claude" | "codex" | "gemini" | "opencode";
+  ) => "claude" | "codex" | "gemini" | "kimi" | "opencode";
   isThreadIdCompatibleWithEngine: (
-    engine: "claude" | "codex" | "gemini" | "opencode",
+    engine: "claude" | "codex" | "gemini" | "kimi" | "opencode",
     threadId: string,
   ) => boolean;
   safeMessageActivity: () => void;

@@ -5,6 +5,7 @@ import {
   getOpenCodeSessionList as getOpenCodeSessionListService,
   loadClaudeSession as loadClaudeSessionService,
   loadGeminiSession as loadGeminiSessionService,
+  loadKimiSession as loadKimiSessionService,
   resumeThread as resumeThreadService,
 } from "../../../services/tauri";
 import {
@@ -19,6 +20,7 @@ import {
   parseClaudeHistoryMessagesWithShadowRecovery,
 } from "../loaders/claudeHistoryLoader";
 import { parseGeminiHistoryMessages } from "../loaders/geminiHistoryParser";
+import { parseKimiHistoryMessages } from "../loaders/kimiHistoryParser";
 import { hydrateHistory } from "../assembly/conversationAssembler";
 import { asString } from "../utils/threadNormalize";
 import {
@@ -1176,6 +1178,38 @@ export function useThreadActionsResumeThreadForWorkspace(
           }
         }
         setThreadLoaded(threadId, true);
+        return threadId;
+      }
+      if (threadId.startsWith("kimi:")) {
+        dispatch({
+          type: "ensureThread",
+          workspaceId,
+          threadId,
+          engine: "kimi",
+        });
+        if (workspacePath && !loadedThreadsRef.current[threadId]) {
+          const realSessionId = threadId.slice("kimi:".length);
+          try {
+            const result = await loadKimiSessionService(
+              workspacePath,
+              realSessionId,
+            );
+            const messagesData =
+              (result as { messages?: unknown }).messages ?? result;
+            const items = parseKimiHistoryMessages(messagesData);
+            if (items.length > 0) {
+              dispatch({ type: "setThreadItems", threadId, items });
+            }
+            dispatch({
+              type: "setThreadHistoryRestoredAt",
+              threadId,
+              timestamp: Date.now(),
+            });
+          } catch {
+            // Failed to load Kimi session history — not fatal
+          }
+        }
+        loadedThreadsRef.current[threadId] = true;
         return threadId;
       }
       if (!force && loadedThreadsRef.current[threadId]) {

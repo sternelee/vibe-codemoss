@@ -2116,4 +2116,30 @@ describe('ChatInputBoxAdapter toggle bridge', () => {
       opencode: true,
     });
   });
+
+  it('routes kimi provider selection to the kimi engine', async () => {
+    const onSelectEngine = vi.fn();
+    renderAdapter({ selectedEngine: 'claude', onSelectEngine });
+
+    await waitFor(() => expect(mockState.latestProps).toBeTruthy());
+
+    const latest = mockState.latestProps as {
+      onProviderSelect?: (providerId: string) => void;
+    };
+    act(() => {
+      latest.onProviderSelect?.('kimi');
+    });
+
+    expect(onSelectEngine).toHaveBeenCalledWith('kimi');
+  });
+
+  it('reports kimi as the current provider when the kimi engine is selected', async () => {
+    renderAdapter({ selectedEngine: 'kimi' });
+
+    await waitFor(() => expect(mockState.latestProps).toBeTruthy());
+
+    const latest = mockState.latestProps as { currentProvider?: string };
+
+    expect(latest.currentProvider).toBe('kimi');
+  });
 });

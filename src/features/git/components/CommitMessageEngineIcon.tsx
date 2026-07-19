@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import type { CommitMessageEngine } from "../../../services/tauri";
+import kimiIcon from "@lobehub/icons-static-svg/icons/kimi.svg";
 
 type CommitMessageEngineIconProps = {
   engine: CommitMessageEngine;
@@ -48,6 +49,17 @@ export function CommitMessageEngineIcon({
         <path d="m9.4 9.2-2.3 2.4 2.3 2.4" stroke="#3B82F6" strokeWidth="1.7" strokeLinecap="round" />
         <path d="M12.3 14.2h4.4" stroke="#3B82F6" strokeWidth="1.7" strokeLinecap="round" />
       </svg>
+    );
+  }
+  if (engine === "kimi") {
+    return (
+      <img
+        src={kimiIcon}
+        alt="Kimi"
+        className={className}
+        style={iconStyle}
+        aria-hidden
+      />
     );
   }
   return (

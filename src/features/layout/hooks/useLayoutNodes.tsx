@@ -224,7 +224,7 @@ function buildOrchestrationProjectionSignature(
 function toConversationEngine(
   engine: EngineType | undefined,
 ): ConversationEngine {
-  if (engine === "claude" || engine === "gemini" || engine === "opencode") {
+  if (engine === "claude" || engine === "gemini" || engine === "kimi" || engine === "opencode") {
     return engine;
   }
   return "codex";
@@ -249,6 +249,12 @@ function inferConversationEngineFromThreadId(
     normalizedThreadId.startsWith("gemini-pending-")
   ) {
     return "gemini";
+  }
+  if (
+    normalizedThreadId.startsWith("kimi:") ||
+    normalizedThreadId.startsWith("kimi-pending-")
+  ) {
+    return "kimi";
   }
   if (
     normalizedThreadId.startsWith("opencode:") ||
@@ -1141,6 +1147,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
     options.selectedEngine === "claude" ||
     options.selectedEngine === "codex" ||
     options.selectedEngine === "gemini" ||
+    options.selectedEngine === "kimi" ||
     options.selectedEngine === "opencode";
   const isStatusPanelCodexEngine = options.selectedEngine === "codex";
   const { todoTotal, subagentTotal, fileChanges, commandTotal } =

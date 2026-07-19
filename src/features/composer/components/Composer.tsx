@@ -617,7 +617,8 @@ function ComposerImpl({
   const supportsStreamActivityPhaseFx =
     selectedEngine === "codex" ||
     selectedEngine === "claude" ||
-    selectedEngine === "gemini";
+    selectedEngine === "gemini" ||
+    selectedEngine === "kimi";
   const streamActivityPhase = useStreamActivityPhase({
     isProcessing: Boolean(isProcessing && supportsStreamActivityPhaseFx),
     items: performanceScopedItems,
@@ -627,7 +628,8 @@ function ComposerImpl({
   const showStatusPanel =
     selectedEngine === "claude" ||
     selectedEngine === "codex" ||
-    selectedEngine === "gemini";
+    selectedEngine === "gemini" ||
+    selectedEngine === "kimi";
   // 草稿值直接订阅模块级 store(而非经 app-shell 根 prop 灌入):按键写 store 时
   // 只有 Composer 自身重渲染,不再把整个 app-shell 拖下水。
   const draftText = useComposerDraft(activeThreadId);

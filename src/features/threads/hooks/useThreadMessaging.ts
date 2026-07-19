@@ -34,6 +34,7 @@ import {
   engineSendMessage as engineSendMessageService,
   engineInterrupt as engineInterruptService,
   listGeminiSessions as listGeminiSessionsService,
+  listKimiSessions as listKimiSessionsService,
 } from "../../../services/tauri";
 import { sendSharedSessionTurn } from "../../shared-session/runtime/sendSharedSessionTurn";
 import { projectMemoryFacade } from "../../project-memory/services/projectMemoryFacade";
@@ -89,6 +90,7 @@ import {
   mapNetworkErrorToUserMessage,
   normalizeAccessMode,
   pickLikelyGeminiSessionId,
+  pickLikelyKimiSessionId,
   primeThreadStreamLatencyForSend,
   resolveCollaborationModeIdFromPayload,
   resolveRecoverableCodexFirstPacketTimeout,
@@ -160,7 +162,7 @@ type HandleFusionStalledOptions = {
 type RunWithCreateSessionLoading = <T>(
   params: {
     workspace: WorkspaceInfo;
-    engine: "claude" | "codex" | "gemini" | "opencode";
+    engine: "claude" | "codex" | "gemini" | "kimi" | "opencode";
   },
   action: () => Promise<T>,
 ) => Promise<T>;
@@ -201,7 +203,7 @@ type UseThreadMessagingOptions = {
   claudeThinkingVisible?: boolean;
   steerEnabled: boolean;
   customPrompts: CustomPromptOption[];
-  activeEngine?: "claude" | "codex" | "gemini" | "opencode";
+  activeEngine?: "claude" | "codex" | "gemini" | "kimi" | "opencode";
   threadStatusById: ThreadState["threadStatusById"];
   itemsByThread: ThreadState["itemsByThread"];
   activeTurnIdByThread: ThreadState["activeTurnIdByThread"];
@@ -216,7 +218,7 @@ type UseThreadMessagingOptions = {
   getThreadEngine: (
     workspaceId: string,
     threadId: string,
-  ) => "claude" | "codex" | "gemini" | "opencode" | undefined;
+  ) => "claude" | "codex" | "gemini" | "kimi" | "opencode" | undefined;
   getThreadKind?: (
     workspaceId: string,
     threadId: string,
@@ -253,7 +255,7 @@ type UseThreadMessagingOptions = {
     workspaceId: string,
     options?: {
       activate?: boolean;
-      engine?: "claude" | "codex" | "gemini" | "opencode";
+      engine?: "claude" | "codex" | "gemini" | "kimi" | "opencode";
       folderId?: string | null;
       autoSession?: AutoSessionMetadata | null;
       providerProfileId?: string | null;
@@ -338,6 +340,7 @@ export function useThreadMessaging({
     claudeCandidateSessionIdByPendingThreadRef,
     claudePendingThreadAwaitingNativeSessionRef,
     geminiSessionIdByPendingThreadRef,
+    kimiSessionIdByPendingThreadRef,
     isClaudePendingThreadAwaitingNativeSession,
     isThreadIdCompatibleWithEngine,
     normalizeEngineSelection,
@@ -1336,6 +1339,10 @@ export function useThreadMessaging({
               ? threadId.slice("gemini:".length)
             : resolvedEngine === "gemini" && threadId.startsWith("gemini-pending-")
               ? (geminiSessionIdByPendingThreadRef.current.get(threadId) ?? null)
+            : resolvedEngine === "kimi" && threadId.startsWith("kimi:")
+              ? threadId.slice("kimi:".length)
+            : resolvedEngine === "kimi" && threadId.startsWith("kimi-pending-")
+              ? (kimiSessionIdByPendingThreadRef.current.get(threadId) ?? null)
             : resolvedEngine === "opencode" && isOpenCodeSession
               ? threadId.slice("opencode:".length)
               : null;
@@ -1533,6 +1540,38 @@ export function useThreadMessaging({
                   threadId,
                   sessionId: responseSessionId,
                   source: "geminiSessionListFallback",
+                },
+              });
+            }
+          }
+          if (resolvedEngine === "kimi" && threadId.startsWith("kimi-pending-")) {
+            let responseSessionId = extractSessionIdFromEngineSendResponse(response);
+            if (!responseSessionId) {
+              const workspacePath = workspace.path?.trim();
+              if (workspacePath) {
+                try {
+                  const sessions = await listKimiSessionsService(workspacePath, 6);
+                  responseSessionId = pickLikelyKimiSessionId(
+                    sessions,
+                    sendRequestedAt - 120_000,
+                  );
+                } catch {
+                  responseSessionId = null;
+                }
+              }
+            }
+            if (responseSessionId) {
+              kimiSessionIdByPendingThreadRef.current.set(threadId, responseSessionId);
+              onDebug?.({
+                id: `${Date.now()}-client-kimi-session-cache`,
+                timestamp: Date.now(),
+                source: "client",
+                label: "thread/session cached",
+                payload: {
+                  workspaceId: workspace.id,
+                  threadId,
+                  sessionId: responseSessionId,
+                  source: "kimiSessionListFallback",
                 },
               });
             }
@@ -1813,6 +1852,7 @@ export function useThreadMessaging({
       effort,
       finalizeCodexPendingThread,
       geminiSessionIdByPendingThreadRef,
+      kimiSessionIdByPendingThreadRef,
       getCustomName,
       getThreadEngine,
       isClaudePendingThreadAwaitingNativeSession,

@@ -10,6 +10,9 @@ const providers = {
     gemini: {
       label: "Gemini CLI",
     },
+    kimi: {
+      label: "Kimi CLI",
+    },
     opencode: {
       label: "OpenCode",
     },

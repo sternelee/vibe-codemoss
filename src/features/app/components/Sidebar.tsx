@@ -970,6 +970,8 @@ function SidebarImpl({
         return <EngineIcon engine="opencode" size={14} style={{ color: "#3b82f6" }} />;
       case "engine-gemini":
         return <EngineIcon engine="gemini" size={14} />;
+      case "engine-kimi":
+        return <EngineIcon engine="kimi" size={14} />;
       case "reload":
         return <RefreshCw size={13} />;
       case "activate":

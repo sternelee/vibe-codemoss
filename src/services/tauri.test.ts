@@ -118,6 +118,7 @@ import {
   engineSendMessageSync,
   deleteClaudeSession,
   deleteGeminiSession,
+  deleteKimiSession,
   sendConversationCompletionEmail,
   appendClientErrorLog,
   exportDiagnosticsBundle,
@@ -3137,6 +3138,18 @@ describe("tauri invoke wrappers", () => {
     expect(invokeMock).toHaveBeenCalledWith("delete_gemini_session", {
       workspacePath: "/tmp/workspace",
       sessionId: "gemini-session-1",
+    });
+  });
+
+  it("maps delete_kimi_session params", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce(undefined);
+
+    await deleteKimiSession("/tmp/workspace", "kimi-session-1");
+
+    expect(invokeMock).toHaveBeenCalledWith("delete_kimi_session", {
+      workspacePath: "/tmp/workspace",
+      sessionId: "kimi-session-1",
     });
   });
 

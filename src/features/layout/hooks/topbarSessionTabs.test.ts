@@ -243,6 +243,32 @@ describe("topbarSessionTabs", () => {
     expect(items[1]?.threadId).toBe("x1");
   });
 
+  it("uses Kimi engine metadata for topbar tab icon and label", () => {
+    const items = buildTopbarSessionTabItems(
+      "w1",
+      "kimi:session-1",
+      {
+        w1: [
+          {
+            id: "kimi:session-1",
+            name: "你好",
+            updatedAt: Date.now(),
+            engineSource: "kimi",
+          },
+        ],
+      },
+      {
+        tabs: [{ workspaceId: "w1", threadId: "kimi:session-1" }],
+        activationOrdinalByTabKey: { "w1::kimi:session-1": 1 },
+        nextActivationOrdinal: 1,
+      },
+      "Untitled",
+    );
+
+    expect(items[0]?.engineType).toBe("kimi");
+    expect(items[0]?.engineLabel).toBe("Kimi");
+  });
+
   it("prunes stale thread references that no longer exist", () => {
     const windows: TopbarSessionWindows = {
       tabs: [

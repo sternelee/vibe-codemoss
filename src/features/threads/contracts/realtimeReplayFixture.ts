@@ -2,7 +2,7 @@ import type { RealtimeReplayEvent } from "./realtimeReplayTypes";
 
 type ThreadFixture = {
   threadId: string;
-  engine: "codex" | "claude" | "gemini" | "opencode";
+  engine: "codex" | "claude" | "gemini" | "kimi" | "opencode";
   threadLabel: string;
 };
 

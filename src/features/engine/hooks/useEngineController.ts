@@ -69,6 +69,7 @@ const ENGINE_DISPLAY_MAP: Record<
   claude: { displayName: "Claude Code", shortName: "Claude Code" },
   codex: { displayName: "Codex CLI", shortName: "Codex" },
   gemini: { displayName: "Gemini CLI", shortName: "Gemini" },
+  kimi: { displayName: "Kimi CLI", shortName: "Kimi" },
   opencode: { displayName: "OpenCode", shortName: "OpenCode" },
 };
 
@@ -129,7 +130,7 @@ function buildCodexSwitchUnavailablePayload(
 }
 
 const WEB_RUNTIME_DEFAULT_ENGINE: EngineType = "codex";
-const ENGINE_TYPES: EngineType[] = ["claude", "codex", "gemini", "opencode"];
+const ENGINE_TYPES: EngineType[] = ["claude", "codex", "gemini", "kimi", "opencode"];
 const ENGINE_SELECTION_STORE = "composer";
 const ENGINE_SELECTION_KEY = "selectedEngine";
 const WEB_RUNTIME_INITIAL_STATUSES: EngineStatus[] = [
@@ -322,6 +323,7 @@ function isSupportedEngineType(value: unknown): value is EngineType {
     value === "claude" ||
     value === "codex" ||
     value === "gemini" ||
+    value === "kimi" ||
     value === "opencode"
   );
 }

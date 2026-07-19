@@ -8,7 +8,7 @@ export const GEMINI_EXECUTION_DISABLED_MESSAGE =
 export function isEngineExecutionEnabled(
   engine: unknown,
 ): engine is ExecutableEngineType {
-  return engine === "codex" || engine === "claude" || engine === "opencode";
+  return engine === "codex" || engine === "claude" || engine === "kimi" || engine === "opencode";
 }
 
 export function assertEngineExecutionEnabled(

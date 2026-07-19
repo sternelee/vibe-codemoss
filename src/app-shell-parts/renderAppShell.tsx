@@ -127,6 +127,7 @@ export function renderAppShell(ctx: RenderAppShellContext) {
     directories,
     doctor,
     claudeDoctor,
+    kimiDoctor,
     editorSplitCompanion,
     editorSplitLayout,
     engineStatuses,
@@ -623,6 +624,7 @@ export function renderAppShell(ctx: RenderAppShellContext) {
                 onOpenMailSession={handleOpenMailSession}
                 onRunCodexDoctor={doctor}
                 onRunClaudeDoctor={claudeDoctor}
+                onRunKimiDoctor={kimiDoctor}
                 activeWorkspace={activeWorkspace}
                 activeThreadId={activeThreadId}
                 activeEngine={activeEngine}

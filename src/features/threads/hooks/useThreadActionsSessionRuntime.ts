@@ -329,7 +329,7 @@ export function useThreadActionsSessionRuntime({
       workspaceId: string,
       options?: {
         activate?: boolean;
-        engine?: "claude" | "codex" | "gemini" | "opencode";
+        engine?: "claude" | "codex" | "gemini" | "kimi" | "opencode";
         folderId?: string | null;
         autoSession?: AutoSessionMetadata | null;
         providerProfileId?: string | null;
@@ -374,7 +374,7 @@ export function useThreadActionsSessionRuntime({
         selectedProviderBinding,
       });
 
-      if (engine === "claude" || engine === "opencode") {
+      if (engine === "claude" || engine === "kimi" || engine === "opencode") {
         const prefix = engine;
         const threadId = `${prefix}-pending-${Date.now()}-${Math.random()
           .toString(36)
@@ -595,6 +595,11 @@ export function useThreadActionsSessionRuntime({
           threadId.startsWith("gemini-pending-")
         ) {
           return null;
+        } else if (
+          threadId.startsWith("kimi:") ||
+          threadId.startsWith("kimi-pending-")
+        ) {
+          return null;
         } else {
           response = await forkThreadService(workspaceId, threadId, null, {
             providerProfileId,
@@ -615,7 +620,9 @@ export function useThreadActionsSessionRuntime({
           ? "claude"
           : forkedThreadId.startsWith("gemini:")
             ? "gemini"
-            : "codex";
+            : forkedThreadId.startsWith("kimi:")
+              ? "kimi"
+              : "codex";
         dispatch({
           type: "ensureThread",
           workspaceId,

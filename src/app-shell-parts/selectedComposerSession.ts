@@ -11,7 +11,7 @@ const CLAUDE_REASONING_EFFORTS = new Set(["low", "medium", "high", "xhigh", "max
 
 export function resolveThreadEngine(
   threadId: string,
-): "claude" | "gemini" | "opencode" | "codex" | null {
+): "claude" | "gemini" | "kimi" | "opencode" | "codex" | null {
   if (
     threadId.startsWith("claude:") ||
     threadId.startsWith("claude-pending-") ||
@@ -21,6 +21,9 @@ export function resolveThreadEngine(
   }
   if (threadId.startsWith("gemini:") || threadId.startsWith("gemini-pending-")) {
     return "gemini";
+  }
+  if (threadId.startsWith("kimi:") || threadId.startsWith("kimi-pending-")) {
+    return "kimi";
   }
   if (threadId.startsWith("opencode:") || threadId.startsWith("opencode-pending-")) {
     return "opencode";
@@ -78,7 +81,7 @@ export function normalizeComposerSessionSelectionForThread(
   let effort = normalized.effort;
   if (engine === "claude") {
     effort = effort && CLAUDE_REASONING_EFFORTS.has(effort) ? effort : null;
-  } else if (engine === "gemini" || engine === "opencode") {
+  } else if (engine === "gemini" || engine === "kimi" || engine === "opencode") {
     effort = null;
   }
 

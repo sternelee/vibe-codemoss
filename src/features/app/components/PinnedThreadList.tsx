@@ -144,6 +144,8 @@ const PinnedThreadRowItem = memo(function PinnedThreadRowItem({
       ? "Claude Code"
       : engineSource === "gemini"
         ? "Gemini"
+        : engineSource === "kimi"
+          ? "Kimi"
         : engineSource === "opencode"
           ? "OpenCode"
           : "Codex";

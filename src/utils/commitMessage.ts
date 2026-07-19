@@ -9,6 +9,7 @@ const COMMIT_MESSAGE_ENGINES: readonly CommitMessageEngine[] = [
   "claude",
   "codex",
   "gemini",
+  "kimi",
   "opencode",
 ];
 const COMMIT_MESSAGE_LANGUAGES: readonly CommitMessageLanguage[] = ["zh", "en"];

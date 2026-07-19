@@ -28,6 +28,8 @@ pub mod events;
 pub mod gemini;
 pub mod gemini_history;
 pub(crate) mod gemini_proxy_guard;
+pub mod kimi;
+pub mod kimi_history;
 pub mod manager;
 pub mod opencode;
 pub(crate) mod remote_bridge;
@@ -56,6 +58,8 @@ pub enum EngineType {
     Gemini,
     /// OpenCode CLI
     OpenCode,
+    /// Kimi Code CLI
+    Kimi,
 }
 
 impl Default for EngineType {
@@ -72,6 +76,7 @@ impl EngineType {
             EngineType::Codex => "Codex",
             EngineType::Gemini => "Gemini",
             EngineType::OpenCode => "OpenCode",
+            EngineType::Kimi => "Kimi CLI",
         }
     }
 
@@ -82,6 +87,7 @@ impl EngineType {
             EngineType::Codex => "codex",
             EngineType::Gemini => "gemini",
             EngineType::OpenCode => "opencode",
+            EngineType::Kimi => "kimi",
         }
     }
 }
@@ -96,7 +102,7 @@ pub(crate) fn engine_enabled_in_settings(
     match engine_type {
         EngineType::Gemini => crate::engine_policy::GEMINI_RUNTIME_ENABLED,
         EngineType::OpenCode => settings.opencode_enabled,
-        EngineType::Claude | EngineType::Codex => true,
+        EngineType::Claude | EngineType::Codex | EngineType::Kimi => true,
     }
 }
 
@@ -104,7 +110,7 @@ pub(crate) fn engine_disabled_diagnostic(engine_type: EngineType) -> Option<&'st
     match engine_type {
         EngineType::Gemini => Some(crate::engine_policy::GEMINI_DISABLED_DIAGNOSTIC),
         EngineType::OpenCode => Some(OPENCODE_DISABLED_DIAGNOSTIC),
-        EngineType::Claude | EngineType::Codex => None,
+        EngineType::Claude | EngineType::Codex | EngineType::Kimi => None,
     }
 }
 
@@ -114,6 +120,7 @@ pub(crate) fn disabled_engine_status(engine_type: EngineType) -> EngineStatus {
         EngineType::Codex => EngineFeatures::codex(),
         EngineType::Gemini => EngineFeatures::gemini(),
         EngineType::OpenCode => EngineFeatures::opencode(),
+        EngineType::Kimi => EngineFeatures::kimi(),
     };
     EngineStatus {
         engine_type,
@@ -303,6 +310,19 @@ impl EngineFeatures {
             tools_control: true,
             streaming: true,
             mcp: true,
+        }
+    }
+
+    /// Features for Kimi CLI
+    pub fn kimi() -> Self {
+        Self {
+            reasoning_effort: false,
+            collaboration_mode: false,
+            image_input: false,
+            session_resume: true,
+            tools_control: true,
+            streaming: true,
+            mcp: false,
         }
     }
 }

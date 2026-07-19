@@ -380,6 +380,7 @@ vi.mock("react-i18next", () => ({
         "settings.cliValidationTabClaudeCode": "Claude Code",
         "settings.cliValidationTabGeminiCli": "Gemini CLI",
         "settings.cliValidationTabOpenCodeCli": "OpenCode CLI",
+        "settings.cliValidationTabKimiCli": "Kimi CLI",
         "settings.cliEngineEnabledLabel": "Engine enabled",
         "settings.geminiCliDisableDescription":
           "Disable Gemini CLI entirely. Once disabled, startup detection and engine entry points stop immediately.",
@@ -387,6 +388,14 @@ vi.mock("react-i18next", () => ({
           "Disable OpenCode CLI entirely. Once disabled, startup probing, provider checks, and engine entry points stop immediately.",
         "settings.runClaudeDoctor": "Run Claude Doctor",
         "settings.defaultClaudePath": "Default Claude Code path",
+        "settings.kimiDescription":
+          "Configure Kimi CLI providers and local settings used by ccgui.",
+        "settings.defaultKimiPath": "Default Kimi CLI path",
+        "settings.kimiPlaceholder": "kimi",
+        "settings.runKimiDoctor": "Run Kimi Doctor",
+        "settings.kimiLooksGood": "Kimi CLI looks good",
+        "settings.kimiIssueDetected": "Kimi CLI issue detected",
+        "settings.cliUninstall": "Uninstall",
         "settings.sidebarExperimental": "Experimental",
         "settings.basicAppearance": "Appearance",
         "settings.basicBehavior": "Behavior",

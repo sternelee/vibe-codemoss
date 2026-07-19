@@ -130,6 +130,9 @@ pub(crate) fn invoke_handler(
         crate::engine::list_gemini_sessions,
         crate::engine::load_gemini_session,
         crate::engine::delete_gemini_session,
+        crate::engine::list_kimi_sessions,
+        crate::engine::load_kimi_session,
+        crate::engine::delete_kimi_session,
         crate::local_usage::list_codex_session_summaries,
         crate::local_usage::load_codex_session,
         // Codex
@@ -137,6 +140,7 @@ pub(crate) fn invoke_handler(
         crate::codex::codex_doctor,
         crate::codex::codex_preview_launch_profile,
         crate::codex::claude_doctor,
+        crate::codex::kimi_doctor,
         crate::codex::cli_install_plan,
         crate::codex::cli_install_run,
         crate::codex::start_thread,
@@ -394,6 +398,13 @@ pub(crate) fn invoke_handler(
         crate::vendors::vendor_get_gemini_settings,
         crate::vendors::vendor_save_gemini_settings,
         crate::vendors::vendor_gemini_preflight,
+        crate::vendors::vendor_get_kimi_providers,
+        crate::vendors::vendor_get_current_kimi_config,
+        crate::vendors::vendor_add_kimi_provider,
+        crate::vendors::vendor_update_kimi_provider,
+        crate::vendors::vendor_delete_kimi_provider,
+        crate::vendors::vendor_switch_kimi_provider,
+        crate::vendors::vendor_fetch_kimi_models,
         // Open paths
         crate::get_pending_open_paths
     ]

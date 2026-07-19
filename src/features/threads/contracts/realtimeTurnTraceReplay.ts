@@ -38,6 +38,9 @@ function inferEngineFromThreadId(threadId: string): TurnTraceDimensions["engine"
   if (threadId.startsWith("gemini:") || threadId.startsWith("gemini-")) {
     return "gemini";
   }
+  if (threadId.startsWith("kimi:") || threadId.startsWith("kimi-")) {
+    return "kimi";
+  }
   if (threadId.startsWith("opencode:") || threadId.startsWith("opencode-")) {
     return "opencode";
   }

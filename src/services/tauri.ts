@@ -236,7 +236,7 @@ export type {
   BrowserSnapshotBudget,
   BrowserTextNode,
 } from "../features/browser-agent/types";
-export { previewCodexLaunchProfile, runClaudeDoctor, runCodexDoctor } from "./tauri/doctor";
+export { previewCodexLaunchProfile, runClaudeDoctor, runCodexDoctor, runKimiDoctor } from "./tauri/doctor";
 export { getCliInstallPlan, runCliInstaller } from "./tauri/cliInstaller";
 export type {
   ComputerUseActivationFailureKind,
@@ -328,24 +328,31 @@ export type {
 export {
   addClaudeProvider,
   addCodexProvider,
+  addKimiProvider,
   deleteClaudeProvider,
   deleteCodexProvider,
+  deleteKimiProvider,
   fetchClaudeProviderModels,
+  fetchKimiProviderModels,
   getClaudeAlwaysThinkingEnabled,
   getClaudeProviders,
   readClaudeSettingsJson,
   getCodexProviders,
   getCurrentClaudeConfig,
+  getCurrentKimiConfig,
   getGeminiVendorPreflight,
   getGeminiVendorSettings,
+  getKimiProviders,
   reorderClaudeProviders,
   saveGeminiVendorSettings,
   saveClaudeSettingsJson,
   setClaudeAlwaysThinkingEnabled,
   switchClaudeProvider,
   switchCodexProvider,
+  switchKimiProvider,
   updateClaudeProvider,
   updateCodexProvider,
+  updateKimiProvider,
 } from "./tauri/vendors";
 export type {
   GeminiVendorPreflightCheck,
@@ -534,6 +541,7 @@ export {
   deleteCodexSession,
   deleteCodexSessions,
   deleteGeminiSession,
+  deleteKimiSession,
   deleteOpenCodeSession,
   forkClaudeSession,
   forkClaudeSessionFromMessage,
@@ -542,11 +550,13 @@ export {
   listClaudeSessions,
   listGeminiSessions,
   listGlobalMcpServers,
+  listKimiSessions,
   listMcpServerStatus,
   listThreads,
   loadClaudeSession,
   loadCodexSession,
   loadGeminiSession,
+  loadKimiSession,
   resumeThread,
   rewindCodexThread,
   startThread,

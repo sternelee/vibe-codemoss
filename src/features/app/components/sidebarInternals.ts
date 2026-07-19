@@ -85,6 +85,7 @@ export function isPendingEngineThreadId(threadId: string): boolean {
     normalizedThreadId.startsWith("codex-pending-") ||
     normalizedThreadId.startsWith("claude-pending-") ||
     normalizedThreadId.startsWith("gemini-pending-") ||
+    normalizedThreadId.startsWith("kimi-pending-") ||
     normalizedThreadId.startsWith("opencode-pending-")
   );
 }
@@ -102,12 +103,15 @@ export function isSessionCatalogNotReadyError(error: unknown): boolean {
   );
 }
 
-export function resolveEnginePrefix(threadId: string): "claude" | "gemini" | "opencode" | "codex" {
+export function resolveEnginePrefix(threadId: string): "claude" | "gemini" | "kimi" | "opencode" | "codex" {
   if (threadId.startsWith("claude:") || threadId.startsWith("claude-pending-")) {
     return "claude";
   }
   if (threadId.startsWith("gemini:") || threadId.startsWith("gemini-pending-")) {
     return "gemini";
+  }
+  if (threadId.startsWith("kimi:") || threadId.startsWith("kimi-pending-")) {
+    return "kimi";
   }
   if (threadId.startsWith("opencode:") || threadId.startsWith("opencode-pending-")) {
     return "opencode";

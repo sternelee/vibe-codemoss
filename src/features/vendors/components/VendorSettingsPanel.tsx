@@ -4,17 +4,20 @@ import { useTranslation } from "react-i18next";
 import LayoutList from "lucide-react/dist/esm/icons/layout-list";
 import PackagePlus from "lucide-react/dist/esm/icons/package-plus";
 import Search from "lucide-react/dist/esm/icons/search";
-import type { CodexCustomModel, CodexProviderConfig, VendorTab } from "../types";
-import { STORAGE_KEYS, validateCodexCustomModels } from "../types";
+import type { CodexCustomModel, CodexProviderConfig } from "../types";
+import { LOCAL_KIMI_PROVIDER_ID, STORAGE_KEYS, validateCodexCustomModels } from "../types";
 import type { AppSettings, CodexUnifiedExecExternalStatus } from "../../../types";
 import { useProviderManagement } from "../hooks/useProviderManagement";
 import { useCodexProviderManagement } from "../hooks/useCodexProviderManagement";
+import { useKimiProviderManagement } from "../hooks/useKimiProviderManagement";
 import { usePluginModels } from "../hooks/usePluginModels";
 import { ProviderList } from "./ProviderList";
 import { CodexProviderList } from "./CodexProviderList";
+import { KimiProviderList } from "./KimiProviderList";
 import { ClaudeSettingsJsonDialog } from "./ClaudeSettingsJsonDialog";
 import { ProviderDialog } from "./ProviderDialog";
 import { CodexProviderDialog } from "./CodexProviderDialog";
+import { KimiProviderDialog } from "./KimiProviderDialog";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import { CustomModelDialog } from "./CustomModelDialog";
 import { CurrentCodexGlobalConfigCard } from "./CurrentCodexGlobalConfigCard";
@@ -47,7 +50,7 @@ const LEGACY_CLAUDE_MAPPING_KEYS = [
 ];
 const CODEX_PLUGIN_MODELS_MIGRATION_MARKER =
   "codemoss-codex-plugin-models-migrated-v1";
-type ModelDialogTarget = VendorTab;
+type ModelDialogTarget = "claude" | "codex";
 type InlineNoticeState =
   | { kind: "success" | "error"; message: string }
   | null;
@@ -184,6 +187,7 @@ export function VendorSettingsPanel({
 
   const claude = useProviderManagement();
   const codex = useCodexProviderManagement();
+  const kimi = useKimiProviderManagement();
   const claudeModels = usePluginModels(STORAGE_KEYS.CLAUDE_CUSTOM_MODELS);
   const codexModels = usePluginModels(STORAGE_KEYS.CODEX_CUSTOM_MODELS);
   const codexModelCount = codexModels.models.length;
@@ -482,13 +486,20 @@ export function VendorSettingsPanel({
   );
 
   const claudeHasConfig = Boolean(claude.currentConfig);
+  const kimiHasConfig =
+    Boolean(kimi.currentKimiConfig?.baseUrl) ||
+    kimi.kimiProviders.some(
+      (provider) =>
+        provider.id !== LOCAL_KIMI_PROVIDER_ID && !provider.isLocalProvider,
+    );
   const engineNavItems: CliEngineNavItem[] = useMemo(
     () =>
       buildCliEngineNavItems({
         claudeHasConfig,
         codexHasConfig: codexGlobalConfigExists,
+        kimiHasConfig,
       }),
-    [claudeHasConfig, codexGlobalConfigExists],
+    [claudeHasConfig, codexGlobalConfigExists, kimiHasConfig],
   );
   const filteredEngineNavItems = useMemo(() => {
     const normalizedQuery = cliSearchQuery.trim().toLowerCase();
@@ -805,6 +816,77 @@ export function VendorSettingsPanel({
               providerName={codex.deleteCodexConfirm.provider?.name ?? ""}
               onConfirm={codex.confirmDeleteCodexProvider}
               onCancel={codex.cancelDeleteCodexProvider}
+            />
+          </div>
+        ) : activeCli === "kimi" ? (
+          <div className="vendor-tab-content">
+            <CliBrandHeader
+              id="kimi"
+              title="Kimi CLI"
+              description={t("settings.kimiDescription", {
+                defaultValue:
+                  "Configure the Kimi CLI providers used by ccgui.",
+              })}
+              helpLabel={t("settings.vendor.openCliDocs", {
+                defaultValue: "Open docs",
+              })}
+              href={CLI_DOCS_HREF_BY_ID.kimi}
+            />
+            {kimi.kimiProviderError && (
+              <div className="settings-help">
+                {t("settings.vendor.kimiProviderActionFailed")}:{" "}
+                {kimi.kimiProviderError}
+              </div>
+            )}
+            <div className="vendor-provider-list">
+              <div className="vendor-list-header">
+                <span className="vendor-list-title">
+                  {t("settings.vendor.kimiCurrentConfig")}
+                </span>
+              </div>
+              {kimi.currentKimiConfig ? (
+                <>
+                  <div className="settings-help">
+                    {t("settings.vendor.kimiDefaultModel")}:{" "}
+                    {kimi.currentKimiConfig.defaultModel ||
+                      t("settings.vendor.notConfigured")}
+                  </div>
+                  <div className="settings-help">
+                    {t("settings.vendor.kimiBaseUrl")}:{" "}
+                    {kimi.currentKimiConfig.baseUrl ||
+                      t("settings.vendor.notConfigured")}
+                  </div>
+                  <div className="settings-help">
+                    {t("settings.vendor.kimiProvider")}:{" "}
+                    {kimi.currentKimiConfig.providerName ||
+                      t("settings.vendor.notConfigured")}
+                  </div>
+                </>
+              ) : (
+                <div className="settings-help">
+                  {t("settings.vendor.kimiNoConfig")}
+                </div>
+              )}
+            </div>
+            <KimiProviderList
+              providers={kimi.kimiProviders}
+              loading={kimi.kimiLoading}
+              onAdd={kimi.handleAddKimiProvider}
+              onEdit={kimi.handleEditKimiProvider}
+              onDelete={kimi.handleDeleteKimiProvider}
+              onSwitch={kimi.handleSwitchKimiProvider}
+            />
+            <KimiProviderDialog
+              isOpen={kimi.kimiProviderDialog.isOpen}
+              provider={kimi.kimiProviderDialog.provider}
+              onClose={kimi.handleCloseKimiProviderDialog}
+              onSave={kimi.handleSaveKimiProvider}
+            />
+            <DeleteConfirmDialog
+              isOpen={kimi.deleteKimiConfirm.isOpen}
+              providerName={kimi.deleteKimiConfirm.provider?.name ?? ""}
+              onConfirm={kimi.confirmDeleteKimiProvider}
+              onCancel={kimi.cancelDeleteKimiProvider}
             />
           </div>
         ) : (
