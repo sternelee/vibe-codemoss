@@ -961,10 +961,6 @@ export function AppShell() {
   }, [activeThreadId]);
 
   useEffect(() => {
-    void reloadAgentCatalog();
-  }, [reloadAgentCatalog]);
-
-  useEffect(() => {
     if (!settingsOpen) {
       forceRefreshAgents();
       void reloadAgentCatalog();

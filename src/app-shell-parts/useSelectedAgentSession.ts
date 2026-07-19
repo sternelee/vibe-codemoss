@@ -83,7 +83,10 @@ export function useSelectedAgentSession({
   onDebug,
 }: UseSelectedAgentSessionOptions): UseSelectedAgentSessionResult {
   const { i18n } = useTranslation();
-  const [selectedAgentBySessionKey, setSelectedAgentBySessionKey] = useState<
+  const [, setSelectedAgentBySessionKey] = useState<
+    Record<string, SelectedAgentOption | null>
+  >({});
+  const selectedAgentBySessionKeyRef = useRef<
     Record<string, SelectedAgentOption | null>
   >({});
   const [agentCatalogById, setAgentCatalogById] = useState<
@@ -115,17 +118,32 @@ export function useSelectedAgentSession({
     [],
   );
 
-  const writeSelectedAgentForSessionKey = useCallback(
+  const cacheSelectedAgentForSessionKey = useCallback(
     (sessionKey: string, agent: SelectedAgentOption | null) => {
-      setSelectedAgentBySessionKey((prev) => {
-        if (selectedAgentSelectionsEqual(prev[sessionKey] ?? null, agent)) {
-          return prev;
+      const currentCache = selectedAgentBySessionKeyRef.current;
+      if (selectedAgentSelectionsEqual(currentCache[sessionKey] ?? null, agent)) {
+        return;
+      }
+      selectedAgentBySessionKeyRef.current = {
+        ...currentCache,
+        [sessionKey]: agent,
+      };
+      setSelectedAgentBySessionKey((currentState) => {
+        if (selectedAgentSelectionsEqual(currentState[sessionKey] ?? null, agent)) {
+          return currentState;
         }
         return {
-          ...prev,
+          ...currentState,
           [sessionKey]: agent,
         };
       });
+    },
+    [],
+  );
+
+  const writeSelectedAgentForSessionKey = useCallback(
+    (sessionKey: string, agent: SelectedAgentOption | null) => {
+      cacheSelectedAgentForSessionKey(sessionKey, agent);
       const stored = parseStoredThreadAgentSelectionEntry(
         getClientStoreSync<unknown>("app", sessionKey),
       );
@@ -134,7 +152,7 @@ export function useSelectedAgentSession({
       }
       writeClientStoreValue("app", sessionKey, agent);
     },
-    [],
+    [cacheSelectedAgentForSessionKey],
   );
 
   const reloadAgentCatalog = useCallback(async () => {
@@ -292,6 +310,7 @@ export function useSelectedAgentSession({
 
     let candidate: SelectedAgentOption | null = null;
     let hasCandidate = false;
+    const selectedAgentBySessionKey = selectedAgentBySessionKeyRef.current;
     if (sessionKey in selectedAgentBySessionKey) {
       candidate = selectedAgentBySessionKey[sessionKey] ?? null;
       hasCandidate = true;
@@ -344,7 +363,6 @@ export function useSelectedAgentSession({
     activeThreadId,
     activeWorkspaceId,
     draftSelectedAgent,
-    selectedAgentBySessionKey,
     agentCatalogById,
     resolveSelectedAgentSessionKey,
     writeSelectedAgentForSessionKey,
@@ -376,6 +394,7 @@ export function useSelectedAgentSession({
       activeWorkspaceId,
       activeThreadId,
     );
+    const selectedAgentBySessionKey = selectedAgentBySessionKeyRef.current;
     const previousSelectedAgentFromMemory =
       previousSelectedAgentSessionKey &&
       Object.prototype.hasOwnProperty.call(
@@ -444,7 +463,6 @@ export function useSelectedAgentSession({
     activeThreadId,
     activeWorkspaceId,
     resolveCanonicalThreadId,
-    selectedAgentBySessionKey,
     resolveSelectedAgentSessionKey,
     writeSelectedAgentForSessionKey,
   ]);

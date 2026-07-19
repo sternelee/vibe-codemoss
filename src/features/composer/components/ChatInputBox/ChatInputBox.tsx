@@ -188,12 +188,6 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
       providerVersions,
       providerStatusLabels,
       providerDisabledMessages,
-      contextDualViewEnabled = false,
-      dualContextUsage = null,
-      onRequestContextCompaction,
-      codexAutoCompactionEnabled = true,
-      codexAutoCompactionThresholdPercent = 92,
-      onCodexAutoCompactionSettingsChange,
       accountRateLimits,
       usageShowRemaining = false,
       onRefreshAccountRateLimits,
@@ -1451,7 +1445,6 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
       ]),
       [handleEnhancePrompt, handleShortcutChipClick, t],
     );
-    const shouldShowMainLegacyTokenIndicator = !(currentProvider === 'codex' && contextDualViewEnabled);
     const shouldShowContextToolbarSurface = Boolean(showHeader);
     const curatedSkillIndicator = (
       <CuratedSkillIndicator onOpenSkillsSettings={onOpenSkillsSettings} />
@@ -1483,20 +1476,6 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
         isModelConfigRefreshing={isModelConfigRefreshing}
       />
     ) : null;
-    // 上下文占用指示器已移到输入框下方的分支行（Composer 渲染）；
-    // 这里只保留 codex 双视图的 ContextBar。
-    const mainToolbarSurface = shouldShowMainLegacyTokenIndicator ? null : (
-      <ContextBar
-        surface="tool-popover"
-        contextDualViewEnabled={contextDualViewEnabled}
-        dualContextUsage={dualContextUsage}
-        onRequestContextCompaction={onRequestContextCompaction}
-        codexAutoCompactionEnabled={codexAutoCompactionEnabled}
-        codexAutoCompactionThresholdPercent={codexAutoCompactionThresholdPercent}
-        onCodexAutoCompactionSettingsChange={onCodexAutoCompactionSettingsChange}
-        currentProvider={currentProvider}
-      />
-    );
     const contextToolbarSurface = (
       <>
         {showHeader ? (
@@ -1749,7 +1728,6 @@ export const ChatInputBox = memo(forwardRef<ChatInputBoxHandle, ChatInputBoxProp
               selectedNoteCardIds={selectedNoteCardIds}
               shortcutActions={settingsShortcutActions}
               readinessSurface={readinessSurface}
-              mainSurface={mainToolbarSurface}
               panelToggleSurface={panelToggleSurface}
               curatedSkillSurface={curatedSkillIndicator}
               toolSurface={(

@@ -49,6 +49,7 @@ import {
 } from "./ClaudeRewindConfirmDialog";
 import { ReviewInlinePrompt } from "./ReviewInlinePrompt";
 import { ComposerBranchBadge, type ComposerBranchControl } from "./ComposerBranchBadge";
+import { ContextBar } from "./ChatInputBox/ContextBar";
 import { TokenIndicator } from "./ChatInputBox/TokenIndicator";
 import type {
   ClaudeContextUsageViewModel,
@@ -1867,10 +1868,9 @@ function ComposerImpl({
     setContextLedgerExpanded((current) => !current);
   }, []);
   const codexContextDualViewEnabled = contextDualViewEnabled && isCodexEngine;
-  // 上下文占用指示器渲染在输入框下方分支行右侧；
-  // codex 双上下文视图在工具栏有自己的指示器，避免重复展示。
-  const showFooterUsageIndicator =
-    footerUsageIndicatorEnabled && !codexContextDualViewEnabled;
+  // 所有 provider 的上下文占用入口统一渲染在输入框下方分支行右侧；
+  // Codex 继续使用 dual-view ContextBar，保留 tooltip 与 compaction controls。
+  const showFooterUsageIndicator = footerUsageIndicatorEnabled;
   const footerUsagePercentage =
     resolvedLegacyContextUsage && resolvedLegacyContextUsage.total > 0
       ? Math.round(
@@ -2427,13 +2427,7 @@ function ComposerImpl({
               textareaHeight={textareaHeight}
               onHeightChange={onTextareaHeightChange}
               contextUsage={resolvedLegacyContextUsage}
-              contextDualViewEnabled={codexContextDualViewEnabled}
-              dualContextUsage={resolvedDualContextUsage}
               claudeContextUsage={resolvedClaudeContextUsage}
-              onRequestContextCompaction={handleManualCompactContext}
-              codexAutoCompactionEnabled={codexAutoCompactionEnabled}
-              codexAutoCompactionThresholdPercent={codexAutoCompactionThresholdPercent}
-              onCodexAutoCompactionSettingsChange={onCodexAutoCompactionSettingsChange}
               queuedMessages={queuedMessages}
               onDeleteQueued={onDeleteQueued}
               onFuseQueued={onFuseQueued}
@@ -2513,14 +2507,27 @@ function ComposerImpl({
                 ) : null}
                 {showFooterUsageIndicator ? (
                   <div className="composer-branch-row-usage">
-                    <TokenIndicator
-                      percentage={footerUsagePercentage}
-                      usedTokens={resolvedLegacyContextUsage?.used}
-                      maxTokens={resolvedLegacyContextUsage?.total}
-                      claudeContextUsage={
-                        selectedEngine === "claude" ? resolvedClaudeContextUsage : null
-                      }
-                    />
+                    {codexContextDualViewEnabled ? (
+                      <ContextBar
+                        surface="tool-popover"
+                        contextDualViewEnabled
+                        dualContextUsage={resolvedDualContextUsage}
+                        onRequestContextCompaction={handleManualCompactContext}
+                        codexAutoCompactionEnabled={codexAutoCompactionEnabled}
+                        codexAutoCompactionThresholdPercent={codexAutoCompactionThresholdPercent}
+                        onCodexAutoCompactionSettingsChange={onCodexAutoCompactionSettingsChange}
+                        currentProvider="codex"
+                      />
+                    ) : (
+                      <TokenIndicator
+                        percentage={footerUsagePercentage}
+                        usedTokens={resolvedLegacyContextUsage?.used}
+                        maxTokens={resolvedLegacyContextUsage?.total}
+                        claudeContextUsage={
+                          selectedEngine === "claude" ? resolvedClaudeContextUsage : null
+                        }
+                      />
+                    )}
                   </div>
                 ) : null}
               </div>

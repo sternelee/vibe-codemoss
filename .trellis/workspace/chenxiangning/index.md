@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-26.md`
-- **Total Sessions**: 1041
-- **Last Active**: 2026-07-19
+- **Total Sessions**: 1045
+- **Last Active**: 2026-07-20
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-26.md` | ~542 | Active |
+| `journal-26.md` | ~696 | Active |
 | `journal-25.md` | ~1976 | Archived |
 | `journal-24.md` | ~1994 | Archived |
 | `journal-23.md` | ~1965 | Archived |
@@ -54,6 +54,10 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 1045 | 2026-07-20 | 统一并收紧 Composer 发送按钮尺寸 | `ed921d22` | `feature/v-0.7.4` |
+| 1044 | 2026-07-20 | 修复冷启更新循环与 Project Map 过期模型断言 | `7d7d072e` | `feature/v-0.7.4` |
+| 1043 | 2026-07-20 | 统一 Codex 上下文用量指示器外观 | `8b9ce467` | `feature/v-0.7.4` |
+| 1042 | 2026-07-20 | 幕布底部便签捕获入口 | `973e2c33` | `feature/v-0.7.4` |
 | 1041 | 2026-07-19 | 修复 Git 多仓长列表显示断层 | `9b925d8f` | `feature/v-0.7.4` |
 | 1040 | 2026-07-19 | 同步上游 v0.7.5 并完成语义合并验证 | `e706b2df` | `feature/v-0.7.4` |
 | 1039 | 2026-07-19 | 来源感知便签采集与工作台闭环 | `dc86a0f2` | `feature/v-0.7.4` |

@@ -540,3 +540,157 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1042: 幕布底部便签捕获入口
+
+**Date**: 2026-07-20
+**Task**: 幕布底部便签捕获入口
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+在最新 final assistant action group 最左侧增加便签捕获按钮，复用现有右键 conversation capture menu 与 semantic thread draft；保留原右键及历史边界行为，校准 Note/History 图标尺寸，补齐 focused regression 与 OpenSpec contract。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `973e2c33` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1043: 统一 Codex 上下文用量指示器外观
+
+**Date**: 2026-07-20
+**Task**: 统一 Codex 上下文用量指示器外观
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+将 Codex context usage 指示器迁移到 Claude Code 相同的 Composer footer 位置，并统一圆环与百分比外观，保留原有 compaction 逻辑。
+
+### Main Changes
+
+| 项目 | 结果 |
+|---|---|
+| Composer placement | Codex dual context summary 迁移到输入框下方右侧 canonical footer usage slot |
+| Visual primitive | Claude Code 与 Codex 共用 ContextUsageIcon，统一 percentage-first、ring-second 外观 |
+| Behavior boundary | 保留 tooltip、manual/auto compaction callbacks 与 lifecycle semantics |
+| Cleanup | 移除 ChatInputBox / adapter 已失效的 dual usage presentation prop chain |
+| Specs | 同步 composer-context-dual-view 主规范并归档 OpenSpec change |
+
+验证：focused Vitest 101 tests passed；npm run lint、npm run typecheck、OpenSpec strict validation、git diff check、large-file policy passed。全量 npm run test 在无关的 SettingsView Client UI visibility 文案断言处失败，本次未修改 Settings 代码。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8b9ce467` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1044: 修复冷启更新循环与 Project Map 过期模型断言
+
+**Date**: 2026-07-20
+**Task**: 修复冷启更新循环与 Project Map 过期模型断言
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+修复 persisted selected agent、异步 catalog readiness 与 thread identity migration 叠加时的 React 更新循环，并让 Project Map 测试跟随当前 Codex catalog 默认值。
+
+### Main Changes
+
+| 模块 | 变更 |
+|---|---|
+| Agent 冷启动 | selected-agent cache 改为同步 ref 快照与 equality gate，切断 reload effect 自反馈。 |
+| AppShell | 删除重复的 mount-time Agent catalog reload，保留 Settings 关闭刷新语义。 |
+| Project Map | 测试改为验证当前 catalog 首项默认值，不再要求已删除的 gpt-5.3-codex。 |
+| OpenSpec | 新增 agent startup selection stability 的 proposal、design、spec 与 tasks。 |
+
+**验证结果**：
+- focused Vitest：17/17 passed
+- npm run typecheck：passed
+- npm run lint：passed
+- OpenSpec strict validation：416/416 passed
+- npm test：目标批次通过；在 146/214 被无关 SettingsView 旧断言阻断
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7d7d072e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1045: 统一并收紧 Composer 发送按钮尺寸
+
+**Date**: 2026-07-20
+**Task**: 统一并收紧 Composer 发送按钮尺寸
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+统一 Home 与 Conversation 的发送/停止按钮 geometry：移除 HomeChat 24px/36px 局部覆盖，将 shared action 收紧为 26px、ArrowUp 14px、stop icon 10px、radius 8px；补充 shared/Home focused CSS contract tests；同步 composer-control-surface 主规范并归档 OpenSpec change。验证 focused Vitest 3 files / 11 tests、scoped ESLint、typecheck、large-file gate 与 OpenSpec strict validation 416/416 均通过；按用户确认未执行全量测试。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ed921d22` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

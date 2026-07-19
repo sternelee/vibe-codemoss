@@ -552,23 +552,8 @@ export interface ChatInputBoxProps {
   usageMaxTokens?: number;
   /** Whether to show usage */
   showUsage?: boolean;
-  /** Enable legacy + new context usage dual-view */
-  contextDualViewEnabled?: boolean;
-  /** Shared model for new context usage view */
-  dualContextUsage?: DualContextUsageViewModel | null;
   /** Claude-specific context usage detail model */
   claudeContextUsage?: ClaudeContextUsageViewModel | null;
-  /** Request context compaction (codex only) */
-  onRequestContextCompaction?: () => Promise<void> | void;
-  /** Whether Codex auto compaction is enabled */
-  codexAutoCompactionEnabled?: boolean;
-  /** Codex auto compaction high-watermark */
-  codexAutoCompactionThresholdPercent?: number;
-  /** Update Codex auto compaction settings */
-  onCodexAutoCompactionSettingsChange?: (patch: {
-    enabled?: boolean;
-    thresholdPercent?: number;
-  }) => Promise<void> | void;
   /** Account rate limits snapshot for codex usage panel */
   accountRateLimits?: AccountRateLimitsInfo | null;
   /** Show remaining limits instead of used */
@@ -847,8 +832,6 @@ export interface ButtonAreaProps {
   shortcutActions?: ShortcutAction[];
   /** Composer readiness bar rendered in the center of the primary toolbar row */
   readinessSurface?: ReactNode;
-  /** High-signal status controls rendered on the main toolbar row */
-  mainSurface?: ReactNode;
   /** Additional low-frequency tools rendered inside the tool popover */
   toolSurface?: ReactNode;
   /** Status panel toggle rendered inside the tool popover icon row */

@@ -148,7 +148,7 @@ describe("useProjectMapGenerationOptions", () => {
     expect(result.current.engines.some((engine) => engine.id === "gemini")).toBe(false);
   });
 
-  it("keeps Codex model selection available when runtime catalogs are empty", async () => {
+  it("uses the current Codex catalog default when runtime catalogs are empty", async () => {
     vi.mocked(getEngineModels).mockRejectedValueOnce(new Error("engine model RPC unavailable"));
     vi.mocked(getModelList).mockResolvedValueOnce({ result: { data: [] } });
     vi.mocked(getConfigModel).mockResolvedValueOnce(null);
@@ -163,8 +163,8 @@ describe("useProjectMapGenerationOptions", () => {
     await waitFor(() => expect(result.current.modelsLoading).toBe(false));
 
     expect(result.current.modelsError).toBeNull();
-    expect(result.current.models.map((model) => model.model)).toContain("gpt-5.3-codex");
-    expect(result.current.models.length).toBeGreaterThan(1);
+    expect(result.current.models).not.toHaveLength(0);
+    expect(result.current.models[0]?.isDefault).toBe(true);
   });
 
   it("reloads model options when the selected engine changes", async () => {
