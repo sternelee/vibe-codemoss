@@ -1947,6 +1947,18 @@ button.diff-section-indicator:focus-visible {
   box-shadow: 0 -8px 18px -18px color-mix(in srgb, var(--foreground) 45%, transparent);
 }
 
+.git-commit-composer--top {
+  margin-top: 0;
+  margin-bottom: 8px;
+  border-top: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-muted) 65%, transparent);
+  box-shadow: 0 8px 18px -18px color-mix(in srgb, var(--foreground) 45%, transparent);
+}
+
+.git-commit-composer--bottom {
+  margin-top: 8px;
+}
+
 .commit-message-input-wrapper {
   position: relative;
 }

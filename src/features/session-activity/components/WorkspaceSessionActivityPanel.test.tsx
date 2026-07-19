@@ -2015,6 +2015,41 @@ describe("WorkspaceSessionActivityPanel", () => {
     expect(sessionPills[0]?.textContent).not.toContain("Child session");
   });
 
+  it("caps related child session pills at ten and exposes the full set on hover", () => {
+    const viewModel = createViewModel();
+    viewModel.sessionSummaries = [
+      viewModel.sessionSummaries[0],
+      ...Array.from({ length: 12 }, (_, index) => ({
+        threadId: `child-thread-${index + 1}`,
+        threadName: `Child session ${index + 1}`,
+        sessionRole: "child" as const,
+        relationshipSource: "fallbackLinking" as const,
+        eventCount: 100 - index,
+        isProcessing: false,
+      })),
+    ];
+
+    const view = render(
+      <WorkspaceSessionActivityPanel
+        workspaceId="workspace-1"
+        viewModel={viewModel}
+        onOpenDiffPath={vi.fn()}
+        onSelectThread={vi.fn()}
+      />,
+    );
+
+    const visibleSessionPills = view.container.querySelectorAll(
+      '.session-activity-session-pill[role="button"]',
+    );
+    expect(visibleSessionPills).toHaveLength(10);
+
+    const overflowSessionPill = view.container.querySelector(".session-activity-session-pill.is-overflow");
+    expect(overflowSessionPill).toBeTruthy();
+    expect(overflowSessionPill?.textContent).toBe("+2");
+    expect(overflowSessionPill?.getAttribute("title")).toContain("activityPanel.childSession 11");
+    expect(overflowSessionPill?.getAttribute("title")).toContain("activityPanel.childSession 12");
+  });
+
   it("renders a time label for each activity item", () => {
     const view = render(
       <WorkspaceSessionActivityPanel

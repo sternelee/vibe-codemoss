@@ -215,6 +215,48 @@ describe("useFileLinkOpener", () => {
     );
   });
 
+  it("previews Windows absolute file links relative to the current Windows workspace", async () => {
+    openerMocks.openPath.mockResolvedValue(undefined);
+    const onOpenWorkspaceFile = vi.fn();
+    const { result } = renderHook(() =>
+      useFileLinkOpener(
+        "D:\\AI\\AIchat\\突击队",
+        [makeOpenTarget("vscode", "VS Code")],
+        "vscode",
+        onOpenWorkspaceFile,
+      ),
+    );
+
+    await act(async () => {
+      await result.current.openFileLink("D:\\AI\\AIchat\\突击队\\src\\main.ts#L3");
+    });
+
+    expect(onOpenWorkspaceFile).toHaveBeenCalledWith("src/main.ts");
+    expect(openerMocks.openPath).not.toHaveBeenCalled();
+  });
+
+  it("opens external Windows absolute file links natively when a preview callback exists", async () => {
+    openerMocks.openPath.mockResolvedValue(undefined);
+    const onOpenWorkspaceFile = vi.fn();
+    const { result } = renderHook(() =>
+      useFileLinkOpener(
+        "D:\\workspace",
+        [makeOpenTarget("vscode", "VS Code")],
+        "vscode",
+        onOpenWorkspaceFile,
+      ),
+    );
+
+    await act(async () => {
+      await result.current.openFileLink("D:\\outputs\\单页可编辑版PPTX.pptx#L3");
+    });
+
+    expect(onOpenWorkspaceFile).not.toHaveBeenCalled();
+    expect(openerMocks.openPath).toHaveBeenCalledWith(
+      "D:\\outputs\\单页可编辑版PPTX.pptx",
+    );
+  });
+
   it("builds context menu actions from the latest open target config", () => {
     const firstTargets = [makeOpenTarget("vscode", "VS Code")];
     const nextTargets = [makeOpenTarget("cursor", "Cursor")];

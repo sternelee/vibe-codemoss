@@ -77,6 +77,10 @@ export function FullMarkdownRuntime({
             "*": [...(defaultSchema.attributes?.["*"] ?? []), "className", "class", "style"],
             img: [...(defaultSchema.attributes?.img ?? []), "loading"],
           },
+          protocols: {
+            ...defaultSchema.protocols,
+            href: [...(defaultSchema.protocols?.href ?? []), "codex-file"],
+          },
         }],
       ];
       const cachedRehypeKatex = getCachedRehypeKatex();

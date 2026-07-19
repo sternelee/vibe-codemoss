@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isLinkableFilePath } from "./remarkFileLinks";
+import { isLinkableFilePath, normalizeBareWindowsFilePathLinks } from "./remarkFileLinks";
 
 describe("isLinkableFilePath", () => {
   it("does not linkify CJK prose that merely contains slashes", () => {
@@ -12,15 +12,27 @@ describe("isLinkableFilePath", () => {
     expect(isLinkableFilePath("/Users/test/a.rs")).toBe(true);
     expect(isLinkableFilePath("src/index.ts")).toBe(true);
     expect(isLinkableFilePath("./config/app.json")).toBe(true);
+    expect(isLinkableFilePath("C:\\Users\\ISSUSER\\.ccgui\\workspace")).toBe(true);
+    expect(isLinkableFilePath("D:\\AI\\AIchat\\突击队\\输出\\My Deck 修订版.pptx")).toBe(true);
+    expect(isLinkableFilePath("/Users/test/Desktop/My Folder/report final.pdf")).toBe(true);
   });
 
   it("recognizes paths with CJK segments as long as one ASCII segment exists", () => {
     expect(isLinkableFilePath("/Users/张三/code/a.ts")).toBe(true);
+    expect(isLinkableFilePath("D:\\AI\\AIchat\\突击队")).toBe(true);
   });
 
   it("does not linkify mixed CJK/ASCII prose without a file extension", () => {
     expect(isLinkableFilePath("/MCP/权限/models")).toBe(false);
     expect(isLinkableFilePath("/MCP/权限/models）")).toBe(false);
     expect(isLinkableFilePath("/供应商/models/接口")).toBe(false);
+  });
+
+  it("normalizes bare Windows paths with spaces into internal markdown links", () => {
+    const path = "D:\\AI\\AIchat\\突击队\\输出\\My Deck 修订版.pptx";
+
+    expect(normalizeBareWindowsFilePathLinks(`PPTX: ${path}`)).toContain(
+      `(codex-file:${encodeURIComponent(path)})`,
+    );
   });
 });

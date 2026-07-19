@@ -198,6 +198,9 @@ const git = {
     generateCommitMessageEngineGemini: "使用 Gemini 引擎",
     generateCommitMessageEngineOpenCode: "使用 OpenCode 引擎",
     generateCommitMessageLastConfig: "使用上次的配置",
+    commitComposerPlacementMenuLabel: "提交框位置",
+    commitComposerPlacementBottom: "底部",
+    commitComposerPlacementTop: "上方",
     commitMessageRequiresCodex:
       "AI 生成提交信息需要 Codex CLI，请先安装: npm install -g @openai/codex",
     noMessage: "无消息",

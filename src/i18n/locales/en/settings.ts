@@ -526,6 +526,17 @@ const settings = {
     behaviorDiffExpanded: "Diff Expanded by Default",
     behaviorDiffExpandedDesc:
       "Code diff sections default to expanded view showing full content.",
+    gitCommitComposerPlacementTitle: "Git commit message box",
+    gitCommitComposerPlacementDesc:
+      "Choose whether the commit message box appears above or below the changed files.",
+    gitCommitComposerPlacement: {
+      bottom: "Bottom",
+      top: "Top",
+    },
+    gitCommitComposerPlacementDetail: {
+      bottom: "Keep the message box near the commit button at the bottom.",
+      top: "Place the message box above the changed-file list.",
+    },
     otherDescription:
       "History completion, model mapping, and other configurations.",
     performanceDiagnosticsTitle: "Performance diagnostics",

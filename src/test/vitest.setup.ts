@@ -531,6 +531,15 @@ vi.mock("react-i18next", () => ({
         "settings.performanceCompatibilityStatusDisabled": "Compatibility mode off",
         "settings.performanceCompatibilityHint":
           "When enabled, non-critical UI refreshes may update less often or pause while the window is hidden. Sending messages, files, Git, and runtime behavior stay unchanged.",
+        "settings.gitCommitComposerPlacementTitle": "Git commit message box",
+        "settings.gitCommitComposerPlacementDesc":
+          "Choose whether the commit message box appears above or below the changed files.",
+        "settings.gitCommitComposerPlacement.bottom": "Bottom",
+        "settings.gitCommitComposerPlacement.top": "Top",
+        "settings.gitCommitComposerPlacementDetail.bottom":
+          "Keep the message box near the commit button at the bottom.",
+        "settings.gitCommitComposerPlacementDetail.top":
+          "Place the message box above the changed-file list.",
         "settings.diagnosticsBundleTitle": "Diagnostics bundle",
         "settings.diagnosticsBundleDesc": "Export a local JSON bundle for performance, startup, runtime, UI, or configuration bug reports.",
         "settings.diagnosticsBundleExport": "Export diagnostics",

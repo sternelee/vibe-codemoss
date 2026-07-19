@@ -212,6 +212,9 @@ const git = {
     generateCommitMessageEngineGemini: "Use Gemini engine",
     generateCommitMessageEngineOpenCode: "Use OpenCode engine",
     generateCommitMessageLastConfig: "Use last configuration",
+    commitComposerPlacementMenuLabel: "Commit box position",
+    commitComposerPlacementBottom: "Bottom",
+    commitComposerPlacementTop: "Top",
     commitMessageRequiresCodex:
       "AI commit message generation requires the Codex CLI. Install it with: npm install -g @openai/codex",
     noMessage: "No message",
