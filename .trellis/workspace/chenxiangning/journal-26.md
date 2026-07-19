@@ -661,3 +661,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1045: 统一并收紧 Composer 发送按钮尺寸
+
+**Date**: 2026-07-20
+**Task**: 统一并收紧 Composer 发送按钮尺寸
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+统一 Home 与 Conversation 的发送/停止按钮 geometry：移除 HomeChat 24px/36px 局部覆盖，将 shared action 收紧为 26px、ArrowUp 14px、stop icon 10px、radius 8px；补充 shared/Home focused CSS contract tests；同步 composer-control-surface 主规范并归档 OpenSpec change。验证 focused Vitest 3 files / 11 tests、scoped ESLint、typecheck、large-file gate 与 OpenSpec strict validation 416/416 均通过；按用户确认未执行全量测试。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ed921d22` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
