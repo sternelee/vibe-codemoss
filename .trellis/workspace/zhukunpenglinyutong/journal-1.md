@@ -1698,3 +1698,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 37: 解决 Kimi 集成分支同步冲突
+
+**Date**: 2026-07-19
+**Task**: 解决 Kimi 集成分支同步冲突
+**Branch**: `chore/bump-version-0.7.5`
+
+### Summary
+
+Rebased chore/bump-version-0.7.5 onto origin, semantically resolved Kimi integration conflicts with remote Gemini-disabled and agent-catalog changes, aligned frontend tests and verification gates.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e33dcaa6` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
