@@ -32,6 +32,32 @@
   box-shadow: var(--desktop-main-shadow, none);
 }
 
+/*
+ * Collapsed sidebar: override tokens on .app itself.
+ * .main reads --desktop-main-radius / shell colors via var(), so this
+ * collapses the 16px corner chip without fighting later shorthand rules.
+ * Home has no MainTopbar to mask the shell, so force shell == main.
+ */
+.app.layout-desktop.sidebar-collapsed {
+  --desktop-main-radius: 0;
+  --desktop-shell-background: var(--desktop-main-background, #ffffff);
+  --desktop-sidebar-background: var(--desktop-main-background, #ffffff);
+  background: var(--desktop-main-background, #ffffff);
+}
+
+.app.layout-desktop.sidebar-collapsed .sidebar {
+  min-width: 0;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+  border: none;
+  padding: 0;
+}
+
+.app.layout-desktop.sidebar-collapsed .sidebar-resizer {
+  display: none;
+}
+
 .app.layout-desktop.solo-mode .main {
   grid-template-columns: minmax(0, 1fr) minmax(270px, var(--right-panel-width, 320px));
 }

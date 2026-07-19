@@ -17,6 +17,7 @@ vi.mock("react-i18next", () => ({
         "common.restore": "Restore",
         "sidebar.showThreadsSidebar": "Show threads sidebar",
         "sidebar.hideThreadsSidebar": "Hide threads sidebar",
+        "sidebar.quickSearch": "Search",
       };
       return translations[key] ?? key;
     },
@@ -32,6 +33,7 @@ vi.mock("../../../utils/platform", () => ({
 }));
 
 import {
+  GlobalSearchTitlebarButton,
   SidebarCollapseButton,
   TitlebarExpandControls,
   type SidebarToggleProps,
@@ -114,5 +116,25 @@ describe("TitlebarExpandControls", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("GlobalSearchTitlebarButton", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  it("renders an icon-only search button and invokes onOpen", () => {
+    const onOpen = vi.fn();
+    const { container } = render(
+      <GlobalSearchTitlebarButton onOpen={onOpen} shortcutLabel="⌘O" />,
+    );
+
+    const button = screen.getByRole("button", { name: "Search (⌘O)" });
+    expect(button.textContent).toBe("");
+    expect(container.querySelector("svg")).toBeTruthy();
+
+    fireEvent.click(button);
+    expect(onOpen).toHaveBeenCalledTimes(1);
   });
 });

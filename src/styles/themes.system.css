@@ -191,6 +191,12 @@
     background-color: #ffffff;
     color: #18181b;
   }
+
+  :root:not([data-theme]) .app.layout-desktop.sidebar-collapsed {
+    --desktop-main-radius: 0;
+    --desktop-shell-background: #ffffff;
+    --desktop-sidebar-background: #ffffff;
+  }
 }
 
 /* 跟随系统 - 暗色模式 */

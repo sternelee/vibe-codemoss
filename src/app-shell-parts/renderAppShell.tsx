@@ -5,6 +5,7 @@ import { AppModals } from "../features/app/components/AppModals";
 import { LockScreenOverlay } from "../features/app/components/LockScreenOverlay";
 import { RuntimeConsoleDock } from "../features/app/components/RuntimeConsoleDock";
 import {
+  GlobalSearchTitlebarButton,
   SidebarCollapseButton,
   TitlebarExpandControls,
 } from "../features/layout/components/SidebarToggleControls";
@@ -13,6 +14,7 @@ import {
   shouldShowMainTopbarSidebarToggle,
   shouldShowSidebarTopbarSidebarToggle,
 } from "../features/layout/utils/sidebarTogglePlacement";
+import { formatShortcutForPlatform } from "../utils/shortcuts";
 import {
   adaptAppShellLegacyFlatContext,
   flattenSelectedAppShellDomainContexts,
@@ -174,6 +176,7 @@ export function renderAppShell(ctx: RenderAppShellContext) {
     handleRenamePromptChange,
     handleRenamePromptConfirm,
     handleRevealActiveWorkspace,
+    handleOpenSearchPalette,
     handleSearchPaletteMoveSelection,
     handleSelectDiffForPanel,
     handleSelectSearchResult,
@@ -422,6 +425,15 @@ export function renderAppShell(ctx: RenderAppShellContext) {
       }`}
       data-tauri-drag-region="false"
     >
+      {isMacDesktop ? (
+        <GlobalSearchTitlebarButton
+          onOpen={handleOpenSearchPalette}
+          shortcutLabel={formatShortcutForPlatform(
+            appSettings.toggleGlobalSearchShortcut,
+            true,
+          )}
+        />
+      ) : null}
       <SidebarCollapseButton {...sidebarToggleProps} />
     </div>
   ) : null;

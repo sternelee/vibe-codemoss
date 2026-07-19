@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { convertFileSrc } from '@tauri-apps/api/core';
+import { ImagePreviewOverlay } from '../../../../components/common/ImagePreviewOverlay';
 import type { Attachment, AttachmentListProps } from './types';
 import { isImageAttachment } from './types';
 
@@ -130,29 +131,14 @@ export const AttachmentList = ({
         })}
       </div>
 
-      {/* Image preview dialog */}
-      {previewImage && (
-        <div
-          className="image-preview-overlay"
-          onClick={closePreview}
-          onKeyDown={(e) => e.key === 'Escape' && closePreview()}
-          tabIndex={0}
-        >
-          <img
-            className="image-preview-content"
-            src={getAttachmentPreviewSrc(previewImage)}
-            alt={previewImage.fileName}
-            onClick={(e) => e.stopPropagation()}
-          />
-          <button
-            className="image-preview-close"
-            onClick={closePreview}
-            title={t('chat.closePreview')}
-          >
-            ×
-          </button>
-        </div>
-      )}
+      {/* Portal to body — escapes .home-chat-shell / sidebar stacking contexts */}
+      {previewImage ? (
+        <ImagePreviewOverlay
+          src={getAttachmentPreviewSrc(previewImage)}
+          alt={previewImage.fileName}
+          onClose={closePreview}
+        />
+      ) : null}
     </>
   );
 };

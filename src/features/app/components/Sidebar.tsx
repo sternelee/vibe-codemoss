@@ -42,6 +42,7 @@ import { useSidebarScrollFade } from "../hooks/useSidebarScrollFade";
 import { useThreadRows } from "../hooks/useThreadRows";
 import { isDefaultWorkspacePath } from "../../workspaces/utils/defaultWorkspace";
 import { formatShortcutForPlatform, isMacPlatform } from "../../../utils/shortcuts";
+import { isMacPlatform as isMacDesktopHost } from "../../../utils/platform";
 import { formatRelativeTimeShort } from "../../../utils/time";
 import { EngineIcon } from "../../engine/components/EngineIcon";
 import type {
@@ -318,6 +319,10 @@ function SidebarImpl({
   const { t } = useTranslation();
   const quickSearchLabel = t("sidebar.quickSearch");
   const isMac = isMacPlatform();
+  // Tauri macOS hosts move global search into the sidebar titlebar; keep the
+  // primary-nav entry on Windows / non-Tauri previews where that topbar slot is
+  // hidden or unavailable.
+  const showPrimaryNavGlobalSearch = !isMacDesktopHost();
   const quickChatShortcutLabel = useMemo(
     () => formatShortcutForPlatform(openChatShortcut, isMac),
     [isMac, openChatShortcut],
@@ -2053,23 +2058,25 @@ function SidebarImpl({
               <Puzzle className="sidebar-primary-nav-icon" aria-hidden size={20} strokeWidth={1.8} />
               <span className="sidebar-primary-nav-text">{t("sidebar.plugins")}</span>
             </button>
-            <button
-              type="button"
-              className="sidebar-primary-nav-item sidebar-primary-nav-subitem"
-              onClick={onOpenGlobalSearch}
-              title={`${quickSearchLabel} (${quickSearchShortcutLabel})`}
-              aria-label={quickSearchLabel}
-              data-tauri-drag-region="false"
-            >
-              <svg className="sidebar-primary-nav-icon" aria-hidden width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M17.2888 17.2899L13.7734 13.7745" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M9.19094 15.67C12.7697 15.67 15.6709 12.7688 15.6709 9.18996C15.6709 5.61116 12.7697 2.70996 9.19094 2.70996C5.61213 2.70996 2.71094 5.61116 2.71094 9.18996C2.71094 12.7688 5.61213 15.67 9.19094 15.67Z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              <span className="sidebar-primary-nav-text">{quickSearchLabel}</span>
-              <span className="sidebar-primary-nav-shortcut" aria-hidden>
-                {quickSearchShortcutLabel}
-              </span>
-            </button>
+            {showPrimaryNavGlobalSearch ? (
+              <button
+                type="button"
+                className="sidebar-primary-nav-item sidebar-primary-nav-subitem"
+                onClick={onOpenGlobalSearch}
+                title={`${quickSearchLabel} (${quickSearchShortcutLabel})`}
+                aria-label={quickSearchLabel}
+                data-tauri-drag-region="false"
+              >
+                <svg className="sidebar-primary-nav-icon" aria-hidden width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M17.2888 17.2899L13.7734 13.7745" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M9.19094 15.67C12.7697 15.67 15.6709 12.7688 15.6709 9.18996C15.6709 5.61116 12.7697 2.70996 9.19094 2.70996C5.61213 2.70996 2.71094 5.61116 2.71094 9.18996C2.71094 12.7688 5.61213 15.67 9.19094 15.67Z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <span className="sidebar-primary-nav-text">{quickSearchLabel}</span>
+                <span className="sidebar-primary-nav-shortcut" aria-hidden>
+                  {quickSearchShortcutLabel}
+                </span>
+              </button>
+            ) : null}
           </nav>
           <ScrollArea
             className={`sidebar-content-column${scrollFade.top ? " fade-top" : ""}${

@@ -158,6 +158,14 @@
   --dropdown-text-color: #0d0d0d;
 }
 
+/* Collapsed sidebar: zero floating-main radius + shell contrast (home has
+ * no topbar to hide the #ededf0 corner chip under the traffic lights). */
+:root[data-theme="light"] .app.layout-desktop.sidebar-collapsed {
+  --desktop-main-radius: 0;
+  --desktop-shell-background: #ffffff;
+  --desktop-sidebar-background: #ffffff;
+}
+
 /* Kanban - softer borders in light mode */
 :root[data-theme="light"] .kanban-column {
   border-right-color: rgba(24, 24, 27, 0.08);
