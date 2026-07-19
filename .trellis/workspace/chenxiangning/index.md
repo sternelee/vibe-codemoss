@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-26.md`
-- **Total Sessions**: 1042
+- **Total Sessions**: 1043
 - **Last Active**: 2026-07-20
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-26.md` | ~575 | Active |
+| `journal-26.md` | ~617 | Active |
 | `journal-25.md` | ~1976 | Archived |
 | `journal-24.md` | ~1994 | Archived |
 | `journal-23.md` | ~1965 | Archived |
@@ -54,6 +54,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 1043 | 2026-07-20 | 统一 Codex 上下文用量指示器外观 | `8b9ce467` | `feature/v-0.7.4` |
 | 1042 | 2026-07-20 | 幕布底部便签捕获入口 | `973e2c33` | `feature/v-0.7.4` |
 | 1041 | 2026-07-19 | 修复 Git 多仓长列表显示断层 | `9b925d8f` | `feature/v-0.7.4` |
 | 1040 | 2026-07-19 | 同步上游 v0.7.5 并完成语义合并验证 | `e706b2df` | `feature/v-0.7.4` |

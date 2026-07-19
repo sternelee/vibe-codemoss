@@ -573,3 +573,45 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1043: 统一 Codex 上下文用量指示器外观
+
+**Date**: 2026-07-20
+**Task**: 统一 Codex 上下文用量指示器外观
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+将 Codex context usage 指示器迁移到 Claude Code 相同的 Composer footer 位置，并统一圆环与百分比外观，保留原有 compaction 逻辑。
+
+### Main Changes
+
+| 项目 | 结果 |
+|---|---|
+| Composer placement | Codex dual context summary 迁移到输入框下方右侧 canonical footer usage slot |
+| Visual primitive | Claude Code 与 Codex 共用 ContextUsageIcon，统一 percentage-first、ring-second 外观 |
+| Behavior boundary | 保留 tooltip、manual/auto compaction callbacks 与 lifecycle semantics |
+| Cleanup | 移除 ChatInputBox / adapter 已失效的 dual usage presentation prop chain |
+| Specs | 同步 composer-context-dual-view 主规范并归档 OpenSpec change |
+
+验证：focused Vitest 101 tests passed；npm run lint、npm run typecheck、OpenSpec strict validation、git diff check、large-file policy passed。全量 npm run test 在无关的 SettingsView Client UI visibility 文案断言处失败，本次未修改 Settings 代码。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8b9ce467` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
