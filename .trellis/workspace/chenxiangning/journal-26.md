@@ -441,3 +441,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1039: 来源感知便签采集与工作台闭环
+
+**Date**: 2026-07-19
+**Task**: 来源感知便签采集与工作台闭环
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+完成代码与对话幕布的局部/整体语义采集、来源文件链接及精确行区间恢复、Markdown 代码渲染、按需新增编辑器、工作台最大化与左侧替换布局；补齐前后端映射、国际化、回归测试、OpenSpec 验证和提交前收口。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `dc86a0f2` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
