@@ -540,3 +540,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1042: 幕布底部便签捕获入口
+
+**Date**: 2026-07-20
+**Task**: 幕布底部便签捕获入口
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+在最新 final assistant action group 最左侧增加便签捕获按钮，复用现有右键 conversation capture menu 与 semantic thread draft；保留原右键及历史边界行为，校准 Note/History 图标尺寸，补齐 focused regression 与 OpenSpec contract。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `973e2c33` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
