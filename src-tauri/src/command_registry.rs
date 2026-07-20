@@ -252,6 +252,7 @@ pub(crate) fn invoke_handler(
         crate::git::get_git_remote,
         crate::git::get_git_pr_workflow_defaults,
         crate::git::create_git_pr_workflow,
+        crate::git::generate_pull_request_content,
         crate::git::stage_git_file,
         crate::git::stage_git_all,
         crate::git::unstage_git_file,

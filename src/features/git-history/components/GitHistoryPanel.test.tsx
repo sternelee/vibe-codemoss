@@ -263,6 +263,12 @@ vi.mock("../../../services/tauri", () => ({
       },
     ],
   })),
+  generatePullRequestContent: vi.fn(async () => ({
+    title: "feat(pr): generated title",
+    body: "## Background\n- generated body",
+    engine: "codex",
+    language: "zh",
+  })),
   listGitRoots: vi.fn(async () => []),
   listGitBranches: vi.fn(async () => ({
     branches: [],
@@ -639,6 +645,100 @@ describe("GitHistoryPanel interactions", () => {
         expect(screen.getByText("git.historyCreatePrResultSuccess")).toBeTruthy();
         expect(screen.getByText("git.historyCreatePrCopyLink")).toBeTruthy();
       });
+  });
+
+  it("generates title and body from the same remote-tracking range as PR preview", async () => {
+    render(<GitHistoryPanel workspace={workspace as never} />);
+    await clickReadyCreatePrAction();
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "git.historyCreatePrDialogTitle",
+    });
+    const generateButtons = within(dialog).getAllByRole<HTMLButtonElement>(
+      "button",
+      { name: "git.historyGeneratePrTitleBody" },
+    );
+    expect(generateButtons).toHaveLength(1);
+    expect(
+      within(dialog).getByRole("textbox", {
+        name: "git.historyCreatePrFieldTitle",
+      }),
+    ).toBeTruthy();
+    expect(
+      within(dialog).getByRole("textbox", {
+        name: "git.historyCreatePrFieldBody",
+      }),
+    ).toBeTruthy();
+    await waitFor(() => expect(generateButtons[0]?.disabled).toBe(false));
+
+    fireEvent.click(generateButtons[0]!);
+    fireEvent.click(
+      await screen.findByRole("menuitem", {
+        name: "git.historyGeneratePrMenuCodex",
+      }),
+    );
+    fireEvent.click(
+      await screen.findByRole("menuitem", {
+        name: "git.historyGeneratePrMenuZh",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(tauriService.generatePullRequestContent).toHaveBeenCalledWith(
+        "w1",
+        "zh",
+        "codex",
+        "upstream/main",
+        "codex/feat-gitv9-v0.1.8",
+        expect.any(Function),
+      );
+      expect(screen.getByDisplayValue("feat(pr): generated title")).toBeTruthy();
+      expect(
+        dialog.querySelector<HTMLTextAreaElement>(
+          ".git-history-create-pr-textarea",
+        )?.value,
+      ).toBe("## Background\n- generated body");
+    });
+
+    const confirmButton = within(dialog)
+      .getByText("git.historyCreatePrAction")
+      .closest("button");
+    expect(confirmButton).toBeTruthy();
+    await waitFor(() => expect(confirmButton?.disabled).toBe(false));
+    fireEvent.click(confirmButton as HTMLElement);
+    await waitFor(() => {
+      expect(tauriService.createGitPrWorkflow).toHaveBeenCalledWith(
+        "w1",
+        expect.objectContaining({
+          title: "feat(pr): generated title",
+          body: "## Background\n- generated body",
+        }),
+      );
+    });
+  });
+
+  it("disables PR generation until both preview refs are available", async () => {
+    vi.mocked(tauriService.getGitPrWorkflowDefaults).mockResolvedValueOnce({
+      upstreamRepo: "chenxiangning/mossx",
+      baseBranch: "main",
+      headOwner: "chenxiangning",
+      headBranch: "",
+      title: "fix(git): stabilize",
+      body: "body",
+      commentBody: "@maintainer please review",
+      canCreate: true,
+      disabledReason: null,
+    });
+
+    render(<GitHistoryPanel workspace={workspace as never} />);
+    await clickReadyCreatePrAction();
+    const generateButton = await screen.findByRole<HTMLButtonElement>("button", {
+      name: "git.historyGeneratePrTitleBody",
+    });
+
+    await waitFor(() => expect(generateButton.disabled).toBe(true));
+    expect(generateButton.title).toBe("git.historyGeneratePrMissingBaseOrHead");
+    expect(tauriService.generatePullRequestContent).not.toHaveBeenCalled();
   });
 
   it("reconfirms create-pr when the evaluated range fingerprint changes", async () => {

@@ -82,6 +82,10 @@ export type {
   CommitMessageLanguage,
   CommitMessageRepositorySelection,
 } from "./tauri/commitMessage";
+export { generatePullRequestContent } from "./tauri/pullRequestContent";
+export type {
+  PullRequestGeneratedContent,
+} from "./tauri/pullRequestContent";
 export {
   generateCommitMessage,
   generateCommitMessageWithEngine,

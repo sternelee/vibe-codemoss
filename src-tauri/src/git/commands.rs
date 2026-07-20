@@ -2181,3 +2181,33 @@ pub(crate) async fn get_github_pull_request_comments(
 
     Ok(comments)
 }
+
+#[tauri::command]
+pub(crate) async fn generate_pull_request_content(
+    workspace_id: String,
+    language: Option<String>,
+    engine: Option<String>,
+    base_branch: String,
+    head_branch: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<crate::types::PullRequestGeneratedContent, String> {
+    if should_forward_git_remote(&state).await {
+        return Err("PR content generation is unavailable in remote mode".to_string());
+    }
+    let resolved_engine = engine
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("codex");
+    super::pull_request_content::generate_pull_request_content_impl(
+        &workspace_id,
+        language.as_deref(),
+        resolved_engine,
+        &base_branch,
+        &head_branch,
+        &state,
+        &app,
+    )
+    .await
+}

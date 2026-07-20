@@ -855,11 +855,7 @@
 
 .sidebar-workspace-menu,
 .renderer-context-menu {
-  --sidebar-floating-menu-bg: color-mix(
-    in srgb,
-    var(--surface-popover, var(--surface-elevated, var(--surface-panel))) 96%,
-    var(--surface-elevated, var(--surface-panel)) 4%
-  );
+  --sidebar-floating-menu-bg: var(--surface-sidebar-opaque);
   position: fixed;
   min-width: 256px;
   max-width: min(332px, calc(100vw - 24px));
@@ -872,7 +868,6 @@
   box-shadow:
     0 12px 30px rgba(0, 0, 0, 0.18),
     0 1px 4px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(14px);
 }
 
 .renderer-context-menu-flyout {
