@@ -93,6 +93,11 @@ Auto-follow, scroll restoration, and message jump work SHALL be scheduled so it 
 - **THEN** throttled auto-follow MUST respect the user's manual scroll intent
 - **AND** performance optimization MUST NOT force the viewport back to the live row unless the user re-enables follow behavior
 
+#### Scenario: static history updates do not trigger live auto-follow
+- **WHEN** a conversation receives or re-renders static history rows while no turn is working and no assistant finalization is pending
+- **THEN** live auto-follow MUST NOT call programmatic bottom scroll solely because those history rows changed
+- **AND** live auto-follow MAY resume when active work or assistant finalization is present
+
 ### Requirement: Timeline Virtualization SHALL Account For Render Weight
 
 Timeline virtualization SHALL consider render weight in addition to row count so image-heavy or long-content conversations can bound renderer memory and layout work before reaching the large-row threshold.
@@ -160,3 +165,44 @@ Session row derived data such as processing state, unread state, background acti
 - **WHEN** module or workspace switch performance evidence is collected
 - **THEN** the report MUST distinguish selection latency, list mount/commit cost, and row projection cost where available
 - **AND** proxy evidence MUST remain labeled as proxy unless collected from real runtime timing
+
+### Requirement: Conversation Timeline Virtualization MUST Account For Heavy Render Weight
+
+Conversation timeline virtualization MUST be triggered by accumulated render weight as well as row count so short but heavy conversations remain bounded.
+
+#### Scenario: heavy rows virtualize before the row-count threshold
+- **WHEN** a conversation has fewer rows than the ordinary long-list threshold
+- **AND** those rows include large Markdown tables, long code fences, tool-call raw payloads, batch file-read cards, diffs, images, or anchor-heavy surfaces
+- **THEN** the timeline MAY enable virtualization or an equivalent bounded projection based on documented render weight
+- **AND** row identity, ordering, selection, copy actions, and anchor navigation MUST continue to derive from canonical conversation state
+
+#### Scenario: non-visible heavy details stay bounded
+- **WHEN** virtualization is active for a heavy restored conversation
+- **THEN** non-visible heavy row details MUST remain summarized, placeholder-rendered, or unmounted outside the viewport plus documented overscan
+- **AND** the number of hydrated heavy details MUST remain bounded by viewport, overscan, active row, selected row, and anchor target requirements
+
+#### Scenario: scroll restoration survives delayed hydration
+- **WHEN** a restored heavy conversation reopens at a saved scroll position
+- **AND** heavy details hydrate after the initial paint
+- **THEN** scroll restoration MUST remain stable within the documented tolerance
+- **AND** hydration MUST trigger bounded measurement updates rather than a full timeline rebuild loop
+
+### Requirement: Conversation History Open MUST Be Selected-Conversation On Demand
+
+Opening one history conversation MUST avoid synchronous all-history rendering and MUST keep first interaction bounded to selected conversation metadata plus viewport-bounded rows.
+
+#### Scenario: workspace history catalog does not hydrate every conversation
+- **WHEN** a workspace has many historical conversations
+- **AND** the user opens one selected conversation
+- **THEN** conversation catalog/list metadata MAY be loaded for navigation
+- **AND** full message payload rendering, heavy Markdown hydration, tool detail hydration, and diff detail hydration for unselected conversations MUST NOT run synchronously before the selected conversation becomes interactive
+
+#### Scenario: selected conversation details hydrate by demand
+- **WHEN** the selected conversation contains many heavy rows
+- **THEN** only rows inside viewport, overscan, active row, selected row, anchor target, or explicit expansion budget MAY hydrate rich details before first interaction
+- **AND** hidden heavy details MUST remain summarized, placeholder-rendered, or unmounted until demanded
+
+#### Scenario: loader contract limitations are made explicit
+- **WHEN** an existing history loader must parse more than selected metadata before it can identify the selected conversation
+- **THEN** the implementation MUST record evidence for that coupling
+- **AND** any required loader pagination or catalog contract expansion MUST be split into a follow-up change rather than hidden inside renderer code

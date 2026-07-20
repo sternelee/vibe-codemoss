@@ -1,26 +1,22 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@/components/ui/tabs";
 import type {
   AppSettings,
-  CliInstallAction,
   CliInstallEngine,
-  CliInstallPlan,
-  CliInstallProgressEvent,
-  CliInstallResult,
   CodexDoctorResult,
   CodexLaunchProfilePreview,
   WorkspaceInfo,
   WorkspaceSettings,
 } from "@/types";
-import {
-  getCliInstallPlan,
-  previewCodexLaunchProfile,
-  runCliInstaller,
-} from "@/services/tauri";
-import { subscribeCliInstallerEvents } from "@/services/events";
+import { previewCodexLaunchProfile } from "@/services/tauri";
 import { ComputerUseStatusCard } from "@/features/computer-use/components/ComputerUseStatusCard";
 import { ENABLE_COMPUTER_USE_BRIDGE } from "@/features/computer-use/constants";
+import {
+  resolveInstallerAction,
+  useCliInstallLifecycle,
+} from "@/features/settings/hooks/useCliInstallLifecycle";
+import { CliInstallerPanel } from "@/features/settings/components/CliInstallerPanel";
 
 type DoctorState = {
   status: "idle" | "running" | "done" | "error";
@@ -40,6 +36,13 @@ type CodexSectionProps = {
   handleSaveClaudeSettings: () => Promise<void>;
   handleRunClaudeDoctor: () => Promise<void>;
   claudeDoctorState: DoctorState;
+  kimiPathDraft: string;
+  setKimiPathDraft: (value: string) => void;
+  kimiDirty: boolean;
+  handleBrowseKimi: () => Promise<void>;
+  handleSaveKimiSettings: () => Promise<void>;
+  handleRunKimiDoctor: () => Promise<void>;
+  kimiDoctorState: DoctorState;
   codexPathDraft: string;
   setCodexPathDraft: (value: string) => void;
   codexArgsDraft: string;
@@ -72,35 +75,13 @@ type CodexSectionProps = {
   ) => Promise<void>;
 };
 
-type InstallerState = {
-  status: "idle" | "planning" | "ready" | "running" | "done" | "error";
-  engine: CliInstallEngine | null;
-  action: CliInstallAction | null;
-  plan: CliInstallPlan | null;
-  result: CliInstallResult | null;
-  error: string | null;
-  progressRunId: string | null;
-  logLines: InstallerLogLine[];
-  startedAtMs: number | null;
-  lastEventAtMs: number | null;
-};
-
-type InstallerLogLine = {
-  id: string;
-  phase: CliInstallProgressEvent["phase"];
-  stream: CliInstallProgressEvent["stream"];
-  message: string;
-  receivedAtMs: number;
-};
-
 type PreviewState = {
   status: "idle" | "running" | "done";
   result: CodexLaunchProfilePreview | null;
   error: string | null;
 };
 
-const MAX_INSTALLER_LOG_LINES = 120;
-type CliValidationTab = "codex" | "claude";
+type CliValidationTab = "codex" | "claude" | "kimi";
 
 // Deprecated: Gemini CLI and OpenCode CLI validation entries are intentionally hidden.
 const DEPRECATED_CLI_VALIDATION_ENGINES = new Set(["gemini", "opencode"]);
@@ -434,12 +415,6 @@ function LaunchPreviewCard({ t, state }: LaunchPreviewCardProps) {
   );
 }
 
-function resolveInstallerAction(
-  doctorResult: CodexDoctorResult | null,
-): CliInstallAction {
-  return doctorResult?.ok ? "updateLatest" : "installLatest";
-}
-
 function normalizeErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -447,38 +422,6 @@ function normalizeErrorMessage(error: unknown): string {
 function normalizeDraftValue(value: string): string | null {
   const trimmed = value.trim();
   return trimmed ? trimmed : null;
-}
-
-function createInstallerRunId(engine: CliInstallEngine): string {
-  return `${engine}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function formatDurationMs(durationMs: number | null): string {
-  if (durationMs === null) {
-    return "-";
-  }
-  if (durationMs < 1000) {
-    return `${durationMs}ms`;
-  }
-  return `${Math.round(durationMs / 100) / 10}s`;
-}
-
-function appendInstallerLog(
-  lines: InstallerLogLine[],
-  event: CliInstallProgressEvent,
-): InstallerLogLine[] {
-  if (!event.message && event.phase !== "finished") {
-    return lines;
-  }
-  const message = event.message ?? `exitCode=${event.exitCode ?? "unknown"}`;
-  const nextLine: InstallerLogLine = {
-    id: `${event.runId}-${event.phase}-${Date.now()}-${lines.length}`,
-    phase: event.phase,
-    stream: event.stream,
-    message,
-    receivedAtMs: Date.now(),
-  };
-  return [...lines, nextLine].slice(-MAX_INSTALLER_LOG_LINES);
 }
 
 export function CodexSection({
@@ -493,6 +436,13 @@ export function CodexSection({
   handleSaveClaudeSettings,
   handleRunClaudeDoctor,
   claudeDoctorState,
+  kimiPathDraft,
+  setKimiPathDraft,
+  kimiDirty,
+  handleBrowseKimi,
+  handleSaveKimiSettings,
+  handleRunKimiDoctor,
+  kimiDoctorState,
   codexPathDraft,
   setCodexPathDraft,
   codexArgsDraft,
@@ -516,20 +466,16 @@ export function CodexSection({
   onUpdateWorkspaceSettings,
 }: CodexSectionProps) {
   const [activeTab, setActiveTab] = useState<CliValidationTab>("codex");
-  const [installerState, setInstallerState] = useState<InstallerState>({
-    status: "idle",
-    engine: null,
-    action: null,
-    plan: null,
-    result: null,
-    error: null,
-    progressRunId: null,
-    logLines: [],
-    startedAtMs: null,
-    lastEventAtMs: null,
+  const {
+    installerState,
+    installerNowMs,
+    isBusy: installerBusy,
+    requestInstallPlan: requestLifecyclePlan,
+    confirmInstallRun,
+    cancelInstaller,
+  } = useCliInstallLifecycle({
+    onDoctorResult: onInstallerDoctorResult,
   });
-  const [installerNowMs, setInstallerNowMs] = useState(() => Date.now());
-  const installPlanRequestSeqRef = useRef(0);
   const [globalPreviewState, setGlobalPreviewState] = useState<PreviewState>({
     status: "idle",
     result: null,
@@ -602,21 +548,6 @@ export function CodexSection({
         : t("settings.codexWorkspaceArgsDefault");
 
   useEffect(() => {
-    return subscribeCliInstallerEvents((event) => {
-      setInstallerState((current) => {
-        if (current.progressRunId !== event.runId) {
-          return current;
-        }
-        return {
-          ...current,
-          logLines: appendInstallerLog(current.logLines, event),
-          lastEventAtMs: Date.now(),
-        };
-      });
-    });
-  }, []);
-
-  useEffect(() => {
     if (workspaces.length === 0) {
       setSelectedWorkspaceId(null);
       return;
@@ -636,112 +567,13 @@ export function CodexSection({
     setWorkspaceSaveState({ status: "idle", message: null });
   }, [selectedWorkspace?.id, selectedWorkspace?.codex_bin, selectedWorkspace?.settings.codexArgs]);
 
-  useEffect(() => {
-    if (installerState.status !== "running") {
-      return;
-    }
-    const interval = window.setInterval(() => {
-      setInstallerNowMs(Date.now());
-    }, 1_000);
-    return () => {
-      window.clearInterval(interval);
-    };
-  }, [installerState.status]);
-
   const requestInstallPlan = async (
     engine: CliInstallEngine,
     doctorResult: CodexDoctorResult | null,
+    actionOverride?: "installLatest" | "updateLatest" | "uninstall",
   ) => {
-    const action = resolveInstallerAction(doctorResult);
-    const requestSeq = installPlanRequestSeqRef.current + 1;
-    installPlanRequestSeqRef.current = requestSeq;
-    setInstallerState({
-      status: "planning",
-      engine,
-      action,
-      plan: null,
-      result: null,
-      error: null,
-      progressRunId: null,
-      logLines: [],
-      startedAtMs: null,
-      lastEventAtMs: null,
-    });
-    try {
-      const plan = await getCliInstallPlan(engine, action, "npmGlobal");
-      if (installPlanRequestSeqRef.current !== requestSeq) {
-        return;
-      }
-      setInstallerState({
-        status: "ready",
-        engine,
-        action,
-        plan,
-        result: null,
-        error: null,
-        progressRunId: null,
-        logLines: [],
-        startedAtMs: null,
-        lastEventAtMs: null,
-      });
-    } catch (error) {
-      if (installPlanRequestSeqRef.current !== requestSeq) {
-        return;
-      }
-      setInstallerState({
-        status: "error",
-        engine,
-        action,
-        plan: null,
-        result: null,
-        error: normalizeErrorMessage(error),
-        progressRunId: null,
-        logLines: [],
-        startedAtMs: null,
-        lastEventAtMs: null,
-      });
-    }
-  };
-
-  const confirmInstallRun = async () => {
-    const { engine, action, plan } = installerState;
-    if (!engine || !action || !plan || !plan.canRun) {
-      return;
-    }
-    const runId = createInstallerRunId(engine);
-    const startedAtMs = Date.now();
-    setInstallerNowMs(startedAtMs);
-    setInstallerState((current) => ({
-      ...current,
-      status: "running",
-      error: null,
-      result: null,
-      progressRunId: runId,
-      logLines: [],
-      startedAtMs,
-      lastEventAtMs: startedAtMs,
-    }));
-    try {
-      const result = await runCliInstaller(
-        engine,
-        action,
-        plan.strategy,
-        runId,
-      );
-      onInstallerDoctorResult(engine, result.doctorResult);
-      setInstallerState((current) => ({
-        ...current,
-        status: "done",
-        result,
-        error: null,
-      }));
-    } catch (error) {
-      setInstallerState((current) => ({
-        ...current,
-        status: "error",
-        error: normalizeErrorMessage(error),
-      }));
-    }
+    const action = actionOverride ?? resolveInstallerAction(doctorResult);
+    await requestLifecyclePlan(engine, action);
   };
 
   const handlePreviewGlobalLaunch = async () => {
@@ -911,7 +743,9 @@ export function CodexSection({
             setActiveTab("codex");
             return;
           }
-          setActiveTab(value === "claude" ? "claude" : "codex");
+          setActiveTab(
+            value === "claude" ? "claude" : value === "kimi" ? "kimi" : "codex",
+          );
         }}
       >
         <TabsList>
@@ -919,6 +753,7 @@ export function CodexSection({
           <TabsTab value="claude">
             {t("settings.cliValidationTabClaudeCode")}
           </TabsTab>
+          <TabsTab value="kimi">{t("settings.cliValidationTabKimiCli")}</TabsTab>
         </TabsList>
 
         <TabsPanel value="codex">
@@ -1031,10 +866,7 @@ export function CodexSection({
                 onClick={() => {
                   void requestInstallPlan("codex", doctorState.result);
                 }}
-                disabled={
-                  installerState.status === "planning" ||
-                  installerState.status === "running"
-                }
+                disabled={installerBusy}
               >
                 {resolveInstallerAction(doctorState.result) === "installLatest"
                   ? t("settings.cliInstallLatest")
@@ -1230,10 +1062,7 @@ export function CodexSection({
                 onClick={() => {
                   void requestInstallPlan("claude", claudeDoctorState.result);
                 }}
-                disabled={
-                  installerState.status === "planning" ||
-                  installerState.status === "running"
-                }
+                disabled={installerBusy}
               >
                 {resolveInstallerAction(claudeDoctorState.result) ===
                 "installLatest"
@@ -1252,166 +1081,99 @@ export function CodexSection({
           </div>
         </TabsPanel>
 
+        <TabsPanel value="kimi">
+          <div className="settings-field">
+            <label className="settings-field-label" htmlFor="kimi-path">
+              {t("settings.defaultKimiPath")}
+            </label>
+            <div className="settings-field-row">
+              <input
+                id="kimi-path"
+                className="settings-input"
+                value={kimiPathDraft}
+                placeholder={t("settings.kimiPlaceholder")}
+                onChange={(event) => setKimiPathDraft(event.target.value)}
+              />
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => void handleBrowseKimi()}
+              >
+                {t("settings.browse")}
+              </button>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => setKimiPathDraft("")}
+              >
+                {t("settings.usePath")}
+              </button>
+            </div>
+            <div className="settings-help">
+              {t("settings.pathResolutionDesc")}
+            </div>
+            <div className="settings-field-actions">
+              {kimiDirty ? (
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={() => {
+                    void handleSaveKimiSettings();
+                  }}
+                  disabled={isSavingSettings}
+                >
+                  {isSavingSettings ? t("settings.saving") : t("common.save")}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="ghost settings-button-compact"
+                onClick={() => {
+                  void handleRunKimiDoctor();
+                }}
+                disabled={kimiDoctorState.status === "running"}
+              >
+                <Stethoscope aria-hidden />
+                {kimiDoctorState.status === "running"
+                  ? t("settings.running")
+                  : t("settings.runKimiDoctor")}
+              </button>
+              <button
+                type="button"
+                className="ghost settings-button-compact"
+                onClick={() => {
+                  void requestInstallPlan("kimi", kimiDoctorState.result);
+                }}
+                disabled={installerBusy}
+              >
+                {resolveInstallerAction(kimiDoctorState.result) ===
+                "installLatest"
+                  ? t("settings.cliInstallLatest")
+                  : t("settings.cliUpdateLatest")}
+              </button>
+            </div>
+
+            <DoctorResultCard
+              t={t}
+              state={kimiDoctorState}
+              successTitleKey="settings.kimiLooksGood"
+              errorTitleKey="settings.kimiIssueDetected"
+              showAppServer={false}
+            />
+          </div>
+        </TabsPanel>
+
       </Tabs>
 
-      {installerState.status !== "idle" ? (
-        <div className="settings-doctor">
-          <div className="settings-doctor-title">
-            {t("settings.cliInstallerTitle")}
-          </div>
-          <div className="settings-doctor-body">
-            {installerState.status === "planning" ? (
-              <div>{t("settings.cliInstallerPlanning")}</div>
-            ) : null}
-            {installerState.plan ? (
-              <>
-                <div>
-                  <strong>{t("settings.cliInstallerEngine")}:</strong>{" "}
-                  {installerState.plan.engine}
-                </div>
-                <div>
-                  <strong>{t("settings.cliInstallerAction")}:</strong>{" "}
-                  {installerState.plan.action}
-                </div>
-                <div>
-                  <strong>{t("settings.cliInstallerBackend")}:</strong>{" "}
-                  {installerState.plan.backend}
-                </div>
-                <div>
-                  <strong>{t("settings.cliInstallerPlatform")}:</strong>{" "}
-                  {installerState.plan.platform}
-                </div>
-                <div>
-                  <strong>{t("settings.cliInstallerCommand")}:</strong>{" "}
-                  <code>{installerState.plan.commandPreview.join(" ")}</code>
-                </div>
-                {installerState.plan.warnings.map((warning) => (
-                  <div key={warning}>{warning}</div>
-                ))}
-                {installerState.plan.blockers.map((blocker) => (
-                  <div key={blocker}>{blocker}</div>
-                ))}
-                {installerState.plan.manualFallback ? (
-                  <div>
-                    <strong>{t("settings.cliInstallerManualFallback")}:</strong>{" "}
-                    <code>{installerState.plan.manualFallback}</code>
-                  </div>
-                ) : null}
-                <div className="settings-field-actions">
-                  <button
-                    type="button"
-                    className="primary"
-                    disabled={
-                      !installerState.plan.canRun ||
-                      installerState.status === "running"
-                    }
-                    onClick={() => {
-                      void confirmInstallRun();
-                    }}
-                  >
-                    {installerState.status === "running"
-                      ? t("settings.cliInstallerRunning")
-                      : t("settings.cliInstallerConfirm")}
-                  </button>
-                  <button
-                    type="button"
-                    className="ghost"
-                    disabled={installerState.status === "running"}
-                    onClick={() => {
-                      installPlanRequestSeqRef.current += 1;
-                      setInstallerState({
-                        status: "idle",
-                        engine: null,
-                        action: null,
-                        plan: null,
-                        result: null,
-                        error: null,
-                        progressRunId: null,
-                        logLines: [],
-                        startedAtMs: null,
-                        lastEventAtMs: null,
-                      });
-                    }}
-                  >
-                    {t("common.cancel")}
-                  </button>
-                </div>
-              </>
-            ) : null}
-            {installerState.status === "running" ||
-            installerState.logLines.length > 0 ? (
-              <div className="settings-installer-log">
-                <div className="settings-installer-log-meta">
-                  <span>{t("settings.cliInstallerLiveLog")}</span>
-                  <span>
-                    {t("settings.cliInstallerElapsed")}{" "}
-                    {formatDurationMs(
-                      installerState.startedAtMs
-                        ? (installerState.status === "running"
-                            ? installerNowMs
-                            : (installerState.lastEventAtMs ??
-                              installerNowMs)) - installerState.startedAtMs
-                        : null,
-                    )}
-                  </span>
-                </div>
-                {installerState.logLines.length > 0 ? (
-                  <pre className="settings-installer-log-output scrollable">
-                    {installerState.logLines
-                      .map((line) => {
-                        const stream = line.stream
-                          ? `${line.stream}`
-                          : line.phase;
-                        return `[${stream}] ${line.message}`;
-                      })
-                      .join("\n")}
-                  </pre>
-                ) : (
-                  <div>{t("settings.cliInstallerWaitingForOutput")}</div>
-                )}
-              </div>
-            ) : null}
-            {installerState.result ? (
-              <div
-                className={
-                  installerState.result.ok
-                    ? "settings-doctor ok"
-                    : "settings-doctor error"
-                }
-              >
-                <div className="settings-doctor-title">
-                  {installerState.result.ok
-                    ? t("settings.cliInstallerSucceeded")
-                    : t("settings.cliInstallerFailed")}
-                </div>
-                <div>
-                  {t("settings.cliInstallerExitCode")}{" "}
-                  {installerState.result.exitCode ??
-                    t("settings.statusUnknown")}
-                </div>
-                {installerState.result.details ? (
-                  <div>{installerState.result.details}</div>
-                ) : null}
-                {installerState.result.stdoutSummary ? (
-                  <pre className="settings-doctor-path">
-                    {installerState.result.stdoutSummary}
-                  </pre>
-                ) : null}
-                {installerState.result.stderrSummary ? (
-                  <pre className="settings-doctor-path">
-                    {installerState.result.stderrSummary}
-                  </pre>
-                ) : null}
-              </div>
-            ) : null}
-            {installerState.error ? (
-              <div className="settings-doctor error">
-                {installerState.error}
-              </div>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
+      <CliInstallerPanel
+        t={t}
+        installerState={installerState}
+        installerNowMs={installerNowMs}
+        onConfirm={() => {
+          void confirmInstallRun();
+        }}
+        onCancel={cancelInstaller}
+      />
     </section>
   );
 }

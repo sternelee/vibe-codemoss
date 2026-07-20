@@ -5,6 +5,7 @@ import { AppModals } from "../features/app/components/AppModals";
 import { LockScreenOverlay } from "../features/app/components/LockScreenOverlay";
 import { RuntimeConsoleDock } from "../features/app/components/RuntimeConsoleDock";
 import {
+  GlobalSearchTitlebarButton,
   SidebarCollapseButton,
   TitlebarExpandControls,
 } from "../features/layout/components/SidebarToggleControls";
@@ -13,6 +14,7 @@ import {
   shouldShowMainTopbarSidebarToggle,
   shouldShowSidebarTopbarSidebarToggle,
 } from "../features/layout/utils/sidebarTogglePlacement";
+import { formatShortcutForPlatform } from "../utils/shortcuts";
 import {
   adaptAppShellLegacyFlatContext,
   flattenSelectedAppShellDomainContexts,
@@ -127,6 +129,7 @@ export function renderAppShell(ctx: RenderAppShellContext) {
     directories,
     doctor,
     claudeDoctor,
+    kimiDoctor,
     editorSplitCompanion,
     editorSplitLayout,
     engineStatuses,
@@ -173,6 +176,7 @@ export function renderAppShell(ctx: RenderAppShellContext) {
     handleRenamePromptChange,
     handleRenamePromptConfirm,
     handleRevealActiveWorkspace,
+    handleOpenSearchPalette,
     handleSearchPaletteMoveSelection,
     handleSelectDiffForPanel,
     handleSelectSearchResult,
@@ -212,6 +216,7 @@ export function renderAppShell(ctx: RenderAppShellContext) {
     loadingProgressDialog,
     mainHeaderNode,
     messagesNode,
+    models,
     moveWorkspaceGroup,
     onGitHistoryPanelResizeStart,
     onKanbanConversationResizeStart,
@@ -242,6 +247,8 @@ export function renderAppShell(ctx: RenderAppShellContext) {
     scaleShortcutText,
     scaleShortcutTitle,
     searchContentFilters,
+    searchApiHydrationStatus,
+    searchFileHydrationStatus,
     searchPaletteQuery,
     searchPaletteSelectedIndex,
     searchResults,
@@ -418,6 +425,15 @@ export function renderAppShell(ctx: RenderAppShellContext) {
       }`}
       data-tauri-drag-region="false"
     >
+      {isMacDesktop ? (
+        <GlobalSearchTitlebarButton
+          onOpen={handleOpenSearchPalette}
+          shortcutLabel={formatShortcutForPlatform(
+            appSettings.toggleGlobalSearchShortcut,
+            true,
+          )}
+        />
+      ) : null}
       <SidebarCollapseButton {...sidebarToggleProps} />
     </div>
   ) : null;
@@ -528,6 +544,7 @@ export function renderAppShell(ctx: RenderAppShellContext) {
                 onDeletePanel={kanbanDeletePanel}
                 onAddWorkspace={handleAddWorkspace}
                 onAppModeChange={handleAppModeChange}
+                codexModels={models}
                 engineStatuses={engineStatuses}
                 conversationNode={kanbanConversationNode}
                 selectedTaskId={selectedKanbanTaskId}
@@ -619,6 +636,7 @@ export function renderAppShell(ctx: RenderAppShellContext) {
                 onOpenMailSession={handleOpenMailSession}
                 onRunCodexDoctor={doctor}
                 onRunClaudeDoctor={claudeDoctor}
+                onRunKimiDoctor={kimiDoctor}
                 activeWorkspace={activeWorkspace}
                 activeThreadId={activeThreadId}
                 activeEngine={activeEngine}
@@ -678,6 +696,8 @@ export function renderAppShell(ctx: RenderAppShellContext) {
             workspaceName={activeWorkspace?.name ?? null}
             query={searchPaletteQuery}
             results={searchResults}
+            apiHydrationStatus={searchApiHydrationStatus}
+            fileHydrationStatus={searchFileHydrationStatus}
             selectedIndex={searchPaletteSelectedIndex}
             onQueryChange={setSearchPaletteQuery}
             onMoveSelection={handleSearchPaletteMoveSelection}

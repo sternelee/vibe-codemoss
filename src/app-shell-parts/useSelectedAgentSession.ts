@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MutableRefObject } from "react";
+import { useTranslation } from "react-i18next";
 import { getClientStoreSync, writeClientStoreValue } from "../services/clientStorage";
-import { listAgentConfigs } from "../services/tauri";
+import { listAgentConfigs, listBuiltInAgents } from "../services/tauri";
 import type { DebugEntry, SelectedAgentOption } from "../types";
+import {
+  BUILT_IN_AGENT_CATALOG_CHANGED_EVENT,
+  BUILT_IN_AGENT_RESOLUTION_FAILED_EVENT,
+} from "../features/agent-catalog/events";
 import {
   getThreadAgentSelectionStorageKey,
   normalizeSelectedAgentOption,
@@ -13,14 +18,20 @@ import {
 
 function resolveSelectedAgentFromCatalog(
   candidate: SelectedAgentOption | null,
-  catalogById: Record<string, SelectedAgentOption>,
+  catalogById: Record<string, SelectedAgentOption> | null,
 ): SelectedAgentOption | null {
   if (!candidate) {
     return null;
   }
+  if (catalogById === null) {
+    return candidate;
+  }
   const catalogAgent = catalogById[candidate.id];
   if (catalogAgent) {
     return catalogAgent;
+  }
+  if (candidate.source === "builtIn") {
+    return null;
   }
   return candidate;
 }
@@ -71,17 +82,31 @@ export function useSelectedAgentSession({
   resolveCanonicalThreadId,
   onDebug,
 }: UseSelectedAgentSessionOptions): UseSelectedAgentSessionResult {
-  const [selectedAgentBySessionKey, setSelectedAgentBySessionKey] = useState<
+  const { i18n } = useTranslation();
+  const [, setSelectedAgentBySessionKey] = useState<
+    Record<string, SelectedAgentOption | null>
+  >({});
+  const selectedAgentBySessionKeyRef = useRef<
     Record<string, SelectedAgentOption | null>
   >({});
   const [agentCatalogById, setAgentCatalogById] = useState<
-    Record<string, SelectedAgentOption>
-  >({});
+    Record<string, SelectedAgentOption> | null
+  >(null);
   const [draftSelectedAgent, setDraftSelectedAgent] = useState<SelectedAgentOption | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<SelectedAgentOption | null>(null);
   const selectedAgentRef = useRef<SelectedAgentOption | null>(null);
   const draftSelectedAgentWorkspaceIdRef = useRef<string | null>(null);
   const shouldApplyDraftAgentToNextThreadRef = useRef(false);
+  const mountedRef = useRef(false);
+  const catalogLoadSequenceRef = useRef(0);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      catalogLoadSequenceRef.current += 1;
+    };
+  }, []);
 
   const resolveSelectedAgentSessionKey = useCallback(
     (workspaceId: string | null, threadId: string | null): string | null => {
@@ -93,17 +118,32 @@ export function useSelectedAgentSession({
     [],
   );
 
-  const writeSelectedAgentForSessionKey = useCallback(
+  const cacheSelectedAgentForSessionKey = useCallback(
     (sessionKey: string, agent: SelectedAgentOption | null) => {
-      setSelectedAgentBySessionKey((prev) => {
-        if (selectedAgentSelectionsEqual(prev[sessionKey] ?? null, agent)) {
-          return prev;
+      const currentCache = selectedAgentBySessionKeyRef.current;
+      if (selectedAgentSelectionsEqual(currentCache[sessionKey] ?? null, agent)) {
+        return;
+      }
+      selectedAgentBySessionKeyRef.current = {
+        ...currentCache,
+        [sessionKey]: agent,
+      };
+      setSelectedAgentBySessionKey((currentState) => {
+        if (selectedAgentSelectionsEqual(currentState[sessionKey] ?? null, agent)) {
+          return currentState;
         }
         return {
-          ...prev,
+          ...currentState,
           [sessionKey]: agent,
         };
       });
+    },
+    [],
+  );
+
+  const writeSelectedAgentForSessionKey = useCallback(
+    (sessionKey: string, agent: SelectedAgentOption | null) => {
+      cacheSelectedAgentForSessionKey(sessionKey, agent);
       const stored = parseStoredThreadAgentSelectionEntry(
         getClientStoreSync<unknown>("app", sessionKey),
       );
@@ -112,12 +152,17 @@ export function useSelectedAgentSession({
       }
       writeClientStoreValue("app", sessionKey, agent);
     },
-    [],
+    [cacheSelectedAgentForSessionKey],
   );
 
   const reloadAgentCatalog = useCallback(async () => {
+    const loadSequence = catalogLoadSequenceRef.current + 1;
+    catalogLoadSequenceRef.current = loadSequence;
     try {
-      const configs = await listAgentConfigs();
+      const [configs, builtInCatalog] = await Promise.all([
+        listAgentConfigs(),
+        listBuiltInAgents(i18n.resolvedLanguage ?? i18n.language),
+      ]);
       const nextCatalog: Record<string, SelectedAgentOption> = {};
       for (const config of configs) {
         const normalized = normalizeSelectedAgentOption({
@@ -125,28 +170,77 @@ export function useSelectedAgentSession({
           name: config.name,
           prompt: config.prompt ?? null,
           icon: config.icon ?? null,
+          source: "custom",
         });
         if (normalized) {
           nextCatalog[normalized.id] = normalized;
         }
       }
-      setAgentCatalogById(nextCatalog);
+      for (const agent of builtInCatalog.agents) {
+        if (!agent.enabled) {
+          continue;
+        }
+        const normalized = normalizeSelectedAgentOption({
+          id: agent.id,
+          name: agent.name,
+          prompt: null,
+          icon: null,
+          source: "builtIn",
+          divisionId: agent.divisionId,
+          divisionLabel:
+            builtInCatalog.divisions.find(
+              (division) => division.id === agent.divisionId,
+            )?.label ?? null,
+          sourceRevision: agent.sourceRevision,
+          promptHash: agent.promptHash,
+        });
+        if (normalized) {
+          nextCatalog[normalized.id] = normalized;
+        }
+      }
+      if (
+        mountedRef.current
+        && loadSequence === catalogLoadSequenceRef.current
+      ) {
+        setAgentCatalogById(nextCatalog);
+      }
     } catch (error) {
-      onDebug?.({
-        id: `${Date.now()}-agent-catalog-load-error`,
-        timestamp: Date.now(),
-        source: "error",
-        label: "agent/catalog load error",
-        payload: error instanceof Error ? error.message : String(error),
-      });
+      if (
+        mountedRef.current
+        && loadSequence === catalogLoadSequenceRef.current
+      ) {
+        onDebug?.({
+          id: `${Date.now()}-agent-catalog-load-error`,
+          timestamp: Date.now(),
+          source: "error",
+          label: "agent/catalog load error",
+          payload: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
-  }, [onDebug]);
+  }, [i18n.language, i18n.resolvedLanguage, onDebug]);
+
+  useEffect(() => {
+    const handleCatalogChanged = () => {
+      void reloadAgentCatalog();
+    };
+    window.addEventListener(
+      BUILT_IN_AGENT_CATALOG_CHANGED_EVENT,
+      handleCatalogChanged,
+    );
+    return () => {
+      window.removeEventListener(
+        BUILT_IN_AGENT_CATALOG_CHANGED_EVENT,
+        handleCatalogChanged,
+      );
+    };
+  }, [reloadAgentCatalog]);
 
   const handleSelectAgent = useCallback(
     (agent: SelectedAgentOption | null) => {
       const normalized = normalizeSelectedAgentOption(agent);
       const normalizedFromCatalog = normalized
-        ? (agentCatalogById[normalized.id] ?? normalized)
+        ? (agentCatalogById?.[normalized.id] ?? normalized)
         : null;
       selectedAgentRef.current = normalizedFromCatalog;
       setSelectedAgent(normalizedFromCatalog);
@@ -172,6 +266,31 @@ export function useSelectedAgentSession({
     ],
   );
 
+  useEffect(() => {
+    const handleResolutionFailed = (event: Event) => {
+      const failedAgentId = (event as CustomEvent<{ agentId?: string }>).detail
+        ?.agentId;
+      if (
+        !failedAgentId
+        || selectedAgentRef.current?.source !== "builtIn"
+        || selectedAgentRef.current.id !== failedAgentId
+      ) {
+        return;
+      }
+      handleSelectAgent(null);
+    };
+    window.addEventListener(
+      BUILT_IN_AGENT_RESOLUTION_FAILED_EVENT,
+      handleResolutionFailed,
+    );
+    return () => {
+      window.removeEventListener(
+        BUILT_IN_AGENT_RESOLUTION_FAILED_EVENT,
+        handleResolutionFailed,
+      );
+    };
+  }, [handleSelectAgent]);
+
   const reloadSelectedAgent = useCallback(() => {
     if (!activeThreadId) {
       const draftForActiveWorkspace =
@@ -191,6 +310,7 @@ export function useSelectedAgentSession({
 
     let candidate: SelectedAgentOption | null = null;
     let hasCandidate = false;
+    const selectedAgentBySessionKey = selectedAgentBySessionKeyRef.current;
     if (sessionKey in selectedAgentBySessionKey) {
       candidate = selectedAgentBySessionKey[sessionKey] ?? null;
       hasCandidate = true;
@@ -236,12 +356,13 @@ export function useSelectedAgentSession({
         || (candidate.icon ?? null) !== (resolved.icon ?? null))
     ) {
       writeSelectedAgentForSessionKey(sessionKey, resolved);
+    } else if (!resolved && candidate?.source === "builtIn") {
+      writeSelectedAgentForSessionKey(sessionKey, null);
     }
   }, [
     activeThreadId,
     activeWorkspaceId,
     draftSelectedAgent,
-    selectedAgentBySessionKey,
     agentCatalogById,
     resolveSelectedAgentSessionKey,
     writeSelectedAgentForSessionKey,
@@ -273,6 +394,7 @@ export function useSelectedAgentSession({
       activeWorkspaceId,
       activeThreadId,
     );
+    const selectedAgentBySessionKey = selectedAgentBySessionKeyRef.current;
     const previousSelectedAgentFromMemory =
       previousSelectedAgentSessionKey &&
       Object.prototype.hasOwnProperty.call(
@@ -341,7 +463,6 @@ export function useSelectedAgentSession({
     activeThreadId,
     activeWorkspaceId,
     resolveCanonicalThreadId,
-    selectedAgentBySessionKey,
     resolveSelectedAgentSessionKey,
     writeSelectedAgentForSessionKey,
   ]);

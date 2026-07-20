@@ -55,6 +55,9 @@ export type GeminiSessionSummary = {
   fileSizeBytes?: number;
 };
 
+// Kimi session summaries share the Gemini summary shape (id/message/updatedAt/size).
+export type KimiSessionSummary = GeminiSessionSummary;
+
 export type CodexCatalogSessionSummary = {
   sessionId: string;
   workspaceId?: string | null;
@@ -153,6 +156,12 @@ export function inferThreadEngineSource(
     return "gemini";
   }
   if (
+    normalized.startsWith("kimi:") ||
+    normalized.startsWith("kimi-pending-")
+  ) {
+    return "kimi";
+  }
+  if (
     normalized.startsWith("opencode:") ||
     normalized.startsWith("opencode-pending-")
   ) {
@@ -166,6 +175,7 @@ export function isPendingThreadId(threadId: string): boolean {
   return (
     normalized.startsWith("claude-pending-") ||
     normalized.startsWith("gemini-pending-") ||
+    normalized.startsWith("kimi-pending-") ||
     normalized.startsWith("opencode-pending-") ||
     normalized.startsWith("codex-pending-")
   );
@@ -1014,41 +1024,58 @@ export function normalizeGeminiSessionSummaries(
   return summaries;
 }
 
-export function mergeGeminiSessionSummaries(
-  baseSummaries: ThreadSummary[],
-  geminiSessions: GeminiSessionSummary[],
-  workspaceId: string,
-  mappedTitles: Record<string, string>,
-  getCustomName: (workspaceId: string, threadId: string) => string | undefined,
-): ThreadSummary[] {
-  if (geminiSessions.length === 0) {
+export function normalizeKimiSessionSummaries(
+  value: unknown,
+): KimiSessionSummary[] {
+  // Kimi session summaries share the Gemini summary shape.
+  return normalizeGeminiSessionSummaries(value);
+}
+
+function mergeNativeCliSessionSummaries(params: {
+  baseSummaries: ThreadSummary[];
+  sessions: GeminiSessionSummary[];
+  idPrefix: "gemini" | "kimi";
+  engineSource: "gemini" | "kimi";
+  fallbackTitle: string;
+  workspaceId: string;
+  mappedTitles: Record<string, string>;
+  getCustomName: (workspaceId: string, threadId: string) => string | undefined;
+}): ThreadSummary[] {
+  const {
+    baseSummaries,
+    sessions,
+    idPrefix,
+    engineSource,
+    fallbackTitle,
+    workspaceId,
+    mappedTitles,
+    getCustomName,
+  } = params;
+  if (sessions.length === 0) {
     return baseSummaries;
   }
   const mergedById = new Map<string, ThreadSummary>();
   baseSummaries.forEach((entry) => mergedById.set(entry.id, entry));
-  geminiSessions.forEach((session) => {
-    const id = `gemini:${session.sessionId}`;
+  sessions.forEach((session) => {
+    const id = `${idPrefix}:${session.sessionId}`;
     const prev = mergedById.get(id);
     const updatedAt = Number.isFinite(session.updatedAt)
       ? Math.max(0, session.updatedAt)
       : 0;
     const mappedTitle = mappedTitles[id];
     const customTitle = getCustomName(workspaceId, id);
-    const fallbackTitle = previewThreadName(
-      session.firstMessage,
-      "Gemini Session",
-    );
+    const title = previewThreadName(session.firstMessage, fallbackTitle);
     const next: ThreadSummary = {
       id,
       name: selectProjectedSessionDisplayName({
         previous: prev,
-        nextName: fallbackTitle,
+        nextName: title,
         mappedTitle,
         customTitle,
       }),
       updatedAt,
       sizeBytes: session.fileSizeBytes,
-      engineSource: "gemini",
+      engineSource,
     };
     if (!prev || next.updatedAt >= prev.updatedAt) {
       mergedById.set(
@@ -1062,6 +1089,44 @@ export function mergeGeminiSessionSummaries(
   );
 }
 
+export function mergeGeminiSessionSummaries(
+  baseSummaries: ThreadSummary[],
+  geminiSessions: GeminiSessionSummary[],
+  workspaceId: string,
+  mappedTitles: Record<string, string>,
+  getCustomName: (workspaceId: string, threadId: string) => string | undefined,
+): ThreadSummary[] {
+  return mergeNativeCliSessionSummaries({
+    baseSummaries,
+    sessions: geminiSessions,
+    idPrefix: "gemini",
+    engineSource: "gemini",
+    fallbackTitle: "Gemini Session",
+    workspaceId,
+    mappedTitles,
+    getCustomName,
+  });
+}
+
+export function mergeKimiSessionSummaries(
+  baseSummaries: ThreadSummary[],
+  kimiSessions: KimiSessionSummary[],
+  workspaceId: string,
+  mappedTitles: Record<string, string>,
+  getCustomName: (workspaceId: string, threadId: string) => string | undefined,
+): ThreadSummary[] {
+  return mergeNativeCliSessionSummaries({
+    baseSummaries,
+    sessions: kimiSessions,
+    idPrefix: "kimi",
+    engineSource: "kimi",
+    fallbackTitle: "Kimi Session",
+    workspaceId,
+    mappedTitles,
+    getCustomName,
+  });
+}
+
 function normalizeCatalogEngine(
   engine: CodexCatalogSessionSummary["engine"],
 ): ThreadSummary["engineSource"] {
@@ -1069,6 +1134,7 @@ function normalizeCatalogEngine(
     case "claude":
     case "codex":
     case "gemini":
+    case "kimi":
     case "opencode":
       return engine;
     default:
@@ -1138,6 +1204,8 @@ export function mergeCodexCatalogSessionSummaries(
         ? "Claude Session"
         : engineSource === "gemini"
           ? "Gemini Session"
+          : engineSource === "kimi"
+            ? "Kimi Session"
           : engineSource === "opencode"
             ? "OpenCode Session"
             : "Codex Session",
@@ -1498,6 +1566,8 @@ export function resolveRewindSupportedEngine(
     normalized.startsWith("codex-pending-") ||
     normalized.startsWith("gemini:") ||
     normalized.startsWith("gemini-pending-") ||
+    normalized.startsWith("kimi:") ||
+    normalized.startsWith("kimi-pending-") ||
     normalized.startsWith("opencode:") ||
     normalized.startsWith("opencode-pending-")
   ) {

@@ -142,8 +142,8 @@ export type ThreadSummary = {
   archivedAt?: number;
   threadKind?: "native" | "shared";
   sizeBytes?: number;
-  engineSource?: "codex" | "claude" | "gemini" | "opencode";
-  selectedEngine?: "codex" | "claude" | "gemini" | "opencode";
+  engineSource?: "codex" | "claude" | "gemini" | "kimi" | "opencode";
+  selectedEngine?: "codex" | "claude" | "gemini" | "kimi" | "opencode";
   source?: string;
   provider?: string;
   sourceLabel?: string;
@@ -368,4 +368,9 @@ export type SelectedAgentOption = {
   name: string;
   prompt?: string | null;
   icon?: string | null;
+  source?: "custom" | "builtIn";
+  divisionId?: string | null;
+  divisionLabel?: string | null;
+  sourceRevision?: string | null;
+  promptHash?: string | null;
 };

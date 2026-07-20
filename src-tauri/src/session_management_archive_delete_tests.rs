@@ -140,6 +140,17 @@
         let workspace = workspace_with_codex_home("ws-1", "Workspace", "/tmp/ws-1", &codex_home);
         let workspaces = Mutex::new(HashMap::from([(workspace.id.clone(), workspace)]));
         let engine_manager = engine::EngineManager::new();
+        // Isolate the Kimi source from the developer's real ~/.kimi-code home;
+        // real sessions under /tmp would otherwise match the /tmp/ws-1 workspace.
+        engine_manager
+            .set_engine_config(
+                engine::EngineType::Kimi,
+                engine::EngineConfig {
+                    home_dir: Some(base.join("kimi-home").to_string_lossy().to_string()),
+                    ..Default::default()
+                },
+            )
+            .await;
 
         let summary = get_workspace_session_projection_summary_core(
             &workspaces,

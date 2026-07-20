@@ -16,6 +16,7 @@ vi.mock("../../../services/tauri", () => ({
   rewindCodexThread: vi.fn(),
   listClaudeSessions: vi.fn(),
   listGeminiSessions: vi.fn(),
+  listKimiSessions: vi.fn(),
   listWorkspaceSessions: vi.fn(),
   getOpenCodeSessionList: vi.fn(),
   loadClaudeSession: vi.fn(),
@@ -375,7 +376,14 @@ describe("useThreadActions rewind", () => {
         ],
       } as any)
       .mockResolvedValue({
-        messages: [],
+        messages: [
+          {
+            kind: "message",
+            role: "user",
+            id: "660e8400-e29b-41d4-a716-446655440123",
+            text: "更早一条",
+          },
+        ],
       } as any);
 
     const onRenameThreadTitleMapping = vi.fn();

@@ -30,11 +30,15 @@ pub(crate) mod thread_mode_state;
 
 use self::args::resolve_workspace_codex_args;
 use self::commit_message::{build_commit_message_prompt, combine_repository_diff_sections};
-pub(crate) use self::doctor::{run_claude_doctor_with_settings, run_codex_doctor_with_settings};
+pub(crate) use self::doctor::{
+    run_claude_doctor_with_settings, run_codex_doctor_with_settings,
+    run_kimi_doctor_with_settings,
+};
 pub(crate) use self::home::{resolve_default_codex_home, resolve_workspace_codex_home};
 pub(crate) use self::installer::{
-    build_cli_install_plan_with_backend, run_cli_installer_with_progress, CliInstallAction,
-    CliInstallBackend, CliInstallEngine, CliInstallProgressEvent, CliInstallStrategy,
+    build_cli_install_plan_with_backend, resolve_cli_version_status, run_cli_installer_with_progress,
+    CliInstallAction, CliInstallBackend, CliInstallEngine, CliInstallProgressEvent,
+    CliInstallStrategy, CliVersionStatus,
 };
 use self::mcp_config::{
     list_global_mcp_servers as list_global_mcp_servers_impl, GlobalMcpServerEntry,
@@ -471,6 +475,30 @@ pub(crate) fn remote_claude_doctor_request(claude_bin: Option<String>) -> (&'sta
     )
 }
 
+pub(crate) fn remote_kimi_doctor_request(kimi_bin: Option<String>) -> (&'static str, Value) {
+    (
+        "kimi_doctor",
+        json!({
+            "kimiBin": kimi_bin.map(remote_backend::normalize_path_for_remote),
+        }),
+    )
+}
+
+#[tauri::command]
+pub(crate) async fn kimi_doctor(
+    kimi_bin: Option<String>,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        let (method, params) = remote_kimi_doctor_request(kimi_bin);
+        return remote_backend::call_remote(&*state, app, method, params).await;
+    }
+
+    let settings = state.app_settings.lock().await.clone();
+    run_kimi_doctor_with_settings(kimi_bin, &settings).await
+}
+
 #[tauri::command]
 pub(crate) async fn claude_doctor(
     claude_bin: Option<String>,
@@ -484,6 +512,34 @@ pub(crate) async fn claude_doctor(
 
     let settings = state.app_settings.lock().await.clone();
     run_claude_doctor_with_settings(claude_bin, &settings).await
+}
+
+#[tauri::command]
+pub(crate) async fn cli_version_status(
+    engine: CliInstallEngine,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "cli_version_status",
+            json!({ "engine": engine }),
+        )
+        .await
+        .map_err(|error| {
+            if error.contains("unknown method") || error.contains("unsupported") {
+                "Remote daemon does not support CLI version status RPC. Update the daemon or switch backend mode to local.".to_string()
+            } else {
+                error
+            }
+        });
+    }
+
+    let settings = state.app_settings.lock().await.clone();
+    let status = resolve_cli_version_status(engine, &settings).await;
+    serde_json::to_value(status).map_err(|error| error.to_string())
 }
 
 #[tauri::command]

@@ -23,6 +23,10 @@ pub mod gemini;
 pub mod gemini_history;
 #[path = "../../engine/gemini_proxy_guard.rs"]
 pub(crate) mod gemini_proxy_guard;
+#[path = "../../engine/kimi.rs"]
+pub mod kimi;
+#[path = "../../engine/kimi_history.rs"]
+pub mod kimi_history;
 #[allow(dead_code)]
 #[path = "../../engine/manager.rs"]
 pub mod manager;
@@ -415,6 +419,7 @@ pub enum EngineType {
     Codex,
     Gemini,
     OpenCode,
+    Kimi,
 }
 
 impl Default for EngineType {
@@ -430,6 +435,7 @@ impl EngineType {
             EngineType::Codex => "Codex",
             EngineType::Gemini => "Gemini",
             EngineType::OpenCode => "OpenCode",
+            EngineType::Kimi => "Kimi CLI",
         }
     }
 
@@ -439,6 +445,7 @@ impl EngineType {
             EngineType::Codex => "codex",
             EngineType::Gemini => "gemini",
             EngineType::OpenCode => "opencode",
+            EngineType::Kimi => "kimi",
         }
     }
 }
@@ -449,8 +456,6 @@ impl std::fmt::Display for EngineType {
     }
 }
 
-pub(crate) const GEMINI_DISABLED_DIAGNOSTIC: &str =
-    "Gemini CLI is disabled in CLI validation settings";
 pub(crate) const OPENCODE_DISABLED_DIAGNOSTIC: &str =
     "OpenCode CLI is disabled in CLI validation settings";
 
@@ -459,18 +464,30 @@ pub(crate) fn engine_enabled_in_settings(
     engine_type: EngineType,
 ) -> bool {
     match engine_type {
-        EngineType::Gemini => settings.gemini_enabled,
+        EngineType::Gemini => crate::engine_policy::GEMINI_RUNTIME_ENABLED,
         EngineType::OpenCode => settings.opencode_enabled,
-        EngineType::Claude | EngineType::Codex => true,
+        EngineType::Claude | EngineType::Codex | EngineType::Kimi => true,
     }
 }
 
 pub(crate) fn engine_disabled_diagnostic(engine_type: EngineType) -> Option<&'static str> {
     match engine_type {
-        EngineType::Gemini => Some(GEMINI_DISABLED_DIAGNOSTIC),
+        EngineType::Gemini => Some(crate::engine_policy::GEMINI_DISABLED_DIAGNOSTIC),
         EngineType::OpenCode => Some(OPENCODE_DISABLED_DIAGNOSTIC),
-        EngineType::Claude | EngineType::Codex => None,
+        EngineType::Claude | EngineType::Codex | EngineType::Kimi => None,
     }
+}
+
+pub(crate) fn ensure_engine_enabled(
+    settings: &crate::types::AppSettings,
+    engine_type: EngineType,
+) -> Result<(), String> {
+    if engine_enabled_in_settings(settings, engine_type) {
+        return Ok(());
+    }
+    Err(engine_disabled_diagnostic(engine_type)
+        .unwrap_or("Engine is disabled in CLI validation settings")
+        .to_string())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -614,6 +631,18 @@ impl EngineFeatures {
             mcp: true,
         }
     }
+
+    pub fn kimi() -> Self {
+        Self {
+            reasoning_effort: false,
+            collaboration_mode: false,
+            image_input: false,
+            session_resume: true,
+            tools_control: true,
+            streaming: true,
+            mcp: false,
+        }
+    }
 }
 
 pub(crate) fn disabled_engine_status(engine_type: EngineType) -> EngineStatus {
@@ -622,6 +651,7 @@ pub(crate) fn disabled_engine_status(engine_type: EngineType) -> EngineStatus {
         EngineType::Codex => EngineFeatures::codex(),
         EngineType::Gemini => EngineFeatures::gemini(),
         EngineType::OpenCode => EngineFeatures::opencode(),
+        EngineType::Kimi => EngineFeatures::kimi(),
     };
     EngineStatus {
         engine_type,
@@ -681,4 +711,27 @@ pub struct EngineConfig {
     pub home_dir: Option<String>,
     pub custom_args: Option<String>,
     pub default_model: Option<String>,
+}
+
+#[cfg(test)]
+mod runtime_policy_tests {
+    use super::{
+        engine_disabled_diagnostic, engine_enabled_in_settings, ensure_engine_enabled, EngineType,
+    };
+
+    #[test]
+    fn daemon_gemini_runtime_policy_ignores_legacy_enabled_setting() {
+        let mut settings = crate::types::AppSettings::default();
+        settings.gemini_enabled = true;
+
+        assert!(!engine_enabled_in_settings(&settings, EngineType::Gemini));
+        assert_eq!(
+            ensure_engine_enabled(&settings, EngineType::Gemini),
+            Err(crate::engine_policy::GEMINI_DISABLED_DIAGNOSTIC.to_string())
+        );
+        assert_eq!(
+            engine_disabled_diagnostic(EngineType::Gemini),
+            Some(crate::engine_policy::GEMINI_DISABLED_DIAGNOSTIC)
+        );
+    }
 }

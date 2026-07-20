@@ -4,6 +4,7 @@ import {
   getAppSettings,
   runClaudeDoctor,
   runCodexDoctor,
+  runKimiDoctor,
   updateAppSettings,
 } from "../../../services/tauri";
 import {
@@ -169,12 +170,27 @@ function normalizeEnabledCuratedSkillIds(value: unknown): string[] {
   return ids;
 }
 
+function normalizeEnabledBuiltInAgentIds(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return Array.from(
+    new Set(
+      value
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim())
+        .filter((item) => /^agency-agents:[a-z0-9-]+\/[a-z0-9-]+$/.test(item)),
+    ),
+  ).sort();
+}
+
 const defaultSettings: AppSettings = {
   claudeBin: null,
+  kimiBin: null,
   codexBin: null,
   codexArgs: null,
   terminalShellPath: null,
-  geminiEnabled: true,
+  geminiEnabled: false,
   opencodeEnabled: false,
   sessionAttributionMode: "related",
   backendMode: "local",
@@ -230,6 +246,7 @@ const defaultSettings: AppSettings = {
   customThemePresetId: "vscode-dark-modern",
   customSkillDirectories: [],
   enabledCuratedSkillIds: defaultEnabledCuratedSkillIds(),
+  enabledBuiltInAgentIds: [],
   canvasWidthMode: "narrow",
   layoutMode: "default",
   userMsgColor: "",
@@ -351,12 +368,13 @@ function normalizeAppSettings(
     codexUnifiedExecPolicy: "inherit",
     experimentalUnifiedExecEnabled: undefined,
     claudeBin: settings.claudeBin?.trim() ? settings.claudeBin.trim() : null,
+    kimiBin: settings.kimiBin?.trim() ? settings.kimiBin.trim() : null,
     codexBin: settings.codexBin?.trim() ? settings.codexBin.trim() : null,
     codexArgs: settings.codexArgs?.trim() ? settings.codexArgs.trim() : null,
     terminalShellPath: settings.terminalShellPath?.trim()
       ? settings.terminalShellPath.trim()
       : null,
-    geminiEnabled: settings.geminiEnabled !== false,
+    geminiEnabled: false,
     opencodeEnabled: settings.opencodeEnabled === true,
     sessionAttributionMode:
       settings.sessionAttributionMode === "workspace-only"
@@ -379,6 +397,9 @@ function normalizeAppSettings(
     ),
     enabledCuratedSkillIds: normalizeEnabledCuratedSkillIds(
       settings.enabledCuratedSkillIds,
+    ),
+    enabledBuiltInAgentIds: normalizeEnabledBuiltInAgentIds(
+      settings.enabledBuiltInAgentIds,
     ),
     canvasWidthMode: allowedCanvasWidthModes.has(settings.canvasWidthMode)
       ? settings.canvasWidthMode
@@ -595,12 +616,17 @@ export function useAppSettings() {
     return runClaudeDoctor(claudeBin);
   }, []);
 
+  const kimiDoctor = useCallback(async (kimiBin: string | null) => {
+    return runKimiDoctor(kimiBin);
+  }, []);
+
   return {
     settings,
     setSettings,
     saveSettings,
     doctor,
     claudeDoctor,
+    kimiDoctor,
     isLoading,
   };
 }

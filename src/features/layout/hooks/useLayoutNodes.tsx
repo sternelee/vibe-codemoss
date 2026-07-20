@@ -81,6 +81,10 @@ import {
   saveTaskRunStore,
 } from "../../tasks/utils/taskRunStorage";
 import { WorkspaceNoteCardPanel } from "../../note-cards/components/WorkspaceNoteCardPanel";
+import type {
+  NoteCaptureDraft,
+  WorkspaceNoteCaptureRequest,
+} from "../../note-cards/types";
 import { WorkspaceSessionActivityPanel } from "../../session-activity/components/WorkspaceSessionActivityPanel";
 import { WorkspaceSessionRadarPanel } from "../../session-activity/components/WorkspaceSessionRadarPanel";
 import { TabBar } from "../../app/components/TabBar";
@@ -102,7 +106,11 @@ import type {
 } from "../../../types";
 import { __profile as threadsRuntimeProfile } from "../../threads/hooks/useThreadsReducer";
 import { getClientStoreSync } from "../../../services/clientStorage";
-import { getCodexProviders, type WorkspaceNoteCard } from "../../../services/tauri";
+import {
+  getCodexProviders,
+  type WorkspaceNoteCard,
+  type WorkspaceNoteCardSource,
+} from "../../../services/tauri";
 import { normalizeSpecRootInput } from "../../spec/pathUtils";
 import type {
   CodeAnnotationBridgeProps,
@@ -163,6 +171,11 @@ const FileViewPanel = lazy(() =>
     default: m.FileViewPanel,
   })),
 );
+const FileHistoryView = lazy(() =>
+  import("../../git-history/components/FileHistoryView").then((m) => ({
+    default: m.FileHistoryView,
+  })),
+);
 const ProjectMapPanel = lazy(() =>
   import("../../project-map/components/ProjectMapPanel").then((m) => ({
     default: m.ProjectMapPanel,
@@ -219,7 +232,7 @@ function buildOrchestrationProjectionSignature(
 function toConversationEngine(
   engine: EngineType | undefined,
 ): ConversationEngine {
-  if (engine === "claude" || engine === "gemini" || engine === "opencode") {
+  if (engine === "claude" || engine === "gemini" || engine === "kimi" || engine === "opencode") {
     return engine;
   }
   return "codex";
@@ -244,6 +257,12 @@ function inferConversationEngineFromThreadId(
     normalizedThreadId.startsWith("gemini-pending-")
   ) {
     return "gemini";
+  }
+  if (
+    normalizedThreadId.startsWith("kimi:") ||
+    normalizedThreadId.startsWith("kimi-pending-")
+  ) {
+    return "kimi";
   }
   if (
     normalizedThreadId.startsWith("opencode:") ||
@@ -309,9 +328,12 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
     useState<ComposerNoteCardSelectionRequest | null>(null);
   const [gitModalPreviewRequest, setGitModalPreviewRequest] =
     useState<GitModalPreviewRequest | null>(null);
+  const [gitModeControlsTarget, setGitModeControlsTarget] =
+    useState<HTMLDivElement | null>(null);
   const rewindDialogRequestSerialRef = useRef(0);
   const noteCardSelectionRequestSerialRef = useRef(0);
   const gitModalPreviewRequestSerialRef = useRef(0);
+  const historyRetryInFlightRef = useRef<Promise<unknown> | null>(null);
   const activeThreadStatus = options.activeThreadId
     ? (options.threadStatusById[options.activeThreadId] ?? null)
     : null;
@@ -352,6 +374,34 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
   const activeThreadHistoryLoading = options.activeThreadId
     ? options.historyLoadingByThreadId[options.activeThreadId] === true
     : false;
+  const activeThreadHistoryRecoveryFailureReason =
+    options.activeThreadId &&
+    options.historyLoadingByThreadId[options.activeThreadId] === "failed"
+      ? "history-empty-after-retry"
+      : null;
+  const handleRetryHistory = useEventCallback(() => {
+    if (
+      !options.activeWorkspaceId ||
+      !options.activeThreadId ||
+      !options.onRecoverThreadRuntime ||
+      historyRetryInFlightRef.current
+    ) {
+      return;
+    }
+    const retry = Promise.resolve(
+      options.onRecoverThreadRuntime(
+        options.activeWorkspaceId,
+        options.activeThreadId,
+      ),
+    );
+    historyRetryInFlightRef.current = retry;
+    const clearRetry = () => {
+      if (historyRetryInFlightRef.current === retry) {
+        historyRetryInFlightRef.current = null;
+      }
+    };
+    void retry.then(clearRetry, clearRetry);
+  });
   const showMessageAnchors =
     options.showMessageAnchors &&
     clientUiVisibility.isControlVisible("cornerStatus.messageAnchors");
@@ -781,6 +831,36 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
   const [selectedCodeAnnotations, setSelectedCodeAnnotations] = useState<
     CodeAnnotationSelection[]
   >([]);
+  const [workspaceNoteCaptureRequest, setWorkspaceNoteCaptureRequest] =
+    useState<WorkspaceNoteCaptureRequest | null>(null);
+  const workspaceNoteCaptureRequestSerialRef = useRef(0);
+  const noteCaptureWorkspaceId = options.activeWorkspace?.id ?? null;
+  const setNoteCaptureCenterMode = options.setCenterMode;
+  const handleCaptureWorkspaceNote = useCallback(
+    (draft: NoteCaptureDraft) => {
+      if (!noteCaptureWorkspaceId) {
+        return;
+      }
+      const requestId = workspaceNoteCaptureRequestSerialRef.current + 1;
+      workspaceNoteCaptureRequestSerialRef.current = requestId;
+      setWorkspaceNoteCaptureRequest({ requestId, draft });
+      onFilePanelModeChange("notes");
+      setNoteCaptureCenterMode("notes");
+    },
+    [
+      noteCaptureWorkspaceId,
+      onFilePanelModeChange,
+      setNoteCaptureCenterMode,
+    ],
+  );
+  const handleWorkspaceNoteCaptureRequestHandled = useCallback(
+    (requestId: number) => {
+      setWorkspaceNoteCaptureRequest((current) =>
+        current?.requestId === requestId ? null : current,
+      );
+    },
+    [],
+  );
   const handleCreateCodeAnnotation = useCallback(
     (annotation: CodeAnnotationDraftInput) => {
       const selection = createCodeAnnotationSelection(annotation);
@@ -829,6 +909,9 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
       current.length === 0 ? current : [],
     );
   }, [options.activeThreadId, options.activeWorkspace?.id]);
+  useEffect(() => {
+    setWorkspaceNoteCaptureRequest(null);
+  }, [options.activeWorkspace?.id]);
   const claudeThinkingVisible =
     typeof options.claudeThinkingVisible === "boolean"
       ? options.claudeThinkingVisible
@@ -935,6 +1018,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
       plan: options.plan,
       isThinking: isThreadThinking,
       isHistoryLoading: activeThreadHistoryLoading,
+      historyRecoveryFailureReason: activeThreadHistoryRecoveryFailureReason,
       isContextCompacting: activeThreadStatus?.isContextCompacting ?? false,
       processingStartedAt: activeThreadStatus?.processingStartedAt ?? null,
       lastDurationMs: activeThreadStatus?.lastDurationMs ?? null,
@@ -961,6 +1045,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
       options.plan,
       isThreadThinking,
       activeThreadHistoryLoading,
+      activeThreadHistoryRecoveryFailureReason,
       activeThreadStatus,
       taskRunStore.runs,
       options.threadItemsByThread,
@@ -1017,9 +1102,14 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
           onOpenPlanPanel: options.onOpenPlanPanel,
           onExitPlanModeExecute: options.handleExitPlanModeExecute,
           onOpenWorkspaceFile: options.onOpenFile,
+          onCaptureNote: handleCaptureWorkspaceNote,
           agentTaskScrollRequest: options.agentTaskScrollRequest,
           isThinking: false,
           isHistoryLoading: false,
+          historyRecoveryFailureReason: null,
+          onRetryHistory: options.onRecoverThreadRuntime
+            ? handleRetryHistory
+            : undefined,
           isContextCompacting: false,
           proxyEnabled: options.systemProxyEnabled,
           proxyUrl: options.systemProxyUrl,
@@ -1051,6 +1141,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
       options.handleUserInputSubmit,
       options.handleUserInputDismiss,
       options.onRecoverThreadRuntime,
+      handleRetryHistory,
       options.onRecoverThreadRuntimeAndResend,
       options.onThreadRecoveryFork,
       onForkFromMessage,
@@ -1075,6 +1166,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
       options.onOpenPlanPanel,
       options.handleExitPlanModeExecute,
       options.onOpenFile,
+      handleCaptureWorkspaceNote,
       options.agentTaskScrollRequest,
       // heartbeatPulse removed from deps — uses ref to avoid
       // recreating messagesNode on every heartbeat tick
@@ -1098,6 +1190,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
     options.selectedEngine === "claude" ||
     options.selectedEngine === "codex" ||
     options.selectedEngine === "gemini" ||
+    options.selectedEngine === "kimi" ||
     options.selectedEngine === "opencode";
   const isStatusPanelCodexEngine = options.selectedEngine === "codex";
   const { todoTotal, subagentTotal, fileChanges, commandTotal } =
@@ -1294,6 +1387,21 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
       },
     });
   }, []);
+  const handleOpenWorkspaceNoteCodeSource = useCallback(
+    (
+      source: Extract<WorkspaceNoteCardSource, { kind: "codeSelection" }>,
+    ) => {
+      onOpenFile(source.path, {
+        line: source.startLine,
+        endLine: source.endLine,
+        column: 1,
+        scrollPosition: "center",
+      }, {
+        editorSplitCompanion: "notes",
+      });
+    },
+    [onOpenFile],
+  );
 
   const renderComposerNode = (
     showStatusPanelToggleOverride?: boolean,
@@ -1729,6 +1837,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
     activityLive: workspaceActivity.isProcessing,
     radarLive: options.sessionRadarRunningSessions.length > 0,
     visibleTabs: rightToolbarVisibleTabs,
+    gitModeControlsTargetRef: setGitModeControlsTarget,
     onSelect: handleRightPanelTabSelect,
   });
 
@@ -1765,6 +1874,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
         gitStatusFiles={options.gitStatus.files}
         gitRepositories={options.gitRepositories}
         onGitRepositoryAction={handleFileTreeGitRepositoryAction}
+        onOpenFileHistory={options.onOpenFileHistory}
         gitignoredFiles={options.gitignoredFiles}
         gitignoredDirectories={options.gitignoredDirectories}
         onRefreshFiles={options.onRefreshFiles}
@@ -1837,6 +1947,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
         <GitDiffPanel
           workspaceId={options.activeWorkspace?.id ?? null}
           workspacePath={options.activeWorkspace?.path ?? null}
+          headerControlsTarget={gitModeControlsTarget}
           mode={options.gitPanelMode}
           onModeChange={options.onGitPanelModeChange}
           onOpenGitHistoryPanel={options.onOpenGitHistoryPanel}
@@ -1867,9 +1978,13 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
           stagedFiles={canonicalGitPanelChanges.stagedFiles}
           unstagedFiles={canonicalGitPanelChanges.unstagedFiles}
           onSelectFile={options.onSelectDiff}
-          onOpenFile={(path) =>
-            options.onOpenFile(path, undefined, { pathDomain: "git" })
+          onOpenFile={(path, repositoryRoot) =>
+            options.onOpenFile(path, undefined, {
+              pathDomain: "git",
+              repositoryRoot,
+            })
           }
+          onOpenFileHistory={options.onOpenFileHistory}
           modalPreviewRequest={gitModalPreviewRequest}
           selectedPath={sidebarSelectedDiffPath}
           logEntries={options.gitLogEntries}
@@ -1931,6 +2046,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
           onRefreshRepositoryStatuses={options.onRefreshRepositoryStatuses}
           onStageRepositoryFile={options.onStageRepositoryFile}
           onUnstageRepositoryFile={options.onUnstageRepositoryFile}
+          onRevertRepositoryFile={options.onRevertRepositoryFile}
           onStageRepositoryAll={options.onStageRepositoryAll}
           onCommitRepositories={options.onCommitRepositories}
           repositoryCommitSummary={options.repositoryCommitSummary}
@@ -1968,14 +2084,21 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
     />
   );
 
-  const fileViewPanelNode =
-    options.editorFilePath && options.activeWorkspace ? (
+  const fileViewPanelNode = options.centerMode === "fileHistory" && options.fileHistoryTarget ? (
+    <Suspense fallback={<HeavyPanelFallback />}>
+      <FileHistoryView
+        target={options.fileHistoryTarget}
+        onClose={options.onCloseFileHistory ?? (() => undefined)}
+      />
+    </Suspense>
+  ) : options.editorFilePath && options.activeWorkspace ? (
       <Suspense fallback={<HeavyPanelFallback />}>
         <FileViewPanel
           workspaceId={options.activeWorkspace.id}
           workspaceName={options.activeWorkspace.name}
           workspacePath={options.activeWorkspace.path}
           gitRoot={options.gitRoot}
+          gitRepositories={options.gitRepositories}
           customSpecRoot={activeWorkspaceCustomSpecRoot}
           filePath={options.editorFilePath}
           navigationTarget={options.editorNavigationTarget}
@@ -2011,6 +2134,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
           onClose={options.onExitEditor}
           onInsertText={options.onInsertComposerText}
           onCreateCodeAnnotation={handleCreateCodeAnnotation}
+          onCaptureNote={handleCaptureWorkspaceNote}
           onRemoveCodeAnnotation={handleRemoveCodeAnnotation}
           codeAnnotations={selectedCodeAnnotations}
           externalChangeMonitoringEnabled={
@@ -2031,14 +2155,21 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
       </Suspense>
     ) : null;
 
-  const noteCardsPanelNode = options.centerMode === "notes" ? (
+  const isWorkspaceNoteCardsMounted =
+    options.centerMode === "notes" ||
+    (options.centerMode === "editor" &&
+      options.editorSplitCompanion === "notes");
+  const noteCardsPanelNode = isWorkspaceNoteCardsMounted ? (
     <WorkspaceNoteCardPanel
       workspaceId={options.activeWorkspace?.id ?? null}
       workspaceName={options.activeWorkspace?.name ?? null}
       workspacePath={options.activeWorkspace?.path ?? null}
       focusNoteId={options.focusedWorkspaceNoteId ?? null}
       focusRequestKey={options.focusedWorkspaceNoteRequestKey ?? 0}
+      captureRequest={workspaceNoteCaptureRequest}
+      onCaptureRequestHandled={handleWorkspaceNoteCaptureRequestHandled}
       onReferenceNote={handleReferenceWorkspaceNote}
+      onOpenCodeSource={handleOpenWorkspaceNoteCodeSource}
     />
   ) : null;
 

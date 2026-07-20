@@ -42,7 +42,9 @@ type UseFileNavigationArgs = {
   navigationTarget: {
     path: string;
     line: number;
+    endLine?: number;
     column: number;
+    scrollPosition?: "nearest" | "center";
     requestId: number;
   } | null;
   isLoading: boolean;
@@ -119,33 +121,25 @@ export function useFileNavigation({
     }, 2000);
   }, [clearNavigationFlashTimer, cmRef]);
 
-  const focusEditorAtLocation = useCallback((line: number, column: number) => {
-    const view = cmRef.current?.view;
-    if (!view) {
-      return false;
-    }
-    if (line < 1 || line > view.state.doc.lines) {
-      return false;
-    }
-    const lineInfo = view.state.doc.line(line);
-    const safeColumn = Math.max(1, Math.min(column, lineInfo.length + 1));
-    const anchor = lineInfo.from + safeColumn - 1;
-    view.dispatch({
-      selection: { anchor },
-      scrollIntoView: true,
-    });
-    view.focus();
-    return true;
+  const focusEditorAtLocation = useCallback((
+    line: number,
+    column: number,
+    scrollPosition: "nearest" | "center" = "nearest",
+    endLine?: number,
+  ) => {
+    return cmRef.current?.focusLocation(line, column, scrollPosition, endLine) ?? false;
   }, [cmRef]);
 
   const focusEditorAtLocationWithRetry = useCallback(
     (
       line: number,
       column: number,
+      scrollPosition: "nearest" | "center" = "nearest",
+      endLine?: number,
       attempt = 0,
       onFocused?: () => void,
     ) => {
-      const focused = focusEditorAtLocation(line, column);
+      const focused = focusEditorAtLocation(line, column, scrollPosition, endLine);
       if (focused && attempt >= 4) {
         clearNavigationFocusTimer();
         flashEditorNavigationLine(line);
@@ -158,7 +152,14 @@ export function useFileNavigation({
       }
       clearNavigationFocusTimer();
       navigationFocusTimerRef.current = window.setTimeout(() => {
-        focusEditorAtLocationWithRetry(line, column, attempt + 1, onFocused);
+        focusEditorAtLocationWithRetry(
+          line,
+          column,
+          scrollPosition,
+          endLine,
+          attempt + 1,
+          onFocused,
+        );
       }, 16);
     },
     [clearNavigationFocusTimer, flashEditorNavigationLine, focusEditorAtLocation],
@@ -423,6 +424,8 @@ export function useFileNavigation({
     focusEditorAtLocationWithRetry(
       navigationTarget.line,
       navigationTarget.column,
+      navigationTarget.scrollPosition,
+      navigationTarget.endLine,
       0,
       () => {
         appliedNavigationRequestRef.current = navigationTarget.requestId;

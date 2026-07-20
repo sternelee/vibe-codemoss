@@ -1,11 +1,23 @@
-import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 import { useTranslation } from "react-i18next";
+import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import type { CommitMessageEngine } from "../../../services/tauri";
 import type { RepositoryGitStatus } from "../hooks/useMultiRepositoryGitStatus";
 import { normalizeGitPath } from "../utils/commitScope";
-import { DiffSection } from "./GitDiffPanelFileSections";
+import {
+  DiffSection,
+  type DiffFile,
+  isDeletedDiffFile,
+} from "./GitDiffPanelFileSections";
 import { InclusionToggle, type InclusionState } from "./GitDiffPanelInclusion";
 import { CommitMessageEngineIcon } from "./CommitMessageEngineIcon";
+import type { GitCommitComposerPlacement } from "../hooks/useGitCommitComposerPlacement";
 
 export type RepositoryCommitSelection = {
   repositoryRoot: string;
@@ -23,6 +35,7 @@ type GitMultiRepositoryChangesProps = {
   commitMessageError?: string | null;
   commitSummary?: string | null;
   commitMessageEngine?: CommitMessageEngine;
+  commitComposerPlacement?: GitCommitComposerPlacement;
   onCommitMessageChange?: (value: string) => void;
   onCommitRepositories?: (selections: RepositoryCommitSelection[]) => void | Promise<void>;
   onOpenGenerateMenu?: (
@@ -31,14 +44,37 @@ type GitMultiRepositoryChangesProps = {
   ) => void;
   onStageFile?: (repositoryRoot: string, path: string) => Promise<void>;
   onUnstageFile?: (repositoryRoot: string, path: string) => Promise<void>;
+  onDiscardFile?: (repositoryRoot: string, path: string) => Promise<void> | void;
   onStageAll?: (repositoryRoot: string) => Promise<void>;
+  onOpenFile?: (repositoryRoot: string, path: string) => void;
+  onOpenFilePreview?: (
+    repositoryRoot: string,
+    file: DiffFile,
+    section: "staged" | "unstaged",
+  ) => void;
+  onShowFileMenu?: (
+    event: ReactMouseEvent<HTMLDivElement>,
+    repositoryRoot: string,
+    path: string,
+    section: RepositorySection,
+  ) => void;
   onRefresh?: () => Promise<void> | void;
 };
 
 const EMPTY_SELECTED_FILES = new Set<string>();
 
+type RepositorySection = "staged" | "unstaged";
+
 function selectionKey(repositoryRoot: string, path: string) {
   return JSON.stringify([repositoryRoot, normalizeGitPath(path)]);
+}
+
+function sectionCollapseKey(
+  workspaceId: string,
+  repositoryRoot: string,
+  section: RepositorySection,
+) {
+  return JSON.stringify([workspaceId, repositoryRoot, section]);
 }
 
 export function GitMultiRepositoryChanges({
@@ -52,16 +88,22 @@ export function GitMultiRepositoryChanges({
   commitMessageError,
   commitSummary,
   commitMessageEngine = "codex",
+  commitComposerPlacement = "bottom",
   onCommitMessageChange,
   onCommitRepositories,
   onOpenGenerateMenu,
   onStageFile,
   onUnstageFile,
+  onDiscardFile,
   onStageAll,
+  onOpenFile,
+  onOpenFilePreview,
+  onShowFileMenu,
   onRefresh,
 }: GitMultiRepositoryChangesProps) {
   const { t } = useTranslation();
   const [selectionOverrides, setSelectionOverrides] = useState<Record<string, boolean>>({});
+  const [collapsedSectionKeys, setCollapsedSectionKeys] = useState<Set<string>>(new Set());
 
   const topology = useMemo(() => statuses.flatMap((status) => [
     ...status.stagedFiles.map((file) => selectionKey(status.repositoryRoot, file.path)),
@@ -126,6 +168,67 @@ export function GitMultiRepositoryChanges({
   const selectedCount = selections.reduce((count, selection) => count + selection.selectedPaths.length, 0);
   const canCommit = commitMessage.trim().length > 0 && selectedCount > 0 && !commitLoading;
   const canGenerateCommitMessage = selectedCount > 0 && !commitMessageLoading && !commitLoading;
+  const commitComposer = (
+    <div className={`commit-message-section git-commit-composer git-commit-composer--${commitComposerPlacement}`}>
+      <div className="commit-message-input-wrapper">
+        <textarea
+          className="commit-message-input"
+          placeholder={t("git.commitMessage")}
+          value={commitMessage}
+          onChange={(event) => onCommitMessageChange?.(event.target.value)}
+          disabled={commitLoading || commitMessageLoading}
+          rows={2}
+        />
+        {onOpenGenerateMenu ? (
+          <button
+            type="button"
+            className={`commit-message-generate-button${commitMessageLoading ? " commit-message-generate-button--loading" : ""}`}
+            onClick={(event) => onOpenGenerateMenu(event, selections)}
+            disabled={!canGenerateCommitMessage}
+            aria-haspopup="menu"
+            title={t("git.generateCommitMessage")}
+            aria-label={t("git.generateCommitMessage")}
+          >
+            <CommitMessageEngineIcon
+              engine={commitMessageEngine}
+              size={14}
+              className={`commit-message-engine-icon${commitMessageLoading ? " commit-message-engine-icon--spinning" : ""}`}
+            />
+          </button>
+        ) : null}
+      </div>
+      {commitMessageError ? <div className="commit-message-error">{commitMessageError}</div> : null}
+      {commitError ? <div className="commit-message-error">{commitError}</div> : null}
+      {commitSummary ? <div className="git-repository-commit-summary" aria-live="polite">{commitSummary}</div> : null}
+      <div className="commit-button-container">
+        <button
+          type="button"
+          className="commit-button"
+          disabled={!canCommit}
+          onClick={() => canCommit && void onCommitRepositories?.(selections)}
+        >
+          {commitLoading ? <span className="commit-button-spinner" aria-hidden /> : null}
+          <span>{commitLoading ? t("git.committing") : t("git.commit")}</span>
+        </button>
+      </div>
+      <div className="commit-message-hint" aria-live="polite">
+        {t("git.filesChanged", { count: selectedCount })}
+      </div>
+    </div>
+  );
+  const activateRepositoryFile = useCallback((
+    status: RepositoryGitStatus,
+    path: string,
+    section: RepositorySection,
+  ) => {
+    const file = (section === "staged" ? status.stagedFiles : status.unstagedFiles)
+      .find((candidate) => candidate.path === path);
+    if (file && isDeletedDiffFile(file)) {
+      onOpenFilePreview?.(status.repositoryRoot, file, section);
+      return;
+    }
+    onOpenFile?.(status.repositoryRoot, path);
+  }, [onOpenFile, onOpenFilePreview]);
 
   const setGroupSelection = (repositoryRoot: string, paths: string[], selected: boolean, stagedPaths: Set<string>) => {
     setSelectionOverrides((previous) => {
@@ -142,8 +245,25 @@ export function GitMultiRepositoryChanges({
     });
   };
 
+  const toggleSectionCollapsed = (
+    repositoryRoot: string,
+    section: RepositorySection,
+  ) => {
+    const key = sectionCollapseKey(workspaceId, repositoryRoot, section);
+    setCollapsedSectionKeys((previous) => {
+      const next = new Set(previous);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
   return (
     <div className="git-multi-repository-changes" data-workspace-id={workspaceId}>
+      {commitComposerPlacement === "top" ? commitComposer : null}
       <div className="git-multi-repository-changes__content">
         {isLoading && statuses.length === 0 ? <div className="diff-empty">{t("common.loading")}</div> : null}
         {!isLoading && statuses.length === 0 ? <div className="diff-empty">{t("git.noChangesDetected")}</div> : null}
@@ -162,6 +282,23 @@ export function GitMultiRepositoryChanges({
               )}
             />
             <span className="git-repository-change-group__name">{status.displayName}</span>
+            {onRefresh ? (
+              <span className="git-repository-change-group__refresh">
+                <button
+                  type="button"
+                  className={`git-status-refresh-button${isLoading ? " is-spinning" : ""}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    void onRefresh();
+                  }}
+                  disabled={isLoading}
+                  aria-label={t("git.refreshStatus")}
+                  title={t("git.refreshStatus")}
+                >
+                  <RefreshCw className="git-status-refresh-icon" size={13} aria-hidden />
+                </button>
+              </span>
+            ) : null}
             <span className="git-repository-change-group__count">
               {t("git.filesChanged", { count: orderedPaths.length })}
             </span>
@@ -176,16 +313,37 @@ export function GitMultiRepositoryChanges({
               includedPaths={includedPaths}
               excludedPaths={excludedPaths}
               partialPaths={lockedPathsList}
+              isCollapsed={collapsedSectionKeys.has(
+                sectionCollapseKey(workspaceId, status.repositoryRoot, "staged"),
+              )}
+              onToggleCollapsed={() => toggleSectionCollapsed(status.repositoryRoot, "staged")}
               selectedFiles={EMPTY_SELECTED_FILES}
               selectedPath={null}
+              onActivateFile={(path, section) =>
+                activateRepositoryFile(status, path, section)
+              }
               onUnstageFile={onUnstageFile ? async (path) => {
                 await onUnstageFile(status.repositoryRoot, path);
                 await onRefresh?.();
               } : undefined}
               isCommitPathLocked={isCommitPathLocked}
               onSetCommitSelection={(paths, selected) => setGroupSelection(status.repositoryRoot, paths, selected, stagedPaths)}
-              onFileClick={() => {}}
-              onShowFileMenu={() => {}}
+              onFileClick={(_event, path) => activateRepositoryFile(status, path, "staged")}
+              onOpenFilePreview={(file, section) => onOpenFilePreview?.(
+                status.repositoryRoot,
+                file,
+                section,
+              )}
+              onShowFileMenu={(event, path, section) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onShowFileMenu?.(
+                  event,
+                  status.repositoryRoot,
+                  path,
+                  section,
+                );
+              }}
             />
           ) : null}
           {status.unstagedFiles.length > 0 ? (
@@ -196,8 +354,15 @@ export function GitMultiRepositoryChanges({
               includedPaths={includedPaths}
               excludedPaths={excludedPaths}
               partialPaths={lockedPathsList}
+              isCollapsed={collapsedSectionKeys.has(
+                sectionCollapseKey(workspaceId, status.repositoryRoot, "unstaged"),
+              )}
+              onToggleCollapsed={() => toggleSectionCollapsed(status.repositoryRoot, "unstaged")}
               selectedFiles={EMPTY_SELECTED_FILES}
               selectedPath={null}
+              onActivateFile={(path, section) =>
+                activateRepositoryFile(status, path, section)
+              }
               onStageAllChanges={onStageAll ? async () => {
                 await onStageAll(status.repositoryRoot);
                 await onRefresh?.();
@@ -206,62 +371,32 @@ export function GitMultiRepositoryChanges({
                 await onStageFile(status.repositoryRoot, path);
                 await onRefresh?.();
               } : undefined}
+              onDiscardFile={onDiscardFile ? (path) => onDiscardFile(status.repositoryRoot, path) : undefined}
               isCommitPathLocked={isCommitPathLocked}
               onSetCommitSelection={(paths, selected) => setGroupSelection(status.repositoryRoot, paths, selected, stagedPaths)}
-              onFileClick={() => {}}
-              onShowFileMenu={() => {}}
+              onFileClick={(_event, path) => activateRepositoryFile(status, path, "unstaged")}
+              onOpenFilePreview={(file, section) => onOpenFilePreview?.(
+                status.repositoryRoot,
+                file,
+                section,
+              )}
+              onShowFileMenu={(event, path, section) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onShowFileMenu?.(
+                  event,
+                  status.repositoryRoot,
+                  path,
+                  section,
+                );
+              }}
             />
           ) : null}
           </section>
         ))}
       </div>
 
-      <div className="commit-message-section git-commit-composer">
-        <div className="commit-message-input-wrapper">
-          <textarea
-            className="commit-message-input"
-            placeholder={t("git.commitMessage")}
-            value={commitMessage}
-            onChange={(event) => onCommitMessageChange?.(event.target.value)}
-            disabled={commitLoading || commitMessageLoading}
-            rows={2}
-          />
-          {onOpenGenerateMenu ? (
-            <button
-              type="button"
-              className={`commit-message-generate-button${commitMessageLoading ? " commit-message-generate-button--loading" : ""}`}
-              onClick={(event) => onOpenGenerateMenu(event, selections)}
-              disabled={!canGenerateCommitMessage}
-              aria-haspopup="menu"
-              title={t("git.generateCommitMessage")}
-              aria-label={t("git.generateCommitMessage")}
-            >
-              <CommitMessageEngineIcon
-                engine={commitMessageEngine}
-                size={14}
-                className={`commit-message-engine-icon${commitMessageLoading ? " commit-message-engine-icon--spinning" : ""}`}
-              />
-            </button>
-          ) : null}
-        </div>
-        {commitMessageError ? <div className="commit-message-error">{commitMessageError}</div> : null}
-        {commitError ? <div className="commit-message-error">{commitError}</div> : null}
-        {commitSummary ? <div className="git-repository-commit-summary" aria-live="polite">{commitSummary}</div> : null}
-        <div className="commit-button-container">
-          <button
-            type="button"
-            className="commit-button"
-            disabled={!canCommit}
-            onClick={() => canCommit && void onCommitRepositories?.(selections)}
-          >
-            {commitLoading ? <span className="commit-button-spinner" aria-hidden /> : null}
-            <span>{commitLoading ? t("git.committing") : t("git.commit")}</span>
-          </button>
-        </div>
-        <div className="commit-message-hint" aria-live="polite">
-          {t("git.filesChanged", { count: selectedCount })}
-        </div>
-      </div>
+      {commitComposerPlacement === "bottom" ? commitComposer : null}
     </div>
   );
 }

@@ -23,7 +23,6 @@ import type {
   CodexSpeedMode,
   ClaudeContextUsageViewModel,
   ContextSelectionChip,
-  DualContextUsageViewModel,
   MemoryReferenceMode,
   ModelInfo,
   PermissionMode,
@@ -305,27 +304,6 @@ function areContextUsageEqual(
   return left.used === right.used && left.total === right.total;
 }
 
-function areDualContextUsageEqual(
-  left: ChatInputBoxAdapterProps['dualContextUsage'],
-  right: ChatInputBoxAdapterProps['dualContextUsage'],
-): boolean {
-  if (left === right) {
-    return true;
-  }
-  if (!left || !right) {
-    return left === right;
-  }
-  return (
-    left.usedTokens === right.usedTokens &&
-    left.contextWindow === right.contextWindow &&
-    left.percent === right.percent &&
-    left.hasUsage === right.hasUsage &&
-    left.compactionState === right.compactionState &&
-    left.compactionSource === right.compactionSource &&
-    left.usageSyncPendingAfterCompaction === right.usageSyncPendingAfterCompaction
-  );
-}
-
 function areClaudeContextUsageEqual(
   left: ChatInputBoxAdapterProps['claudeContextUsage'],
   right: ChatInputBoxAdapterProps['claudeContextUsage'],
@@ -400,12 +378,6 @@ function areChatInputBoxAdapterPropsEqual(
   for (const propKey of propKeys) {
     if (propKey === 'contextUsage') {
       if (!areContextUsageEqual(previousProps.contextUsage, nextProps.contextUsage)) {
-        return false;
-      }
-      continue;
-    }
-    if (propKey === 'dualContextUsage') {
-      if (!areDualContextUsageEqual(previousProps.dualContextUsage, nextProps.dualContextUsage)) {
         return false;
       }
       continue;
@@ -523,16 +495,7 @@ export interface ChatInputBoxAdapterProps {
 
   // Context usage
   contextUsage?: { used: number; total: number } | null;
-  contextDualViewEnabled?: boolean;
-  dualContextUsage?: DualContextUsageViewModel | null;
   claudeContextUsage?: ClaudeContextUsageViewModel | null;
-  onRequestContextCompaction?: () => Promise<void> | void;
-  codexAutoCompactionEnabled?: boolean;
-  codexAutoCompactionThresholdPercent?: number;
-  onCodexAutoCompactionSettingsChange?: (patch: {
-    enabled?: boolean;
-    thresholdPercent?: number;
-  }) => Promise<void> | void;
   accountRateLimits?: RateLimitSnapshot | null;
   usageShowRemaining?: boolean;
   onRefreshAccountRateLimits?: () => Promise<void> | void;
@@ -749,7 +712,7 @@ function attachmentToGeminiImageInput(attachment: Attachment): string | null {
 
 function attachmentsToImageInputs(
   attachments: Attachment[] | undefined,
-  provider: 'claude' | 'codex' | 'gemini' | 'opencode' = 'claude',
+  provider: 'claude' | 'codex' | 'gemini' | 'kimi' | 'opencode' = 'claude',
 ): string[] | undefined {
   if (!attachments || attachments.length === 0) {
     return undefined;
@@ -769,7 +732,7 @@ function attachmentsToImageInputs(
 /**
  * Maps Composer engine types to ChatInputBox provider IDs
  */
-type ChatInputProvider = 'claude' | 'codex' | 'gemini' | 'opencode';
+type ChatInputProvider = 'claude' | 'codex' | 'gemini' | 'kimi' | 'opencode';
 
 function engineToProvider(engine?: EngineType): ChatInputProvider {
   switch (engine) {
@@ -779,6 +742,8 @@ function engineToProvider(engine?: EngineType): ChatInputProvider {
       return 'opencode';
     case 'gemini':
       return 'gemini';
+    case 'kimi':
+      return 'kimi';
     case 'claude':
     default:
       return 'claude';
@@ -793,6 +758,8 @@ function providerToEngine(providerId: string): EngineType {
       return 'opencode';
     case 'gemini':
       return 'gemini';
+    case 'kimi':
+      return 'kimi';
     case 'claude':
     default:
       return 'claude';
@@ -1085,13 +1052,7 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
       onAddAttachment,
       onRemoveAttachment,
       contextUsage,
-      contextDualViewEnabled = false,
-      dualContextUsage,
       claudeContextUsage,
-      onRequestContextCompaction,
-      codexAutoCompactionEnabled,
-      codexAutoCompactionThresholdPercent,
-      onCodexAutoCompactionSettingsChange,
       accountRateLimits,
       usageShowRemaining,
       onRefreshAccountRateLimits,
@@ -1892,6 +1853,7 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
         codex: isEngineEnabled('codex'),
         opencode: isEngineEnabled('opencode'),
         gemini: isEngineEnabled('gemini'),
+        kimi: isEngineEnabled('kimi'),
       } as const;
     }, [engines, isSharedSession]);
 
@@ -1914,6 +1876,7 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
         codex: resolveStatusLabel('codex'),
         opencode: resolveStatusLabel('opencode'),
         gemini: resolveStatusLabel('gemini'),
+        kimi: resolveStatusLabel('kimi'),
       } as const;
     }, [engines, t]);
 
@@ -1926,6 +1889,7 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
         claude: 'Claude Code',
         codex: 'Codex CLI',
         gemini: 'Gemini CLI',
+        kimi: 'Kimi CLI',
         opencode: 'OpenCode',
       };
 
@@ -1950,6 +1914,7 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
         codex: resolveVersion('codex'),
         opencode: resolveVersion('opencode'),
         gemini: resolveVersion('gemini'),
+        kimi: resolveVersion('kimi'),
       } as const;
     }, [engines]);
 
@@ -2201,13 +2166,7 @@ export const ChatInputBoxAdapter = memo(forwardRef<ChatInputBoxHandle, ChatInput
         usageUsedTokens={contextUsage?.used}
         usageMaxTokens={contextUsage?.total}
         showUsage={true}
-        contextDualViewEnabled={contextDualViewEnabled}
-        dualContextUsage={dualContextUsage}
         claudeContextUsage={claudeContextUsage}
-        onRequestContextCompaction={onRequestContextCompaction}
-        codexAutoCompactionEnabled={codexAutoCompactionEnabled}
-        codexAutoCompactionThresholdPercent={codexAutoCompactionThresholdPercent}
-        onCodexAutoCompactionSettingsChange={onCodexAutoCompactionSettingsChange}
         accountRateLimits={accountRateLimits}
         usageShowRemaining={usageShowRemaining}
         onRefreshAccountRateLimits={onRefreshAccountRateLimits}

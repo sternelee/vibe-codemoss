@@ -2,13 +2,14 @@ import { describe, expect, it } from "vitest";
 import { claudeRealtimeAdapter } from "./claudeRealtimeAdapter";
 import { codexRealtimeAdapter } from "./codexRealtimeAdapter";
 import { geminiRealtimeAdapter } from "./geminiRealtimeAdapter";
+import { kimiRealtimeAdapter } from "./kimiRealtimeAdapter";
 import { opencodeRealtimeAdapter } from "./opencodeRealtimeAdapter";
 import { getRealtimeAdapterByEngine } from "./realtimeAdapterRegistry";
 import type { ConversationEngine } from "../contracts/conversationCurtainContracts";
 
 describe("realtime adapters", () => {
   it("keeps unknown realtime methods non-fatal for every governance engine", () => {
-    const engines: ConversationEngine[] = ["claude", "codex", "gemini", "opencode"];
+    const engines: ConversationEngine[] = ["claude", "codex", "gemini", "kimi", "opencode"];
 
     for (const engine of engines) {
       const event = getRealtimeAdapterByEngine(engine).mapEvent({
@@ -520,6 +521,43 @@ describe("realtime adapters", () => {
     expect(event?.engine).toBe("gemini");
     expect(event?.operation).toBe("appendAgentMessageDelta");
     expect(event?.item.kind).toBe("message");
+  });
+
+  it("maps kimi text:delta alias to assistant delta", () => {
+    const event = kimiRealtimeAdapter.mapEvent({
+      workspaceId: "ws-5",
+      message: {
+        method: "text:delta",
+        params: {
+          threadId: "kimi:session-1",
+          itemId: "agent-1",
+          delta: "working",
+        },
+      },
+    });
+    expect(event).toBeTruthy();
+    expect(event?.engine).toBe("kimi");
+    expect(event?.operation).toBe("appendAgentMessageDelta");
+    expect(event?.item.kind).toBe("message");
+  });
+
+  it("maps kimi reasoning text delta to normalized reasoning delta event", () => {
+    const event = kimiRealtimeAdapter.mapEvent({
+      workspaceId: "ws-5",
+      message: {
+        method: "item/reasoning/textDelta",
+        params: {
+          threadId: "kimi:session-1",
+          itemId: "reasoning-1",
+          delta: "checking files...",
+        },
+      },
+    });
+    expect(event).toBeTruthy();
+    expect(event?.engine).toBe("kimi");
+    expect(event?.operation).toBe("appendReasoningContentDelta");
+    expect(event?.item.kind).toBe("reasoning");
+    expect(event?.delta).toBe("checking files...");
   });
 
   it("maps claude text:delta without itemId to a thread-scoped fallback id", () => {

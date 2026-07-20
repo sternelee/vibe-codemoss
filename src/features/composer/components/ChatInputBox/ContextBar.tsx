@@ -4,6 +4,7 @@ import Crosshair from 'lucide-react/dist/esm/icons/crosshair';
 import ListCollapse from 'lucide-react/dist/esm/icons/list-collapse';
 import Mail from 'lucide-react/dist/esm/icons/mail';
 import { AgentIcon } from '../../../../components/AgentIcon';
+import { ContextUsageIcon } from '@/components/ai-elements/context';
 import { getFileIcon } from '../../utils/fileIcons';
 import { TokenIndicator } from './TokenIndicator';
 import type {
@@ -464,20 +465,13 @@ export const ContextBar: React.FC<ContextBarProps> = memo(({
                 state: dualUsageSummary.ariaState,
               })}
             >
-              <span
-                className="context-dual-usage-ring"
-                style={
-                  {
-                    '--dual-usage-percent': `${dualUsageSummary.barPercent}%`,
-                  } as React.CSSProperties
-                }
-                aria-hidden="true"
-              >
-                <span className="context-dual-usage-ring-inner" />
-              </span>
               <span className="context-dual-usage-percent">
                 {dualUsageSummary.percentLabel}
               </span>
+              <ContextUsageIcon
+                usedPercent={dualUsageSummary.barPercent}
+                aria-hidden="true"
+              />
               <div
                 className="context-dual-tooltip"
                 role="tooltip"

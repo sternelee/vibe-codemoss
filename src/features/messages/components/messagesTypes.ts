@@ -16,6 +16,7 @@ import type { PresentationProfile } from "../presentation/presentationProfile";
 import type { RuntimeReconnectRecoveryCallbackResult } from "./runtimeReconnect";
 import type { AgentTaskScrollRequest } from "../types";
 import type { TaskRunRecord } from "../../tasks/types";
+import type { NoteCaptureDraft } from "../../note-cards/types";
 
 export type LastVisibleTextReport = {
   itemId: string | null;
@@ -39,6 +40,8 @@ export type MessagesProps = {
   workspaceId?: string | null;
   isThinking: boolean;
   isHistoryLoading?: boolean;
+  historyRecoveryFailureReason?: string | null;
+  onRetryHistory?: () => void;
   isContextCompacting?: boolean;
   proxyEnabled?: boolean;
   proxyUrl?: string | null;
@@ -69,7 +72,7 @@ export type MessagesProps = {
   ) => void;
   onApprovalBatchAccept?: (requests: ApprovalRequest[]) => void;
   onApprovalRemember?: (request: ApprovalRequest, command: string[]) => void;
-  activeEngine?: "claude" | "codex" | "gemini" | "opencode";
+  activeEngine?: "claude" | "codex" | "gemini" | "kimi" | "opencode";
   claudeThinkingVisible?: boolean;
   activeCollaborationModeId?: string | null;
   plan?: TurnPlan | null;
@@ -84,6 +87,7 @@ export type MessagesProps = {
   conversationState?: ConversationState | null;
   presentationProfile?: PresentationProfile | null;
   onOpenWorkspaceFile?: (path: string) => void;
+  onCaptureNote?: (draft: NoteCaptureDraft) => void;
   agentTaskScrollRequest?: AgentTaskScrollRequest | null;
   onRecoverThreadRuntime?: (
     workspaceId: string,

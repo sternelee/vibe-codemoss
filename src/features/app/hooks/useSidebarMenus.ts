@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import type { EngineType, WorkspaceInfo } from "../../../types";
 import { getOpenCodeProviderHealth } from "../../../services/tauri";
 import { pushGlobalRuntimeNotice } from "../../../services/globalRuntimeNotices";
+import { isEngineExecutionEnabled } from "../../../utils/engineExecutionPolicy";
 import { formatByteSize } from "../../../utils/formatting";
 import {
   clampRendererContextMenuPosition,
@@ -60,6 +61,7 @@ export type WorkspaceMenuIconKind =
   | "engine-codex"
   | "engine-opencode"
   | "engine-gemini"
+  | "engine-kimi"
   | "new-shared"
   | "alias"
   | "activate"
@@ -589,8 +591,10 @@ export function useSidebarMenus({
 
   const isEngineSessionEntryVisible = useCallback(
     (engineType: EngineType) => {
+      if (!isEngineExecutionEnabled(engineType)) {
+        return false;
+      }
       switch (engineType) {
-        case "gemini":
         case "opencode":
           return enabledEngines?.[engineType] !== false;
         case "claude":
@@ -622,6 +626,9 @@ export function useSidebarMenus({
         engine: EngineType,
         actionOptions?: CodexProviderProfileSelection,
       ) => {
+        if (!isEngineExecutionEnabled(engine)) {
+          return null;
+        }
         const creationOptions = {
           ...(targetFolderId ? { folderId: targetFolderId } : {}),
           ...(actionOptions?.providerProfileId
@@ -729,6 +736,16 @@ export function useSidebarMenus({
           ...resolveEngineActionMeta(workspace, "gemini"),
           onSelect: async () => {
             const threadId = await runAddAgent("gemini");
+            await handleCreatedSession(threadId);
+          },
+        },
+        {
+          id: "new-session-kimi",
+          label: t("workspace.engineKimi"),
+          iconKind: "engine-kimi",
+          ...resolveEngineActionMeta(workspace, "kimi"),
+          onSelect: async () => {
+            const threadId = await runAddAgent("kimi");
             await handleCreatedSession(threadId);
           },
         },

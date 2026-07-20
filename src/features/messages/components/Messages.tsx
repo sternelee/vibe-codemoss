@@ -34,7 +34,9 @@ import {
   writeLocalBooleanFlag,
 } from "../constants/liveCanvasControls";
 import { useFileLinkOpener } from "../hooks/useFileLinkOpener";
-import { RendererContextMenu } from "../../../components/ui/RendererContextMenu";
+import {
+  RendererContextMenu,
+} from "../../../components/ui/RendererContextMenu";
 import { appendRendererDiagnostic } from "../../../services/rendererDiagnostics";
 import {
   groupToolItems,
@@ -130,6 +132,7 @@ import {
   type RenderLoopGuardBudget,
 } from "./messagesRenderLoopGuards";
 import { addBoundedConversationRenderModeKey } from "./messagesConversationLightweightMode";
+import { useConversationNoteCaptureMenu } from "../hooks/useConversationNoteCaptureMenu";
 import {
   TRANSIENT_RUNTIME_RECONNECT_AUTO_DISMISS_MS,
   resolveAssistantRuntimeReconnectHint,
@@ -236,6 +239,8 @@ export const Messages = memo(function Messages({
   workspaceId: legacyWorkspaceId = null,
   isThinking: legacyIsThinking,
   isHistoryLoading = false,
+  historyRecoveryFailureReason = null,
+  onRetryHistory,
   isContextCompacting = false,
   proxyEnabled = false,
   proxyUrl = null,
@@ -267,6 +272,7 @@ export const Messages = memo(function Messages({
   conversationState = null,
   presentationProfile = null,
   onOpenWorkspaceFile,
+  onCaptureNote,
   onExitPlanModeExecute,
   agentTaskScrollRequest = null,
   onRecoverThreadRuntime,
@@ -344,7 +350,8 @@ export const Messages = memo(function Messages({
   const supportsStreamingReadableWindowRecovery =
     activeEngine === "claude" ||
     activeEngine === "codex" ||
-    activeEngine === "gemini";
+    activeEngine === "gemini" ||
+    activeEngine === "kimi";
   const visibleStallRecoveryActive =
     supportsStreamingReadableWindowRecovery &&
     isThinking &&
@@ -1191,10 +1198,38 @@ export const Messages = memo(function Messages({
     }
     return findLastAssistantMessageIndex(deferredRenderSourceItems);
   }, [deferredRenderSourceItems, lastUserMessageIndex]);
+  const liveReasoningWindowStartIndex = useMemo(() => {
+    if (liveSourceLastUserMessageIndex >= 0) {
+      return liveSourceLastUserMessageIndex;
+    }
+    return findLastAssistantMessageIndex(renderSourceItems);
+  }, [liveSourceLastUserMessageIndex, renderSourceItems]);
+  const latestLiveReasoningItem = useMemo(() => {
+    if (!isThinking) {
+      return null;
+    }
+    for (
+      let index = renderSourceItems.length - 1;
+      index > liveReasoningWindowStartIndex;
+      index -= 1
+    ) {
+      const item = renderSourceItems[index];
+      if (isReasoningConversationItem(item)) {
+        return item;
+      }
+    }
+    return null;
+  }, [isThinking, liveReasoningWindowStartIndex, renderSourceItems]);
 
   const latestReasoningLabel = useMemo(() => {
     if (hideClaudeReasoning) {
       return null;
+    }
+    if (latestLiveReasoningItem) {
+      const parsed = parseReasoning(latestLiveReasoningItem);
+      if (parsed.workingLabel) {
+        return parsed.workingLabel;
+      }
     }
     for (
       let index = deferredRenderSourceItems.length - 1;
@@ -1214,11 +1249,12 @@ export const Messages = memo(function Messages({
   }, [
     deferredRenderSourceItems,
     hideClaudeReasoning,
+    latestLiveReasoningItem,
     reasoningMetaById,
     reasoningWindowStartIndex,
   ]);
 
-  const latestReasoningId = useMemo(() => {
+  const latestDeferredReasoningId = useMemo(() => {
     for (
       let index = deferredRenderSourceItems.length - 1;
       index > reasoningWindowStartIndex;
@@ -1231,6 +1267,7 @@ export const Messages = memo(function Messages({
     }
     return null;
   }, [deferredRenderSourceItems, reasoningWindowStartIndex]);
+  const latestReasoningId = latestLiveReasoningItem?.id ?? latestDeferredReasoningId;
   const claudeDockedReasoningItems = useMemo(() => {
     if (!legacyClaudeReasoningDockEnabled) {
       return [] as Array<{
@@ -1504,7 +1541,7 @@ export const Messages = memo(function Messages({
   const streamActivityPhase = useStreamActivityPhase({
     isProcessing:
       isThinking &&
-      (activeEngine === "codex" || activeEngine === "claude" || activeEngine === "gemini"),
+      (activeEngine === "codex" || activeEngine === "claude" || activeEngine === "gemini" || activeEngine === "kimi"),
     items: deferredRenderSourceItems,
   });
   // 把对话页当前的流式状态 / 可见行数写入性能上下文桥,供掉帧 / 长任务采集器在
@@ -1798,11 +1835,15 @@ export const Messages = memo(function Messages({
     supportsStreamingReadableWindowRecovery &&
     (isThinking || isAssistantFinalizing);
   const livePresentationOverrideItemIds = useMemo(() => {
-    if (!liveAssistantMessageId) {
+    if (!liveAssistantMessageId && !latestReasoningId) {
       return undefined;
     }
-    return new Set([liveAssistantMessageId]);
-  }, [liveAssistantMessageId]);
+    return new Set(
+      [liveAssistantMessageId, latestReasoningId].filter(
+        (id): id is string => Boolean(id),
+      ),
+    );
+  }, [latestReasoningId, liveAssistantMessageId]);
   const timelinePresentationItems = useMemo(() => {
     if (claudeHistoryTranscriptFallbackActive) {
       return timelineItems;
@@ -2187,7 +2228,7 @@ export const Messages = memo(function Messages({
 
   useEffect(() => {
     if (
-      (activeEngine !== "claude" && activeEngine !== "codex" && activeEngine !== "gemini") ||
+      (activeEngine !== "claude" && activeEngine !== "codex" && activeEngine !== "gemini" && activeEngine !== "kimi") ||
       (!isThinking && !isAssistantFinalizing) ||
       !threadId
     ) {
@@ -2528,29 +2569,54 @@ export const Messages = memo(function Messages({
   const visibleApprovals = useMemo(() => {
     return getVisibleApprovalsForThread(approvals, workspaceId, threadId);
   }, [approvals, threadId, workspaceId]);
-  const approvalNode = (
-    <MessagesInlineApproval
-      approvals={visibleApprovals}
-      workspaces={workspaces}
-      onApprovalDecision={onApprovalDecision}
-      onApprovalBatchAccept={onApprovalBatchAccept}
-      onApprovalRemember={onApprovalRemember}
-    />
-  );
-  const userInputNode = (
-    <MessagesInlineUserInput
-      requests={userInputRequests}
-      activeThreadId={threadId ?? null}
-      activeWorkspaceId={workspaceId ?? null}
-      onSubmit={legacyOnUserInputSubmit}
-      onDismiss={legacyOnUserInputDismiss}
-      shouldRender={shouldRenderUserInputNode}
-    />
-  );
   const hasVisibleUserInputRequest =
     shouldRenderUserInputNode &&
     Boolean(legacyOnUserInputSubmit) &&
     activeUserInputRequestId !== null;
+  const approvalNode = useMemo(
+    () =>
+      visibleApprovals.length > 0 && onApprovalDecision ? (
+        <MessagesInlineApproval
+          approvals={visibleApprovals}
+          workspaces={workspaces}
+          onApprovalDecision={onApprovalDecision}
+          onApprovalBatchAccept={onApprovalBatchAccept}
+          onApprovalRemember={onApprovalRemember}
+        />
+      ) : null,
+    [
+      onApprovalBatchAccept,
+      onApprovalDecision,
+      onApprovalRemember,
+      visibleApprovals,
+      workspaces,
+    ],
+  );
+  const userInputNode = useMemo(
+    () =>
+      hasVisibleUserInputRequest ? (
+        <MessagesInlineUserInput
+          requests={userInputRequests}
+          activeThreadId={threadId ?? null}
+          activeWorkspaceId={workspaceId ?? null}
+          onSubmit={legacyOnUserInputSubmit}
+          onDismiss={legacyOnUserInputDismiss}
+          shouldRender
+        />
+      ) : null,
+    [
+      hasVisibleUserInputRequest,
+      legacyOnUserInputDismiss,
+      legacyOnUserInputSubmit,
+      threadId,
+      userInputRequests,
+      workspaceId,
+    ],
+  );
+  const timelineHeartbeatPulse =
+    (presentationProfile?.heartbeatWaitingHint ?? activeEngine === "opencode")
+      ? heartbeatPulse
+      : 0;
   const linkedConversationRun = useMemo(() => {
     if (!threadId) {
       return null;
@@ -2632,6 +2698,18 @@ export const Messages = memo(function Messages({
     };
   }, [requestScrollToAnchor]);
 
+  const {
+    menu: noteCaptureMenu,
+    closeMenu: closeNoteCaptureMenu,
+    handleContextMenu: handleConversationContextMenu,
+    openMenuFromTrigger: openNoteCaptureMenuFromTrigger,
+  } = useConversationNoteCaptureMenu({
+    canvasRootRef: containerRef,
+    items,
+    threadId,
+    onCaptureNote,
+  });
+
   return (
     <div
       className={`messages-shell${hasAnchorRail ? " has-anchor-rail" : ""}${enableClaudeRenderSafeMode ? " claude-render-safe" : ""}`}
@@ -2647,6 +2725,7 @@ export const Messages = memo(function Messages({
         className="messages scrollable"
         ref={containerRef}
         onScroll={updateAutoScroll}
+        onContextMenu={handleConversationContextMenu}
       >
         {linkedConversationRun && linkedConversationRunSurface ? (
           <div className={`messages-linked-run messages-linked-run--${linkedConversationRunSurface.severity}`}>
@@ -2700,9 +2779,13 @@ export const Messages = memo(function Messages({
           onPendingJumpTargetReady={handlePendingJumpTargetReady}
           onForkFromMessage={onForkFromMessage}
           onRewindFromMessage={onRewindFromMessage}
+          onOpenNoteCaptureMenu={
+            onCaptureNote ? openNoteCaptureMenuFromTrigger : undefined
+          }
           handleExitPlanModeExecuteForItem={handleExitPlanModeExecuteForItem}
-          heartbeatPulse={heartbeatPulse}
+          heartbeatPulse={timelineHeartbeatPulse}
           hiddenClaudeReasoningOnly={hiddenClaudeReasoningOnly}
+          historyRecoveryFailureReason={historyRecoveryFailureReason}
           isHistoryLoading={isHistoryLoading}
           isThinking={isThinking}
           isWorking={isWorking}
@@ -2721,6 +2804,7 @@ export const Messages = memo(function Messages({
           onPreviewFileDiff={onPreviewFileDiff}
           onConversationDetailHydrationRequest={handleConversationDetailHydrationRequest}
           onConversationLightweightModeEnable={handleConversationLightweightModeEnable}
+          onRetryHistory={onRetryHistory}
           onRecoverThreadRuntime={onRecoverThreadRuntime}
           onRecoverThreadRuntimeAndResend={onRecoverThreadRuntimeAndResend}
           onThreadRecoveryFork={onThreadRecoveryFork}
@@ -2766,6 +2850,13 @@ export const Messages = memo(function Messages({
           menu={fileLinkMenu}
           onClose={closeFileLinkMenu}
           className="renderer-context-menu messages-file-link-context-menu"
+        />
+      ) : null}
+      {noteCaptureMenu ? (
+        <RendererContextMenu
+          menu={noteCaptureMenu}
+          onClose={closeNoteCaptureMenu}
+          className="renderer-context-menu messages-note-capture-context-menu"
         />
       ) : null}
     </div>

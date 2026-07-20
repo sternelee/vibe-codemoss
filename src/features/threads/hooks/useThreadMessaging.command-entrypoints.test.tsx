@@ -42,6 +42,7 @@ vi.mock("../../../services/tauri", () => ({
   listGitBranches: vi.fn(),
   getGitLog: vi.fn(),
   listGeminiSessions: vi.fn(),
+  listKimiSessions: vi.fn(),
   engineSendMessage: vi.fn(),
   engineInterruptTurn: vi.fn(),
   engineInterrupt: vi.fn(),

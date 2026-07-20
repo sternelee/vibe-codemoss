@@ -10,6 +10,8 @@ import { recordReactScanRender } from "./perfBaseline/reactScanRenderLog";
 type ReactScanModule = typeof import("react-scan");
 
 const REACT_SCAN_FLAG_KEY = "ccgui.perf.reactScan";
+const REACT_SCAN_UPDATE_DEPTH_RECOVERY_KEY =
+  "ccgui.perf.reactScan.updateDepthRecoveryAttempted";
 // react-scan 自己的 options 持久化键。它会把 enabled 落盘并在每次 start() 时 restore,
 // 覆盖 scan({enabled:true}) 传入的值;一旦盘上残留 enabled:false(点过工具条暂停键),
 // instrumentation.isPaused 恒为 true,options.onRender 被 shouldFullyAbort 闸门跳过,
@@ -76,6 +78,73 @@ function persistFlag(enabled: boolean): void {
     }
   } catch {
     // localStorage is best effort; ignore quota/permission failures.
+  }
+}
+
+function isReactUpdateDepthError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes("Maximum update depth exceeded") ||
+    message.includes("Minified React error #185")
+  );
+}
+
+export type ReactScanUpdateDepthRecoveryStatus =
+  | "not-applicable"
+  | "already-attempted"
+  | "recovered"
+  | "failed";
+
+/**
+ * packaged build 会在 React 前启动 react-scan，持久化 overlay 因而可能把 render loop
+ * 放大成 reload loop。仅在 update-depth crash 后禁用这项可选诊断，并在无 instrumentation 下重试一次。
+ */
+export function recoverFromReactScanUpdateDepthError(
+  error: unknown,
+  reload: () => void = () => window.location.reload(),
+): ReactScanUpdateDepthRecoveryStatus {
+  if (!isReactUpdateDepthError(error) || !isReactScanFlagEnabled()) {
+    return "not-applicable";
+  }
+  let persistedModuleOptions: string | null = null;
+  try {
+    if (
+      globalThis.sessionStorage.getItem(REACT_SCAN_UPDATE_DEPTH_RECOVERY_KEY) === "1"
+    ) {
+      return "already-attempted";
+    }
+    persistedModuleOptions = globalThis.localStorage.getItem(
+      REACT_SCAN_MODULE_OPTIONS_KEY,
+    );
+    globalThis.sessionStorage.setItem(REACT_SCAN_UPDATE_DEPTH_RECOVERY_KEY, "1");
+    globalThis.localStorage.removeItem(REACT_SCAN_FLAG_KEY);
+    globalThis.localStorage.removeItem(REACT_SCAN_MODULE_OPTIONS_KEY);
+    if (isReactScanFlagEnabled()) {
+      throw new Error("react-scan startup flag remained enabled");
+    }
+    reload();
+    return "recovered";
+  } catch {
+    // 恢复流程必须是可重试的 transaction：任一步失败都还原持久化状态并释放 one-shot guard。
+    try {
+      globalThis.localStorage.setItem(REACT_SCAN_FLAG_KEY, "1");
+      if (persistedModuleOptions === null) {
+        globalThis.localStorage.removeItem(REACT_SCAN_MODULE_OPTIONS_KEY);
+      } else {
+        globalThis.localStorage.setItem(
+          REACT_SCAN_MODULE_OPTIONS_KEY,
+          persistedModuleOptions,
+        );
+      }
+    } catch {
+      // ErrorBoundary 会记录 content-safe recovery failure；这里继续尝试释放 session guard。
+    }
+    try {
+      globalThis.sessionStorage.removeItem(REACT_SCAN_UPDATE_DEPTH_RECOVERY_KEY);
+    } catch {
+      // ErrorBoundary 会保留普通错误页，避免 recovery failure 再次升级为异常。
+    }
+    return "failed";
   }
 }
 
@@ -151,6 +220,13 @@ export async function startReactScanOverlay(): Promise<void> {
 
 /** Toggle the overlay from settings: persist the choice and apply it live. */
 export async function setReactScanEnabled(enabled: boolean): Promise<void> {
+  if (enabled && canUseLocalStorage()) {
+    try {
+      globalThis.sessionStorage.removeItem(REACT_SCAN_UPDATE_DEPTH_RECOVERY_KEY);
+    } catch {
+      // sessionStorage 仅作 best effort；runtime toggle 仍可继续执行。
+    }
+  }
   persistFlag(enabled);
   await applyReactScan(enabled);
 }

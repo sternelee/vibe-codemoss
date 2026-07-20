@@ -22,7 +22,7 @@ const errors = {
     cliNotFound:
       "Neither Claude Code CLI nor Codex CLI was found. Please install one of them.",
     cliNotFoundHint:
-      "Install Claude Code: npm install -g @anthropic-ai/claude-code\nInstall Codex: npm install -g @openai/codex",
+      "Install Claude Code: curl -fsSL https://claude.ai/install.sh | bash\nInstall Codex: npm install -g @openai/codex",
     codexCliNotFound:
       "Codex CLI not found. Install Codex and ensure `codex` is on your PATH.",
     couldntOpenWorkspace: "Couldn't open workspace",

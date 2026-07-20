@@ -190,6 +190,7 @@ export type SettingsViewProps = {
     codexArgs: string | null,
   ) => Promise<CodexDoctorResult>;
   onRunClaudeDoctor?: (claudeBin: string | null) => Promise<CodexDoctorResult>;
+  onRunKimiDoctor?: (kimiBin: string | null) => Promise<CodexDoctorResult>;
   onRunDoctor?: (
     codexBin: string | null,
     codexArgs: string | null,
@@ -348,6 +349,7 @@ export function SettingsView({
   onOpenMailSession,
   onRunCodexDoctor,
   onRunClaudeDoctor,
+  onRunKimiDoctor,
   onRunDoctor,
   activeWorkspace,
   activeThreadId = null,
@@ -399,6 +401,9 @@ export function SettingsView({
   const [appVersion, setAppVersion] = useState<string | null>(null);
   const [claudePathDraft, setClaudePathDraft] = useState(
     appSettings.claudeBin ?? "",
+  );
+  const [kimiPathDraft, setKimiPathDraft] = useState(
+    appSettings.kimiBin ?? "",
   );
   const [codexPathDraft, setCodexPathDraft] = useState(
     appSettings.codexBin ?? "",
@@ -488,6 +493,10 @@ export function SettingsView({
     result: CodexDoctorResult | null;
   }>({ status: "idle", result: null });
   const [claudeDoctorState, setClaudeDoctorState] = useState<{
+    status: "idle" | "running" | "done";
+    result: CodexDoctorResult | null;
+  }>({ status: "idle", result: null });
+  const [kimiDoctorState, setKimiDoctorState] = useState<{
     status: "idle" | "running" | "done";
     result: CodexDoctorResult | null;
   }>({ status: "idle", result: null });
@@ -769,6 +778,10 @@ export function SettingsView({
   }, [appSettings.claudeBin]);
 
   useEffect(() => {
+    setKimiPathDraft(appSettings.kimiBin ?? "");
+  }, [appSettings.kimiBin]);
+
+  useEffect(() => {
     setCodexPathDraft(appSettings.codexBin ?? "");
   }, [appSettings.codexBin]);
 
@@ -991,12 +1004,14 @@ export function SettingsView({
   }, [activeSection, initialHighlightTarget]);
 
   const nextClaudeBin = claudePathDraft.trim() ? claudePathDraft.trim() : null;
+  const nextKimiBin = kimiPathDraft.trim() ? kimiPathDraft.trim() : null;
   const nextCodexBin = codexPathDraft.trim() ? codexPathDraft.trim() : null;
   const nextCodexArgs = codexArgsDraft.trim() ? codexArgsDraft.trim() : null;
   const nextTerminalShellPath = terminalShellPathDraft.trim()
     ? terminalShellPathDraft.trim()
     : null;
   const claudeDirty = nextClaudeBin !== (appSettings.claudeBin ?? null);
+  const kimiDirty = nextKimiBin !== (appSettings.kimiBin ?? null);
   const codexDirty =
     nextCodexBin !== (appSettings.codexBin ?? null) ||
     nextCodexArgs !== (appSettings.codexArgs ?? null);
@@ -1009,6 +1024,18 @@ export function SettingsView({
       await onUpdateAppSettings({
         ...appSettings,
         claudeBin: nextClaudeBin,
+      });
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
+  const handleSaveKimiSettings = async () => {
+    setIsSavingSettings(true);
+    try {
+      await onUpdateAppSettings({
+        ...appSettings,
+        kimiBin: nextKimiBin,
       });
     } finally {
       setIsSavingSettings(false);
@@ -1422,6 +1449,14 @@ export function SettingsView({
     setClaudePathDraft(selection);
   };
 
+  const handleBrowseKimi = async () => {
+    const selection = await open({ multiple: false, directory: false });
+    if (!selection || Array.isArray(selection)) {
+      return;
+    }
+    setKimiPathDraft(selection);
+  };
+
   const handleRunDoctor = async () => {
     setDoctorState({ status: "running", result: null });
     try {
@@ -1462,6 +1497,32 @@ export function SettingsView({
         result: {
           ok: false,
           codexBin: nextClaudeBin,
+          version: null,
+          appServerOk: false,
+          details: error instanceof Error ? error.message : String(error),
+          path: null,
+          nodeOk: false,
+          nodeVersion: null,
+          nodeDetails: null,
+        },
+      });
+    }
+  };
+
+  const handleRunKimiDoctor = async () => {
+    setKimiDoctorState({ status: "running", result: null });
+    try {
+      if (!onRunKimiDoctor) {
+        throw new Error("Kimi doctor is not available.");
+      }
+      const result = await onRunKimiDoctor(nextKimiBin);
+      setKimiDoctorState({ status: "done", result });
+    } catch (error) {
+      setKimiDoctorState({
+        status: "done",
+        result: {
+          ok: false,
+          codexBin: nextKimiBin,
           version: null,
           appServerOk: false,
           details: error instanceof Error ? error.message : String(error),
@@ -2377,7 +2438,10 @@ export function SettingsView({
                   {t("settings.agentPromptPromptsTab")}
                 </button>
               </div>
-              <AgentSettingsSection active={agentPromptSubTab === "agents"} />
+              <AgentSettingsSection
+                active={agentPromptSubTab === "agents"}
+                onUpdateAppSettings={onUpdateAppSettings}
+              />
               {agentPromptSubTab === "prompts" && (
                 <PromptSection
                   activeWorkspace={selectedSettingsWorkspace}
@@ -2463,6 +2527,13 @@ export function SettingsView({
                 handleSaveClaudeSettings={handleSaveClaudeSettings}
                 handleRunClaudeDoctor={handleRunClaudeDoctor}
                 claudeDoctorState={claudeDoctorState}
+                kimiPathDraft={kimiPathDraft}
+                setKimiPathDraft={setKimiPathDraft}
+                kimiDirty={kimiDirty}
+                handleBrowseKimi={handleBrowseKimi}
+                handleSaveKimiSettings={handleSaveKimiSettings}
+                handleRunKimiDoctor={handleRunKimiDoctor}
+                kimiDoctorState={kimiDoctorState}
                 codexPathDraft={codexPathDraft}
                 setCodexPathDraft={setCodexPathDraft}
                 codexArgsDraft={codexArgsDraft}
@@ -2489,6 +2560,8 @@ export function SettingsView({
                   }
                   if (engine === "codex") {
                     setDoctorState({ status: "done", result });
+                  } else if (engine === "kimi") {
+                    setKimiDoctorState({ status: "done", result });
                   } else {
                     setClaudeDoctorState({ status: "done", result });
                   }

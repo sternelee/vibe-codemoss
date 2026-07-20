@@ -16,6 +16,8 @@ import { useRenderHotspot } from "../../../services/perfBaseline/useRenderHotspo
 import { useTranslation } from "react-i18next";
 import Check from "lucide-react/dist/esm/icons/check";
 import Copy from "lucide-react/dist/esm/icons/copy";
+import NotebookPen from "lucide-react/dist/esm/icons/notebook-pen";
+import Terminal from "lucide-react/dist/esm/icons/terminal";
 import type {
   AccessMode,
   ConversationItem,
@@ -26,6 +28,7 @@ import type { GroupedEntry } from "../utils/groupToolItems";
 import { parseAgentTaskNotification } from "../utils/agentTaskNotification";
 import type { PresentationProfile } from "../presentation/presentationProfile";
 import { Marker } from "../../../components/ui/marker";
+import { Button } from "../../../components/ui/button";
 import {
   ToolBlockRenderer,
   ReadToolGroupBlock,
@@ -171,7 +174,7 @@ type MessagesTimelineProps = {
   activeUserInputRequestId: string | number | null;
   agentTaskNodeByTaskIdRef: MutableRefObject<Map<string, HTMLDivElement>>;
   agentTaskNodeByToolUseIdRef: MutableRefObject<Map<string, HTMLDivElement>>;
-  approvalNode: ReactNode;
+  approvalNode: ReactNode | null;
   assistantFinalBoundarySet: Set<string>;
   assistantLiveTurnFinalBoundarySuppressedSet: Set<string>;
   bottomRef: RefObject<HTMLDivElement | null>;
@@ -200,12 +203,14 @@ type MessagesTimelineProps = {
   onPendingJumpTargetReady: (messageId: string) => void;
   onForkFromMessage?: (messageId: string) => void;
   onRewindFromMessage?: (messageId: string) => void;
+  onOpenNoteCaptureMenu?: (trigger: HTMLButtonElement) => void;
   handleExitPlanModeExecuteForItem: (
     itemId: string,
     mode: Extract<AccessMode, "default" | "full-access">,
   ) => Promise<void>;
   heartbeatPulse: number;
   hiddenClaudeReasoningOnly: boolean;
+  historyRecoveryFailureReason: string | null;
   isHistoryLoading: boolean;
   isThinking: boolean;
   isWorking: boolean;
@@ -224,6 +229,7 @@ type MessagesTimelineProps = {
   onPreviewFileDiff?: (path: string) => void;
   onConversationDetailHydrationRequest: () => void;
   onConversationLightweightModeEnable: () => void;
+  onRetryHistory?: () => void;
   onRecoverThreadRuntime?: (
     workspaceId: string,
     threadId: string,
@@ -264,7 +270,7 @@ type MessagesTimelineProps = {
   historyExpansionActive: boolean;
   presentationMode: MessagesPresentationMode;
   presentationScopeKey: string;
-  userInputNode: ReactNode;
+  userInputNode: ReactNode | null;
   visibleCollapsedHistoryItemCount: number;
   waitingForFirstChunk: boolean;
   workspaceId: string | null | undefined;
@@ -358,9 +364,11 @@ export const MessagesTimeline = memo(function MessagesTimeline({
   onPendingJumpTargetReady,
   onForkFromMessage,
   onRewindFromMessage,
+  onOpenNoteCaptureMenu,
   handleExitPlanModeExecuteForItem,
   heartbeatPulse,
   hiddenClaudeReasoningOnly,
+  historyRecoveryFailureReason,
   isHistoryLoading,
   isThinking,
   isWorking,
@@ -379,6 +387,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
   onPreviewFileDiff,
   onConversationDetailHydrationRequest,
   onConversationLightweightModeEnable,
+  onRetryHistory,
   onRecoverThreadRuntime,
   onRecoverThreadRuntimeAndResend,
   onThreadRecoveryFork,
@@ -512,6 +521,8 @@ export const MessagesTimeline = memo(function MessagesTimeline({
         )),
   );
   const approvalVisible = Boolean(approvalNode);
+  const historyRecoveryFailureVisible =
+    Boolean(historyRecoveryFailureReason?.trim());
   const claudeDockedReasoningItemIds = useMemo(
     () => claudeDockedReasoningItems.map(({ item }) => item.id),
     [claudeDockedReasoningItems],
@@ -528,6 +539,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
         groupedEntries,
         hasVisibleUserInputRequest,
         hiddenClaudeReasoningOnly,
+        historyRecoveryFailureVisible,
         isHistoryLoading,
         isThinking,
         shouldRenderUserInputAtTail,
@@ -542,6 +554,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
       groupedEntries,
       hasVisibleUserInputRequest,
       hiddenClaudeReasoningOnly,
+      historyRecoveryFailureVisible,
       isHistoryLoading,
       isThinking,
       shouldRenderUserInputAtTail,
@@ -1505,6 +1518,17 @@ export const MessagesTimeline = memo(function MessagesTimeline({
             className="message-action-bar message-action-bar-row"
             aria-label={t("messages.messageActions")}
           >
+            {isLatestFinalAssistant && onOpenNoteCaptureMenu ? (
+              <button
+                type="button"
+                className="ghost message-action-button"
+                onClick={(event) => onOpenNoteCaptureMenu(event.currentTarget)}
+                aria-label={t("noteCards.captureMenu")}
+                title={t("noteCards.captureMenu")}
+              >
+                <NotebookPen size={9} strokeWidth={1.75} aria-hidden />
+              </button>
+            ) : null}
             <button
               type="button"
               className={`ghost message-action-button message-copy-button${isCopied ? " is-copied" : ""}`}
@@ -1536,7 +1560,10 @@ export const MessagesTimeline = memo(function MessagesTimeline({
                 aria-label={t("messages.rewindMessage")}
                 title={t("messages.rewindMessage")}
               >
-                <span className="codicon codicon-history" aria-hidden />
+                <span
+                  className="codicon codicon-history message-history-icon"
+                  aria-hidden
+                />
               </button>
             ) : null}
           </div>
@@ -1620,7 +1647,8 @@ export const MessagesTimeline = memo(function MessagesTimeline({
               isStreaming={
                 (activeEngine === "claude" ||
                   activeEngine === "codex" ||
-                  activeEngine === "gemini") &&
+                  activeEngine === "gemini" ||
+                  activeEngine === "kimi") &&
                 renderItem.role === "assistant" &&
                 renderItem.recoveredFromLiveShadow !== true &&
                 renderItem.id === liveAssistantMessageId
@@ -1984,6 +2012,40 @@ export const MessagesTimeline = memo(function MessagesTimeline({
           presentationProfile={presentationProfile}
           streamActivityPhase={streamActivityPhase}
         />
+      );
+    }
+    if (row.kind === "historyRecoveryFailure") {
+      return (
+        <div
+          className="message-runtime-recovery-card"
+          role="alert"
+          aria-label={t("messages.threadRecoveryTitle")}
+        >
+          <div className="message-runtime-recovery-header">
+            <Terminal className="message-runtime-recovery-icon" size={15} aria-hidden />
+            <div className="message-runtime-recovery-copy">
+              <div className="message-runtime-recovery-title">
+                {t("messages.threadRecoveryTitle")}
+              </div>
+              <div className="message-runtime-recovery-description">
+                {t("messages.threadRecoveryFailed")}
+              </div>
+            </div>
+            {onRetryHistory ? (
+              <div className="message-runtime-recovery-actions">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="message-runtime-recovery-button"
+                  onClick={onRetryHistory}
+                >
+                  {t("messages.threadRecoveryAction")}
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        </div>
       );
     }
     if (row.kind === "emptyState") {

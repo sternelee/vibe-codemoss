@@ -2,11 +2,13 @@ import {
   loadCodexSession as loadCodexSessionService,
   loadClaudeSession as loadClaudeSessionService,
   loadGeminiSession as loadGeminiSessionService,
+  loadKimiSession as loadKimiSessionService,
   resumeThread as resumeThreadService,
 } from "../../../services/tauri";
 import { createClaudeHistoryLoader } from "../loaders/claudeHistoryLoader";
 import { createCodexHistoryLoader } from "../loaders/codexHistoryLoader";
 import { createGeminiHistoryLoader } from "../loaders/geminiHistoryLoader";
+import { createKimiHistoryLoader } from "../loaders/kimiHistoryLoader";
 import { createOpenCodeHistoryLoader } from "../loaders/opencodeHistoryLoader";
 import { createSharedHistoryLoader } from "../loaders/sharedHistoryLoader";
 import { loadSharedSession as loadSharedSessionService } from "../../shared-session/services/sharedSessions";
@@ -40,6 +42,13 @@ export function createThreadHistoryLoaderForThread({
       workspaceId,
       workspacePath,
       loadGeminiSession: loadGeminiSessionService,
+    });
+  }
+  if (targetThreadId.startsWith("kimi:")) {
+    return createKimiHistoryLoader({
+      workspaceId,
+      workspacePath,
+      loadKimiSession: loadKimiSessionService,
     });
   }
   if (targetThreadId.startsWith("opencode:")) {

@@ -5,6 +5,7 @@ import type {
   CliInstallPlan,
   CliInstallResult,
   CliInstallStrategy,
+  CliVersionStatus,
 } from "../../types";
 
 export async function getCliInstallPlan(
@@ -31,4 +32,10 @@ export async function runCliInstaller(
     strategy,
     runId,
   });
+}
+
+export async function getCliVersionStatus(
+  engine: CliInstallEngine,
+): Promise<CliVersionStatus> {
+  return invoke<CliVersionStatus>("cli_version_status", { engine });
 }

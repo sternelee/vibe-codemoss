@@ -14,6 +14,7 @@ const messages = {
     "thinking": "सोच रहा है…",
     "thinkingLabel": "सोच रहा है",
     "thinkingProcess": "सोच प्रक्रिया",
+    "thinkingDone": "सोच पूर्ण",
     "finalMessageBoundary": "अंतिम संदेश",
     "turnFilesChanged": {
       "title_one": "{{count}} फ़ाइल संपादित की",
@@ -276,7 +277,9 @@ const messages = {
     "toolHeavyDetailMeta": "{{kind}} · {{count}} आइटम",
     "toolHeavyDetailShow": "विवरण दिखाएँ",
     "toolHeavyOutput": "आउटपुट",
-    "toolHeavyDiff": "Diff"
+    "toolHeavyDiff": "Diff",
+    "builtInAgentUnavailableTitle": "अंतर्निहित Agent उपलब्ध नहीं है",
+    "builtInAgentUnavailableMessage": "यह Agent अक्षम या अनुपलब्ध है, इसलिए इस संदेश में इसका prompt उपयोग नहीं किया जाएगा।"
   }
 };
 

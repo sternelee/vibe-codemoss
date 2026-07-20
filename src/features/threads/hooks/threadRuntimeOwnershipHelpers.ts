@@ -42,6 +42,8 @@ export function isCodexOwnershipFallbackCandidate(
     normalizedId.startsWith("claude-pending-") ||
     normalizedId.startsWith("gemini:") ||
     normalizedId.startsWith("gemini-pending-") ||
+    normalizedId.startsWith("kimi:") ||
+    normalizedId.startsWith("kimi-pending-") ||
     normalizedId.startsWith("opencode:") ||
     normalizedId.startsWith("opencode-pending-")
   );

@@ -61,6 +61,7 @@ const workspace = {
     "engineClaudeCode": "Claude Code",
     "engineCodex": "Codex",
     "engineGemini": "Gemini",
+    "engineKimi": "Kimi CLI",
     "engineOpenCode": "OpenCode",
     "engineStatusLoading": "確認中...",
     "engineStatusRequiresLogin": "サインインが必要です",

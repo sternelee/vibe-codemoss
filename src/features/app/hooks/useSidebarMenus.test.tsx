@@ -57,6 +57,7 @@ vi.mock("react-i18next", () => ({
         "workspace.engineCodex": "Codex",
         "workspace.engineOpenCode": "OpenCode",
         "workspace.engineGemini": "Gemini",
+        "workspace.engineKimi": "Kimi CLI",
         "workspace.engineStatusLoading": "Checking...",
         "workspace.engineStatusRequiresLogin": "Sign in required",
         "threads.reloadThreads": "Reload threads",
@@ -326,7 +327,7 @@ describe("useSidebarMenus", () => {
   it.each([
     ["claude", "Claude Code", "new-session-claude"],
     ["codex", "Codex", "new-session-codex"],
-    ["gemini", "Gemini", "new-session-gemini"],
+    ["kimi", "Kimi", "new-session-kimi"],
   ] as const)(
     "keeps %s refresh result visible before parent engine props rerender",
     async (engineType, expectedLabel, actionId) => {
@@ -410,7 +411,7 @@ describe("useSidebarMenus", () => {
     expect(getOpenCodeProviderHealthMock).not.toHaveBeenCalled();
   });
 
-  it("shows Gemini entry as available in workspace plus menu", async () => {
+  it("hides Gemini even when legacy settings and engine status enable it", async () => {
     const handlers = createHandlers();
     const { result } = renderHook(() => useSidebarMenus(handlers));
 
@@ -432,8 +433,7 @@ describe("useSidebarMenus", () => {
       .find((group) => group.id === "new-session")
       ?.actions.find((action) => action.id === "new-session-gemini");
 
-    expect(geminiAction?.label).toBe("Gemini");
-    expect(geminiAction?.unavailable).toBe(false);
+    expect(geminiAction).toBeUndefined();
   });
 
   it("hides Gemini and OpenCode session entries when they are disabled in settings", async () => {
@@ -680,7 +680,7 @@ describe("useSidebarMenus", () => {
     );
   });
 
-  it("triggers create action when Gemini entry is clicked", async () => {
+  it("cannot trigger session creation through a hidden Gemini entry", async () => {
     const handlers = createHandlers();
     const { result } = renderHook(() => useSidebarMenus(handlers));
 
@@ -701,13 +701,8 @@ describe("useSidebarMenus", () => {
       .find((group) => group.id === "new-session")
       ?.actions.find((action) => action.id === "new-session-gemini");
 
-    expect(geminiAction).toBeTruthy();
-    act(() => {
-      result.current.onWorkspaceMenuAction(geminiAction!);
-    });
-
-    expect(handlers.onAddAgent).toHaveBeenCalledTimes(1);
-    expect(handlers.onAddAgent).toHaveBeenCalledWith(workspace, "gemini");
+    expect(geminiAction).toBeUndefined();
+    expect(handlers.onAddAgent).not.toHaveBeenCalled();
   });
 
   it("places archive before size and delete in the thread context menu", async () => {
@@ -1397,7 +1392,7 @@ describe("useSidebarMenus", () => {
       "new-session-claude",
       "new-session-codex",
       "new-session-opencode",
-      "new-session-gemini",
+      "new-session-kimi",
     ]);
   });
 });

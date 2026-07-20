@@ -2,6 +2,7 @@ import type { ConversationEngine, RealtimeAdapter } from "../contracts/conversat
 import { claudeRealtimeAdapter } from "./claudeRealtimeAdapter";
 import { codexRealtimeAdapter } from "./codexRealtimeAdapter";
 import { geminiRealtimeAdapter } from "./geminiRealtimeAdapter";
+import { kimiRealtimeAdapter } from "./kimiRealtimeAdapter";
 import { opencodeRealtimeAdapter } from "./opencodeRealtimeAdapter";
 import { inferEngineFromThreadId } from "./sharedRealtimeAdapter";
 
@@ -9,6 +10,7 @@ const ADAPTERS: Record<ConversationEngine, RealtimeAdapter> = {
   codex: codexRealtimeAdapter,
   claude: claudeRealtimeAdapter,
   gemini: geminiRealtimeAdapter,
+  kimi: kimiRealtimeAdapter,
   opencode: opencodeRealtimeAdapter,
 };
 

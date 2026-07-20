@@ -1,5 +1,5 @@
 import Brain from "lucide-react/dist/esm/icons/brain";
-import GitBranch from "lucide-react/dist/esm/icons/git-branch";
+import GitCommitHorizontal from "lucide-react/dist/esm/icons/git-commit-horizontal";
 import LayoutDashboard from "lucide-react/dist/esm/icons/layout-dashboard";
 import Lock from "lucide-react/dist/esm/icons/lock";
 import Settings from "lucide-react/dist/esm/icons/settings";
@@ -88,8 +88,8 @@ export function SidebarSettingsMenu({
               onAppModeChange(appMode === "gitHistory" ? "chat" : "gitHistory");
             }}
           >
-            <GitBranch size={14} aria-hidden />
-            <span>{t("git.logMode")}</span>
+            <GitCommitHorizontal size={14} aria-hidden />
+            <span>{t("git.historyQuickAction")}</span>
           </button>
           <button
             type="button"

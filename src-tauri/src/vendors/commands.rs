@@ -59,8 +59,12 @@ const LOCAL_PROVIDER_MODEL_MAPPING_KEYS: &[&str] = &[
 const GEMINI_PREFLIGHT_TIMEOUT: Duration = Duration::from_secs(8);
 const GEMINI_DEFAULT_AUTH_MODE: &str = "login_google";
 
-fn default_enabled_true() -> bool {
-    true
+fn effective_gemini_vendor_enabled(_requested: bool) -> bool {
+    crate::engine_policy::GEMINI_RUNTIME_ENABLED
+}
+
+fn effective_gemini_vendor_enabled_default() -> bool {
+    effective_gemini_vendor_enabled(false)
 }
 
 fn default_gemini_auth_mode() -> String {
@@ -237,7 +241,7 @@ fn apply_provider_to_claude_settings(
 
 /// Represents the ~/.ccgui/config.json file structure shared with idea-claude-code-gui
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
-struct CodemossConfig {
+pub(crate) struct CodemossConfig {
     #[serde(default)]
     version: Option<Value>,
     #[serde(default)]
@@ -246,6 +250,8 @@ struct CodemossConfig {
     codex: CodexSection,
     #[serde(default)]
     gemini: GeminiSection,
+    #[serde(default)]
+    pub(crate) kimi: KimiSection,
     /// Preserve all other top-level fields (mcpServers, agents, ui, etc.)
     #[serde(flatten)]
     extra: HashMap<String, Value>,
@@ -269,7 +275,7 @@ struct CodexSection {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct GeminiSection {
-    #[serde(default = "default_enabled_true")]
+    #[serde(default = "effective_gemini_vendor_enabled_default")]
     enabled: bool,
     #[serde(default)]
     env: HashMap<String, String>,
@@ -277,10 +283,18 @@ struct GeminiSection {
     auth_mode: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub(crate) struct KimiSection {
+    #[serde(default)]
+    pub(crate) providers: HashMap<String, Value>,
+    #[serde(default)]
+    pub(crate) current: Option<String>,
+}
+
 impl Default for GeminiSection {
     fn default() -> Self {
         Self {
-            enabled: true,
+            enabled: crate::engine_policy::GEMINI_RUNTIME_ENABLED,
             env: HashMap::new(),
             auth_mode: Some(default_gemini_auth_mode()),
         }
@@ -305,7 +319,7 @@ pub(crate) struct ClaudeCurrentConfig {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct GeminiVendorSettings {
-    #[serde(default = "default_enabled_true")]
+    #[serde(default = "effective_gemini_vendor_enabled_default")]
     pub(crate) enabled: bool,
     #[serde(default)]
     pub(crate) env: BTreeMap<String, String>,
@@ -330,8 +344,8 @@ pub(crate) struct GeminiVendorPreflightResult {
 
 #[derive(Debug, Serialize)]
 pub(crate) struct VendorModelListResult {
-    models: Vec<String>,
-    endpoint: String,
+    pub(crate) models: Vec<String>,
+    pub(crate) endpoint: String,
 }
 
 // ==================== Helpers ====================
@@ -342,7 +356,7 @@ fn push_unique_candidate(candidates: &mut Vec<String>, candidate: String) {
     }
 }
 
-fn derive_model_list_candidates(base_url: &str) -> Vec<String> {
+pub(crate) fn derive_model_list_candidates(base_url: &str) -> Vec<String> {
     let base = base_url.trim().trim_end_matches('/').to_string();
     if base.is_empty() {
         return Vec::new();
@@ -389,7 +403,7 @@ fn push_model_id(models: &mut Vec<String>, value: &Value) {
     }
 }
 
-fn extract_vendor_model_ids(value: &Value) -> Vec<String> {
+pub(crate) fn extract_vendor_model_ids(value: &Value) -> Vec<String> {
     let mut models = Vec::new();
 
     if let Some(data) = value.get("data").and_then(Value::as_array) {
@@ -419,7 +433,7 @@ fn config_path() -> PathBuf {
     app_paths::config_file_path().unwrap_or_else(|_| PathBuf::from("config.json"))
 }
 
-fn read_config() -> Result<CodemossConfig, String> {
+pub(crate) fn read_config() -> Result<CodemossConfig, String> {
     let path = config_path();
     if !path.exists() {
         return Ok(CodemossConfig::default());
@@ -432,7 +446,7 @@ fn read_config() -> Result<CodemossConfig, String> {
     serde_json::from_str(&content).map_err(|e| format!("Failed to parse config: {}", e))
 }
 
-fn write_config(config: &CodemossConfig) -> Result<(), String> {
+pub(crate) fn write_config(config: &CodemossConfig) -> Result<(), String> {
     let path = config_path();
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)
@@ -447,7 +461,7 @@ fn provider_created_at(value: &Value) -> Option<i64> {
     value.get("createdAt").and_then(Value::as_i64)
 }
 
-fn next_provider_created_at(providers: &HashMap<String, Value>) -> i64 {
+pub(crate) fn next_provider_created_at(providers: &HashMap<String, Value>) -> i64 {
     let next_from_existing = providers
         .values()
         .filter_map(provider_created_at)
@@ -462,7 +476,7 @@ fn next_provider_created_at(providers: &HashMap<String, Value>) -> i64 {
     now_ms.max(next_from_existing)
 }
 
-fn updated_provider_created_at(
+pub(crate) fn updated_provider_created_at(
     existing_provider: Option<&Value>,
     updates_created_at: Option<i64>,
 ) -> Option<i64> {
@@ -471,7 +485,7 @@ fn updated_provider_created_at(
         .or(updates_created_at)
 }
 
-fn set_provider_created_at(value: &mut Value, created_at: i64) {
+pub(crate) fn set_provider_created_at(value: &mut Value, created_at: i64) {
     if let Value::Object(map) = value {
         map.insert("createdAt".into(), Value::Number(created_at.into()));
     }
@@ -1119,7 +1133,7 @@ pub(crate) async fn vendor_get_gemini_settings() -> Result<GeminiVendorSettings,
         env.insert(normalized_key.to_string(), value);
     }
     Ok(GeminiVendorSettings {
-        enabled: config.gemini.enabled,
+        enabled: effective_gemini_vendor_enabled(config.gemini.enabled),
         env,
         auth_mode: config
             .gemini
@@ -1136,7 +1150,7 @@ pub(crate) async fn vendor_save_gemini_settings(
 ) -> Result<(), String> {
     let mut config = read_config()?;
     config.gemini = GeminiSection {
-        enabled: settings.enabled,
+        enabled: effective_gemini_vendor_enabled(settings.enabled),
         env: sanitize_env_map(settings.env),
         auth_mode: Some(normalize_gemini_auth_mode(&settings.auth_mode)),
     };
@@ -1145,6 +1159,17 @@ pub(crate) async fn vendor_save_gemini_settings(
 
 #[tauri::command]
 pub(crate) async fn vendor_gemini_preflight() -> Result<GeminiVendorPreflightResult, String> {
+    if !crate::engine_policy::GEMINI_RUNTIME_ENABLED {
+        let diagnostic = crate::engine_policy::GEMINI_DISABLED_DIAGNOSTIC;
+        return Ok(GeminiVendorPreflightResult {
+            checks: vec![
+                build_preflight_check("gemini_version", "Gemini CLI", Err(diagnostic.to_string())),
+                build_preflight_check("node", "Node.js", Err(format!("Skipped: {diagnostic}"))),
+                build_preflight_check("npm", "npm", Err(format!("Skipped: {diagnostic}"))),
+            ],
+        });
+    }
+
     let gemini_result =
         run_preflight_probe(&["gemini", "gemini.cmd", "gemini.exe"], &["--version"]).await;
     let node_result = run_preflight_probe(&["node", "node.exe"], &["--version"]).await;
@@ -1163,6 +1188,29 @@ pub(crate) async fn vendor_gemini_preflight() -> Result<GeminiVendorPreflightRes
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn gemini_vendor_enabled_policy_forces_defaults_and_legacy_true_off() {
+        let settings: GeminiVendorSettings =
+            serde_json::from_str("{}").expect("deserialize default Gemini vendor settings");
+
+        assert!(!settings.enabled);
+        assert!(!effective_gemini_vendor_enabled(true));
+    }
+
+    #[tokio::test]
+    async fn disabled_gemini_vendor_preflight_skips_all_process_probes() {
+        let result = vendor_gemini_preflight()
+            .await
+            .expect("disabled Gemini preflight should return stable checks");
+
+        assert_eq!(result.checks.len(), 3);
+        assert!(result.checks.iter().all(|check| check.status == "fail"));
+        assert!(result
+            .checks
+            .iter()
+            .all(|check| check.message.contains("Gemini CLI is disabled")));
+    }
 
     fn codex_provider(id: &str, created_at: Option<i64>) -> CodexProviderConfig {
         CodexProviderConfig {

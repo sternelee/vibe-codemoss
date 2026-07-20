@@ -150,6 +150,7 @@ vi.mock("../../../services/tauri", () => ({
   startThread: vi.fn(),
   listThreads: vi.fn(),
   listClaudeSessions: vi.fn(),
+  listKimiSessions: vi.fn(),
   resumeThread: vi.fn(),
   loadClaudeSession: vi.fn(),
   archiveThread: vi.fn(),

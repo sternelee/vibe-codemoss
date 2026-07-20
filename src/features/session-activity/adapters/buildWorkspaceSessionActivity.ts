@@ -659,6 +659,9 @@ function inferReasoningPresentationEngine(threadId: string) {
   if (threadId.startsWith("gemini:") || threadId.startsWith("gemini-pending-")) {
     return "gemini";
   }
+  if (threadId.startsWith("kimi:") || threadId.startsWith("kimi-pending-")) {
+    return "kimi";
+  }
   return "codex";
 }
 
@@ -673,14 +676,14 @@ function normalizeReasoningItemsForTimeline(threadId: string, items: Conversatio
     return parsed.hasBody || Boolean(parsed.workingLabel);
   });
   const engine = inferReasoningPresentationEngine(threadId);
-  const appendReasoningRuns = engine === "claude" || engine === "codex" || engine === "gemini";
+  const appendReasoningRuns = engine === "claude" || engine === "codex" || engine === "gemini" || engine === "kimi";
   const deduped = dedupeAdjacentReasoningItems(
     filtered,
     sourceReasoningMetaById,
     appendReasoningRuns,
   );
   const collapseReasoningRuns =
-    engine === "claude" || engine === "codex" || engine === "opencode" || engine === "gemini";
+    engine === "claude" || engine === "codex" || engine === "opencode" || engine === "gemini" || engine === "kimi";
   const normalized = collapseConsecutiveReasoningRuns(
     deduped,
     collapseReasoningRuns,
@@ -1168,7 +1171,8 @@ export function buildThreadActivity(args: WorkspaceSessionActivityThreadContext 
   const shouldMergeReasoningIntoFirstNode =
     reasoningPresentationEngine === "claude" ||
     reasoningPresentationEngine === "codex" ||
-    reasoningPresentationEngine === "gemini";
+    reasoningPresentationEngine === "gemini" ||
+    reasoningPresentationEngine === "kimi";
   const reasoningAnchorIndexByTurnId = new Map<string, number>();
   const exploreEventIndexBySignature = new Map<string, number>();
   const { items: normalizedItems, reasoningMetaById } = normalizeReasoningItemsForTimeline(

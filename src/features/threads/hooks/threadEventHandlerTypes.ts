@@ -63,11 +63,11 @@ export type ThreadEventHandlersOptions = {
   ) => string | null;
   resolvePendingThreadForSession?: (
     workspaceId: string,
-    engine: "claude" | "gemini" | "opencode",
+    engine: "claude" | "gemini" | "kimi" | "opencode",
   ) => string | null;
   resolvePendingThreadForTurn?: (
     workspaceId: string,
-    engine: "claude" | "gemini" | "opencode",
+    engine: "claude" | "gemini" | "kimi" | "opencode",
     turnId: string | null | undefined,
   ) => string | null;
   getActiveTurnIdForThread?: (threadId: string) => string | null;

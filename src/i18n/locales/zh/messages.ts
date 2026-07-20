@@ -8,9 +8,10 @@ const messages = {
     outlineEmpty: "此消息没有可导航的标题",
     userMessage: "你",
     assistantMessage: "助手",
-    thinking: "思考中…",
+    thinking: "思考中",
     thinkingLabel: "思考",
     thinkingProcess: "思考过程",
+    thinkingDone: "思考完成",
     finalMessageBoundary: "最终消息",
     turnFilesChanged: {
       title_other: "已编辑 {{count}} 个文件",
@@ -308,6 +309,9 @@ const messages = {
     toolHeavyDetailShow: "显示详情",
     toolHeavyOutput: "输出",
     toolHeavyDiff: "Diff",
+    builtInAgentUnavailableTitle: "内置智能体不可用",
+    builtInAgentUnavailableMessage:
+      "该智能体已被关闭或当前不可用，因此本次消息不会使用它的提示词。",
   },
 };
 

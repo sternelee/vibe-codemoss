@@ -20,7 +20,7 @@ const errors = {
     "runtimeRecovered": "런타임이 복구되었습니다.",
     "retryingCreateSessionAfterRecovery": "세션 생성을 재시도하는 중...",
     "cliNotFound": "Claude Code CLI와 Codex CLI를 모두 찾을 수 없습니다. 둘 중 하나를 설치하세요.",
-    "cliNotFoundHint": "Claude Code 설치: npm install -g @anthropic-ai/claude-code\nCodex 설치: npm install -g @openai/codex",
+    "cliNotFoundHint": "Claude Code 설치: curl -fsSL https://claude.ai/install.sh | bash\nCodex 설치: npm install -g @openai/codex",
     "codexCliNotFound": "Codex CLI를 찾을 수 없습니다. Codex를 설치하고 `codex`가 PATH에 있는지 확인하세요.",
     "couldntOpenWorkspace": "작업 공간을 열 수 없습니다",
     "dismissError": "오류 닫기"

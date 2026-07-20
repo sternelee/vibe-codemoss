@@ -218,6 +218,9 @@ async fn build_workspace_scope_catalog_data(
     let gemini_config = engine_manager
         .get_engine_config(engine::EngineType::Gemini)
         .await;
+    let kimi_config = engine_manager
+        .get_engine_config(engine::EngineType::Kimi)
+        .await;
     let claude_config = engine_manager
         .get_engine_config(engine::EngineType::Claude)
         .await;
@@ -509,6 +512,85 @@ async fn build_workspace_scope_catalog_data(
                 source_statuses.push(build_degraded_source_status(
                     "gemini",
                     SESSION_CATALOG_PARTIAL_GEMINI,
+                ));
+            }
+        }
+
+        match engine::kimi_history::list_kimi_sessions(
+            &owner_workspace_path,
+            Some(scan_mode.limit()),
+            kimi_config
+                .as_ref()
+                .and_then(|item| item.home_dir.as_deref()),
+        )
+        .await
+        {
+            Ok(kimi_sessions) => {
+                source_statuses.push(build_success_source_status(
+                    "kimi",
+                    kimi_sessions.len(),
+                    scan_mode,
+                    WorkspaceSessionSourceCompleteness::AuthoritativeEmpty,
+                    None,
+                ));
+                entries.extend(kimi_sessions.into_iter().map(|session| {
+                    let session_id = format!("kimi:{}", session.session_id);
+                    let entry = WorkspaceSessionCatalogEntry {
+                        archived_at: archived_at_for_session(
+                            &owner_metadata,
+                            &owner_workspace_id,
+                            &session_id,
+                        ),
+                        session_id,
+                        stable_session_key: None,
+                        canonical_session_id: Some(session.session_id.clone()),
+                        parent_session_id: None,
+                        workspace_id: owner_workspace_id.clone(),
+                        workspace_label: Some(workspace.name.clone()),
+                        engine: "kimi".to_string(),
+                        title: session.first_message,
+                        updated_at: session.updated_at.max(0),
+                        thread_kind: "native".to_string(),
+                        source: None,
+                        source_label: None,
+                        provider_profile_id: None,
+                        provider_profile_source: None,
+                        provider_profile_name: None,
+                        provider_availability: None,
+                        source_completeness: None,
+                        source_status_reason: None,
+                        size_bytes: session.file_size_bytes,
+                        cwd: None,
+                        attribution_status: Some(
+                            SessionCatalogAttributionStatus::StrictMatch
+                                .as_str()
+                                .to_string(),
+                        ),
+                        attribution_reason: None,
+                        attribution_confidence: None,
+                        matched_workspace_id: Some(owner_workspace_id.clone()),
+                        matched_workspace_label: Some(workspace.name.clone()),
+                        folder_id: None,
+                        auto_session: None,
+                        exists_on_disk: false,
+                        inconsistency_code: None,
+                        delete_mode: None,
+                        physical_path: None,
+                        children_count: None,
+                    };
+                    finalize_existing_catalog_entry(entry, &metadata_by_workspace_id)
+                }));
+            }
+            Err(error) => {
+                log::warn!(
+                    "[session_management.list_workspace_sessions] kimi history unavailable for workspace {}: {}",
+                    owner_workspace_id,
+                    error
+                );
+                partial_sources.push(SESSION_CATALOG_PARTIAL_KIMI.to_string());
+                source_statuses.push(build_degraded_source_status(
+                    "kimi",
+                    SESSION_CATALOG_PARTIAL_KIMI,
                 ));
             }
         }

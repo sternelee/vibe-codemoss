@@ -20,7 +20,7 @@ const errors = {
     "runtimeRecovered": "Среда выполнения восстановлена.",
     "retryingCreateSessionAfterRecovery": "Повтор создания сессии...",
     "cliNotFound": "Не найдены ни Claude Code CLI, ни Codex CLI. Установите один из них.",
-    "cliNotFoundHint": "Установите Claude Code: npm install -g @anthropic-ai/claude-code\nУстановите Codex: npm install -g @openai/codex",
+    "cliNotFoundHint": "Установите Claude Code: curl -fsSL https://claude.ai/install.sh | bash\nУстановите Codex: npm install -g @openai/codex",
     "codexCliNotFound": "Codex CLI не найден. Установите Codex и убедитесь, что `codex` доступен в вашем PATH.",
     "couldntOpenWorkspace": "Не удалось открыть рабочую область",
     "dismissError": "Скрыть ошибку"

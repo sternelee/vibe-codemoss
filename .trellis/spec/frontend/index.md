@@ -22,9 +22,11 @@
 | [Desktop Drag-Drop Contract](./desktop-drag-drop.md) | Tauri multi-WebView 外部文件/文件夹拖入 Composer 的跨层事件契约 | Active |
 | [Multi-Repository File Tree Git Decoration Contract](./git-repository-file-tree-decorations.md) | 多 Git repository aggregate status、safe path projection、folder decoration 与 theme token contract | Active |
 | [Multi-Repository Git Commit Workspace Contract](./multi-repository-git-commit-workspace.md) | repository-scoped Git identity、single/multi adaptive commit UI 与 partial success contract | Active |
+| [File History View Cross-Layer Contract](./file-history-view.md) | file-scoped history、rename-follow、snapshot identity、Desktop/daemon parity 与 stale guard | Active |
 | [Codex Provider Session UI Contract](./codex-provider-session-ui.md) | Codex provider selector、start/fork payload、thread metadata merge、sidebar/pinned/composer provider label contract | Active |
 | [Hook Guidelines](./hook-guidelines.md) | hook 编排、async safety、bridge 调用约束 | Active |
 | [State Management](./state-management.md) | local/global/persistent/runtime state 边界 | Active |
+| [Workspace Note Context Capture](./workspace-note-context-capture.md) | code/conversation capture、workbench request 与 optional source persistence 的跨层 contract | Active |
 | [Quality Guidelines](./quality-guidelines.md) | 禁止项、必做项、review checklist | Active |
 | [Markdown Math Normalization Idempotence](./quality-guidelines.md#markdown-math-normalization-must-preserve-container-and-math-range-idempotence) | Markdown container prefix、math-range idempotence 与回归口径 | Active |
 | [CodeMirror State-Coupled Extensions 不可跨越 Lazy Boundary](./quality-guidelines.md#codemirror-state-coupled-extensions-不可跨越-lazy-boundary) | 任何把 `@codemirror/*` state-coupled extension 拆到 lazy 边界后的硬性禁止 | Active |
@@ -37,7 +39,7 @@
 - 涉及 `useEffect`、polling、listener 时先读 [Hook Guidelines](./hook-guidelines.md)。
 - 涉及 refactor 或大文件修改时先读 [Quality Guidelines](./quality-guidelines.md)。
 - 涉及 CodeMirror / `@uiw/react-codemirror` 拆分 lazy 边界、压缩 startup bundle 时，先读 [CodeMirror State-Coupled Extensions 不可跨越 Lazy Boundary](./quality-guidelines.md#codemirror-state-coupled-extensions-不可跨越-lazy-boundary)。
-- 涉及多 session 并行 / 长 turn 实时对话 / 性能卡顿排查时,额外读 [Parallel Conversation Runtime Residuals](./parallel-conversation-runtime-residuals.md) + [docs/perf/parallel-conversation-jank-handbook.md](../../docs/perf/parallel-conversation-jank-handbook.md)。
+- 涉及多 session 并行 / 长 turn 实时对话 / 性能卡顿排查时，额外读 [Parallel Conversation Runtime Residuals](./parallel-conversation-runtime-residuals.md) + [docs/perf/parallel-conversation-jank-handbook.md](../../../docs/perf/parallel-conversation-jank-handbook.md)。
 - 涉及 live conversation message / Markdown / timeline render path 时，额外读 [Messages Streaming Render Contract](./messages-streaming-render-contract.md)。
 - 涉及 UI -> service -> tauri/rust 的跨层变更，额外读：
   - `../guides/cross-layer-thinking-guide.md`

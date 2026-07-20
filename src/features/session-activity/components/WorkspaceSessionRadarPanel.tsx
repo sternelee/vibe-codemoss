@@ -179,13 +179,16 @@ export function WorkspaceSessionRadarPanel({
     });
   };
 
-  const resolveEngine = (entry: SessionRadarEntry): "codex" | "claude" | "gemini" | "opencode" => {
+  const resolveEngine = (entry: SessionRadarEntry): "codex" | "claude" | "gemini" | "kimi" | "opencode" => {
     const normalizedEngine = entry.engine.toUpperCase();
     if (normalizedEngine === "CLAUDE") {
       return "claude";
     }
     if (normalizedEngine === "GEMINI") {
       return "gemini";
+    }
+    if (normalizedEngine === "KIMI") {
+      return "kimi";
     }
     if (normalizedEngine === "OPENCODE") {
       return "opencode";

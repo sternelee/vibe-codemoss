@@ -239,7 +239,10 @@ export function resolveVisibleMessageItems(options: {
     if (!parsed?.workingLabel) {
       return false;
     }
-    if (activeEngine === "gemini" && isExplicitReasoningSegmentId(item.id)) {
+    if (
+      (activeEngine === "gemini" || activeEngine === "kimi") &&
+      isExplicitReasoningSegmentId(item.id)
+    ) {
       return true;
     }
     if (activeEngine === "claude") {
@@ -250,7 +253,8 @@ export function resolveVisibleMessageItems(options: {
       : activeEngine === "codex";
     return keepTitleOnlyReasoning || item.id === latestTitleOnlyReasoningId;
   });
-  const appendReasoningRuns = activeEngine === "claude" || activeEngine === "gemini";
+  const appendReasoningRuns =
+    activeEngine === "claude" || activeEngine === "gemini" || activeEngine === "kimi";
   const deduped = dedupeAdjacentReasoningItems(
     filtered,
     reasoningMetaById,

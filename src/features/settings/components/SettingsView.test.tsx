@@ -228,6 +228,7 @@ const workspaceB: WorkspaceInfo = {
 
 const baseSettings: AppSettings = {
   claudeBin: null,
+  kimiBin: null,
   codexBin: null,
   codexArgs: null,
   terminalShellPath: null,
@@ -1224,6 +1225,21 @@ describe("SettingsView Display", () => {
         expect.objectContaining({
           performanceCompatibilityModeEnabled: true,
         }),
+      );
+    });
+  });
+
+  it("persists Git commit composer placement from behavior settings", async () => {
+    renderDisplaySection();
+
+    fireEvent.click(screen.getByRole("button", { name: "Behavior" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Top" }));
+
+    await waitFor(() => {
+      expect(writeClientStoreValue).toHaveBeenCalledWith(
+        "layout",
+        "git.commitComposerPlacement",
+        "top",
       );
     });
   });

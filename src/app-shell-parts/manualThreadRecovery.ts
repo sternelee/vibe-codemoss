@@ -1,4 +1,6 @@
-type ManualRecoveryEngine = "claude" | "codex" | "gemini" | "opencode";
+import { isEngineExecutionEnabled } from "../utils/engineExecutionPolicy";
+
+type ManualRecoveryEngine = "claude" | "codex" | "gemini" | "kimi" | "opencode";
 type ManualRecoveryWorkspace = {
   id: string;
   connected: boolean;
@@ -69,6 +71,9 @@ function inferManualRecoveryEngine(
   if (normalizedThreadId.startsWith("gemini:") || normalizedThreadId.startsWith("gemini-pending-")) {
     return "gemini";
   }
+  if (normalizedThreadId.startsWith("kimi:") || normalizedThreadId.startsWith("kimi-pending-")) {
+    return "kimi";
+  }
   if (normalizedThreadId.startsWith("opencode:") || normalizedThreadId.startsWith("opencode-pending-")) {
     return "opencode";
   }
@@ -107,6 +112,14 @@ export async function recoverThreadBindingForManualRecovery(params: {
   if (!normalizedWorkspaceId || !normalizedThreadId) {
     return buildManualRecoveryFailure("missing workspace or thread id", allowFreshThread);
   }
+  const recoveryEngine = inferManualRecoveryEngine(
+    normalizedWorkspaceId,
+    normalizedThreadId,
+    params.threadsByWorkspace,
+  );
+  if (!isEngineExecutionEnabled(recoveryEngine)) {
+    return buildManualRecoveryFailure("unsupported_engine", allowFreshThread);
+  }
 
   let recoveredThreadId: string | null = null;
   let refreshErrorMessage: string | null = null;
@@ -136,11 +149,7 @@ export async function recoverThreadBindingForManualRecovery(params: {
   try {
     freshThreadId = await params.startThreadForWorkspace(normalizedWorkspaceId, {
       activate: true,
-      engine: inferManualRecoveryEngine(
-        normalizedWorkspaceId,
-        normalizedThreadId,
-        params.threadsByWorkspace,
-      ),
+      engine: recoveryEngine,
     });
   } catch (error) {
     return buildManualRecoveryFailure(normalizeManualRecoveryError(error), allowFreshThread);
@@ -202,6 +211,14 @@ export async function recoverThreadBindingAndResendForManualRecovery<
   if (!nextText && nextImages.length === 0) {
     return buildManualRecoveryFailure("missing message to resend", true);
   }
+  const recoveryEngine = inferManualRecoveryEngine(
+    normalizedWorkspaceId,
+    normalizedThreadId,
+    params.threadsByWorkspace,
+  );
+  if (!isEngineExecutionEnabled(recoveryEngine)) {
+    return buildManualRecoveryFailure("unsupported_engine", true);
+  }
 
   const workspace = params.resolveWorkspace(normalizedWorkspaceId);
   if (!workspace) {
@@ -218,11 +235,6 @@ export async function recoverThreadBindingAndResendForManualRecovery<
   });
 
   let continuationResult = recoveryResult;
-  const recoveryEngine = inferManualRecoveryEngine(
-    normalizedWorkspaceId,
-    normalizedThreadId,
-    params.threadsByWorkspace,
-  );
   if (
     continuationResult.kind === "failed" &&
     recoveryEngine === "codex" &&

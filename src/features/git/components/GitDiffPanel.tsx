@@ -1,9 +1,15 @@
-import type { GitHubPullRequest, GitLogEntry } from "../../../types";
-import type { CommitMessageEngine, CommitMessageLanguage } from "../../../services/tauri";
+import type { GitFileDiff, GitHubPullRequest, GitLogEntry } from "../../../types";
+import {
+  getGitDiffs,
+  getGitFileFullDiff,
+  type CommitMessageEngine,
+  type CommitMessageLanguage,
+} from "../../../services/tauri";
 import {
   readLastCommitMessageConfig,
   saveLastCommitMessageConfig,
 } from "../../../utils/commitMessage";
+import { isEngineExecutionEnabled } from "../../../utils/engineExecutionPolicy";
 import type {
   KeyboardEvent as ReactKeyboardEvent,
   MouseEvent as ReactMouseEvent,
@@ -18,6 +24,7 @@ import Check from "lucide-react/dist/esm/icons/check";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import FolderTree from "lucide-react/dist/esm/icons/folder-tree";
+import GitCommitHorizontal from "lucide-react/dist/esm/icons/git-commit-horizontal";
 import GitPullRequest from "lucide-react/dist/esm/icons/git-pull-request";
 import HardDrive from "lucide-react/dist/esm/icons/hard-drive";
 import History from "lucide-react/dist/esm/icons/history";
@@ -45,6 +52,7 @@ import {
   type DiffSectionProps,
   getTreeLineOpacity,
   GitFileTreeIcon,
+  isDeletedDiffFile,
   renderSectionCountBadge,
   renderSectionIndicator,
   TREE_INDENT_STEP,
@@ -63,23 +71,62 @@ import {
 } from "./GitDiffPanelInclusion";
 import {
   clampRendererContextMenuPosition,
+  estimateRendererContextMenuHeight,
   RendererContextMenu,
   type RendererContextMenuItem,
   type RendererContextMenuState,
 } from "../../../components/ui/RendererContextMenu";
 import type { GitDiffPanelProps } from "./GitDiffPanelTypes";
-import { resolveWorkspaceRelativePath } from "../../../utils/workspacePaths";
+import { resolveGitRootWorkspacePrefix } from "../../../utils/workspacePaths";
 import {
   GitMultiRepositoryChanges,
   type RepositoryCommitSelection,
 } from "./GitMultiRepositoryChanges";
+import {
+  useGitCommitComposerPlacement,
+  writeGitCommitComposerPlacement,
+} from "../hooks/useGitCommitComposerPlacement";
+import { buildGitDiffPanelFileContextMenuItems } from "./GitDiffPanelFileContextMenu";
+import {
+  resolveGitDiffFileHistoryTarget,
+  resolveRepositoryWorkspaceFilePath,
+} from "./GitDiffPanelFileScope";
 
 type ModeMenuLayout = {
   align: "left" | "right";
   width: number;
 };
 
+export function resolveBottomCommitMessageMenuPosition(
+  triggerRect: Pick<DOMRect, "right" | "top">,
+  menuSize: { width: number; height: number },
+  viewport: { width: number; height: number },
+) {
+  const padding = 12;
+  const maxX = Math.max(padding, viewport.width - menuSize.width - padding);
+  const maxY = Math.max(padding, viewport.height - menuSize.height - padding);
+  return {
+    x: Math.min(Math.max(triggerRect.right - menuSize.width, padding), maxX),
+    y: Math.min(Math.max(triggerRect.top - menuSize.height - 8, padding), maxY),
+  };
+}
+
+function GitModeSelectorMount({ target, children }: { target: HTMLElement | null; children: ReactNode }) {
+  return target ? createPortal(children, target) : children;
+}
+
 type GitDiffSectionKey = "staged" | "unstaged";
+
+type GitPanelContextMenuState = RendererContextMenuState & {
+  source?: "git-diff-file";
+};
+
+type PreviewFileState = DiffFile & {
+  section: GitDiffSectionKey;
+  repositoryRoot: string | null;
+  scopedDiffEntry: GitFileDiff | null;
+  isDiffLoading: boolean;
+};
 
 function getPathLeafName(value: string | null | undefined): string {
   if (!value) {
@@ -98,25 +145,6 @@ function normalizeRootPath(value: string | null | undefined) {
     return "";
   }
   return value.replace(/\\/g, "/").replace(/\/+$/, "");
-}
-
-export function resolveRepositoryWorkspaceFilePath(
-  workspacePath: string | null | undefined,
-  gitRoot: string | null | undefined,
-  filePath: string,
-) {
-  const normalizedFilePath = normalizeDiffPath(filePath);
-  const repositoryRoot = normalizeDiffPath(
-    resolveWorkspaceRelativePath(workspacePath, gitRoot ?? ""),
-  ).replace(/\/+$/, "");
-  if (
-    !repositoryRoot ||
-    normalizedFilePath === repositoryRoot ||
-    normalizedFilePath.startsWith(`${repositoryRoot}/`)
-  ) {
-    return normalizedFilePath;
-  }
-  return `${repositoryRoot}/${normalizedFilePath}`;
 }
 
 function isMissingRepo(error: string | null | undefined) {
@@ -198,7 +226,7 @@ function DiffTreeSection({
   partialPaths,
   selectedFiles,
   selectedPath,
-  onSelectFile,
+  onActivateFile,
   onStageAllChanges,
   onStageFile,
   onUnstageFile,
@@ -437,7 +465,7 @@ function DiffTreeSection({
                     treeDepth={depth + 2}
                     treeParentFolderKey={parentKey ?? folder.key}
                     onClick={(event) => onFileClick(event, file.path, section)}
-                    onKeySelect={() => onSelectFile?.(file.path)}
+                    onKeySelect={() => onActivateFile?.(file.path, section)}
                     onOpenInlinePreview={() => onOpenInlinePreview?.(file.path)}
                     onOpenPreview={() => onOpenFilePreview?.(file, section)}
                     onContextMenu={(event) => onShowFileMenu(event, file.path, section)}
@@ -458,7 +486,7 @@ function DiffTreeSection({
       onFileClick,
       onOpenInlinePreview,
       onOpenFilePreview,
-      onSelectFile,
+      onActivateFile,
       onShowFileMenu,
       includedPathSet,
       excludedPathSet,
@@ -602,7 +630,7 @@ function DiffTreeSection({
                       treeDepth={2}
                       treeParentFolderKey={rootFolderKey}
                       onClick={(event) => onFileClick(event, file.path, section)}
-                      onKeySelect={() => onSelectFile?.(file.path)}
+                      onKeySelect={() => onActivateFile?.(file.path, section)}
                       onOpenInlinePreview={() => onOpenInlinePreview?.(file.path)}
                       onOpenPreview={() => onOpenFilePreview?.(file, section)}
                       onContextMenu={(event) => onShowFileMenu(event, file.path, section)}
@@ -645,7 +673,7 @@ function DiffTreeSection({
                   treeItem
                   treeDepth={1}
                   onClick={(event) => onFileClick(event, file.path, section)}
-                  onKeySelect={() => onSelectFile?.(file.path)}
+                  onKeySelect={() => onActivateFile?.(file.path, section)}
                   onOpenInlinePreview={() => onOpenInlinePreview?.(file.path)}
                   onOpenPreview={() => onOpenFilePreview?.(file, section)}
                   onContextMenu={(event) => onShowFileMenu(event, file.path, section)}
@@ -716,9 +744,14 @@ export function GitDiffPanel(props: GitDiffPanelProps) {
   return <GitDiffPanelImpl {...props} />;
 }
 
+type DiscardDialogTarget =
+  | { scope: "current-repository"; paths: string[] }
+  | { scope: "explicit-repository"; repositoryRoot: string; paths: string[] };
+
 function GitDiffPanelImpl({
   workspaceId = null,
   workspacePath = null,
+  headerControlsTarget = null,
   mode,
   onModeChange,
   diffEntries = [],
@@ -748,6 +781,7 @@ function GitDiffPanelImpl({
   gitRemoteUrl = null,
   onSelectFile,
   onOpenFile,
+  onOpenFileHistory,
   logEntries,
   logAhead = 0,
   logBehind = 0,
@@ -813,6 +847,7 @@ function GitDiffPanelImpl({
   onRefreshRepositoryStatuses,
   onStageRepositoryFile,
   onUnstageRepositoryFile,
+  onRevertRepositoryFile,
   onStageRepositoryAll,
   onCommitRepositories,
   repositoryCommitSummary = null,
@@ -823,17 +858,16 @@ function GitDiffPanelImpl({
   const [lastClickedFile, setLastClickedFile] = useState<string | null>(null);
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
   const [collapsedSections, setCollapsedSections] = useState<Set<GitDiffSectionKey>>(new Set());
-  const [discardDialogPaths, setDiscardDialogPaths] = useState<string[] | null>(null);
+  const [discardDialogTarget, setDiscardDialogTarget] = useState<DiscardDialogTarget | null>(null);
+  const discardDialogPaths = discardDialogTarget?.paths ?? null;
   const [discardDialogSubmitting, setDiscardDialogSubmitting] = useState(false);
   const [gitContextMenu, setGitContextMenu] =
-    useState<RendererContextMenuState | null>(null);
+    useState<GitPanelContextMenuState | null>(null);
   const deferredCommitLanguageMenuTimerRef = useRef<number | null>(null);
   const gitStatusRefreshSpinTimerRef = useRef<number | null>(null);
   const gitStatusRefreshSpinRafRef = useRef<number | null>(null);
   const [isGitStatusRefreshing, setIsGitStatusRefreshing] = useState(false);
-  const [previewFile, setPreviewFile] = useState<(DiffFile & { section: "staged" | "unstaged" }) | null>(
-    null,
-  );
+  const [previewFile, setPreviewFile] = useState<PreviewFileState | null>(null);
   const [isPreviewModalMaximized, setIsPreviewModalMaximized] = useState(false);
   const [isPreviewModalDirty, setIsPreviewModalDirty] = useState(false);
   const [isPreviewSaveInFlight, setIsPreviewSaveInFlight] = useState(false);
@@ -841,6 +875,8 @@ function GitDiffPanelImpl({
   const [previewHeaderControlsTarget, setPreviewHeaderControlsTarget] = useState<HTMLDivElement | null>(null);
   const previewDraftActionsRef = useRef<EditableDiffDraftActions | null>(null);
   const handledModalPreviewRequestIdRef = useRef<number | null>(null);
+  const scopedPreviewRequestIdRef = useRef(0);
+  const previewContextKeyRef = useRef<string | null>(null);
   const [isModeMenuOpen, setIsModeMenuOpen] = useState(false);
   const [commitMessageMenuEngine, setCommitMessageMenuEngine] = useState<CommitMessageEngine>("claude");
   const [isGitRootPanelOpen, setIsGitRootPanelOpen] = useState(
@@ -855,9 +891,50 @@ function GitDiffPanelImpl({
     align: "right",
     width: 246,
   });
+  const commitComposerPlacement = useGitCommitComposerPlacement();
   const panelRef = useRef<HTMLElement | null>(null);
   const modeTriggerRef = useRef<HTMLButtonElement | null>(null);
   const modeMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (multiRepositoryMode) {
+      return;
+    }
+    setGitContextMenu((currentMenu) =>
+      currentMenu?.source === "git-diff-file" ? null : currentMenu,
+    );
+  }, [
+    gitRoot,
+    multiRepositoryMode,
+    onRevertFile,
+    onOpenFileHistory,
+    onStageFile,
+    onUnstageFile,
+    stagedFiles,
+    unstagedFiles,
+    workspaceId,
+    workspacePath,
+  ]);
+
+  useEffect(() => {
+    if (!multiRepositoryMode) {
+      return;
+    }
+    setGitContextMenu((currentMenu) =>
+      currentMenu?.source === "git-diff-file" ? null : currentMenu,
+    );
+  }, [
+    multiRepositoryMode,
+    onRefreshRepositoryStatuses,
+    onRevertRepositoryFile,
+    onOpenFileHistory,
+    onStageRepositoryFile,
+    onUnstageRepositoryFile,
+    repositoryStatuses,
+    repositoryStatusesLoading,
+    workspaceId,
+    workspacePath,
+  ]);
 
   // Combine staged and unstaged files for range selection
   const allFiles = useMemo(
@@ -889,10 +966,21 @@ function GitDiffPanelImpl({
     unstagedFiles: unstagedCommitFiles,
   });
   const previewDiffEntry = useMemo(
-    () => (previewFile ? diffEntries.find((entry) => entry.path === previewFile.path) ?? null : null),
+    () => {
+      if (!previewFile) {
+        return null;
+      }
+      if (previewFile.repositoryRoot !== null) {
+        return previewFile.scopedDiffEntry;
+      }
+      return diffEntries.find(
+        (entry) => normalizeDiffPath(entry.path) === normalizeDiffPath(previewFile.path),
+      ) ?? null;
+    },
     [diffEntries, previewFile],
   );
   const closePreviewModalNow = useCallback(() => {
+    scopedPreviewRequestIdRef.current += 1;
     setIsPreviewModalDirty(false);
     setIsPreviewSaveInFlight(false);
     setIsUnsavedCloseDialogOpen(false);
@@ -937,10 +1025,99 @@ function GitDiffPanelImpl({
     section: "staged" | "unstaged",
     maximized = false,
   ) => {
+    scopedPreviewRequestIdRef.current += 1;
     setIsPreviewModalDirty(false);
     setIsPreviewModalMaximized(maximized);
-    setPreviewFile({ ...file, section });
+    setPreviewFile({
+      ...file,
+      section,
+      repositoryRoot: null,
+      scopedDiffEntry: null,
+      isDiffLoading: false,
+    });
   }, []);
+  const handleOpenRepositoryFilePreview = useCallback(async (
+    repositoryRoot: string,
+    file: DiffFile,
+    section: GitDiffSectionKey,
+  ) => {
+    if (!workspaceId) {
+      return;
+    }
+    const requestId = scopedPreviewRequestIdRef.current + 1;
+    scopedPreviewRequestIdRef.current = requestId;
+    setIsPreviewModalDirty(false);
+    setIsPreviewModalMaximized(false);
+    setPreviewFile({
+      ...file,
+      section,
+      repositoryRoot,
+      scopedDiffEntry: null,
+      isDiffLoading: true,
+    });
+    try {
+      const scopedDiffs = await getGitDiffs(workspaceId, repositoryRoot);
+      if (scopedPreviewRequestIdRef.current !== requestId) {
+        return;
+      }
+      const normalizedPath = normalizeDiffPath(file.path);
+      const scopedDiffEntry = scopedDiffs.find(
+        (entry) => normalizeDiffPath(entry.path) === normalizedPath,
+      ) ?? null;
+      setPreviewFile({
+        ...file,
+        section,
+        repositoryRoot,
+        scopedDiffEntry,
+        isDiffLoading: false,
+      });
+    } catch (error) {
+      if (scopedPreviewRequestIdRef.current !== requestId) {
+        return;
+      }
+      console.error("Failed to load repository-scoped git diff", error);
+      setPreviewFile({
+        ...file,
+        section,
+        repositoryRoot,
+        scopedDiffEntry: null,
+        isDiffLoading: false,
+      });
+    }
+  }, [workspaceId]);
+  const previewFullDiffLoader = useMemo(() => {
+    if (!workspaceId || !previewFile) {
+      return null;
+    }
+    const repositoryRoot = previewFile.repositoryRoot !== null
+      ? previewFile.repositoryRoot
+      : gitRoot === ""
+        ? ""
+        : workspacePath && gitRoot
+          ? resolveGitRootWorkspacePrefix(workspacePath, gitRoot)
+          : null;
+    if (repositoryRoot === null) {
+      return null;
+    }
+    return (path: string) => getGitFileFullDiff(workspaceId, path, repositoryRoot);
+  }, [gitRoot, previewFile, workspaceId, workspacePath]);
+  const previewContextKey = JSON.stringify([
+    workspaceId,
+    multiRepositoryMode ? "multi" : "single",
+    multiRepositoryMode ? null : gitRoot,
+  ]);
+  useEffect(() => {
+    if (previewContextKeyRef.current === null) {
+      previewContextKeyRef.current = previewContextKey;
+      return;
+    }
+    if (previewContextKeyRef.current === previewContextKey) {
+      return;
+    }
+    previewContextKeyRef.current = previewContextKey;
+    previewDraftActionsRef.current?.discard();
+    closePreviewModalNow();
+  }, [closePreviewModalNow, previewContextKey]);
   useEffect(() => {
     if (
       !modalPreviewRequest ||
@@ -1013,11 +1190,6 @@ function GitDiffPanelImpl({
     },
     [mode, onModeChange],
   );
-  const openGitRootPanelFromMenu = useCallback(() => {
-    setIsModeMenuOpen(false);
-    setIsGitRootPanelOpen(true);
-  }, []);
-
   const updateModeMenuLayout = useCallback(() => {
     const panelElement = panelRef.current;
     const triggerElement = modeTriggerRef.current;
@@ -1044,7 +1216,10 @@ function GitDiffPanelImpl({
     const width = Math.max(Math.min(preferredWidth, maxAvailable), Math.min(minimumWidth, maxAvailable));
     setModeMenuLayout({ align, width: Math.round(width) });
   }, []);
-
+  const handleModeMenuToggle = useCallback(() => {
+    if (!isModeMenuOpen) updateModeMenuLayout();
+    setIsModeMenuOpen((current) => !current);
+  }, [isModeMenuOpen, updateModeMenuLayout]);
   useEffect(() => {
     return () => {
       if (deferredCommitLanguageMenuTimerRef.current !== null) {
@@ -1086,11 +1261,35 @@ function GitDiffPanelImpl({
     onRefreshGitDiffs?.();
   }, [onRefreshGitDiffs, onRefreshGitStatus]);
 
+  const handleFileActivation = useCallback(
+    (path: string, section: "staged" | "unstaged") => {
+      setSelectedFiles(new Set([path]));
+      setLastClickedFile(path);
+      const file = (section === "staged" ? stagedFiles : unstagedFiles).find(
+        (candidate) => candidate.path === path,
+      );
+      if (file && isDeletedDiffFile(file)) {
+        handleOpenFilePreview(file, section);
+      } else if (onOpenFile) {
+        onOpenFile(path);
+      } else {
+        onSelectFile?.(path);
+      }
+    },
+    [
+      handleOpenFilePreview,
+      onOpenFile,
+      onSelectFile,
+      stagedFiles,
+      unstagedFiles,
+    ],
+  );
+
   const handleFileClick = useCallback(
     (
       event: ReactMouseEvent<HTMLDivElement>,
       path: string,
-      _section: "staged" | "unstaged",
+      section: "staged" | "unstaged",
     ) => {
       const isMetaKey = event.metaKey || event.ctrlKey;
       const isShiftKey = event.shiftKey;
@@ -1125,16 +1324,14 @@ function GitDiffPanelImpl({
         }
       } else {
         // Regular click: select single file and view it
-        setSelectedFiles(new Set([path]));
-        setLastClickedFile(path);
-        if (onOpenFile) {
-          onOpenFile(path);
-        } else {
-          onSelectFile?.(path);
-        }
+        handleFileActivation(path, section);
       }
     },
-    [lastClickedFile, allFiles, onOpenFile, onSelectFile],
+    [
+      allFiles,
+      handleFileActivation,
+      lastClickedFile,
+    ],
   );
 
   // Clear selection when files change
@@ -1152,7 +1349,7 @@ function GitDiffPanelImpl({
     setLastClickedFile(null);
     setCollapsedFolders(new Set());
     setCollapsedSections(new Set());
-    setDiscardDialogPaths(null);
+    setDiscardDialogTarget(null);
     setDiscardDialogSubmitting(false);
     if (!previewFile) {
       return;
@@ -1444,32 +1641,65 @@ function GitDiffPanelImpl({
       if (!onRevertFile || paths.length === 0 || discardDialogSubmitting) {
         return;
       }
-      setDiscardDialogPaths(paths);
+      setDiscardDialogTarget({ scope: "current-repository", paths });
     },
     [discardDialogSubmitting, onRevertFile],
   );
 
+  const discardRepositoryFile = useCallback(
+    async (repositoryRoot: string, path: string) => {
+      if (!onRevertRepositoryFile || !path || discardDialogSubmitting) {
+        return;
+      }
+      setDiscardDialogTarget({
+        scope: "explicit-repository",
+        repositoryRoot,
+        paths: [path],
+      });
+    },
+    [discardDialogSubmitting, onRevertRepositoryFile],
+  );
+
   const handleConfirmDiscardFiles = useCallback(async () => {
-    if (!onRevertFile || !discardDialogPaths || discardDialogPaths.length === 0 || discardDialogSubmitting) {
+    if (!discardDialogTarget || discardDialogTarget.paths.length === 0 || discardDialogSubmitting) {
       return;
     }
-    const targetPaths = [...discardDialogPaths];
+    if (discardDialogTarget.scope === "current-repository" && !onRevertFile) {
+      return;
+    }
+    if (discardDialogTarget.scope === "explicit-repository" && !onRevertRepositoryFile) {
+      return;
+    }
+    const target = discardDialogTarget;
     setDiscardDialogSubmitting(true);
     try {
-      for (const path of targetPaths) {
-        await onRevertFile(path);
+      for (const path of target.paths) {
+        if (target.scope === "explicit-repository") {
+          await onRevertRepositoryFile?.(target.repositoryRoot, path);
+        } else {
+          await onRevertFile?.(path);
+        }
       }
-      setDiscardDialogPaths(null);
+      if (target.scope === "explicit-repository") {
+        await onRefreshRepositoryStatuses?.();
+      }
+      setDiscardDialogTarget(null);
     } finally {
       setDiscardDialogSubmitting(false);
     }
-  }, [discardDialogPaths, discardDialogSubmitting, onRevertFile]);
+  }, [
+    discardDialogSubmitting,
+    discardDialogTarget,
+    onRefreshRepositoryStatuses,
+    onRevertFile,
+    onRevertRepositoryFile,
+  ]);
 
   const closeDiscardDialog = useCallback(() => {
     if (discardDialogSubmitting) {
       return;
     }
-    setDiscardDialogPaths(null);
+    setDiscardDialogTarget(null);
   }, [discardDialogSubmitting]);
 
   const discardFile = useCallback(
@@ -1483,104 +1713,231 @@ function GitDiffPanelImpl({
     (
       event: ReactMouseEvent<HTMLDivElement>,
       path: string,
-      _mode: "staged" | "unstaged",
+      section: GitDiffSectionKey,
     ) => {
       event.preventDefault();
       event.stopPropagation();
 
-      // Determine which files to operate on
-      // If clicked file is in selection, use all selected files; otherwise just this file
-      const isInSelection = selectedFiles.has(path);
-      const targetPaths =
-        isInSelection && selectedFiles.size > 1
-          ? Array.from(selectedFiles)
-          : [path];
+      const sectionFiles = section === "staged" ? stagedFiles : unstagedFiles;
+      const filesByNormalizedPath = new Map(
+        sectionFiles.map((file) => [normalizeDiffPath(file.path), file]),
+      );
+      const clickedFile = filesByNormalizedPath.get(normalizeDiffPath(path));
+      if (!clickedFile) {
+        setGitContextMenu(null);
+        return;
+      }
 
-      // If clicking on unselected file, select it
-      if (!isInSelection) {
+      const mutationEnabled = !isFileMutationDisabled(clickedFile);
+      const isInSelection =
+        mutationEnabled &&
+        Array.from(selectedFiles).some(
+          (selectedPath) =>
+            normalizeDiffPath(selectedPath) === normalizeDiffPath(path),
+        );
+      const selectedTargetPaths =
+        mutationEnabled && isInSelection && selectedFiles.size > 1
+          ? Array.from(selectedFiles)
+          : mutationEnabled
+            ? [path]
+            : [];
+      const targetPaths = mutationEnabled
+        ? Array.from(
+            new Map(
+              selectedTargetPaths
+                .map((selectedPath) =>
+                  filesByNormalizedPath.get(normalizeDiffPath(selectedPath)),
+                )
+                .filter(
+                  (file): file is DiffFile =>
+                    file !== undefined && !isFileMutationDisabled(file),
+                )
+                .map((file) => [normalizeDiffPath(file.path), file.path]),
+            ).values(),
+          )
+        : [];
+
+      if (mutationEnabled && !isInSelection) {
         setSelectedFiles(new Set([path]));
         setLastClickedFile(path);
       }
 
-      // Separate files by their section for stage/unstage operations
-      const stagedPaths = targetPaths.filter((p) =>
-        stagedFiles.some((f) => f.path === p && !isFileMutationDisabled(f)),
-      );
-      const unstagedPaths = targetPaths.filter((p) =>
-        unstagedFiles.some((f) => f.path === p && !isFileMutationDisabled(f)),
-      );
-      const mutationTargetPaths = targetPaths.filter(
-        (p) =>
-          stagedFiles.some((f) => f.path === p && !isFileMutationDisabled(f)) ||
-          unstagedFiles.some((f) => f.path === p && !isFileMutationDisabled(f)),
-      );
-
-      const items: RendererContextMenuItem[] = [];
-
-      // Unstage action for staged files
-      if (stagedPaths.length > 0 && onUnstageFile) {
-        items.push({
-          type: "item",
-          id: "unstage",
-          label: `Unstage file${stagedPaths.length > 1 ? `s (${stagedPaths.length})` : ""}`,
-          onSelect: async () => {
-            for (const p of stagedPaths) {
-              await onUnstageFile(p);
-            }
-          },
-        });
-      }
-
-      // Stage action for unstaged files
-      if (unstagedPaths.length > 0 && onStageFile) {
-        items.push({
-          type: "item",
-          id: "stage",
-          label: `Stage file${unstagedPaths.length > 1 ? `s (${unstagedPaths.length})` : ""}`,
-          onSelect: async () => {
-            for (const p of unstagedPaths) {
-              await onStageFile(p);
-            }
-          },
-        });
-      }
-
-      // Revert action for all selected files
-      if (onRevertFile && mutationTargetPaths.length > 0) {
-        items.push({
-          type: "item",
-          id: "discard",
-          label: `Discard change${mutationTargetPaths.length > 1 ? "s" : ""}${
-            mutationTargetPaths.length > 1 ? ` (${mutationTargetPaths.length})` : ""
-          }`,
-          tone: "danger",
-          onSelect: async () => {
-            await discardFiles(mutationTargetPaths);
-          },
-        });
-      }
-
-      if (!items.length) {
+      const fileHistoryTarget = onOpenFileHistory
+        ? resolveGitDiffFileHistoryTarget({
+            workspaceId,
+            workspacePath,
+            gitRoot,
+            path: clickedFile.path,
+          })
+        : null;
+      const items = buildGitDiffPanelFileContextMenuItems({
+        t,
+        unstageAction:
+          mutationEnabled && section === "staged" && onUnstageFile
+            ? {
+                count: targetPaths.length,
+                onSelect: async () => {
+                  for (const targetPath of targetPaths) {
+                    await onUnstageFile(targetPath);
+                  }
+                },
+              }
+            : undefined,
+        stageAction:
+          mutationEnabled && section === "unstaged" && onStageFile
+            ? {
+                count: targetPaths.length,
+                onSelect: async () => {
+                  for (const targetPath of targetPaths) {
+                    await onStageFile(targetPath);
+                  }
+                },
+              }
+            : undefined,
+        historyAction:
+          fileHistoryTarget && onOpenFileHistory
+            ? {
+                onSelect: () => onOpenFileHistory(fileHistoryTarget),
+              }
+            : undefined,
+        discardAction:
+          mutationEnabled && section === "unstaged" && onRevertFile
+            ? {
+                count: targetPaths.length,
+                onSelect: () => discardFiles(targetPaths),
+              }
+            : undefined,
+      });
+      if (items.length === 0) {
+        setGitContextMenu(null);
         return;
       }
+
       const position = clampRendererContextMenuPosition(event.clientX, event.clientY, {
         width: 260,
-        height: 160,
+        height: estimateRendererContextMenuHeight(items),
       });
       setGitContextMenu({
         ...position,
-        label: "Git file actions",
+        label: t("git.fileActions"),
         items,
+        source: "git-diff-file",
       });
     },
     [
+      discardFiles,
+      onRevertFile,
+      onOpenFileHistory,
+      onStageFile,
+      onUnstageFile,
       selectedFiles,
       stagedFiles,
+      t,
       unstagedFiles,
-      onUnstageFile,
-      onStageFile,
-      onRevertFile,
-      discardFiles,
+      workspaceId,
+      workspacePath,
+      gitRoot,
+    ],
+  );
+
+  const showRepositoryFileMenu = useCallback(
+    (
+      event: ReactMouseEvent<HTMLDivElement>,
+      repositoryRoot: string,
+      path: string,
+      section: GitDiffSectionKey,
+    ) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const repositoryStatus = repositoryStatuses.find(
+        (status) => status.repositoryRoot === repositoryRoot,
+      );
+      const sectionFiles =
+        section === "staged"
+          ? repositoryStatus?.stagedFiles
+          : repositoryStatus?.unstagedFiles;
+      const targetFile = sectionFiles?.find(
+        (file) => normalizeDiffPath(file.path) === normalizeDiffPath(path),
+      );
+      if (repositoryStatus?.error || !targetFile) {
+        setGitContextMenu(null);
+        return;
+      }
+
+      const mutationEnabled = !isFileMutationDisabled(targetFile);
+      const fileHistoryTarget = onOpenFileHistory
+        ? resolveGitDiffFileHistoryTarget({
+            workspaceId,
+            workspacePath,
+            repositoryRoot,
+            path: targetFile.path,
+          })
+        : null;
+      const items = buildGitDiffPanelFileContextMenuItems({
+        t,
+        unstageAction:
+          mutationEnabled && section === "staged" && onUnstageRepositoryFile
+            ? {
+                count: 1,
+                onSelect: async () => {
+                  await onUnstageRepositoryFile(repositoryRoot, targetFile.path);
+                  await onRefreshRepositoryStatuses?.();
+                },
+              }
+            : undefined,
+        stageAction:
+          mutationEnabled && section === "unstaged" && onStageRepositoryFile
+            ? {
+                count: 1,
+                onSelect: async () => {
+                  await onStageRepositoryFile(repositoryRoot, targetFile.path);
+                  await onRefreshRepositoryStatuses?.();
+                },
+              }
+            : undefined,
+        historyAction:
+          fileHistoryTarget && onOpenFileHistory
+            ? {
+                onSelect: () => onOpenFileHistory(fileHistoryTarget),
+              }
+            : undefined,
+        discardAction:
+          mutationEnabled && section === "unstaged" && onRevertRepositoryFile
+            ? {
+                count: 1,
+                onSelect: () =>
+                  discardRepositoryFile(repositoryRoot, targetFile.path),
+              }
+            : undefined,
+      });
+      if (items.length === 0) {
+        setGitContextMenu(null);
+        return;
+      }
+
+      const position = clampRendererContextMenuPosition(event.clientX, event.clientY, {
+        width: 260,
+        height: estimateRendererContextMenuHeight(items),
+      });
+      setGitContextMenu({
+        ...position,
+        label: t("git.fileActions"),
+        items,
+        source: "git-diff-file",
+      });
+    },
+    [
+      discardRepositoryFile,
+      onRefreshRepositoryStatuses,
+      onRevertRepositoryFile,
+      onOpenFileHistory,
+      onStageRepositoryFile,
+      onUnstageRepositoryFile,
+      repositoryStatuses,
+      t,
+      workspaceId,
+      workspacePath,
     ],
   );
   const logCountLabel = logTotal
@@ -1690,7 +2047,7 @@ function GitDiffPanelImpl({
       engine: CommitMessageEngine,
       repositorySelections?: RepositoryCommitSelection[],
     ) => {
-      if (!onGenerateCommitMessage) {
+      if (!onGenerateCommitMessage || !isEngineExecutionEnabled(engine)) {
         return;
       }
       setCommitMessageMenuEngine(engine);
@@ -1760,10 +2117,21 @@ function GitDiffPanelImpl({
       if (!onGenerateCommitMessage || commitMessageLoading || commitLoading || !canGenerate) {
         return;
       }
-      const position = clampRendererContextMenuPosition(event.clientX, event.clientY, {
+      const menuSize = {
         width: 260,
-        height: 230,
-      });
+        height: 300,
+      };
+      const triggerRect = event.currentTarget.getBoundingClientRect();
+      const position = commitComposerPlacement === "bottom"
+        ? resolveBottomCommitMessageMenuPosition(triggerRect, menuSize, {
+            width: window.innerWidth,
+            height: window.innerHeight,
+          })
+        : clampRendererContextMenuPosition(
+            triggerRect.right - menuSize.width,
+            triggerRect.bottom + 8,
+            menuSize,
+          );
       const lastConfig = readLastCommitMessageConfig();
       const engineItems: Array<{ engine: CommitMessageEngine; label: string }> = [
         { engine: "codex", label: t("git.generateCommitMessageEngineCodex") },
@@ -1804,11 +2172,34 @@ function GitDiffPanelImpl({
               }, 0);
             },
           })),
+          { type: "separator", id: "commit-message-placement-separator" },
+          {
+            type: "submenu",
+            id: "commit-message-placement",
+            label: t("git.commitComposerPlacementMenuLabel"),
+            items: [
+              {
+                type: "item",
+                id: "commit-message-placement-bottom",
+                label: t("git.commitComposerPlacementBottom"),
+                disabled: commitComposerPlacement === "bottom",
+                onSelect: () => writeGitCommitComposerPlacement("bottom"),
+              },
+              {
+                type: "item",
+                id: "commit-message-placement-top",
+                label: t("git.commitComposerPlacementTop"),
+                disabled: commitComposerPlacement === "top",
+                onSelect: () => writeGitCommitComposerPlacement("top"),
+              },
+            ],
+          },
         ],
       });
     },
     [
       canGenerateCommitMessage,
+      commitComposerPlacement,
       commitLoading,
       commitMessageLoading,
       generateCommitMessageWithConfig,
@@ -1817,160 +2208,204 @@ function GitDiffPanelImpl({
       t,
     ],
   );
+  const singleCommitComposer =
+    showGenerateCommitMessage && !multiRepositoryMode ? (
+      <div className={`commit-message-section git-commit-composer git-commit-composer--${commitComposerPlacement}`}>
+        <div className="commit-message-input-wrapper">
+          <textarea
+            className="commit-message-input"
+            placeholder={t("git.commitMessage")}
+            value={commitMessage}
+            onChange={(e) => onCommitMessageChange?.(e.target.value)}
+            disabled={commitMessageLoading}
+            rows={2}
+          />
+          <button
+            type="button"
+            className={`commit-message-generate-button${commitMessageLoading ? " commit-message-generate-button--loading" : ""}`}
+            onClick={(event) => {
+              void showCommitMessageEngineMenu(event);
+            }}
+            disabled={commitMessageLoading || !canGenerateCommitMessage}
+            aria-haspopup="menu"
+            title={
+              stagedFiles.length > 0
+                ? t("git.generateCommitMessageStaged")
+                : t("git.generateCommitMessageUnstaged")
+            }
+            aria-label={t("git.generateCommitMessage")}
+          >
+            <CommitMessageEngineIcon
+              engine={commitMessageMenuEngine}
+              size={14}
+              className={`commit-message-engine-icon${commitMessageLoading ? " commit-message-engine-icon--spinning" : ""}`}
+            />
+          </button>
+        </div>
+        {commitMessageError && (
+          <div className="commit-message-error">{commitMessageError}</div>
+        )}
+        {commitError && (
+          <div className="commit-message-error">{commitError}</div>
+        )}
+        {pushError && (
+          <div className="commit-message-error">{pushError}</div>
+        )}
+        {syncError && (
+          <div className="commit-message-error">{syncError}</div>
+        )}
+        <CommitButton
+          commitMessage={commitMessage}
+          selectedCount={selectedCommitCount}
+          hasAnyChanges={hasAnyChanges}
+          commitLoading={commitLoading}
+          selectedPaths={selectedCommitPaths}
+          onCommit={onCommit}
+        />
+        <div className="commit-message-hint" aria-live="polite">
+          {commitScopeHint}
+        </div>
+      </div>
+    ) : null;
   return (
-    <aside className="diff-panel diff-panel--floating-git-actions" ref={panelRef}>
-      <div className="git-panel-header git-panel-header--hover-actions">
+    <aside
+      className={`diff-panel diff-panel--floating-git-actions${
+        headerControlsTarget ? " has-external-mode-selector" : ""
+      }${showApplyWorktree ? " has-floating-git-action" : ""}`}
+      ref={panelRef}
+    >
+      <div
+        className={`git-panel-header git-panel-header--hover-actions${
+          headerControlsTarget && !showApplyWorktree ? " is-empty" : ""
+        }`}
+      >
         <div className="git-panel-actions" role="group" aria-label="Git panel">
-          <div className="git-panel-select">
-            <button
-              ref={modeTriggerRef}
-              type="button"
-              className={`git-panel-select-trigger${isModeMenuOpen ? " is-open" : ""}`}
-              aria-label={t("git.panelView")}
-              aria-haspopup="menu"
-              aria-expanded={isModeMenuOpen}
-              onClick={() => setIsModeMenuOpen((current) => !current)}
-            >
-              {renderModeIcon(currentModeOption.value, "git-panel-select-icon", 13)}
-              <span className="git-panel-select-label">{currentModeOption.label}</span>
-              <ChevronDown className="git-panel-select-caret" size={12} aria-hidden />
-            </button>
-            {isModeMenuOpen && (
-              <div
-                ref={modeMenuRef}
-                className="git-panel-select-menu"
-                role="menu"
+          <GitModeSelectorMount target={headerControlsTarget}>
+            <div className="git-panel-select">
+              <button
+                ref={modeTriggerRef}
+                type="button"
+                className={`git-panel-select-trigger${isModeMenuOpen ? " is-open" : ""}`}
                 aria-label={t("git.panelView")}
-                style={{
-                  left: modeMenuLayout.align === "left" ? 0 : "auto",
-                  right: modeMenuLayout.align === "right" ? 0 : "auto",
-                  width: `${modeMenuLayout.width}px`,
-                }}
+                aria-haspopup="menu"
+                aria-expanded={isModeMenuOpen}
+                onClick={handleModeMenuToggle}
               >
-                <div className="git-panel-select-menu-title">{currentModeOption.label}</div>
-                {modeOptions.map((option) => {
-                  const isActive = option.value === mode;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className={`git-panel-select-option${isActive ? " is-active" : ""}`}
-                      role="menuitemradio"
-                      aria-checked={isActive}
-                      onClick={() => handleModeSelect(option.value)}
-                    >
-                      <span className="git-panel-select-option-text">
-                        <span className="git-panel-select-option-icon" aria-hidden>
-                          {renderModeIcon(option.value, "git-panel-select-option-icon-glyph", 13)}
-                        </span>
-                        <span className="git-panel-select-option-copy">
-                          <span className="git-panel-select-option-label">{option.label}</span>
-                          <span className="git-panel-select-option-description">
-                            {option.description}
-                          </span>
-                        </span>
-                      </span>
-                      <span
-                        className={`git-panel-select-option-check${isActive ? " is-active" : ""}`}
-                        aria-hidden
+                {renderModeIcon(currentModeOption.value, "git-panel-select-icon", 13)}
+                <span className="git-panel-select-label">{currentModeOption.label}</span>
+                <ChevronDown className="git-panel-select-caret" size={12} aria-hidden />
+              </button>
+              {isModeMenuOpen && (
+                <div
+                  ref={modeMenuRef}
+                  className="git-panel-select-menu"
+                  role="menu"
+                  aria-label={t("git.panelView")}
+                  style={{
+                    left: modeMenuLayout.align === "left" ? 0 : "auto",
+                    right: modeMenuLayout.align === "right" ? 0 : "auto",
+                    width: `${modeMenuLayout.width}px`,
+                  }}
+                >
+                  <div className="git-panel-select-menu-title">{currentModeOption.label}</div>
+                  {modeOptions.filter((option) => option.value !== "log").map((option) => {
+                    const isActive = option.value === mode;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={`git-panel-select-option${isActive ? " is-active" : ""}`}
+                        role="menuitemradio"
+                        aria-checked={isActive}
+                        onClick={() => handleModeSelect(option.value)}
                       >
-                        ✓
-                      </span>
-                    </button>
-                  );
-                })}
-                {mode === "diff" && onGitDiffListViewChange ? (
-                  <>
-                    <div className="git-panel-select-menu-divider" role="separator" />
-                    <div className="git-panel-select-menu-title">{t("git.listView")}</div>
-                    {layoutOptions.map((option) => {
-                      const isActive = gitDiffListView === option.value;
-                      const OptionIcon = option.icon;
-                      return (
-                        <button
-                          key={option.value}
-                          type="button"
-                          className={`git-panel-select-option${isActive ? " is-active" : ""}`}
-                          role="menuitemradio"
-                          aria-checked={isActive}
-                          onClick={() => {
-                            onGitDiffListViewChange?.(option.value);
-                            setIsModeMenuOpen(false);
-                          }}
+                        <span className="git-panel-select-option-text">
+                          <span className="git-panel-select-option-icon" aria-hidden>
+                            {renderModeIcon(option.value, "git-panel-select-option-icon-glyph", 13)}
+                          </span>
+                          <span className="git-panel-select-option-copy">
+                            <span className="git-panel-select-option-label">{option.label}</span>
+                            <span className="git-panel-select-option-description">
+                              {option.description}
+                            </span>
+                          </span>
+                        </span>
+                        <span
+                          className={`git-panel-select-option-check${isActive ? " is-active" : ""}`}
+                          aria-hidden
                         >
-                          <span className="git-panel-select-option-text">
-                            <span className="git-panel-select-option-icon" aria-hidden>
-                              <OptionIcon size={13} />
-                            </span>
-                            <span className="git-panel-select-option-copy">
-                              <span className="git-panel-select-option-label">{option.label}</span>
-                            </span>
-                          </span>
-                          <span
-                            className={`git-panel-select-option-check${isActive ? " is-active" : ""}`}
-                            aria-hidden
+                          ✓
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {mode === "diff" && onGitDiffListViewChange ? (
+                    <>
+                      <div className="git-panel-select-menu-divider" role="separator" />
+                      <div className="git-panel-select-menu-title">{t("git.listView")}</div>
+                      {layoutOptions.map((option) => {
+                        const isActive = gitDiffListView === option.value;
+                        const OptionIcon = option.icon;
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            className={`git-panel-select-option${isActive ? " is-active" : ""}`}
+                            role="menuitemradio"
+                            aria-checked={isActive}
+                            onClick={() => {
+                              onGitDiffListViewChange?.(option.value);
+                              setIsModeMenuOpen(false);
+                            }}
                           >
-                            ✓
+                            <span className="git-panel-select-option-text">
+                              <span className="git-panel-select-option-icon" aria-hidden>
+                                <OptionIcon size={13} />
+                              </span>
+                              <span className="git-panel-select-option-copy">
+                                <span className="git-panel-select-option-label">{option.label}</span>
+                              </span>
+                            </span>
+                            <span
+                              className={`git-panel-select-option-check${isActive ? " is-active" : ""}`}
+                              aria-hidden
+                            >
+                              ✓
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </>
+                  ) : null}
+                  {onOpenGitHistoryPanel ? (
+                    <>
+                      <div className="git-panel-select-menu-divider" role="separator" />
+                      <button
+                        type="button"
+                        className={`git-panel-select-option git-panel-select-option--git-graph${isGitHistoryOpen ? " is-active" : ""}`}
+                        role="menuitem"
+                        onClick={() => {
+                          setIsModeMenuOpen(false);
+                          onOpenGitHistoryPanel?.();
+                        }}
+                      >
+                        <span className="git-panel-select-option-text">
+                          <span className="git-panel-select-option-icon" aria-hidden>
+                            <GitCommitHorizontal size={13} />
                           </span>
-                        </button>
-                      );
-                    })}
-                  </>
-                ) : null}
-                {mode === "diff" && onScanGitRoots ? (
-                  <>
-                    <div className="git-panel-select-menu-divider" role="separator" />
-                    <button
-                      type="button"
-                      className="git-panel-select-option"
-                      role="menuitem"
-                      aria-label={t("git.switchRepository")}
-                      onClick={openGitRootPanelFromMenu}
-                    >
-                      <span className="git-panel-select-option-text">
-                        <span className="git-panel-select-option-icon" aria-hidden>
-                          <ArrowLeftRight size={13} />
-                        </span>
-                        <span className="git-panel-select-option-copy">
-                          <span className="git-panel-select-option-label">
-                            {t("git.switchRepository")}
-                          </span>
-                          <span className="git-panel-select-option-description">
-                            {t("git.switchRepositoryDescription")}
-                          </span>
-                        </span>
-                      </span>
-                    </button>
-                  </>
-                ) : null}
-                {onOpenGitHistoryPanel ? (
-                  <>
-                    <div className="git-panel-select-menu-divider" role="separator" />
-                    <button
-                      type="button"
-                      className={`git-panel-select-option${isGitHistoryOpen ? " is-active" : ""}`}
-                      role="menuitem"
-                      onClick={() => {
-                        setIsModeMenuOpen(false);
-                        onOpenGitHistoryPanel?.();
-                      }}
-                    >
-                      <span className="git-panel-select-option-text">
-                        <span className="git-panel-select-option-icon" aria-hidden>
-                          <History size={13} />
-                        </span>
-                        <span className="git-panel-select-option-copy">
-                          <span className="git-panel-select-option-label">
-                            {t("git.historyQuickAction")}
+                          <span className="git-panel-select-option-copy">
+                            <span className="git-panel-select-option-label">
+                              {t("git.historyQuickAction")}
+                            </span>
                           </span>
                         </span>
-                      </span>
-                    </button>
-                  </>
-                ) : null}
-              </div>
-            )}
-          </div>
+                      </button>
+                    </>
+                  ) : null}
+                </div>
+              )}
+            </div>
+          </GitModeSelectorMount>
           {showApplyWorktree && (
             <button
               type="button"
@@ -2152,15 +2587,21 @@ function GitDiffPanelImpl({
               commitMessageError={commitMessageError}
               commitSummary={repositoryCommitSummary}
               commitMessageEngine={commitMessageMenuEngine}
+              commitComposerPlacement={commitComposerPlacement}
               onCommitMessageChange={onCommitMessageChange}
               onCommitRepositories={onCommitRepositories}
               onOpenGenerateMenu={showCommitMessageEngineMenu}
               onStageFile={onStageRepositoryFile}
               onUnstageFile={onUnstageRepositoryFile}
+              onDiscardFile={onRevertRepositoryFile ? discardRepositoryFile : undefined}
               onStageAll={onStageRepositoryAll}
+              onOpenFile={(repositoryRoot, path) => onOpenFile?.(path, repositoryRoot)}
+              onOpenFilePreview={handleOpenRepositoryFilePreview}
+              onShowFileMenu={showRepositoryFileMenu}
               onRefresh={onRefreshRepositoryStatuses}
             />
           ) : null}
+          {commitComposerPlacement === "top" ? singleCommitComposer : null}
           {!multiRepositoryMode ? <div className="diff-commit-workspace-content">
           {/* Show Push button when there are commits to push */}
           {commitsAhead > 0 && !stagedFiles.length && (
@@ -2206,7 +2647,7 @@ function GitDiffPanelImpl({
                     onToggleCollapsed={() => handleToggleSection("staged")}
                     selectedFiles={selectedFiles}
                     selectedPath={selectedPath}
-                    onSelectFile={onSelectFile}
+                    onActivateFile={handleFileActivation}
                     onUnstageFile={onUnstageFile}
                     onDiscardFile={onRevertFile ? discardFile : undefined}
                     onDiscardFiles={onRevertFile ? discardFiles : undefined}
@@ -2234,7 +2675,7 @@ function GitDiffPanelImpl({
                     onToggleCollapsed={() => handleToggleSection("staged")}
                     selectedFiles={selectedFiles}
                     selectedPath={selectedPath}
-                    onSelectFile={onSelectFile}
+                    onActivateFile={handleFileActivation}
                     onUnstageFile={onUnstageFile}
                     onDiscardFile={onRevertFile ? discardFile : undefined}
                     onDiscardFiles={onRevertFile ? discardFiles : undefined}
@@ -2262,7 +2703,7 @@ function GitDiffPanelImpl({
                     onToggleCollapsed={() => handleToggleSection("unstaged")}
                     selectedFiles={selectedFiles}
                     selectedPath={selectedPath}
-                    onSelectFile={onSelectFile}
+                    onActivateFile={handleFileActivation}
                     onStageAllChanges={onStageAllChanges}
                     onStageFile={onStageFile}
                     onDiscardFile={onRevertFile ? discardFile : undefined}
@@ -2291,7 +2732,7 @@ function GitDiffPanelImpl({
                     onToggleCollapsed={() => handleToggleSection("unstaged")}
                     selectedFiles={selectedFiles}
                     selectedPath={selectedPath}
-                    onSelectFile={onSelectFile}
+                    onActivateFile={handleFileActivation}
                     onStageAllChanges={onStageAllChanges}
                     onStageFile={onStageFile}
                     onDiscardFile={onRevertFile ? discardFile : undefined}
@@ -2307,64 +2748,7 @@ function GitDiffPanelImpl({
             </>
           )}
           </div> : null}
-          {showGenerateCommitMessage && !multiRepositoryMode && (
-            <div className="commit-message-section git-commit-composer">
-              <div className="commit-message-input-wrapper">
-                <textarea
-                  className="commit-message-input"
-                  placeholder={t("git.commitMessage")}
-                  value={commitMessage}
-                  onChange={(e) => onCommitMessageChange?.(e.target.value)}
-                  disabled={commitMessageLoading}
-                  rows={2}
-                />
-                <button
-                  type="button"
-                  className={`commit-message-generate-button${commitMessageLoading ? " commit-message-generate-button--loading" : ""}`}
-                  onClick={(event) => {
-                    void showCommitMessageEngineMenu(event);
-                  }}
-                  disabled={commitMessageLoading || !canGenerateCommitMessage}
-                  aria-haspopup="menu"
-                  title={
-                    stagedFiles.length > 0
-                      ? t("git.generateCommitMessageStaged")
-                      : t("git.generateCommitMessageUnstaged")
-                  }
-                  aria-label={t("git.generateCommitMessage")}
-                >
-                  <CommitMessageEngineIcon
-                    engine={commitMessageMenuEngine}
-                    size={14}
-                    className={`commit-message-engine-icon${commitMessageLoading ? " commit-message-engine-icon--spinning" : ""}`}
-                  />
-                </button>
-              </div>
-              {commitMessageError && (
-                <div className="commit-message-error">{commitMessageError}</div>
-              )}
-              {commitError && (
-                <div className="commit-message-error">{commitError}</div>
-              )}
-              {pushError && (
-                <div className="commit-message-error">{pushError}</div>
-              )}
-              {syncError && (
-                <div className="commit-message-error">{syncError}</div>
-              )}
-              <CommitButton
-                commitMessage={commitMessage}
-                selectedCount={selectedCommitCount}
-                hasAnyChanges={hasAnyChanges}
-                commitLoading={commitLoading}
-                selectedPaths={selectedCommitPaths}
-                onCommit={onCommit}
-              />
-              <div className="commit-message-hint" aria-live="polite">
-                {commitScopeHint}
-              </div>
-            </div>
-          )}
+          {commitComposerPlacement === "bottom" ? singleCommitComposer : null}
         </div>
       ) : mode === "log" ? (
         <div className="git-log-list">
@@ -2572,7 +2956,7 @@ function GitDiffPanelImpl({
                           filePath: previewFile.path,
                           workspaceRelativeFilePath: resolveRepositoryWorkspaceFilePath(
                             workspacePath,
-                            gitRoot,
+                            previewFile.repositoryRoot ?? gitRoot,
                             previewFile.path,
                           ),
                           status: previewFile.status,
@@ -2593,12 +2977,19 @@ function GitDiffPanelImpl({
                       headerControlsTarget={previewHeaderControlsTarget}
                       onRequestClose={closePreviewModal}
                       fullDiffSourceKey={previewFile.path}
+                      fullDiffLoader={previewFullDiffLoader}
                       diffStyle={diffViewStyle}
                       onDiffStyleChange={onDiffViewStyleChange}
                       focusSelectedFileOnly
                       allowEditing
-                      onRequestRefreshReview={onRefreshGitDiffs}
-                      onRequestGitStatusRefresh={onRefreshGitStatus}
+                      onRequestRefreshReview={
+                        previewFile.repositoryRoot === null
+                          ? onRefreshGitDiffs
+                          : onRefreshRepositoryStatuses
+                      }
+                      onRequestGitStatusRefresh={
+                        previewFile.repositoryRoot === null ? onRefreshGitStatus : undefined
+                      }
                       onDirtyChange={setIsPreviewModalDirty}
                       onDraftActionsChange={handlePreviewDraftActionsChange}
                       onCreateCodeAnnotation={onCreateCodeAnnotation}
@@ -2606,6 +2997,8 @@ function GitDiffPanelImpl({
                       codeAnnotations={codeAnnotations}
                       codeAnnotationSurface="modal-diff-view"
                     />
+                  ) : previewFile.isDiffLoading ? (
+                    <div className="diff-empty">{t("common.loading")}</div>
                   ) : (
                     <div className="diff-empty">{t("git.diffUnavailable")}</div>
                   )}

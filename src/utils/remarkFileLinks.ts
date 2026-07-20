@@ -1,8 +1,25 @@
 const FILE_LINK_PROTOCOL = "codex-file:";
 
+const SPACED_WINDOWS_FILE_PATH_PATTERN = String.raw`[A-Za-z]:[\\/](?![\\/])[^\r\n\`"'<>|]*?\.[A-Za-z0-9]{1,12}(?:#[A-Za-z0-9:_-]+)?`;
+const SPACED_POSIX_FILE_PATH_PATTERN = String.raw`\/(?:Users|Volumes|home|tmp|var|private)\/[^\r\n\`"'<>]*?\.[A-Za-z0-9]{1,12}(?:#[A-Za-z0-9:_-]+)?`;
+const WINDOWS_ABSOLUTE_PATH_PATTERN = String.raw`[A-Za-z]:[\\/](?![\\/])[^\s\`"'<>\|]+`;
 const FILE_PATH_PATTERN =
-  /(\/[^\s`"'<>]+|~\/[^\s`"'<>]+|\.{1,2}\/[^\s`"'<>]+|[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)+)/g;
+  new RegExp(
+    String.raw`(${SPACED_WINDOWS_FILE_PATH_PATTERN}|${SPACED_POSIX_FILE_PATH_PATTERN}|${WINDOWS_ABSOLUTE_PATH_PATTERN}|\/[^\s\`"'<>]+|~\/[^\s\`"'<>]+|\.{1,2}\/[^\s\`"'<>]+|[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)+)`,
+    "g",
+  );
 const FILE_PATH_MATCH = new RegExp(`^${FILE_PATH_PATTERN.source}$`);
+const WINDOWS_ABSOLUTE_PATH_MATCH = new RegExp(
+  `^(?:${SPACED_WINDOWS_FILE_PATH_PATTERN}|${WINDOWS_ABSOLUTE_PATH_PATTERN})$`,
+);
+const BARE_SPACED_WINDOWS_FILE_PATH_PATTERN = new RegExp(
+  SPACED_WINDOWS_FILE_PATH_PATTERN,
+  "g",
+);
+const BARE_WINDOWS_FILE_PATH_PATTERN = new RegExp(
+  String.raw`${SPACED_WINDOWS_FILE_PATH_PATTERN}|${WINDOWS_ABSOLUTE_PATH_PATTERN}`,
+  "g",
+);
 
 const TRAILING_PUNCTUATION = new Set([".", ",", ";", ":", "!", "?", ")", "]", "}"]);
 // CJK ideographs, kana, and full-width punctuation — characters that show up in
@@ -33,6 +50,9 @@ function isPathCandidate(
   leadingContext: string,
   previousChar: string,
 ) {
+  if (WINDOWS_ABSOLUTE_PATH_MATCH.test(value)) {
+    return true;
+  }
   if (!value.includes("/")) {
     return false;
   }
@@ -86,6 +106,10 @@ function splitTrailingPunctuation(value: string) {
     path: value.slice(0, end),
     trailing: value.slice(end),
   };
+}
+
+function escapeMarkdownLinkText(value: string) {
+  return value.replace(/([\\[\]])/g, "\\$1");
 }
 
 export function toFileLink(path: string) {
@@ -166,6 +190,57 @@ export function remarkFileLinks() {
   return (tree: MarkdownNode) => {
     walk(tree);
   };
+}
+
+export function normalizeBareWindowsFilePathLinks(value: string) {
+  BARE_SPACED_WINDOWS_FILE_PATH_PATTERN.lastIndex = 0;
+  let changed = false;
+  const normalized = value.replace(
+    BARE_SPACED_WINDOWS_FILE_PATH_PATTERN,
+    (rawPath: string, offset: number, source: string) => {
+      if (!rawPath.includes(" ")) {
+        return rawPath;
+      }
+      const previousChar = offset > 0 ? source[offset - 1] : "";
+      if (previousChar === "(") {
+        return rawPath;
+      }
+      changed = true;
+      return `[${escapeMarkdownLinkText(rawPath)}](${toFileLink(rawPath)})`;
+    },
+  );
+  return changed ? normalized : value;
+}
+
+export function normalizeBareWindowsFilePathLinksAround(
+  value: string,
+  normalizer: (value: string) => string,
+) {
+  BARE_WINDOWS_FILE_PATH_PATTERN.lastIndex = 0;
+  const protectedRegions: Array<{ token: string; markdownLink: string }> = [];
+  const protectedValue = value.replace(
+    BARE_WINDOWS_FILE_PATH_PATTERN,
+    (rawPath: string, offset: number, source: string) => {
+      const previousChar = offset > 0 ? source[offset - 1] : "";
+      if (previousChar === "(") {
+        return rawPath;
+      }
+      const token = `\u0000CCGUIWINDOWSPATH${protectedRegions.length}\u0000`;
+      protectedRegions.push({
+        token,
+        markdownLink: `[${escapeMarkdownLinkText(rawPath)}](${toFileLink(rawPath)})`,
+      });
+      return token;
+    },
+  );
+  const normalized = normalizer(protectedValue);
+  if (protectedRegions.length === 0) {
+    return normalized;
+  }
+  return protectedRegions.reduce(
+    (current, region) => current.split(region.token).join(region.markdownLink),
+    normalized,
+  );
 }
 
 export function isLinkableFilePath(value: string) {

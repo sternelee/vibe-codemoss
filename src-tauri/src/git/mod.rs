@@ -3,7 +3,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 
-use base64::{engine::general_purpose::STANDARD, Engine as _};
 use git2::{BranchType, DiffOptions, Oid, Repository, Sort, Status, StatusOptions};
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
@@ -13,23 +12,33 @@ use tokio::time::{timeout, Duration};
 
 use crate::backend_budget::{estimate_json_payload_bytes, PayloadBudgetMetadata, ScanCacheState};
 use crate::git_utils::{
-    checkout_branch, commit_to_entry, diff_patch_to_string, diff_stats_for_path, image_mime_type,
+    blob_to_base64, build_git_file_blame, build_image_commit_diff, checkout_branch,
+    commit_to_entry, diff_patch_to_string, diff_stats_for_identity, find_git_diff_renames,
+    git_action_paths_for_file as action_paths_for_file, git_diff_paths_for_file,
+    git_status_path_identity, image_mime_type,
     list_git_repository_summaries as scan_git_repository_summaries,
     list_git_roots as scan_git_roots, parse_github_repo, path_has_git_repository_marker,
-    resolve_git_root, resolve_git_root_for_scope,
+    read_image_base64, resolve_git_root, resolve_git_root_for_scope, GitStatusLayer,
+    GitStatusPathIdentity,
 };
 use crate::state::AppState;
 use crate::types::{
     BranchInfo, GitBranchCompareCommitSets, GitBranchListItem, GitBranchUpdateResult,
-    GitCommitDetails, GitCommitDiff, GitCommitFileChange, GitFileDiff, GitFileStatus,
-    GitHistoryCommit, GitHistoryResponse, GitHubIssue, GitHubIssuesResponse, GitHubPullRequest,
-    GitHubPullRequestComment, GitHubPullRequestDiff, GitHubPullRequestsResponse, GitLogResponse,
-    GitPrExistingPullRequest, GitPrWorkflowDefaults, GitPrWorkflowResult, GitPrWorkflowStage,
-    GitPushPreviewResponse, GitRepositorySummary,
+    GitCommitDetails, GitCommitDiff, GitCommitFileChange, GitFileBlameResponse, GitFileDiff,
+    GitFileStatus, GitHistoryCommit, GitHistoryResponse, GitHubIssue, GitHubIssuesResponse,
+    GitHubPullRequest, GitHubPullRequestComment, GitHubPullRequestDiff, GitHubPullRequestsResponse,
+    GitLogResponse, GitPrExistingPullRequest, GitPrWorkflowDefaults, GitPrWorkflowResult,
+    GitPrWorkflowStage, GitPushPreviewResponse, GitRepositorySummary,
 };
 use crate::utils::{git_env_path, normalize_git_path, resolve_git_binary};
+use range_gate::{evaluate_pr_range_gate, parse_pr_range_fingerprint, PrRangeGateDecision};
 use validation::validate_local_branch_name;
 
+#[cfg(test)]
+use crate::types::{GitPrRangeGate, GitPrRangeGateSeverity};
+
+mod pull_request_content;
+mod range_gate;
 mod validation;
 
 #[cfg(test)]
@@ -84,6 +93,14 @@ pub(crate) const GIT_REMOTE_FORWARDING_MATRIX: &[GitRemoteForwardingEntry] = &[
         daemon_dispatch: "get_git_file_full_diff",
         forwarding: "implemented",
         coverage: "read-matrix",
+    },
+    GitRemoteForwardingEntry {
+        method: "get_git_file_blame",
+        category: "read",
+        desktop_module: "commands.rs",
+        daemon_dispatch: "get_git_file_blame",
+        forwarding: "implemented",
+        coverage: "file-view-blame",
     },
     GitRemoteForwardingEntry {
         method: "get_git_remote",
@@ -463,11 +480,8 @@ async fn forward_git_remote_unit(
 }
 
 const INDEX_SKIP_WORKTREE_FLAG: u16 = 0x4000;
-const MAX_IMAGE_BYTES: usize = 10 * 1024 * 1024;
 const MAX_COMMIT_DIFF_LINES: usize = 10_000;
 const GIT_COMMAND_TIMEOUT_SECS: u64 = 120;
-const PR_RANGE_MAX_CHANGED_FILES: usize = 240;
-const PR_RANGE_SUSPICIOUS_THRESHOLD: usize = 32;
 const GIT_STATUS_DIFF_STATS_FILE_LIMIT: usize = 120;
 const GIT_STATUS_DIFF_STATS_MAX_FILE_BYTES: u64 = 256 * 1024;
 const GIT_DIFF_PREVIEW_MAX_FILES: usize = 200;
@@ -718,6 +732,7 @@ fn commit_to_history_commit(
         timestamp,
         parents,
         refs,
+        file_path: None,
     }
 }
 
@@ -764,29 +779,6 @@ fn parse_remote_branch(name: &str) -> Option<(String, String)> {
     Some((remote.to_string(), branch.to_string()))
 }
 
-fn encode_image_base64(data: &[u8]) -> Option<String> {
-    if data.len() > MAX_IMAGE_BYTES {
-        return None;
-    }
-    Some(STANDARD.encode(data))
-}
-
-fn blob_to_base64(blob: git2::Blob) -> Option<String> {
-    if blob.size() > MAX_IMAGE_BYTES {
-        return None;
-    }
-    encode_image_base64(blob.content())
-}
-
-fn read_image_base64(path: &Path) -> Option<String> {
-    let metadata = fs::metadata(path).ok()?;
-    if metadata.len() > MAX_IMAGE_BYTES as u64 {
-        return None;
-    }
-    let data = fs::read(path).ok()?;
-    encode_image_base64(&data)
-}
-
 async fn run_git_command(repo_root: &Path, args: &[&str]) -> Result<(), String> {
     let git_bin = resolve_git_binary().map_err(|e| format!("Failed to run git: {e}"))?;
     let mut command = crate::utils::async_command(git_bin);
@@ -831,68 +823,6 @@ async fn run_git_command(repo_root: &Path, args: &[&str]) -> Result<(), String> 
         return Err("Git command failed.".to_string());
     }
     Err(detail.to_string())
-}
-
-fn action_paths_for_file(repo_root: &Path, path: &str) -> Vec<String> {
-    let target = normalize_git_path(path).trim().to_string();
-    if target.is_empty() {
-        return Vec::new();
-    }
-
-    let repo = match open_repository_at_root(repo_root) {
-        Ok(repo) => repo,
-        Err(_) => return vec![target],
-    };
-
-    let mut status_options = StatusOptions::new();
-    status_options
-        .include_untracked(true)
-        .recurse_untracked_dirs(true)
-        .renames_head_to_index(true)
-        .renames_index_to_workdir(true)
-        .include_ignored(false);
-
-    let statuses = match repo.statuses(Some(&mut status_options)) {
-        Ok(statuses) => statuses,
-        Err(_) => return vec![target],
-    };
-
-    for entry in statuses.iter() {
-        let status = entry.status();
-        if !(status.contains(Status::WT_RENAMED) || status.contains(Status::INDEX_RENAMED)) {
-            continue;
-        }
-        let delta = entry.index_to_workdir().or_else(|| entry.head_to_index());
-        let Some(delta) = delta else {
-            continue;
-        };
-        let (Some(old_path), Some(new_path)) = (delta.old_file().path(), delta.new_file().path())
-        else {
-            continue;
-        };
-        let old_path = normalize_git_path(old_path.to_string_lossy().as_ref());
-        let new_path = normalize_git_path(new_path.to_string_lossy().as_ref());
-        if old_path != target && new_path != target {
-            continue;
-        }
-        if old_path == new_path || new_path.is_empty() {
-            return vec![target];
-        }
-        let mut result = Vec::new();
-        if !old_path.is_empty() {
-            result.push(old_path);
-        }
-        if !new_path.is_empty() && !result.contains(&new_path) {
-            result.push(new_path);
-        }
-        return if result.is_empty() {
-            vec![target]
-        } else {
-            result
-        };
-    }
-
-    vec![target]
 }
 
 fn parse_upstream_ref(name: &str) -> Option<(String, String)> {
@@ -1176,7 +1106,7 @@ fn collect_index_diff(
     }
 
     let index = repo.index().map_err(|e| e.to_string())?;
-    let diff = match head_tree {
+    let mut diff = match head_tree {
         Some(tree) => repo
             .diff_tree_to_index(Some(tree), Some(&index), Some(&mut options))
             .map_err(|e| e.to_string())?,
@@ -1184,6 +1114,7 @@ fn collect_index_diff(
             .diff_tree_to_index(None, Some(&index), Some(&mut options))
             .map_err(|e| e.to_string())?,
     };
+    find_git_diff_renames(&mut diff).map_err(|e| e.to_string())?;
 
     Ok(build_combined_diff(&diff))
 }
@@ -1208,7 +1139,7 @@ fn collect_worktree_diff(
         }
     }
 
-    let diff = match head_tree {
+    let mut diff = match head_tree {
         Some(tree) => repo
             .diff_tree_to_workdir_with_index(Some(tree), Some(&mut options))
             .map_err(|e| e.to_string())?,
@@ -1216,6 +1147,7 @@ fn collect_worktree_diff(
             .diff_tree_to_workdir_with_index(None, Some(&mut options))
             .map_err(|e| e.to_string())?,
     };
+    find_git_diff_renames(&mut diff).map_err(|e| e.to_string())?;
 
     Ok(build_combined_diff(&diff))
 }
@@ -1242,6 +1174,27 @@ fn normalize_commit_scope_path(path: &str) -> String {
     normalize_git_path(path).trim_matches('/').to_string()
 }
 
+fn register_commit_scope_identity(
+    identities_by_path: &mut HashMap<String, Vec<String>>,
+    identity: &GitStatusPathIdentity,
+) {
+    let mut action_paths = Vec::new();
+    if let Some(old_path) = identity.old_path.as_ref() {
+        action_paths.push(old_path.clone());
+    }
+    if !action_paths.contains(&identity.path) {
+        action_paths.push(identity.path.clone());
+    }
+    for alias in &action_paths {
+        let normalized_alias = normalize_commit_scope_path(alias);
+        if !normalized_alias.is_empty() {
+            identities_by_path
+                .entry(normalized_alias)
+                .or_insert_with(|| action_paths.clone());
+        }
+    }
+}
+
 fn build_commit_scope_diff_plan(
     repo: &Repository,
     selected_paths: &[String],
@@ -1262,16 +1215,6 @@ fn build_commit_scope_diff_plan(
     let mut unstaged_by_normalized_path = HashMap::new();
 
     for entry in statuses.iter() {
-        let raw_path = entry.path().unwrap_or("").trim();
-        if raw_path.is_empty() {
-            continue;
-        }
-
-        let normalized_path = normalize_commit_scope_path(raw_path);
-        if normalized_path.is_empty() {
-            continue;
-        }
-
         let status = entry.status();
         if status.intersects(
             Status::INDEX_NEW
@@ -1280,9 +1223,9 @@ fn build_commit_scope_diff_plan(
                 | Status::INDEX_RENAMED
                 | Status::INDEX_TYPECHANGE,
         ) {
-            staged_by_normalized_path
-                .entry(normalized_path.clone())
-                .or_insert_with(|| raw_path.to_string());
+            if let Some(identity) = git_status_path_identity(&entry, GitStatusLayer::Index) {
+                register_commit_scope_identity(&mut staged_by_normalized_path, &identity);
+            }
         }
 
         if status.intersects(
@@ -1292,9 +1235,9 @@ fn build_commit_scope_diff_plan(
                 | Status::WT_RENAMED
                 | Status::WT_TYPECHANGE,
         ) {
-            unstaged_by_normalized_path
-                .entry(normalized_path)
-                .or_insert_with(|| raw_path.to_string());
+            if let Some(identity) = git_status_path_identity(&entry, GitStatusLayer::Workdir) {
+                register_commit_scope_identity(&mut unstaged_by_normalized_path, &identity);
+            }
         }
     }
 
@@ -1309,16 +1252,20 @@ fn build_commit_scope_diff_plan(
             continue;
         }
 
-        if let Some(raw_path) = staged_by_normalized_path.get(&normalized_path) {
-            if seen_index_paths.insert(raw_path.clone()) {
-                index_paths.push(raw_path.clone());
+        if let Some(raw_paths) = staged_by_normalized_path.get(&normalized_path) {
+            for raw_path in raw_paths {
+                if seen_index_paths.insert(raw_path.clone()) {
+                    index_paths.push(raw_path.clone());
+                }
             }
             continue;
         }
 
-        if let Some(raw_path) = unstaged_by_normalized_path.get(&normalized_path) {
-            if seen_worktree_paths.insert(raw_path.clone()) {
-                worktree_only_paths.push(raw_path.clone());
+        if let Some(raw_paths) = unstaged_by_normalized_path.get(&normalized_path) {
+            for raw_path in raw_paths {
+                if seen_worktree_paths.insert(raw_path.clone()) {
+                    worktree_only_paths.push(raw_path.clone());
+                }
             }
         }
     }
@@ -1505,12 +1452,6 @@ struct GhExistingPrEntry {
     head_ref_name: String,
     #[serde(rename = "baseRefName")]
     base_ref_name: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum PrRangeGateDecision {
-    Pass { changed_files: usize },
-    Blocked { category: String, reason: String },
 }
 
 fn shell_escape_for_display(value: &str) -> String {
@@ -1808,48 +1749,6 @@ fn extract_pr_number_from_url(url: &str) -> Option<u64> {
     number_text.parse::<u64>().ok()
 }
 
-fn is_suspicious_range_path(path: &str) -> bool {
-    let normalized = normalize_git_path(path).to_lowercase();
-    normalized == "readme.md" || normalized == "readme.zh-cn.md" || normalized == "license"
-}
-
-fn evaluate_pr_range_gate(changed_paths: &[String]) -> PrRangeGateDecision {
-    if changed_paths.is_empty() {
-        return PrRangeGateDecision::Blocked {
-            category: "range-empty".to_string(),
-            reason: "Range gate blocked: `upstream/<base>...HEAD` has no changed files."
-                .to_string(),
-        };
-    }
-    if changed_paths.len() > PR_RANGE_MAX_CHANGED_FILES {
-        return PrRangeGateDecision::Blocked {
-            category: "range-too-large".to_string(),
-            reason: format!(
-                "Range gate blocked: {} changed files exceed threshold {}.",
-                changed_paths.len(),
-                PR_RANGE_MAX_CHANGED_FILES
-            ),
-        };
-    }
-    let suspicious_files = changed_paths
-        .iter()
-        .filter(|path| is_suspicious_range_path(path))
-        .cloned()
-        .collect::<Vec<_>>();
-    if !suspicious_files.is_empty() && changed_paths.len() >= PR_RANGE_SUSPICIOUS_THRESHOLD {
-        return PrRangeGateDecision::Blocked {
-            category: "range-suspicious".to_string(),
-            reason: format!(
-                "Range gate blocked: suspicious root files detected ({}). Re-check branch base before creating PR.",
-                suspicious_files.join(", ")
-            ),
-        };
-    }
-    PrRangeGateDecision::Pass {
-        changed_files: changed_paths.len(),
-    }
-}
-
 fn build_failed_pr_workflow_result(
     stages: Vec<GitPrWorkflowStage>,
     stage_key: &str,
@@ -1867,6 +1766,7 @@ fn build_failed_pr_workflow_result(
         pr_number: None,
         existing_pr: None,
         retry_command,
+        range_gate: None,
         stages,
     }
 }
@@ -1890,6 +1790,7 @@ fn build_existing_pr_workflow_result(
         pr_number: Some(existing_pr.number),
         existing_pr: Some(existing_pr),
         retry_command: None,
+        range_gate: None,
         stages,
     }
 }
@@ -1910,6 +1811,7 @@ fn build_success_pr_workflow_result(
         pr_number,
         existing_pr: None,
         retry_command: None,
+        range_gate: None,
         stages,
     }
 }
@@ -1920,7 +1822,8 @@ pub(crate) use commands::*;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::GitLogEntry;
+    use crate::types::{GitBlameHunk, GitLogEntry};
+    use serde_json::Value;
     use std::fs;
     use validation::validate_local_branch_name;
 
@@ -1957,6 +1860,67 @@ mod tests {
                 "Git remote forwarding matrix is missing category {category}"
             );
         }
+    }
+
+    #[test]
+    fn pull_request_content_generation_remote_mode_fails_closed() {
+        let command_source = include_str!("commands.rs");
+        let command = command_source
+            .split("pub(crate) async fn generate_pull_request_content(")
+            .nth(1)
+            .expect("PR content generation command");
+        assert!(command.contains("PR content generation is unavailable in remote mode"));
+        assert!(!command.contains("\"generate_pull_request_content\","));
+    }
+
+    #[test]
+    fn git_file_blame_daemon_contract_preserves_payload_and_response_shape() {
+        let daemon_dispatch = include_str!("../bin/cc_gui_daemon.rs");
+        let blame_arm = daemon_dispatch
+            .split("\"get_git_file_blame\" => {")
+            .nth(1)
+            .and_then(|tail| tail.split("\"get_git_log\" => {").next())
+            .expect("daemon blame dispatch arm");
+        for payload_field in ["workspaceId", "path", "repositoryRoot"] {
+            assert!(
+                blame_arm.contains(payload_field),
+                "daemon blame dispatch is missing payload field {payload_field}"
+            );
+        }
+        assert!(blame_arm.contains("serde_json::to_value(response)"));
+
+        let response = GitFileBlameResponse {
+            path: "src/main.rs".to_string(),
+            head_sha: "abc123".to_string(),
+            line_count: 2,
+            hunks: vec![GitBlameHunk {
+                start_line: 1,
+                line_count: 2,
+                commit_sha: "abc123".to_string(),
+                author: "Ada".to_string(),
+                authored_at: 1_700_000_000,
+                summary: "Initial commit".to_string(),
+                original_path: None,
+            }],
+        };
+        let value = serde_json::to_value(&response).expect("serialize blame response");
+        assert_eq!(value.get("headSha").and_then(Value::as_str), Some("abc123"));
+        assert_eq!(value.get("lineCount").and_then(Value::as_u64), Some(2));
+        let hunk = value
+            .get("hunks")
+            .and_then(Value::as_array)
+            .and_then(|hunks| hunks.first())
+            .expect("serialized blame hunk");
+        assert_eq!(hunk.get("startLine").and_then(Value::as_u64), Some(1));
+        assert_eq!(
+            hunk.get("authoredAt").and_then(Value::as_i64),
+            Some(1_700_000_000)
+        );
+        assert_eq!(
+            serde_json::from_value::<GitFileBlameResponse>(value)
+                .expect("deserialize blame response"),
+            response
+        );
     }
 
     #[test]
@@ -2082,6 +2046,74 @@ mod tests {
         }
     }
 
+    #[tokio::test]
+    async fn file_history_follows_root_file_rename() {
+        let (root, _repo) = create_temp_repo();
+        fs::write(root.join("before.txt"), "first\n").expect("write original file");
+        commit_all_with_message(&root, "create original").await;
+        fs::rename(root.join("before.txt"), root.join("after.txt")).expect("rename file");
+        commit_all_with_message(&root, "rename file").await;
+        fs::write(root.join("after.txt"), "first\nsecond\n").expect("edit renamed file");
+        commit_all_with_message(&root, "edit renamed file").await;
+
+        let entries = crate::shared::git_core::list_file_history_entries(&root, None, "after.txt")
+            .await
+            .expect("list file history");
+
+        assert_eq!(entries.len(), 3);
+        assert!(entries.iter().all(|entry| entry.oid.len() == 40));
+        assert_eq!(entries[0].path, "after.txt");
+        assert_eq!(entries[1].path, "after.txt");
+        assert_eq!(entries[2].path, "before.txt");
+
+        let option_like_ref =
+            crate::shared::git_core::list_file_history_oids(&root, Some("--no-walk"), "after.txt")
+                .await;
+        assert!(option_like_ref.is_err());
+    }
+
+    #[test]
+    fn file_history_rejects_invalid_paths() {
+        for path in [
+            "",
+            "/absolute.txt",
+            "../outside.txt",
+            "src/../../outside.txt",
+        ] {
+            assert!(crate::shared::git_core::normalize_file_history_path(path).is_err());
+        }
+        assert_eq!(
+            crate::shared::git_core::normalize_file_history_path("src\\main.rs")
+                .expect("normalize Windows path"),
+            "src/main.rs"
+        );
+    }
+
+    #[test]
+    fn file_history_path_participates_in_snapshot_identity() {
+        let first = crate::shared::git_core::build_git_history_snapshot_id(
+            "head",
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some("packages/app"),
+            Some("src/first.ts"),
+        );
+        let second = crate::shared::git_core::build_git_history_snapshot_id(
+            "head",
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some("packages/app"),
+            Some("src/second.ts"),
+        );
+        assert_ne!(first, second);
+    }
+
     #[test]
     fn collect_workspace_diff_prefers_staged_changes() {
         let (root, repo) = create_temp_repo();
@@ -2180,6 +2212,39 @@ mod tests {
     }
 
     #[test]
+    fn collect_commit_scope_diff_resolves_staged_rename_destination() {
+        let (root, repo) = create_temp_repo();
+        fs::write(root.join("before.txt"), "rename content\n").expect("write source file");
+        let mut index = repo.index().expect("repo index");
+        index
+            .add_path(Path::new("before.txt"))
+            .expect("stage source file");
+        let tree_id = index.write_tree().expect("write source tree");
+        let tree = repo.find_tree(tree_id).expect("find source tree");
+        let signature = git2::Signature::now("Test", "test@example.com").expect("signature");
+        repo.commit(Some("HEAD"), &signature, &signature, "init", &tree, &[])
+            .expect("commit source file");
+        drop(tree);
+
+        fs::rename(root.join("before.txt"), root.join("after.txt")).expect("rename source file");
+        let mut index = repo.index().expect("repo index");
+        index
+            .remove_path(Path::new("before.txt"))
+            .expect("remove source path");
+        index
+            .add_path(Path::new("after.txt"))
+            .expect("stage destination path");
+        index.write().expect("write renamed index");
+
+        let selected_paths = vec!["after.txt".to_string()];
+        let diff =
+            collect_commit_scope_diff(&root, Some(&selected_paths)).expect("collect rename diff");
+
+        assert!(diff.contains("before.txt"));
+        assert!(diff.contains("after.txt"));
+    }
+
+    #[test]
     fn collect_commit_scope_diff_keeps_staged_first_fallback_without_explicit_scope() {
         let (root, repo) = create_temp_repo();
         fs::write(root.join("staged.txt"), "staged\n").expect("write staged file");
@@ -2258,8 +2323,55 @@ mod tests {
         index.add_path(Path::new("b.txt")).expect("add new path");
         index.write().expect("write index");
 
-        let paths = action_paths_for_file(&root, "b.txt");
+        let paths = action_paths_for_file(&root, "b.txt", GitStatusLayer::Index);
         assert_eq!(paths, vec!["a.txt".to_string(), "b.txt".to_string()]);
+    }
+
+    #[tokio::test]
+    async fn chained_rename_stage_and_unstage_mutate_the_intended_layer() {
+        let (stage_root, _stage_repo) = create_temp_repo();
+        fs::write(stage_root.join("a.txt"), "hello\n").expect("write staged fixture");
+        commit_all_with_message(&stage_root, "init staged fixture").await;
+        run_git_command(&stage_root, &["mv", "a.txt", "b.txt"])
+            .await
+            .expect("stage a to b rename");
+        fs::rename(stage_root.join("b.txt"), stage_root.join("c.txt"))
+            .expect("rename b to c in workdir");
+
+        for path in action_paths_for_file(&stage_root, "c.txt", GitStatusLayer::Workdir) {
+            run_git_command(&stage_root, &["add", "-A", "--", &path])
+                .await
+                .expect("stage workdir rename path");
+        }
+        let stage_index = open_repository_at_root(&stage_root)
+            .expect("open staged repo")
+            .index()
+            .expect("open staged index");
+        assert!(stage_index.get_path(Path::new("a.txt"), 0).is_none());
+        assert!(stage_index.get_path(Path::new("b.txt"), 0).is_none());
+        assert!(stage_index.get_path(Path::new("c.txt"), 0).is_some());
+
+        let (unstage_root, _unstage_repo) = create_temp_repo();
+        fs::write(unstage_root.join("a.txt"), "hello\n").expect("write unstaged fixture");
+        commit_all_with_message(&unstage_root, "init unstaged fixture").await;
+        run_git_command(&unstage_root, &["mv", "a.txt", "b.txt"])
+            .await
+            .expect("stage a to b rename");
+        fs::rename(unstage_root.join("b.txt"), unstage_root.join("c.txt"))
+            .expect("rename b to c in workdir");
+
+        for path in action_paths_for_file(&unstage_root, "b.txt", GitStatusLayer::Index) {
+            run_git_command(&unstage_root, &["restore", "--staged", "--", &path])
+                .await
+                .expect("unstage index rename path");
+        }
+        let unstage_index = open_repository_at_root(&unstage_root)
+            .expect("open unstaged repo")
+            .index()
+            .expect("open unstaged index");
+        assert!(unstage_index.get_path(Path::new("a.txt"), 0).is_some());
+        assert!(unstage_index.get_path(Path::new("b.txt"), 0).is_none());
+        assert!(unstage_index.get_path(Path::new("c.txt"), 0).is_none());
     }
 
     #[test]
@@ -2285,6 +2397,7 @@ mod tests {
                 timestamp: 100 + index as i64,
                 parents: Vec::new(),
                 refs: Vec::new(),
+                file_path: None,
             })
             .collect::<Vec<_>>();
         let (page, total, has_more) = paginate_history_commits(commits, 2, 2);
@@ -2362,27 +2475,114 @@ mod tests {
     }
 
     #[test]
-    fn range_gate_blocks_oversized_changeset() {
-        let paths = (0..(PR_RANGE_MAX_CHANGED_FILES + 1))
+    fn range_gate_passes_normal_threshold() {
+        let range_fingerprint = "base-revision...head-revision";
+        let paths = (0..range_gate::PR_RANGE_MAX_CHANGED_FILES)
             .map(|index| format!("src/file-{index}.ts"))
             .collect::<Vec<_>>();
-        let decision = evaluate_pr_range_gate(&paths);
+        let decision = evaluate_pr_range_gate(&paths, false, None, range_fingerprint);
         assert!(matches!(
             decision,
-            PrRangeGateDecision::Blocked { category, .. } if category == "range-too-large"
+            PrRangeGateDecision::Pass { changed_files }
+                if changed_files == range_gate::PR_RANGE_MAX_CHANGED_FILES
         ));
     }
 
     #[test]
-    fn range_gate_blocks_suspicious_root_files_when_scope_is_large() {
-        let mut paths = (0..PR_RANGE_SUSPICIOUS_THRESHOLD)
+    fn range_gate_requires_confirmation_above_normal_threshold() {
+        let range_fingerprint = "base-revision...head-revision";
+        for changed_files in [
+            range_gate::PR_RANGE_MAX_CHANGED_FILES + 1,
+            range_gate::PR_RANGE_COMPLETE_DIFF_MAX_FILES,
+        ] {
+            let paths = (0..changed_files)
+                .map(|index| format!("src/file-{index}.ts"))
+                .collect::<Vec<_>>();
+            let decision = evaluate_pr_range_gate(&paths, false, None, range_fingerprint);
+            assert!(matches!(
+                decision,
+                PrRangeGateDecision::ConfirmationRequired {
+                    range_gate: GitPrRangeGate {
+                        severity: GitPrRangeGateSeverity::Large,
+                        range_fingerprint: fingerprint,
+                        ..
+                    },
+                    ..
+                } if fingerprint == range_fingerprint
+            ));
+        }
+    }
+
+    #[test]
+    fn range_gate_warns_when_github_diff_will_be_incomplete() {
+        let range_fingerprint = "base-revision...head-revision";
+        let paths = (0..(range_gate::PR_RANGE_COMPLETE_DIFF_MAX_FILES + 1))
+            .map(|index| format!("src/file-{index}.ts"))
+            .collect::<Vec<_>>();
+        let decision = evaluate_pr_range_gate(&paths, false, None, range_fingerprint);
+        assert!(matches!(
+            decision,
+            PrRangeGateDecision::ConfirmationRequired {
+                range_gate: GitPrRangeGate {
+                    severity: GitPrRangeGateSeverity::DiffIncomplete,
+                    ..
+                },
+                ..
+            }
+        ));
+        assert!(matches!(
+            evaluate_pr_range_gate(
+                &paths,
+                true,
+                Some(range_fingerprint),
+                range_fingerprint
+            ),
+            PrRangeGateDecision::Pass { changed_files }
+                if changed_files == range_gate::PR_RANGE_COMPLETE_DIFF_MAX_FILES + 1
+        ));
+        assert!(matches!(
+            evaluate_pr_range_gate(
+                &paths,
+                true,
+                Some("stale-base...stale-head"),
+                range_fingerprint
+            ),
+            PrRangeGateDecision::ConfirmationRequired { .. }
+        ));
+    }
+
+    #[test]
+    fn range_gate_override_cannot_bypass_structural_anomalies() {
+        let range_fingerprint = "base-revision...head-revision";
+        assert!(matches!(
+            evaluate_pr_range_gate(
+                &[],
+                true,
+                Some(range_fingerprint),
+                range_fingerprint
+            ),
+            PrRangeGateDecision::Blocked { category, .. } if category == "range-empty"
+        ));
+
+        let mut paths = (0..range_gate::PR_RANGE_SUSPICIOUS_THRESHOLD)
             .map(|index| format!("src/file-{index}.ts"))
             .collect::<Vec<_>>();
         paths.push("README.md".to_string());
-        let decision = evaluate_pr_range_gate(&paths);
+        let decision =
+            evaluate_pr_range_gate(&paths, true, Some(range_fingerprint), range_fingerprint);
         assert!(matches!(
             decision,
             PrRangeGateDecision::Blocked { category, .. } if category == "range-suspicious"
         ));
+    }
+
+    #[test]
+    fn range_fingerprint_requires_exactly_base_and_head_revisions() {
+        assert_eq!(
+            parse_pr_range_fingerprint("base-revision\nhead-revision\n"),
+            Some("base-revision...head-revision".to_string())
+        );
+        assert_eq!(parse_pr_range_fingerprint("base-only\n"), None);
+        assert_eq!(parse_pr_range_fingerprint("base\nhead\nunexpected\n"), None);
     }
 }

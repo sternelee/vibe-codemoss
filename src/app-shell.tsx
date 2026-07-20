@@ -39,7 +39,7 @@ import { useCopyThread } from "./features/threads/hooks/useCopyThread";
 import { useKanbanStore } from "./features/kanban/hooks/useKanbanStore";
 import { useGitCommitController } from "./features/app/hooks/useGitCommitController";
 import { useMultiRepositoryGitStatus } from "./features/git/hooks/useMultiRepositoryGitStatus";
-import { stageGitAll, stageGitFile, unstageGitFile } from "./services/tauri";
+import { revertGitFile, stageGitAll, stageGitFile, unstageGitFile } from "./services/tauri";
 import { forceRefreshAgents } from "./features/composer/components/ChatInputBox/providers";
 import { normalizeFsPath } from "./utils/workspacePaths";
 import type {
@@ -109,6 +109,7 @@ export function AppShell() {
     setAppSettings,
     doctor,
     claudeDoctor,
+    kimiDoctor,
     appSettingsLoading,
     reduceTransparency,
     setReduceTransparency,
@@ -411,11 +412,14 @@ export function AppShell() {
     editorNavigationTarget,
     editorHighlightTarget,
     fileCompareSession,
+    fileHistoryTarget,
     openFileTabs,
     handleOpenFile,
     handleOpenWorkspaceFileCompare,
     handleOpenScratchFileCompare,
     handleCloseFileCompare,
+    handleOpenFileHistory,
+    handleCloseFileHistory,
     handleActivateFileTab,
     handleCloseFileTab,
     handleCloseAllFileTabs,
@@ -957,10 +961,6 @@ export function AppShell() {
   }, [activeThreadId]);
 
   useEffect(() => {
-    void reloadAgentCatalog();
-  }, [reloadAgentCatalog]);
-
-  useEffect(() => {
     if (!settingsOpen) {
       forceRefreshAgents();
       void reloadAgentCatalog();
@@ -1234,6 +1234,8 @@ export function AppShell() {
     RECENT_THREAD_LIMIT,
     recentThreads,
     scopedKanbanTasks,
+    searchApiHydrationStatus,
+    searchFileHydrationStatus,
     searchResults,
     sessionRadarFeed,
     workspaceActivity,
@@ -1420,6 +1422,10 @@ export function AppShell() {
   const handleUnstageRepositoryFile = useCallback(async (repositoryRoot: string, path: string) => {
     if (!activeWorkspace) return;
     await unstageGitFile(activeWorkspace.id, path, repositoryRoot);
+  }, [activeWorkspace]);
+  const handleRevertRepositoryFile = useCallback(async (repositoryRoot: string, path: string) => {
+    if (!activeWorkspace) return;
+    await revertGitFile(activeWorkspace.id, path, repositoryRoot);
   }, [activeWorkspace]);
   const handleStageRepositoryAll = useCallback(async (repositoryRoot: string) => {
     if (!activeWorkspace) return;
@@ -1632,6 +1638,7 @@ export function AppShell() {
       activeImages,
       activeFusingMessageId,
       fileCompareSession,
+      fileHistoryTarget,
       activeItems,
       activeParentWorkspace,
       activePath,
@@ -1683,6 +1690,7 @@ export function AppShell() {
       refreshRepositoryStatuses,
       handleStageRepositoryFile,
       handleUnstageRepositoryFile,
+      handleRevertRepositoryFile,
       handleStageRepositoryAll,
       handleCommitRepositories,
       repositoryCommitSummary,
@@ -1760,6 +1768,7 @@ export function AppShell() {
       dismissUpdate,
       doctor,
       claudeDoctor,
+      kimiDoctor,
       editorHighlightTarget,
       editorNavigationTarget,
       editorSplitCompanion,
@@ -1881,6 +1890,8 @@ export function AppShell() {
       handleOpenWorkspaceFileCompare,
       handleOpenScratchFileCompare,
       handleCloseFileCompare,
+      handleOpenFileHistory,
+      handleCloseFileHistory,
       handleOpenMailSession,
       handleOpenModelSettings,
       handleRefreshModelConfig,
@@ -2088,6 +2099,8 @@ export function AppShell() {
       scanGitRoots,
       scopedKanbanTasks,
       searchContentFilters,
+      searchApiHydrationStatus,
+      searchFileHydrationStatus,
       searchPaletteQuery,
       searchPaletteSelectedIndex,
       searchResults,
@@ -2350,6 +2363,7 @@ export function AppShell() {
     setSelectedKanbanTaskId,
     setSelectedPullRequest,
     startThreadForWorkspace,
+    workspacesById,
     workspacesByPath,
   });
 

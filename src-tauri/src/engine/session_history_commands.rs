@@ -33,6 +33,19 @@ pub(super) fn remote_delete_gemini_session_request(
     )
 }
 
+pub(super) fn remote_delete_kimi_session_request(
+    workspace_path: String,
+    session_id: String,
+) -> (&'static str, Value) {
+    (
+        "delete_kimi_session",
+        json!({
+            "workspacePath": crate::remote_backend::normalize_path_for_remote(workspace_path),
+            "sessionId": session_id,
+        }),
+    )
+}
+
 /// List Claude Code session history for a workspace path.
 /// Reads JSONL files from `<effective-claude-home>/projects/{encoded-path}/`.
 #[tauri::command]
@@ -272,9 +285,102 @@ pub async fn delete_gemini_session(
     .await
 }
 
+/// List Kimi CLI session history for a workspace path.
+#[tauri::command]
+pub async fn list_kimi_sessions(
+    workspace_path: String,
+    limit: Option<usize>,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        let workspace_path = remote_backend::normalize_path_for_remote(workspace_path);
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "list_kimi_sessions",
+            json!({ "workspacePath": workspace_path, "limit": limit }),
+        )
+        .await;
+    }
+    let path = std::path::PathBuf::from(&workspace_path);
+    let config = state
+        .engine_manager
+        .get_engine_config(EngineType::Kimi)
+        .await;
+    let sessions = super::kimi_history::list_kimi_sessions(
+        &path,
+        limit,
+        config.as_ref().and_then(|item| item.home_dir.as_deref()),
+    )
+    .await?;
+    serde_json::to_value(sessions).map_err(|error| error.to_string())
+}
+
+/// Load full message history for a specific Kimi CLI session.
+#[tauri::command]
+pub async fn load_kimi_session(
+    workspace_path: String,
+    session_id: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        let workspace_path = remote_backend::normalize_path_for_remote(workspace_path);
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "load_kimi_session",
+            json!({ "workspacePath": workspace_path, "sessionId": session_id }),
+        )
+        .await;
+    }
+    let path = std::path::PathBuf::from(&workspace_path);
+    let config = state
+        .engine_manager
+        .get_engine_config(EngineType::Kimi)
+        .await;
+    let result = super::kimi_history::load_kimi_session(
+        &path,
+        &session_id,
+        config.as_ref().and_then(|item| item.home_dir.as_deref()),
+    )
+    .await?;
+    serde_json::to_value(result).map_err(|error| error.to_string())
+}
+
+/// Delete a Kimi CLI session (remove session dir + index entry).
+#[tauri::command]
+pub async fn delete_kimi_session(
+    workspace_path: String,
+    session_id: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        let (method, params) = remote_delete_kimi_session_request(workspace_path, session_id);
+        let _: Value = call_remote_typed(&*state, &app, method, params).await?;
+        return Ok(());
+    }
+    let path = std::path::PathBuf::from(&workspace_path);
+    let config = state
+        .engine_manager
+        .get_engine_config(EngineType::Kimi)
+        .await;
+    super::kimi_history::delete_kimi_session(
+        &path,
+        &session_id,
+        config.as_ref().and_then(|item| item.home_dir.as_deref()),
+    )
+    .await
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{remote_delete_claude_session_request, remote_delete_gemini_session_request};
+    use super::{
+        remote_delete_claude_session_request, remote_delete_gemini_session_request,
+        remote_delete_kimi_session_request,
+    };
     use serde_json::json;
 
     #[test]
@@ -307,6 +413,23 @@ mod tests {
             json!({
                 "workspacePath": "/home/demo/repo",
                 "sessionId": "gemini-session-1",
+            })
+        );
+    }
+
+    #[test]
+    fn remote_delete_kimi_session_request_normalizes_workspace_path() {
+        let (method, params) = remote_delete_kimi_session_request(
+            "\\\\wsl$\\Ubuntu\\home\\demo\\repo".to_string(),
+            "session_kimi-1".to_string(),
+        );
+
+        assert_eq!(method, "delete_kimi_session");
+        assert_eq!(
+            params,
+            json!({
+                "workspacePath": "/home/demo/repo",
+                "sessionId": "session_kimi-1",
             })
         );
     }

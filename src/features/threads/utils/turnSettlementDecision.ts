@@ -1,4 +1,4 @@
-export type TurnSettlementEngine = "claude" | "codex" | "gemini" | "opencode";
+export type TurnSettlementEngine = "claude" | "codex" | "gemini" | "kimi" | "opencode";
 
 export type TurnSettlementTerminalKind =
   | "completed"

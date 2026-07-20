@@ -39,6 +39,7 @@ const DEFAULT_ENGINE_LABEL_BY_TYPE: Record<EngineType, string> = {
   claude: "Claude",
   opencode: "OpenCode",
   gemini: "Gemini",
+  kimi: "Kimi",
 };
 
 export function createEmptyTopbarSessionWindows(): TopbarSessionWindows {
@@ -85,7 +86,12 @@ function truncateSessionLabel(label: string): string {
 }
 
 function resolveEngineType(engineSource: ThreadSummary["engineSource"] | undefined): EngineType {
-  if (engineSource === "claude" || engineSource === "gemini" || engineSource === "opencode") {
+  if (
+    engineSource === "claude" ||
+    engineSource === "gemini" ||
+    engineSource === "kimi" ||
+    engineSource === "opencode"
+  ) {
     return engineSource;
   }
   return "codex";

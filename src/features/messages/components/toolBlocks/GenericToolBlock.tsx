@@ -101,7 +101,7 @@ interface GenericToolBlockProps {
   isExpanded: boolean;
   onToggle: (id: string) => void;
   activeCollaborationModeId?: string | null;
-  activeEngine?: "claude" | "codex" | "gemini" | "opencode";
+  activeEngine?: "claude" | "codex" | "gemini" | "kimi" | "opencode";
   hasPendingUserInputRequest?: boolean;
   onOpenDiffPath?: (path: string) => void;
   selectedExitPlanExecutionMode?: ExitPlanExecutionMode | null;

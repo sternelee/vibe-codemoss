@@ -245,6 +245,11 @@ export interface SelectedAgent {
   name: string;
   prompt?: string;
   icon?: string;
+  source?: "custom" | "builtIn";
+  divisionId?: string;
+  divisionLabel?: string;
+  sourceRevision?: string;
+  promptHash?: string;
 }
 
 /**
@@ -342,7 +347,7 @@ export interface ProviderInfo {
   enabled: boolean;
 }
 
-export type ProviderId = 'claude' | 'codex' | 'gemini' | 'opencode';
+export type ProviderId = 'claude' | 'codex' | 'gemini' | 'kimi' | 'opencode';
 export type ProviderModelCatalogs = Partial<Record<ProviderId, ModelInfo[]>>;
 export type CodexSpeedMode = 'standard' | 'fast' | 'unknown';
 export type StreamActivityPhase = 'idle' | 'waiting' | 'ingress';
@@ -354,6 +359,7 @@ export const AVAILABLE_PROVIDERS: ProviderInfo[] = [
   { id: 'claude', label: 'Claude Code', icon: 'codicon-terminal', enabled: true },
   { id: 'codex', label: 'Codex CLI', icon: 'codicon-terminal', enabled: true },
   { id: 'gemini', label: 'Gemini CLI', icon: 'codicon-terminal', enabled: false },
+  { id: 'kimi', label: 'Kimi CLI', icon: 'codicon-terminal', enabled: false },
   { id: 'opencode', label: 'OpenCode', icon: 'codicon-terminal', enabled: true },
 ];
 
@@ -474,6 +480,7 @@ export interface ClaudeContextUsageViewModel {
 
 export interface RateLimitWindowInfo {
   usedPercent?: number | null;
+  windowDurationMins?: number | null;
   resetsAt?: number | null;
 }
 
@@ -545,23 +552,8 @@ export interface ChatInputBoxProps {
   usageMaxTokens?: number;
   /** Whether to show usage */
   showUsage?: boolean;
-  /** Enable legacy + new context usage dual-view */
-  contextDualViewEnabled?: boolean;
-  /** Shared model for new context usage view */
-  dualContextUsage?: DualContextUsageViewModel | null;
   /** Claude-specific context usage detail model */
   claudeContextUsage?: ClaudeContextUsageViewModel | null;
-  /** Request context compaction (codex only) */
-  onRequestContextCompaction?: () => Promise<void> | void;
-  /** Whether Codex auto compaction is enabled */
-  codexAutoCompactionEnabled?: boolean;
-  /** Codex auto compaction high-watermark */
-  codexAutoCompactionThresholdPercent?: number;
-  /** Update Codex auto compaction settings */
-  onCodexAutoCompactionSettingsChange?: (patch: {
-    enabled?: boolean;
-    thresholdPercent?: number;
-  }) => Promise<void> | void;
   /** Account rate limits snapshot for codex usage panel */
   accountRateLimits?: AccountRateLimitsInfo | null;
   /** Show remaining limits instead of used */
@@ -840,8 +832,6 @@ export interface ButtonAreaProps {
   shortcutActions?: ShortcutAction[];
   /** Composer readiness bar rendered in the center of the primary toolbar row */
   readinessSurface?: ReactNode;
-  /** High-signal status controls rendered on the main toolbar row */
-  mainSurface?: ReactNode;
   /** Additional low-frequency tools rendered inside the tool popover */
   toolSurface?: ReactNode;
   /** Status panel toggle rendered inside the tool popover icon row */

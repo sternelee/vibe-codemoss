@@ -131,7 +131,7 @@
   --color-error: #e81123;
 
   --color-thinking-border: #d0d0d0;
-  --color-thinking-text: #666666;
+  --color-thinking-text: rgb(115, 115, 115);
 
   --color-tool-bg: rgba(0, 0, 0, 0.04);
   --color-tool-icon: #0078d4;
@@ -156,6 +156,14 @@
   --dropdown-add-text-color: #31353a;
   --dropdown-shadow-color: rgba(226, 226, 226, 1);
   --dropdown-text-color: #0d0d0d;
+}
+
+/* Collapsed sidebar: zero floating-main radius + shell contrast (home has
+ * no topbar to hide the #ededf0 corner chip under the traffic lights). */
+:root[data-theme="light"] .app.layout-desktop.sidebar-collapsed {
+  --desktop-main-radius: 0;
+  --desktop-shell-background: #ffffff;
+  --desktop-sidebar-background: #ffffff;
 }
 
 /* Kanban - softer borders in light mode */

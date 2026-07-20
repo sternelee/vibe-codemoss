@@ -332,6 +332,20 @@
   flex-shrink: 0;
 }
 
+.vendor-cli-version {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.vendor-cli-lifecycle-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 @media (max-width: 720px) {
   .vendor-brand-header,
   .vendor-brand-actions {

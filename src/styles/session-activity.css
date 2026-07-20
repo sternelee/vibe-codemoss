@@ -456,6 +456,14 @@
   animation: session-activity-processing-pill 1.45s ease-in-out infinite;
 }
 
+.session-activity-session-pill.is-overflow {
+  cursor: help;
+  border-style: dashed;
+  background: color-mix(in srgb, var(--surface-card, #ffffff) 78%, var(--surface-control) 22%);
+  color: var(--text-muted);
+  box-shadow: none;
+}
+
 .session-activity-session-name {
   font-size: var(--session-activity-meta-font-size);
   font-weight: 600;

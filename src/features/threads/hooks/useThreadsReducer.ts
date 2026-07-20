@@ -22,6 +22,7 @@ import {
 } from "./threadReducerItemLookup";
 import {
   isGeminiReasoningThread,
+  isKimiReasoningThread,
   shouldAcceptReasoningDelta,
 } from "./threadReducerReasoningGuards";
 import { areEquivalentAssistantMessageTexts } from "../assembly/conversationNormalization";
@@ -438,6 +439,14 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         return state;
       }
       const list = state.threadsByWorkspace[action.workspaceId] ?? [];
+      const wasReplacedByCanonicalThread = list.some(
+        (thread) =>
+          thread.id !== action.threadId &&
+          (thread.nativeThreadIds ?? []).includes(action.threadId),
+      );
+      if (wasReplacedByCanonicalThread) {
+        return state;
+      }
       let existingIndex = list.findIndex((thread) => thread.id === action.threadId);
       if (existingIndex < 0 && !action.threadId.includes(":")) {
         const aliasIndexes = list
@@ -502,6 +511,8 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         ? "claude"
         : action.threadId.startsWith("gemini:")
           ? "gemini"
+        : action.threadId.startsWith("kimi:")
+          ? "kimi"
         : action.threadId.startsWith("opencode:")
           ? "opencode"
           : null;
@@ -1860,7 +1871,8 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         return state;
       }
       const shouldInsertBeforeAssistant =
-        isGeminiReasoningThread(action.threadId) &&
+        (isGeminiReasoningThread(action.threadId) ||
+          isKimiReasoningThread(action.threadId)) &&
         !state.threadStatusById[action.threadId]?.isProcessing &&
         (state.activeTurnIdByThread[action.threadId] ?? null) === null;
       const segmentedReasoningId = resolveLiveReasoningItemId(
@@ -1926,7 +1938,8 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         return state;
       }
       const shouldInsertBeforeAssistant =
-        isGeminiReasoningThread(action.threadId) &&
+        (isGeminiReasoningThread(action.threadId) ||
+          isKimiReasoningThread(action.threadId)) &&
         !state.threadStatusById[action.threadId]?.isProcessing &&
         (state.activeTurnIdByThread[action.threadId] ?? null) === null;
       const segmentedReasoningId = resolveLiveReasoningItemId(
@@ -2105,7 +2118,8 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         return state;
       }
       const shouldInsertBeforeAssistant =
-        isGeminiReasoningThread(action.threadId) &&
+        (isGeminiReasoningThread(action.threadId) ||
+          isKimiReasoningThread(action.threadId)) &&
         !state.threadStatusById[action.threadId]?.isProcessing &&
         (state.activeTurnIdByThread[action.threadId] ?? null) === null;
       const segmentedReasoningId = resolveLiveReasoningItemId(
@@ -2300,7 +2314,17 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         thread.autoSession?.visibility === "hidden";
       const existingThreads = state.threadsByWorkspace[action.workspaceId] ?? [];
       const now = Date.now();
-      const shouldPreserveDegradedCodexFinalizedThreads = action.threads.some(
+      const promotedPendingAliases = new Set(
+        existingThreads.flatMap((thread) =>
+          (thread.nativeThreadIds ?? []).filter((threadId) =>
+            threadId.includes("-pending-"),
+          ),
+        ),
+      );
+      const incomingThreads = action.threads.filter(
+        (thread) => !promotedPendingAliases.has(thread.id),
+      );
+      const shouldPreserveDegradedCodexFinalizedThreads = incomingThreads.some(
         (thread) => thread.isDegraded,
       );
       // BUG FIX: Preserve engineSource and other info from existing threads when merging
@@ -2308,7 +2332,7 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
       const existingThreadById = new Map(
         existingThreads.map((thread) => [thread.id, thread]),
       );
-      const newThreadIds = new Set(action.threads.map((thread) => thread.id));
+      const newThreadIds = new Set(incomingThreads.map((thread) => thread.id));
       const hasPendingThreadAnchor = (threadId: string) => {
         const hasActiveTurn = (state.activeTurnIdByThread[threadId] ?? null) !== null;
         if (hasActiveTurn) {
@@ -2335,7 +2359,7 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
       };
 
       // Merge incoming threads with preserved existing info
-      const visibleThreads = action.threads
+      const visibleThreads = incomingThreads
         .filter((thread) => !hidden[thread.id] && !isHiddenAutomaticThread(thread))
         .map((thread) => {
           const existing = existingThreadById.get(thread.id);
@@ -2373,6 +2397,7 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         if (
           activeThread &&
           !newThreadIds.has(activeThreadId) &&
+          !promotedPendingAliases.has(activeThreadId) &&
           !hidden[activeThreadId] &&
           !isHiddenAutomaticThread(activeThread)
         ) {
@@ -2388,6 +2413,9 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
       const provisionalThreadsToPreserve = existingThreads.filter((thread) => {
         const threadId = thread.id;
         if (!threadId.includes("-pending-") && !isClaudeForkThreadId(threadId)) {
+          return false;
+        }
+        if (promotedPendingAliases.has(threadId)) {
           return false;
         }
         if (threadId === activeThreadId) {

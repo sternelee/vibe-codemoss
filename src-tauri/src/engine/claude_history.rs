@@ -1037,8 +1037,10 @@ async fn scan_subagent_source_file(
         fact.display_session_id = fact.canonical_session_id.clone();
         fact.parent_session_id = Some(parent_session_id.to_string());
         if let Some(description) = description {
-            fact.first_real_user_message =
-                Some(truncate(&description, CLAUDE_SESSION_TITLE_PREVIEW_MAX_CHARS));
+            fact.first_real_user_message = Some(truncate(
+                &description,
+                CLAUDE_SESSION_TITLE_PREVIEW_MAX_CHARS,
+            ));
         }
         fact.subagent_type = subagent_type;
     }

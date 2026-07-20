@@ -833,7 +833,7 @@ impl ClaudeSession {
         if let Some(ref custom) = self.bin_path {
             return custom.clone();
         }
-        crate::backend::app_server::find_cli_binary("claude", None)
+        crate::backend::app_server::find_claude_code_binary(None)
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or_else(|| "claude".to_string())
     }
@@ -1110,7 +1110,10 @@ impl ClaudeSession {
     /// The turn currently being processed, if any. Used by the in-process MCP
     /// AskUserQuestion server to route a mid-turn ask to the live subscriber.
     pub fn active_turn_id(&self) -> Option<String> {
-        self.active_turn_id.lock().ok().and_then(|active| active.clone())
+        self.active_turn_id
+            .lock()
+            .ok()
+            .and_then(|active| active.clone())
     }
 
     async fn send_message_attempt(

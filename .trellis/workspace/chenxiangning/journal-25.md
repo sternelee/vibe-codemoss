@@ -1302,3 +1302,675 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1007: 完善多仓 Git History 仓库隔离
+
+**Date**: 2026-07-17
+**Task**: 完善多仓 Git History 仓库隔离
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+完成多仓 Git History 二级仓库选择、worktree scoped status/mutation/AI generation 与 repository lifecycle 隔离；补充异步切仓、同路径 selection、summary reset 回归测试，并同步 OpenSpec/Trellis contract。focused tests 71/71、lint、typecheck、runtime contracts、doctor strict 与 OpenSpec strict 均通过。全量测试被既有 Sidebar active tab CSS contract 失败阻断。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a215bac9` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1008: 加固 react-scan 崩溃熔断恢复
+
+**Date**: 2026-07-17
+**Task**: 加固 react-scan 崩溃熔断恢复
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+为 production React #185 增加 react-scan one-shot circuit breaker；恢复失败时回滚 persisted state 与 session guard，保留普通 ErrorBoundary，并补齐 content-safe diagnostics、storage failure、测试隔离和 focused regression。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d8f9ed40` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1009: 收敛 Git History 三栏布局
+
+**Date**: 2026-07-17
+**Task**: 收敛 Git History 三栏布局
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+隐藏 Git History 左侧 overview，保留顶部 worktree summary 数据源，并将 desktop 三栏默认比例调整为 3:4:3；focused Vitest 45/45、typecheck、lint、large-file report、diff check 与 OpenSpec strict validation 均通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `42647ff9` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1010: 完善文件追溯与多仓路径隔离
+
+**Date**: 2026-07-17
+**Task**: 完善文件追溯与多仓路径隔离
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+完成 File History、Git Blame、多仓 Diff preview、文件直接打开与 repository scope 修复；相关测试、typecheck、lint 与 OpenSpec strict validation 通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6031d97e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1011: 收口并归档文件历史视图
+
+**Date**: 2026-07-17
+**Task**: 收口并归档文件历史视图
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+完成 File History review closure：修复 rename historical path、真实 diff gutter 行号、Desktop/daemon image 与 binary parity；同步主 specs，归档 add-file-history-view，并通过 focused frontend/Rust、lint、typecheck、runtime contracts、strict doctor 与 OpenSpec strict validation。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `432a0f14` | (see git log) |
+| `1db3de6a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1012: 恢复多仓 Git 文件回退入口
+
+**Date**: 2026-07-17
+**Task**: 恢复多仓 Git 文件回退入口
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+为多仓 unstaged 文件恢复共享回退 icon，复用确认框并以 repositoryRoot + path 隔离同名路径；补充确认、取消和 scoped refresh 测试，完成 OpenSpec/Trellis contract 与质量门禁。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e73cc3f3` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1013: 提交剩余 Rust 格式调整
+
+**Date**: 2026-07-17
+**Task**: 提交剩余 Rust 格式调整
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+审计并提交剩余 5 个 Rust 文件的纯 rustfmt 格式调整；目标文件 rustfmt 定向校验通过，全仓 fmt check 仅受其他未修改文件既有差异影响。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `46b205d5` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1014: 恢复 Git 多仓状态刷新入口
+
+**Date**: 2026-07-17
+**Task**: 恢复 Git 多仓状态刷新入口
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+在 GitMultiRepositoryChanges 的每个 repository header 恢复手动状态刷新按钮，复用 aggregate refresh 与 loading guard；新增组件和 CSS contract 回归测试，同步并归档 OpenSpec change，focused 81 tests、lint、typecheck 与 OpenSpec strict validation 通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b2d5fc12` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1015: 修复全局文件搜索索引补齐
+
+**Date**: 2026-07-17
+**Task**: 修复全局文件搜索索引补齐
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+复用完整 workspace file listing 补齐 active/global 文件搜索，增加 shallow/loading/partial/error 状态与重试语义、搜索面板提示和回归测试；通过 detached staged snapshot typecheck 与 20 项定向测试，并精准排除并发 API endpoint 搜索改动。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6aa59601` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1016: 全局接口搜索与源码定位
+
+**Date**: 2026-07-17
+**Task**: 全局接口搜索与源码定位
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+新增基于 Project Map 的全局接口搜索，支持 cache hydration、stale-while-revalidate、workspace 扫描去重和跨 workspace 导航；补齐 endpoint evidence 行号定位、居中聚焦与 lazy CodeMirror boundary，并完成 OpenSpec、Trellis contract 与回归测试。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `cf76ad31` | (see git log) |
+| `307424cc` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1017: 增强 Git History 作者时间线配色
+
+**Date**: 2026-07-17
+**Task**: 增强 Git History 作者时间线配色
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+为 Git History 提交时间线增加稳定的作者配色映射，保留时间线与选中态；补充 utility/component 回归测试，同步并归档 OpenSpec 变更。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1e19e0fa` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1018: 增强 Git History 提交筛选与查询稳定性
+
+**Date**: 2026-07-17
+**Task**: 增强 Git History 提交筛选与查询稳定性
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| 模块 | 完成内容 |
+|------|----------|
+| Filter UI | 将 Branch、User、Date 与 Clear 收拢到“提交”标题行，保留独立搜索框并移除仓库路径筛选 |
+| Query lifecycle | 修复 debounce 清空与 workspace 切换串扰，统一首屏、分页和 snapshot retry 的 canonical filter payload，并让相对日期在重新查询时重新锚定 |
+| Git backend | Desktop 与 daemon 复用 branch scope helper，补齐 `all` / `*` 的全仓分支历史语义 |
+| Display & UX | 支持 partial email filter 的邮箱回显、日期菜单右对齐和长邮箱省略，补齐输入框可访问性属性 |
+| Contracts | 完成 OpenSpec `add-git-history-commit-filters` 19/19 tasks，并同步 Trellis executable contract |
+
+**验证结果**：
+- `npm run lint`
+- `npm run typecheck`
+- Git History targeted Vitest：63 passed，127 skipped
+- `npm run check:git-history:runtime-contract`
+- `npm run check:git-history:static-imports`
+- `npm run doctor:strict`
+- Rust Desktop / daemon focused tests
+- `rustfmt --edition 2021 --check`
+- `openspec validate add-git-history-commit-filters --strict --no-interactive`
+- `git diff --check`
+
+**备注**：`check:large-files:gate` 仍命中 36 个既有 baseline files，本次变更未新增命中项。OpenSpec change 保持未归档，等待单独归档指令。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `17cf39e2` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1019: 压缩 Git History 变更文件目录层级
+
+**Date**: 2026-07-17
+**Task**: 压缩 Git History 变更文件目录层级
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| 模块 | 完成内容 |
+|------|----------|
+| Compact Folders | Git History selected-commit details 与 Push Preview 复用 shared `buildDiffTree()` / `compactDiffTree()`，将安全的单子目录链显示为 dot-separated row |
+| Boundary | 在 direct file、directory branch、leaf 和 repository root 处停止压缩，并使用 compact chain deepest canonical path 维护 expansion identity |
+| Compatibility | 规范化 Windows `\\` path，保留 original file path 驱动 selection/diff；dotted display-label collision 保持 distinct ids |
+| Review Fix | 将 synthetic root identity 从可能冲突的 `__repo_root__` 改为 Git-relative path 不可能出现的 `/`，覆盖真实同名目录 fixture |
+| OpenSpec | 完成 `compact-git-history-changed-file-tree` 7/7 tasks 与 strict validation，change 保持未归档 |
+
+**Review 结论**：通过；Critical / High / Medium 均为 0。
+
+**验证结果**：
+- Focused Vitest：56 passed
+- `npm run lint`
+- `npm run typecheck`
+- `git diff --check`
+- `openspec validate compact-git-history-changed-file-tree --strict --no-interactive`
+
+**提交**：`698d649c feat(git-history): 压缩变更文件目录层级`
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `698d649c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1020: 补充 0.7.4 与 0.7.5 变更日志
+
+**Date**: 2026-07-17
+**Task**: 补充 0.7.4 与 0.7.5 变更日志
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+基于 v0.7.3..v0.7.4 与 v0.7.4..HEAD 的 Git 历史和关联 OpenSpec，按既有中英文 Features、Improvements、Fixes 格式补充 0.7.4 与 0.7.5 release notes；仅修改 CHANGELOG.md，并通过 git diff --check 与双语条目数量核对。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `3f5f1b25` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1021: 优化 Git History 标题栏视觉层级与密度
+
+**Date**: 2026-07-17
+**Task**: 优化 Git History 标题栏视觉层级与密度
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+将 Git History 顶部标题层调整为一体化 window chrome，使用全局主题分隔线并将垂直留白从 8px 压缩至 2px；同步 OpenSpec 设计、场景与验证任务。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7b7dfc71` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1022: 迁移 Git Diff 选择器并完成兼容性收口
+
+**Date**: 2026-07-17
+**Task**: 迁移 Git Diff 选择器并完成兼容性收口
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+将 Git Diff 模式选择器迁移到右侧工具栏，保留原有行为；修复旧 WebView overflow 兼容与菜单首开定位边界，补充 Portal、窄宽度、左右对齐及 CSS contract 测试。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b3f48d24` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1023: 优化 Git 操作说明与命令视觉
+
+**Date**: 2026-07-17
+**Task**: 优化 Git 操作说明与命令视觉
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+完成 Git Pull 选项默认展开、单项与组合效果动态说明，以及 Pull、Fetch、Sync、Push 命令和分支路径着色；保持 Git handler、payload 与运行时行为不变。补齐多语言文案、accessibility live status、精确 payload 与 resolver 回归测试；目标 88 项测试、typecheck、lint、build、runtime contract、static imports、OpenSpec strict validate 均通过。全量测试仍受既有 Sidebar.styles.test.ts 与 file-view-panel.css 不一致阻断。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e0c5f293` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1024: 归档已验证 OpenSpec 提案
+
+**Date**: 2026-07-17
+**Task**: 归档已验证 OpenSpec 提案
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+归档 22 个 artifacts/tasks 完成且 strict validation 通过的 OpenSpec changes，按首次入库顺序同步共享 capability deltas；补齐一处 stale Requirement rename；刷新 inventory 至 active=15、archive=626、main specs=402。验证 openspec validate --all --strict 与 git diff --check 通过，未修改产品代码；同步归档两个已完成 Trellis tasks。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `aa6ca752` | (see git log) |
+| `ed1234a2` | (see git log) |
+| `ccdf84d7` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1025: 归档近完成 OpenSpec 提案并建立全量索引
+
+**Date**: 2026-07-17
+**Task**: 归档近完成 OpenSpec 提案并建立全量索引
+**Branch**: `feature/v-0.7.4`
+
+### Summary
+
+归档 5 个近完成 OpenSpec change 并同步 7 个 main capability；建立覆盖 10 个活跃与 631 个归档 proposal 的两级索引；更新双语 README、OpenSpec project/config 当前事实；严格验证 414/414 通过、链接与 typecheck 通过；归档两个已完成的 Codex continuity Trellis task。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f75ccf8e` | (see git log) |
+| `c1e2bba9` | (see git log) |
+| `947f7150` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

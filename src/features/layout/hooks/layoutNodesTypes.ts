@@ -13,9 +13,11 @@ import type {
   EditorNavigationLocation,
   EditorNavigationTarget,
   CenterMode,
+  EditorSplitCompanion,
   OpenFileOptions,
 } from "../../app/hooks/useGitPanelController";
 import type { FileCompareSession } from "../../files/types/fileCompare";
+import type { FileHistoryTarget } from "../../git-history/types";
 import type {
   ReviewPromptState,
   ReviewPromptStep,
@@ -137,7 +139,7 @@ export type LayoutNodesFlatOptions = {
   threadsByWorkspace: Record<string, ThreadSummary[]>;
   threadParentById: Record<string, string>;
   threadStatusById: Record<string, ThreadActivityStatus>;
-  historyLoadingByThreadId: Record<string, boolean>;
+  historyLoadingByThreadId: Record<string, boolean | "failed">;
   historyRestoredAtMsByThread?: Record<string, number | null | undefined>;
   runningSessionCountByWorkspaceId: Record<string, number>;
   recentCompletedSessionCountByWorkspaceId: Record<string, number>;
@@ -354,8 +356,11 @@ export type LayoutNodesFlatOptions = {
   centerMode: CenterMode;
   setCenterMode: (mode: CenterMode) => void;
   fileCompareSession: FileCompareSession | null;
-  editorSplitCompanion: "chat" | "projectMap";
-  setEditorSplitCompanion: (companion: "chat" | "projectMap") => void;
+  fileHistoryTarget?: FileHistoryTarget | null;
+  onOpenFileHistory?: (target: FileHistoryTarget) => void;
+  onCloseFileHistory?: () => void;
+  editorSplitCompanion: EditorSplitCompanion;
+  setEditorSplitCompanion: (companion: EditorSplitCompanion) => void;
   editorSplitLayout: "vertical" | "horizontal";
   onToggleEditorSplitLayout: () => void;
   isEditorFileMaximized: boolean;
@@ -510,7 +515,7 @@ export type LayoutNodesFlatOptions = {
   onCommitMessageChange: (value: string) => void;
   onGenerateCommitMessage: (
     language?: "zh" | "en",
-    engine?: "codex" | "claude" | "gemini" | "opencode",
+    engine?: "codex" | "claude" | "gemini" | "kimi" | "opencode",
     selectedPaths?: string[],
     repositorySelections?: RepositoryCommitSelection[],
   ) => void | Promise<void>;
@@ -532,6 +537,7 @@ export type LayoutNodesFlatOptions = {
   onRefreshRepositoryStatuses?: () => Promise<void> | void;
   onStageRepositoryFile?: (repositoryRoot: string, path: string) => Promise<void>;
   onUnstageRepositoryFile?: (repositoryRoot: string, path: string) => Promise<void>;
+  onRevertRepositoryFile?: (repositoryRoot: string, path: string) => Promise<void>;
   onStageRepositoryAll?: (repositoryRoot: string) => Promise<void>;
   onCommitRepositories?: (selections: RepositoryCommitSelection[]) => Promise<void> | void;
   repositoryCommitSummary?: string | null;
@@ -923,6 +929,9 @@ export type EditorLayoutNodesOptions = Pick<
   | "centerMode"
   | "setCenterMode"
   | "fileCompareSession"
+  | "fileHistoryTarget"
+  | "onOpenFileHistory"
+  | "onCloseFileHistory"
   | "editorSplitCompanion"
   | "setEditorSplitCompanion"
   | "editorSplitLayout"
@@ -1044,6 +1053,7 @@ export type GitLayoutNodesOptions = Pick<
   | "onRefreshRepositoryStatuses"
   | "onStageRepositoryFile"
   | "onUnstageRepositoryFile"
+  | "onRevertRepositoryFile"
   | "onStageRepositoryAll"
   | "onCommitRepositories"
   | "repositoryCommitSummary"

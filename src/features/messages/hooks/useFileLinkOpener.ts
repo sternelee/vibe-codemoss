@@ -51,6 +51,33 @@ function isWindowsAbsolutePath(path: string) {
   return /^[A-Za-z]:[\\/]/.test(path) || /^\\\\[^\\]+\\[^\\]+/.test(path);
 }
 
+function toComparablePath(path: string) {
+  return path.replace(/\\/g, "/").replace(/\/+$/, "");
+}
+
+function getWorkspaceRelativePath(path: string, workspacePath?: string | null) {
+  if (!workspacePath) {
+    return null;
+  }
+  const normalizedPath = toComparablePath(path);
+  const normalizedWorkspacePath = toComparablePath(workspacePath);
+  const caseInsensitive =
+    isWindowsAbsolutePath(path) || isWindowsAbsolutePath(workspacePath);
+  const comparablePath = caseInsensitive
+    ? normalizedPath.toLowerCase()
+    : normalizedPath;
+  const comparableWorkspacePath = caseInsensitive
+    ? normalizedWorkspacePath.toLowerCase()
+    : normalizedWorkspacePath;
+  if (comparablePath === comparableWorkspacePath) {
+    return "";
+  }
+  if (!comparablePath.startsWith(`${comparableWorkspacePath}/`)) {
+    return null;
+  }
+  return normalizedPath.slice(normalizedWorkspacePath.length + 1);
+}
+
 function normalizeLocalFilePath(path: string) {
   const trimmed = path.trim();
   if (/^file:\/\//i.test(trimmed)) {
@@ -206,16 +233,18 @@ export function useFileLinkOpener(
         workspacePath: currentWorkspacePath,
         onOpenWorkspaceFile: currentOnOpenWorkspaceFile,
       } = configRef.current;
-      const strippedPath = stripLineSuffix(rawPath).trim();
+      const strippedPath = normalizeLocalFilePath(stripLineSuffix(rawPath).trim());
       const resolvedPath = resolveFilePath(strippedPath, currentWorkspacePath);
-      const normalizedWorkspacePath = currentWorkspacePath
-        ? currentWorkspacePath.replace(/\/+$/, "")
-        : null;
+      const workspaceRelativePath = getWorkspaceRelativePath(
+        resolvedPath,
+        currentWorkspacePath,
+      );
       const editorRelativePath =
-        strippedPath.startsWith("/") || strippedPath.startsWith("~/")
-          ? normalizedWorkspacePath &&
-            resolvedPath.startsWith(`${normalizedWorkspacePath}/`)
-            ? resolvedPath.slice(normalizedWorkspacePath.length + 1)
+        strippedPath.startsWith("/") ||
+        strippedPath.startsWith("~/") ||
+        isWindowsAbsolutePath(strippedPath)
+          ? workspaceRelativePath !== null
+            ? workspaceRelativePath
             : null
           : strippedPath.startsWith("./")
             ? strippedPath.slice(2)

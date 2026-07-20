@@ -7,6 +7,7 @@ import {
   getAppSettings,
   runClaudeDoctor,
   runCodexDoctor,
+  runKimiDoctor,
   updateAppSettings,
 } from "../../../services/tauri";
 import { UI_SCALE_DEFAULT, UI_SCALE_MAX } from "../../../utils/uiScale";
@@ -20,10 +21,12 @@ vi.mock("../../../services/tauri", () => ({
   updateAppSettings: vi.fn(),
   runClaudeDoctor: vi.fn(),
   runCodexDoctor: vi.fn(),
+  runKimiDoctor: vi.fn(),
 }));
 
 const getAppSettingsMock = vi.mocked(getAppSettings);
 const runClaudeDoctorMock = vi.mocked(runClaudeDoctor);
+const runKimiDoctorMock = vi.mocked(runKimiDoctor);
 const updateAppSettingsMock = vi.mocked(updateAppSettings);
 const runCodexDoctorMock = vi.mocked(runCodexDoctor);
 
@@ -82,7 +85,7 @@ describe("useAppSettings", () => {
     expect(result.current.settings.codexUnifiedExecPolicy).toBe("inherit");
     expect(result.current.settings.backendMode).toBe("remote");
     expect(result.current.settings.remoteBackendHost).toBe("example:1234");
-    expect(result.current.settings.geminiEnabled).toBe(true);
+    expect(result.current.settings.geminiEnabled).toBe(false);
     expect(result.current.settings.opencodeEnabled).toBe(false);
     expect(result.current.settings.claudeBin).toBeNull();
     expect(result.current.settings.codexAutoCompactionEnabled).toBe(true);
@@ -97,6 +100,18 @@ describe("useAppSettings", () => {
     expect(result.current.settings.enabledCuratedSkillIds).toEqual([
       "lazy-senior-dev",
     ]);
+  });
+
+  it("keeps legacy Gemini enablement disabled", async () => {
+    getAppSettingsMock.mockResolvedValue({
+      geminiEnabled: true,
+    } as AppSettings);
+
+    const { result } = renderHook(() => useAppSettings());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.settings.geminiEnabled).toBe(false);
   });
 
   it("keeps an explicitly cleared curated skill list disabled", async () => {
@@ -576,6 +591,30 @@ describe("useAppSettings", () => {
       response,
     );
     expect(runClaudeDoctorMock).toHaveBeenCalledWith("/bin/claude");
+  });
+
+  it("returns kimi doctor results", async () => {
+    getAppSettingsMock.mockResolvedValue({} as AppSettings);
+    const response: CodexDoctorResult = {
+      ok: true,
+      codexBin: "/bin/kimi",
+      version: "0.1.0",
+      appServerOk: false,
+      details: null,
+      path: null,
+      nodeOk: true,
+      nodeVersion: "20.0.0",
+      nodeDetails: null,
+    };
+    runKimiDoctorMock.mockResolvedValue(response);
+    const { result } = renderHook(() => useAppSettings());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    await expect(result.current.kimiDoctor("/bin/kimi")).resolves.toEqual(
+      response,
+    );
+    expect(runKimiDoctorMock).toHaveBeenCalledWith("/bin/kimi");
   });
 
   it("uses legacy localStorage user message color when settings value is missing", async () => {

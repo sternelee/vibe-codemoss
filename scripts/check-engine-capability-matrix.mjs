@@ -76,7 +76,7 @@ for (const [engine, table] of Object.entries(engines)) {
   }
 }
 
-for (const engine of ["claude", "codex", "gemini", "opencode"]) {
+for (const engine of ["claude", "codex", "gemini", "opencode", "kimi"]) {
   if (!engines[engine]) {
     fail(`fixture missing engine "${engine}"`);
   }

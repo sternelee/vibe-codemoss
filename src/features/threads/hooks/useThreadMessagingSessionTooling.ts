@@ -21,6 +21,7 @@ import {
 } from "../../../services/tauri";
 import { writeClientStoreValue } from "../../../services/clientStorage";
 import { formatRelativeTime } from "../../../utils/time";
+import { formatRateLimitWindowLabel } from "../../../utils/rateLimitLabels";
 import { pushErrorToast } from "../../../services/toasts";
 import type { ThreadAction, ThreadState } from "./useThreadsReducer";
 import { asString } from "../utils/threadNormalize";
@@ -81,9 +82,9 @@ type UseThreadMessagingSessionToolingOptions = {
   resolveThreadEngine: (
     workspaceId: string,
     threadId: string,
-  ) => "claude" | "codex" | "gemini" | "opencode";
+  ) => "claude" | "codex" | "gemini" | "kimi" | "opencode";
   isThreadIdCompatibleWithEngine: (
-    engine: "claude" | "codex" | "gemini" | "opencode",
+    engine: "claude" | "codex" | "gemini" | "kimi" | "opencode",
     threadId: string,
   ) => boolean;
   safeMessageActivity: () => void;
@@ -271,6 +272,12 @@ export function useThreadMessagingSessionTooling({
       const rateLimits = rateLimitsByWorkspace[activeWorkspace.id] ?? null;
       const primaryUsed = rateLimits?.primary?.usedPercent;
       const secondaryUsed = rateLimits?.secondary?.usedPercent;
+      const primaryLimitLabel = formatRateLimitWindowLabel(
+        rateLimits?.primary?.windowDurationMins,
+      );
+      const secondaryLimitLabel = formatRateLimitWindowLabel(
+        rateLimits?.secondary?.windowDurationMins,
+      );
       const primaryReset = rateLimits?.primary?.resetsAt;
       const secondaryReset = rateLimits?.secondary?.resetsAt;
       const credits = rateLimits?.credits ?? null;
@@ -341,8 +348,8 @@ export function useThreadMessagingSessionTooling({
         `Collaboration mode: ${collaborationLabel}`,
         `Session:            ${sessionLabel}`,
         "",
-        ...formatLimitLine("5h limit", primaryUsed, primaryReset),
-        ...formatLimitLine("Weekly limit", secondaryUsed, secondaryReset),
+        ...formatLimitLine(primaryLimitLabel, primaryUsed, primaryReset),
+        ...formatLimitLine(secondaryLimitLabel, secondaryUsed, secondaryReset),
       ];
 
       if (credits?.hasCredits) {

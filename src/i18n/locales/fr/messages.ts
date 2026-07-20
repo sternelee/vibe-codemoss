@@ -14,6 +14,7 @@ const messages = {
     "thinking": "Réflexion…",
     "thinkingLabel": "Réflexion",
     "thinkingProcess": "Processus de réflexion",
+    "thinkingDone": "Réflexion terminée",
     "finalMessageBoundary": "Message final",
     "turnFilesChanged": {
       "title_one": "{{count}} fichier modifié",
@@ -276,7 +277,9 @@ const messages = {
     "toolHeavyDetailMeta": "{{kind}} · {{count}} éléments",
     "toolHeavyDetailShow": "Afficher le détail",
     "toolHeavyOutput": "Sortie",
-    "toolHeavyDiff": "Diff"
+    "toolHeavyDiff": "Diff",
+    "builtInAgentUnavailableTitle": "Agent intégré indisponible",
+    "builtInAgentUnavailableMessage": "Cet agent est désactivé ou indisponible, son prompt ne sera donc pas utilisé pour ce message."
   }
 };
 

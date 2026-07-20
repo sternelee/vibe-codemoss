@@ -110,6 +110,7 @@ const SESSION_PILL_COLOR_PALETTE = [
   { hue: 338, saturation: 76, lightness: 55 },
   { hue: 186, saturation: 70, lightness: 46 },
 ] as const;
+const MAX_VISIBLE_STICKY_CHILD_SESSION_SUMMARIES = 10;
 
 const tabIconMap: Record<ActivityTab, ReactNode> = {
   all: <LayoutList size={14} aria-hidden />,
@@ -870,6 +871,21 @@ export function WorkspaceSessionActivityPanel({
       return right.eventCount - left.eventCount;
     });
   }, [relatedSessionSummaries, stickyChildSessionSummariesByThreadId]);
+  const stickyChildSessionSummariesTooltip = useMemo(
+    () =>
+      stickyChildSessionSummaries
+        .map((session, index) => resolveChildSessionPillLabel(session, index, t))
+        .join("\n"),
+    [stickyChildSessionSummaries, t],
+  );
+  const visibleStickyChildSessionSummaries = useMemo(
+    () => stickyChildSessionSummaries.slice(0, MAX_VISIBLE_STICKY_CHILD_SESSION_SUMMARIES),
+    [stickyChildSessionSummaries],
+  );
+  const hiddenStickyChildSessionSummaries = useMemo(
+    () => stickyChildSessionSummaries.slice(MAX_VISIBLE_STICKY_CHILD_SESSION_SUMMARIES),
+    [stickyChildSessionSummaries],
+  );
 
   const childSessionStyleByThreadId = useMemo(() => {
     const styleMap = new Map<string, CSSProperties & Record<string, string>>();
@@ -2286,9 +2302,10 @@ export function WorkspaceSessionActivityPanel({
         <div
           className="session-activity-related-toolbar"
           aria-label={t("activityPanel.relatedSessions")}
+          title={stickyChildSessionSummariesTooltip}
         >
           <div className="session-activity-related-toolbar-scroller">
-            {stickyChildSessionSummaries.map((session, index) => {
+            {visibleStickyChildSessionSummaries.map((session, index) => {
               const fixedLabel = resolveChildSessionPillLabel(session, index, t);
               const pillStyle = resolveSessionPillStyle(session, index);
               return (
@@ -2318,6 +2335,15 @@ export function WorkspaceSessionActivityPanel({
                 </div>
               );
             })}
+            {hiddenStickyChildSessionSummaries.length > 0 ? (
+              <span
+                className="session-activity-session-pill is-overflow"
+                aria-label={t("activityPanel.relatedSessions")}
+                title={stickyChildSessionSummariesTooltip}
+              >
+                +{hiddenStickyChildSessionSummaries.length}
+              </span>
+            ) : null}
           </div>
         </div>
       ) : null}

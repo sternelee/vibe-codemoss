@@ -67,4 +67,26 @@ describe("HomeChat styles", () => {
     expect(lightSubmitRule).toContain("background: var(--composer-submit-button-bg);");
     expect(systemLightSubmitRule).toContain("background: var(--composer-submit-button-bg);");
   });
+
+  it("inherits the shared compact submit button geometry at every viewport width", () => {
+    const homeCss = readFileSync(
+      resolve(process.cwd(), "src/styles/home-chat.css"),
+      "utf8",
+    );
+    const sharedButtonCss = readFileSync(
+      resolve(
+        process.cwd(),
+        "src/features/composer/components/ChatInputBox/styles/buttons.css",
+      ),
+      "utf8",
+    );
+    const sharedSubmitRule =
+      sharedButtonCss.match(/\.submit-button\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
+
+    expect(sharedSubmitRule).toContain("width: 26px;");
+    expect(sharedSubmitRule).toContain("height: 26px;");
+    expect(homeCss).not.toMatch(
+      /\.home-chat-composer-host \.submit-button\s*\{[^}]*(?:width|height)\s*:/s,
+    );
+  });
 });

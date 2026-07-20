@@ -82,6 +82,7 @@ export type CodexUnifiedExecExternalStatus = {
 
 export type AppSettings = {
   claudeBin: string | null;
+  kimiBin: string | null;
   codexBin: string | null;
   codexArgs: string | null;
   terminalShellPath: string | null;
@@ -202,4 +203,5 @@ export type AppSettings = {
   commitPrompt?: string;
   sendShortcut?: "enter" | "cmdEnter";
   enabledCuratedSkillIds?: string[];
+  enabledBuiltInAgentIds?: string[];
 };

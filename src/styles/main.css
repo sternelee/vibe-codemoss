@@ -32,6 +32,32 @@
   box-shadow: var(--desktop-main-shadow, none);
 }
 
+/*
+ * Collapsed sidebar: override tokens on .app itself.
+ * .main reads --desktop-main-radius / shell colors via var(), so this
+ * collapses the 16px corner chip without fighting later shorthand rules.
+ * Home has no MainTopbar to mask the shell, so force shell == main.
+ */
+.app.layout-desktop.sidebar-collapsed {
+  --desktop-main-radius: 0;
+  --desktop-shell-background: var(--desktop-main-background, #ffffff);
+  --desktop-sidebar-background: var(--desktop-main-background, #ffffff);
+  background: var(--desktop-main-background, #ffffff);
+}
+
+.app.layout-desktop.sidebar-collapsed .sidebar {
+  min-width: 0;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+  border: none;
+  padding: 0;
+}
+
+.app.layout-desktop.sidebar-collapsed .sidebar-resizer {
+  display: none;
+}
+
 .app.layout-desktop.solo-mode .main {
   grid-template-columns: minmax(0, 1fr) minmax(270px, var(--right-panel-width, 320px));
 }
@@ -899,9 +925,10 @@ body[data-panel-resizing="true"] .main {
 }
 
 /* Engine-branded underline: Claude keeps the default clay accent.
-   Codex tracks --text-stronger (near-black in light, light gray in dark)
-   so the black brand stays visible on dark backgrounds. */
-.topbar-session-tab[data-engine="codex"] {
+   Codex and Kimi track --text-stronger (near-black in light, light gray in dark)
+   so the black brands stay visible on dark backgrounds. */
+.topbar-session-tab[data-engine="codex"],
+.topbar-session-tab[data-engine="kimi"] {
   --topbar-tab-active-accent: var(--text-stronger);
 }
 
@@ -1343,6 +1370,11 @@ body[data-panel-resizing="true"] .main {
   background: var(--surface-panel);
 }
 
+.content.is-note-cards-split.is-note-cards-maximized .content-layer--note-cards {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
 .content.is-note-cards-split .content-layer--note-cards-companion {
   order: 1;
   flex: 1 1 auto;
@@ -1350,6 +1382,10 @@ body[data-panel-resizing="true"] .main {
   display: flex;
   flex-direction: column;
   background: var(--surface-messages);
+}
+
+.content.is-note-cards-split.is-note-cards-maximized .content-layer--note-cards-companion {
+  display: none;
 }
 
 .content-note-cards-split-divider {
@@ -2025,6 +2061,21 @@ body.editor-horizontal-split-resizing * {
   position: relative;
   z-index: 3;
   -webkit-app-region: no-drag;
+}
+
+.right-panel-toolbar.has-git-mode-slot {
+  overflow: visible;
+}
+
+.right-panel-git-mode-slot {
+  --diff-radius-lg: var(--radius);
+  --diff-radius-md: calc(var(--radius) - 2px);
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  flex: 0 0 auto;
+  min-width: 0;
+  z-index: 4;
 }
 
 .right-panel-toolbar-actions {

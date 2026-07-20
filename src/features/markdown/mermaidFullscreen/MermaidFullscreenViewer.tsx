@@ -51,16 +51,16 @@ export default function MermaidFullscreenViewer({
 }: MermaidFullscreenViewerProps) {
   const imgRef = useRef<HTMLImageElement | null>(null);
   const onCloseRef = useRef(onClose);
-  const svgRef = useRef(svg);
+  const imageSourceCacheRef = useRef<{
+    svg: string;
+    dataUrl: string;
+  } | null>(null);
 
-  // Keep latest callbacks/values accessible to viewerjs options without
+  // Keep the latest callback accessible to viewerjs options without
   // re-creating the viewer every time the parent re-renders.
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
-  useEffect(() => {
-    svgRef.current = svg;
-  }, [svg]);
 
   useEffect(() => {
     if (!open || !svg) {
@@ -80,6 +80,19 @@ export default function MermaidFullscreenViewer({
       if (cancelled || !imgRef.current) {
         return;
       }
+      const imageElement = imgRef.current;
+      const cachedSource = imageSourceCacheRef.current;
+      const dataUrl =
+        cachedSource?.svg === svg
+          ? cachedSource.dataUrl
+          : svgToDataUrl(svg);
+      if (cachedSource?.svg !== svg) {
+        imageSourceCacheRef.current = { svg, dataUrl };
+      }
+      // normalization 是同步 DOM work，必须留在 open/svg effect，不能回到
+      // conversation render hot path；ViewerCtor 读取 image 前先注入 source。
+      imageElement.src = dataUrl;
+
       // Singleton guarantee: close any previous viewer first so two
       // surfaces (message bubble + file preview) cannot overlap.
       destroyActiveViewer();
@@ -88,7 +101,7 @@ export default function MermaidFullscreenViewer({
         typeof window.matchMedia === "function" &&
         window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-      viewer = new ViewerCtor(imgRef.current, {
+      viewer = new ViewerCtor(imageElement, {
         container: document.body,
         inline: false,
         navbar: false,
@@ -185,7 +198,6 @@ export default function MermaidFullscreenViewer({
   return createPortal(
     <img
       ref={imgRef}
-      src={svgToDataUrl(svg)}
       alt=""
       aria-hidden="true"
       data-testid="mermaid-fullscreen-img"

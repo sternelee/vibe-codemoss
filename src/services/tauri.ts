@@ -82,11 +82,31 @@ export type {
   CommitMessageLanguage,
   CommitMessageRepositorySelection,
 } from "./tauri/commitMessage";
+export { generatePullRequestContent } from "./tauri/pullRequestContent";
+export type {
+  PullRequestGeneratedContent,
+} from "./tauri/pullRequestContent";
 export {
   generateCommitMessage,
   generateCommitMessageWithEngine,
   getCommitMessagePrompt,
 } from "./tauri/commitMessage";
+export {
+  addAgentConfig,
+  applyImportAgentConfigs,
+  deleteAgentConfig,
+  exportAgentConfigs,
+  getBuiltInAgentPrompt,
+  getSelectedAgentConfig,
+  listAgentConfigs,
+  listBuiltInAgents,
+  previewImportAgentConfigs,
+  resolveEnabledBuiltInAgent,
+  setBuiltInAgentDivisionEnabled,
+  setBuiltInAgentEnabled,
+  setSelectedAgentConfig,
+  updateAgentConfig,
+} from "./tauri/agents";
 export {
   generateThreadTitle,
   listThreadTitles,
@@ -220,8 +240,8 @@ export type {
   BrowserSnapshotBudget,
   BrowserTextNode,
 } from "../features/browser-agent/types";
-export { previewCodexLaunchProfile, runClaudeDoctor, runCodexDoctor } from "./tauri/doctor";
-export { getCliInstallPlan, runCliInstaller } from "./tauri/cliInstaller";
+export { previewCodexLaunchProfile, runClaudeDoctor, runCodexDoctor, runKimiDoctor } from "./tauri/doctor";
+export { getCliInstallPlan, getCliVersionStatus, runCliInstaller } from "./tauri/cliInstaller";
 export type {
   ComputerUseActivationFailureKind,
   ComputerUseActivationOutcome,
@@ -307,29 +327,37 @@ export type {
   NoteCardPreviewAttachment,
   WorkspaceNoteCard,
   WorkspaceNoteCardListResult,
+  WorkspaceNoteCardSource,
   WorkspaceNoteCardSummary,
 } from "./tauri/noteCards";
 export {
   addClaudeProvider,
   addCodexProvider,
+  addKimiProvider,
   deleteClaudeProvider,
   deleteCodexProvider,
+  deleteKimiProvider,
   fetchClaudeProviderModels,
+  fetchKimiProviderModels,
   getClaudeAlwaysThinkingEnabled,
   getClaudeProviders,
   readClaudeSettingsJson,
   getCodexProviders,
   getCurrentClaudeConfig,
+  getCurrentKimiConfig,
   getGeminiVendorPreflight,
   getGeminiVendorSettings,
+  getKimiProviders,
   reorderClaudeProviders,
   saveGeminiVendorSettings,
   saveClaudeSettingsJson,
   setClaudeAlwaysThinkingEnabled,
   switchClaudeProvider,
   switchCodexProvider,
+  switchKimiProvider,
   updateClaudeProvider,
   updateCodexProvider,
+  updateKimiProvider,
 } from "./tauri/vendors";
 export type {
   GeminiVendorPreflightCheck,
@@ -337,17 +365,6 @@ export type {
   GeminiVendorSettings,
   VendorModelListResult,
 } from "./tauri/vendors";
-export {
-  addAgentConfig,
-  applyImportAgentConfigs,
-  deleteAgentConfig,
-  exportAgentConfigs,
-  getSelectedAgentConfig,
-  listAgentConfigs,
-  previewImportAgentConfigs,
-  setSelectedAgentConfig,
-  updateAgentConfig,
-} from "./tauri/agents";
 export type { WorktreeSetupStatus } from "./tauri/workspaceRuntime";
 export {
   addClone,
@@ -404,6 +421,7 @@ export {
   getGitCommitHistory,
   getGitDiffs,
   getGitFileFullDiff,
+  getGitFileBlame,
   getGitHubIssues,
   getGitHubPullRequestComments,
   getGitHubPullRequestDiff,
@@ -528,6 +546,7 @@ export {
   deleteCodexSession,
   deleteCodexSessions,
   deleteGeminiSession,
+  deleteKimiSession,
   deleteOpenCodeSession,
   forkClaudeSession,
   forkClaudeSessionFromMessage,
@@ -536,11 +555,13 @@ export {
   listClaudeSessions,
   listGeminiSessions,
   listGlobalMcpServers,
+  listKimiSessions,
   listMcpServerStatus,
   listThreads,
   loadClaudeSession,
   loadCodexSession,
   loadGeminiSession,
+  loadKimiSession,
   resumeThread,
   rewindCodexThread,
   startThread,

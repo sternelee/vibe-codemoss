@@ -263,12 +263,14 @@
 .message-image-lightbox {
   position: fixed;
   inset: 0;
-  z-index: 9999;
+  /* Match .image-preview-overlay (10000); must sit above sidebar chrome / menus */
+  z-index: 10000;
   background: rgba(0, 0, 0, 0.85);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
+  cursor: zoom-out;
 }
 
 .message-image-lightbox-content {

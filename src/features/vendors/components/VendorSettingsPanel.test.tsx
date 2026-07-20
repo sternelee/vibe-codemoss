@@ -52,6 +52,22 @@ const mockState = vi.hoisted(() => ({
     confirmDeleteCodexProvider: vi.fn(),
     cancelDeleteCodexProvider: vi.fn(),
   },
+  kimiManagement: {
+    kimiProviderError: null,
+    kimiProviders: [],
+    kimiLoading: false,
+    handleAddKimiProvider: vi.fn(),
+    handleEditKimiProvider: vi.fn(),
+    handleDeleteKimiProvider: vi.fn(),
+    handleSwitchKimiProvider: vi.fn(),
+    kimiProviderDialog: { isOpen: false, provider: null },
+    handleCloseKimiProviderDialog: vi.fn(),
+    handleSaveKimiProvider: vi.fn(),
+    deleteKimiConfirm: { isOpen: false, provider: null },
+    confirmDeleteKimiProvider: vi.fn(),
+    cancelDeleteKimiProvider: vi.fn(),
+    currentKimiConfig: null,
+  },
   claudeModels: { models: [], updateModels: vi.fn() },
   codexModels: { models: [], updateModels: vi.fn() },
 }));
@@ -62,6 +78,10 @@ vi.mock("../hooks/useProviderManagement", () => ({
 
 vi.mock("../hooks/useCodexProviderManagement", () => ({
   useCodexProviderManagement: vi.fn(() => mockState.codexManagement),
+}));
+
+vi.mock("../hooks/useKimiProviderManagement", () => ({
+  useKimiProviderManagement: vi.fn(() => mockState.kimiManagement),
 }));
 
 vi.mock("../hooks/usePluginModels", () => ({
@@ -86,12 +106,20 @@ vi.mock("./CodexProviderList", () => ({
   CodexProviderList: () => <div data-testid="codex-provider-list-stub" />,
 }));
 
+vi.mock("./KimiProviderList", () => ({
+  KimiProviderList: () => <div data-testid="kimi-provider-list-stub" />,
+}));
+
 vi.mock("./ProviderDialog", () => ({
   ProviderDialog: () => null,
 }));
 
 vi.mock("./CodexProviderDialog", () => ({
   CodexProviderDialog: () => null,
+}));
+
+vi.mock("./KimiProviderDialog", () => ({
+  KimiProviderDialog: () => null,
 }));
 
 vi.mock("./DeleteConfirmDialog", () => ({
@@ -275,12 +303,12 @@ describe("VendorSettingsPanel", () => {
     expect(navLabels.slice(0, 9)).toEqual([
       "Claude Code CLI",
       "Codex CLI",
+      "Kimi CLI",
       "Gemini CLI",
       "OpenCode CLI",
       "GLM CLI",
       "Trae CLI",
       "Cursor CLI",
-      "Kimi CLI",
       "瑞幸 CLI",
     ]);
     expect(navLabels).toEqual(
@@ -302,13 +330,22 @@ describe("VendorSettingsPanel", () => {
       expect((icon as HTMLElement).className).not.toContain("mono");
     }
 
+    // Kimi CLI is supported but intentionally keeps the monochrome icon
+    // (COLOR_CLI_ICON_IDS only includes claude/codex).
+    const kimiNavButton = screen.getByRole("button", { name: /Kimi CLI/ });
+    expect((kimiNavButton as HTMLButtonElement).disabled).toBe(false);
+    const kimiIcon = kimiNavButton.querySelector(
+      ".vendor-engine-icon img, .vendor-engine-icon span",
+    );
+    expect(kimiIcon).toBeTruthy();
+    expect((kimiIcon as HTMLElement).className).toContain("mono");
+
     const unsupportedButtons = [
       "Gemini CLI",
       "OpenCode CLI",
       "GLM CLI",
       "Trae CLI",
       "Cursor CLI",
-      "Kimi CLI",
       "瑞幸 CLI",
       "DevEco CLI",
       "PI CLI",
@@ -317,6 +354,7 @@ describe("VendorSettingsPanel", () => {
       "Qwen CLI",
       "CodeBuddy CLI",
       "Copilot CLI",
+      "飞书 CLI",
       "Kiro CLI",
     ];
     for (const name of unsupportedButtons) {
@@ -487,6 +525,41 @@ describe("VendorSettingsPanel", () => {
         name: "settings.codexRuntimeReload",
       }),
     ).toBeNull();
+  });
+
+  it("renders the Kimi CLI tab with current config summary and provider list", async () => {
+    renderPanel();
+
+    await waitFor(() => {
+      expect(readGlobalCodexConfigTomlMock).toHaveBeenCalled();
+      expect(readGlobalCodexAuthJsonMock).toHaveBeenCalled();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Kimi CLI/ }));
+
+    const brandHeader = screen
+      .getByRole("heading", { name: "Kimi CLI" })
+      .closest(".vendor-brand-header") as HTMLElement;
+    expect(brandHeader).toBeTruthy();
+    const docsLink = within(brandHeader).getByRole("link", {
+      name: "Open docs",
+    });
+    expect(docsLink.getAttribute("href")).toBe(
+      "https://www.kimi.com/code/docs/en/",
+    );
+    fireEvent.click(docsLink);
+    expect(openUrlMock).toHaveBeenCalledWith(
+      "https://www.kimi.com/code/docs/en/",
+    );
+
+    expect(screen.getByTestId("kimi-provider-list-stub")).toBeTruthy();
+    expect(screen.queryByTestId("provider-list-stub")).toBeNull();
+    expect(screen.queryByTestId("codex-provider-list-stub")).toBeNull();
+    expect(screen.queryByTestId("current-codex-config-stub")).toBeNull();
+    expect(screen.queryByText("正在适配此CLI，即将开放")).toBeNull();
+    expect(
+      screen.getByText("settings.vendor.kimiCurrentConfig"),
+    ).toBeTruthy();
+    expect(screen.getByText("settings.vendor.kimiNoConfig")).toBeTruthy();
   });
 
   it("shows compact background terminal official actions in the Codex tab", async () => {

@@ -30,22 +30,6 @@ const models = {
       "gpt54": {
         "label": "gpt-5.4",
         "description": "日常のコーディングに強力なモデル。"
-      },
-      "gpt54mini": {
-        "label": "gpt-5.4-mini",
-        "description": "シンプルなコーディングタスク向けの小型・高速・低コストなモデル。"
-      },
-      "gpt53codex": {
-        "label": "gpt-5.3-codex",
-        "description": "コーディングに最適化されたモデル。"
-      },
-      "gpt53codexSpark": {
-        "label": "gpt-5.3-codex-spark",
-        "description": "超高速コーディングモデル。"
-      },
-      "gpt52": {
-        "label": "gpt-5.2",
-        "description": "プロフェッショナルな作業と長時間稼働のエージェント向けに最適化。"
       }
     }
   }

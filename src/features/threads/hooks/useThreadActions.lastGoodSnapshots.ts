@@ -16,6 +16,7 @@ export const THREAD_ENGINE_SOURCES: ThreadEngineSource[] = [
   "claude",
   "opencode",
   "gemini",
+  "kimi",
 ];
 
 export function findCatalogSourceStatusForEngine(
@@ -144,6 +145,9 @@ function resolvePartialSourceEngine(
   }
   if (normalized.includes("gemini")) {
     return "gemini";
+  }
+  if (normalized.includes("kimi")) {
+    return "kimi";
   }
   if (
     normalized.includes("codex") ||

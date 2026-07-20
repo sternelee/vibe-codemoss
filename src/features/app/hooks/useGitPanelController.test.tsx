@@ -246,6 +246,25 @@ describe("useGitPanelController preload behavior", () => {
 });
 
 describe("useGitPanelController editor tabs", () => {
+  it("opens a search result in its explicit target workspace tab state", () => {
+    const { result, rerender } = renderHook(
+      ({ activeWorkspace }) =>
+        useGitPanelController(makeProps({ activeWorkspace })),
+      { initialProps: { activeWorkspace: workspace } },
+    );
+
+    act(() => {
+      result.current.handleOpenFile("src/ApiController.ts", undefined, {
+        targetWorkspace: secondaryWorkspace,
+      });
+    });
+
+    expect(result.current.openFileTabs).toEqual([]);
+    rerender({ activeWorkspace: secondaryWorkspace });
+    expect(result.current.openFileTabs).toEqual(["src/ApiController.ts"]);
+    expect(result.current.activeEditorFilePath).toBe("src/ApiController.ts");
+  });
+
   it("opens multiple files as tabs instead of replacing current file", () => {
     const { result } = renderHook(() => useGitPanelController(makeProps()));
 
@@ -423,6 +442,70 @@ describe("useGitPanelController editor tabs", () => {
     expect(result.current.centerMode).toBe("projectMap");
   });
 
+  it("returns to notes after closing the last source-origin file", () => {
+    const { result } = renderHook(() => useGitPanelController(makeProps()));
+
+    act(() => {
+      result.current.handleOpenFile(
+        "src/App.tsx",
+        { line: 21, endLine: 37, column: 1, scrollPosition: "center" },
+        { editorSplitCompanion: "notes" },
+      );
+    });
+
+    expect(result.current.centerMode).toBe("editor");
+    expect(result.current.editorSplitCompanion).toBe("notes");
+    expect(result.current.editorNavigationTarget).toMatchObject({
+      path: "src/App.tsx",
+      line: 21,
+      endLine: 37,
+      column: 1,
+      scrollPosition: "center",
+    });
+
+    act(() => {
+      result.current.handleCloseFileTab("src/App.tsx");
+    });
+
+    expect(result.current.openFileTabs).toEqual([]);
+    expect(result.current.activeEditorFilePath).toBeNull();
+    expect(result.current.centerMode).toBe("notes");
+    expect(result.current.editorSplitCompanion).toBe("chat");
+  });
+
+  it("returns to notes when exiting a source-origin editor", () => {
+    const { result } = renderHook(() => useGitPanelController(makeProps()));
+
+    act(() => {
+      result.current.handleOpenFile("src/App.tsx", undefined, {
+        editorSplitCompanion: "notes",
+      });
+    });
+
+    act(() => {
+      result.current.handleExitEditor();
+    });
+
+    expect(result.current.openFileTabs).toEqual([]);
+    expect(result.current.activeEditorFilePath).toBeNull();
+    expect(result.current.centerMode).toBe("notes");
+    expect(result.current.editorSplitCompanion).toBe("chat");
+  });
+
+  it("keeps ordinary file navigation on the chat companion", () => {
+    const { result } = renderHook(() => useGitPanelController(makeProps()));
+
+    act(() => {
+      result.current.handleOpenFile("src/FromNote.tsx", undefined, {
+        editorSplitCompanion: "notes",
+      });
+      result.current.handleOpenFile("src/FromTree.tsx");
+    });
+
+    expect(result.current.centerMode).toBe("editor");
+    expect(result.current.editorSplitCompanion).toBe("chat");
+  });
+
   it("stores temporary change highlights when opening a file from activity", () => {
     const { result } = renderHook(() => useGitPanelController(makeProps()));
 
@@ -587,6 +670,67 @@ describe("useGitPanelController editor tabs", () => {
     );
   });
 
+  it("uses an explicit repository root for same-named multi-repository files", () => {
+    const { result } = renderHook(() =>
+      useGitPanelController(
+        makeProps({
+          activeWorkspace: {
+            ...workspace,
+            path: "/tmp/ER-QI",
+            settings: {
+              ...workspace.settings,
+              gitRoot: "repo-a",
+            },
+          },
+        }),
+      ),
+    );
+
+    act(() => {
+      result.current.handleOpenFile("pom.xml", undefined, {
+        pathDomain: "git",
+        repositoryRoot: "repo-a",
+      });
+      result.current.handleOpenFile("pom.xml", undefined, {
+        pathDomain: "git",
+        repositoryRoot: "repo-b",
+      });
+    });
+
+    expect(result.current.openFileTabs).toEqual([
+      "repo-a/pom.xml",
+      "repo-b/pom.xml",
+    ]);
+    expect(result.current.activeEditorFilePath).toBe("repo-b/pom.xml");
+  });
+
+  it("preserves an explicit workspace-root repository over configured nested git root", () => {
+    const { result } = renderHook(() =>
+      useGitPanelController(
+        makeProps({
+          activeWorkspace: {
+            ...workspace,
+            path: "/tmp/ER-QI",
+            settings: {
+              ...workspace.settings,
+              gitRoot: "repo-a",
+            },
+          },
+        }),
+      ),
+    );
+
+    act(() => {
+      result.current.handleOpenFile("pom.xml", undefined, {
+        pathDomain: "git",
+        repositoryRoot: "",
+      });
+    });
+
+    expect(result.current.openFileTabs).toEqual(["pom.xml"]);
+    expect(result.current.activeEditorFilePath).toBe("pom.xml");
+  });
+
   it("does not prefix git paths when the workspace is the repository root", () => {
     const { result } = renderHook(() =>
       useGitPanelController(
@@ -657,6 +801,30 @@ describe("useGitPanelController editor tabs", () => {
     expect(result.current.openFileTabs).toEqual(["src/App.tsx", "src/main.tsx"]);
     expect(result.current.activeEditorFilePath).toBe("src/main.tsx");
     expect(result.current.centerMode).toBe("editor");
+  });
+
+  it("does not leak a note companion into another workspace", () => {
+    const { result, rerender } = renderHook(
+      ({ activeWorkspace }: { activeWorkspace: WorkspaceInfo }) =>
+        useGitPanelController(makeProps({ activeWorkspace })),
+      { initialProps: { activeWorkspace: workspace } },
+    );
+
+    act(() => {
+      result.current.handleOpenFile("src/App.tsx", undefined, {
+        editorSplitCompanion: "notes",
+      });
+    });
+
+    expect(result.current.editorSplitCompanion).toBe("notes");
+
+    act(() => {
+      rerender({ activeWorkspace: secondaryWorkspace });
+    });
+
+    expect(result.current.openFileTabs).toEqual([]);
+    expect(result.current.centerMode).toBe("chat");
+    expect(result.current.editorSplitCompanion).toBe("chat");
   });
 
   it("clears only the active workspace tabs when closing all files", () => {
@@ -783,5 +951,45 @@ describe("useGitPanelController file compare", () => {
     ).toBe(false);
     expect(result.current.centerMode).toBe("chat");
     expect(result.current.fileCompareSession).toBeNull();
+  });
+});
+
+describe("useGitPanelController file history", () => {
+  it("opens, switches, and closes the file history center surface", () => {
+    const { result } = renderHook(() => useGitPanelController(makeProps()));
+    const firstTarget = {
+      workspaceId: workspace.id,
+      workspacePath: workspace.path,
+      repositoryRoot: "",
+      path: "src/a.ts",
+      displayPath: "src/a.ts",
+    };
+
+    act(() => result.current.handleOpenFileHistory(firstTarget));
+    expect(result.current.centerMode).toBe("fileHistory");
+    expect(result.current.fileHistoryTarget).toEqual(firstTarget);
+
+    const secondTarget = { ...firstTarget, path: "src/b.ts", displayPath: "src/b.ts" };
+    act(() => result.current.handleOpenFileHistory(secondTarget));
+    expect(result.current.fileHistoryTarget).toEqual(secondTarget);
+
+    act(() => result.current.handleCloseFileHistory());
+    expect(result.current.centerMode).toBe("chat");
+    expect(result.current.fileHistoryTarget).toBeNull();
+  });
+
+  it("clears file history when another center surface opens", () => {
+    const { result } = renderHook(() => useGitPanelController(makeProps()));
+    act(() => result.current.handleOpenFileHistory({
+      workspaceId: workspace.id,
+      workspacePath: workspace.path,
+      repositoryRoot: "",
+      path: "README.md",
+      displayPath: "README.md",
+    }));
+    act(() => result.current.handleOpenFile("src/App.tsx"));
+
+    expect(result.current.centerMode).toBe("editor");
+    expect(result.current.fileHistoryTarget).toBeNull();
   });
 });

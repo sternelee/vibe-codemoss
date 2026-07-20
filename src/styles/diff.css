@@ -51,6 +51,12 @@
   );
 }
 
+.diff-panel--floating-git-actions.has-external-mode-selector:not(
+    .has-floating-git-action
+  ) {
+  padding-top: 8px;
+}
+
 .diff-panel,
 .diff-panel * {
   -webkit-user-select: none;
@@ -154,6 +160,10 @@
   z-index: 5;
   border-bottom-color: transparent;
   pointer-events: auto;
+}
+
+.git-panel-header--hover-actions.is-empty {
+  display: none;
 }
 
 /* 顶栏工具组常驻显示（不再依赖 hover 面板才浮现），差异Diff 入口靠右对齐 */
@@ -350,6 +360,18 @@
 .git-panel-select-option-label {
   min-width: 0;
   line-height: 1.2;
+}
+
+.git-panel-select-option--git-graph .git-panel-select-option-label {
+  color: var(--accent-primary, #2563eb);
+  font-weight: 700;
+}
+
+.git-panel-select-option--git-graph .git-panel-select-option-icon,
+.git-panel-select-option--git-graph:hover .git-panel-select-option-icon,
+.git-panel-select-option--git-graph:focus-visible .git-panel-select-option-icon,
+.git-panel-select-option--git-graph.is-active .git-panel-select-option-icon {
+  color: var(--accent-primary, #2563eb);
 }
 
 .git-panel-select-option-description {
@@ -896,24 +918,44 @@ button.diff-section-indicator:focus-visible {
 .git-multi-repository-changes__content {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--git-filetree-row-gap);
 }
 
 .git-repository-change-group {
+  flex: 0 0 auto;
   overflow: hidden;
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: var(--git-filetree-row-radius);
   background: var(--surface-item);
 }
 
 .git-repository-change-group__header {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
   align-items: center;
-  gap: 8px;
-  min-height: 34px;
-  padding: 0 10px;
+  gap: var(--git-filetree-row-gap);
+  min-height: var(--git-filetree-row-min-height);
+  padding: var(--git-filetree-row-pad-y) var(--git-filetree-row-pad-x);
   border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--git-filetree-name-font-size);
+}
+
+.git-repository-change-group__refresh {
+  display: inline-flex;
+  align-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.git-repository-change-group__header:hover .git-repository-change-group__refresh,
+.git-repository-change-group__header:focus-within .git-repository-change-group__refresh {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.git-repository-change-group__refresh .git-status-refresh-button:disabled {
+  cursor: wait;
 }
 
 .git-repository-change-group__name,
@@ -926,6 +968,7 @@ button.diff-section-indicator:focus-visible {
 
 .git-repository-change-group__branch {
   color: var(--git-branch);
+  font-size: 11px;
 }
 
 .git-repository-change-group__count {
@@ -1903,6 +1946,18 @@ button.diff-section-indicator:focus-visible {
   border-bottom: 0;
   background: var(--surface-right-panel, var(--background));
   box-shadow: 0 -8px 18px -18px color-mix(in srgb, var(--foreground) 45%, transparent);
+}
+
+.git-commit-composer--top {
+  margin-top: 0;
+  margin-bottom: 8px;
+  border-top: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-muted) 65%, transparent);
+  box-shadow: 0 8px 18px -18px color-mix(in srgb, var(--foreground) 45%, transparent);
+}
+
+.git-commit-composer--bottom {
+  margin-top: 8px;
 }
 
 .commit-message-input-wrapper {

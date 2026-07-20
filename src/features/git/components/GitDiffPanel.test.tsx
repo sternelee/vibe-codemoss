@@ -1,6 +1,20 @@
 /** @vitest-environment jsdom */
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  createEvent,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { invoke } from "@tauri-apps/api/core";
+import {
+  resetClientStorageForTests,
+  writeClientStoreValue,
+} from "../../../services/clientStorage";
 import type { GitLogEntry } from "../../../types";
 
 const mockPreviewSave = vi.fn(async () => true);
@@ -62,6 +76,9 @@ vi.mock("react-i18next", () => ({
         "git.generateCommitMessageEngineGemini": "Use Gemini engine",
         "git.generateCommitMessageEngineOpenCode": "Use OpenCode engine",
         "git.generateCommitMessageLastConfig": "Use last configuration",
+        "git.commitComposerPlacementMenuLabel": "Commit box position",
+        "git.commitComposerPlacementBottom": "Bottom",
+        "git.commitComposerPlacementTop": "Top",
         "git.listFlat": "Flat",
         "git.listTree": "Tree",
         "git.listView": "List view",
@@ -81,19 +98,24 @@ vi.mock("react-i18next", () => ({
         "git.prsMode": "PRs",
         "git.prsModeDescription": "Review pull requests",
         "git.fileActions": "File actions",
+        "git.repositoryMenuTitle": "Git",
+        "git.repositoryMenuFileHistory": "Show file history",
         "git.stageFile": "Stage file",
+        "git.stageFiles": "Stage files",
         "git.stageChanges": "Stage changes",
         "git.stageAllChangesAction": "Stage all changes",
         "git.path": "Path:",
         "git.change": "Switch",
         "git.unstageFile": "Unstage file",
+        "git.unstageFiles": "Unstage files",
         "git.unstageChanges": "Unstage changes",
         "git.unstageAllChangesAction": "Unstage all changes",
         "git.discardChanges": "Discard changes",
         "git.discardChange": "Discard change",
+        "git.discardChangeMultiple": "Discard changes",
         "git.statusUnavailable": "Git status unavailable",
         "git.noRepositoriesFound": "No repositories found.",
-        "git.historyQuickAction": "Hub",
+        "git.historyQuickAction": "Git Graph",
         "git.switchRepository": "Switch Git repository",
         "git.switchRepositoryDescription": "Choose which repo the Diff panel uses",
         "menu.maximize": "Maximize",
@@ -128,8 +150,12 @@ import {
   GitDiffPanel,
   buildDiffTree,
   compactDiffTree,
-  resolveRepositoryWorkspaceFilePath,
+  resolveBottomCommitMessageMenuPosition,
 } from "./GitDiffPanel";
+import {
+  resolveGitDiffFileHistoryTarget,
+  resolveRepositoryWorkspaceFilePath,
+} from "./GitDiffPanelFileScope";
 
 vi.mock("@tauri-apps/plugin-opener", () => ({
   openUrl: vi.fn(),
@@ -161,6 +187,9 @@ afterEach(() => {
   mockPreviewSave.mockReset();
   mockPreviewSave.mockResolvedValue(true);
   mockPreviewDiscard.mockReset();
+  vi.mocked(invoke).mockReset();
+  vi.mocked(invoke).mockResolvedValue(null);
+  resetClientStorageForTests();
   window.localStorage.clear();
 });
 
@@ -170,7 +199,75 @@ async function chooseCodexEnglishCommitMessage() {
   fireEvent.click(await screen.findByRole("menuitem", { name: "Generate English commit message" }));
 }
 
+async function openGitFileContextMenu(row: HTMLElement) {
+  fireEvent.contextMenu(row);
+  const gitMenuTrigger = await screen.findByRole("menuitem", { name: "Git" });
+  fireEvent.click(gitMenuTrigger);
+  return screen.findByRole("menu", { name: "Git" });
+}
+
 describe("GitDiffPanel", () => {
+  it("positions the bottom commit message menu above its trigger once", () => {
+    expect(
+      resolveBottomCommitMessageMenuPosition(
+        { right: 980, top: 820 },
+        { width: 260, height: 300 },
+        { width: 1000, height: 1000 },
+      ),
+    ).toEqual({ x: 720, y: 512 });
+  });
+
+  it("resolves safe root, nested, Windows, and explicit repository File History targets", () => {
+    expect(resolveGitDiffFileHistoryTarget({
+      workspaceId: "ws-root",
+      workspacePath: "/workspace",
+      gitRoot: null,
+      path: "src/main.ts",
+    })).toEqual({
+      workspaceId: "ws-root",
+      workspacePath: "/workspace",
+      repositoryRoot: "",
+      path: "src/main.ts",
+      displayPath: "src/main.ts",
+    });
+    expect(resolveGitDiffFileHistoryTarget({
+      workspaceId: "ws-nested",
+      workspacePath: "C:\\workspace",
+      gitRoot: "C:\\workspace\\services\\api",
+      path: "src\\main.ts",
+    })).toEqual({
+      workspaceId: "ws-nested",
+      workspacePath: "C:\\workspace",
+      repositoryRoot: "services/api",
+      path: "src/main.ts",
+      displayPath: "services/api/src/main.ts",
+    });
+    expect(resolveGitDiffFileHistoryTarget({
+      workspaceId: "ws-root",
+      workspacePath: "/workspace",
+      repositoryRoot: "",
+      path: "README.md",
+    })?.repositoryRoot).toBe("");
+    expect(resolveGitDiffFileHistoryTarget({
+      workspaceId: "ws-root",
+      workspacePath: "/workspace",
+      gitRoot: "/workspace",
+      path: "README.md",
+    })?.repositoryRoot).toBe("");
+    expect(resolveGitDiffFileHistoryTarget({
+      workspaceId: "ws-root",
+      workspacePath: "/workspace",
+      repositoryRoot: "services/api",
+      path: "../escape.ts",
+    })).toBeNull();
+    expect(resolveGitDiffFileHistoryTarget({
+      workspaceId: "ws-root",
+      workspacePath: "/workspace",
+      gitRoot: "/outside/repository",
+      path: "src/main.ts",
+    })).toBeNull();
+  });
+
   it("renders single-repository changes above the bottom commit composer", () => {
     render(
       <GitDiffPanel
@@ -192,6 +289,52 @@ describe("GitDiffPanel", () => {
     )).toBe(true);
   });
 
+  it("renders single-repository commit composer above changes when configured", () => {
+    writeClientStoreValue("layout", "git.commitComposerPlacement", "top");
+
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        stagedFiles={[{ path: "file.txt", status: "M", additions: 1, deletions: 0 }]}
+        commitMessage="fix: top composer"
+        onCommit={vi.fn()}
+        onGenerateCommitMessage={vi.fn()}
+      />,
+    );
+
+    const content = document.querySelector(".diff-commit-workspace-content");
+    const composer = document.querySelector(".git-commit-composer");
+    expect(content).toBeTruthy();
+    expect(composer).toBeTruthy();
+    expect(Boolean(
+      composer && content &&
+      (composer.compareDocumentPosition(content) & Node.DOCUMENT_POSITION_FOLLOWING),
+    )).toBe(true);
+    expect(composer?.classList.contains("git-commit-composer--top")).toBe(true);
+  });
+
+  it("falls back to bottom commit composer for invalid stored placement", () => {
+    writeClientStoreValue("layout", "git.commitComposerPlacement", "floating");
+
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        stagedFiles={[{ path: "file.txt", status: "M", additions: 1, deletions: 0 }]}
+        commitMessage="fix: fallback composer"
+        onCommit={vi.fn()}
+        onGenerateCommitMessage={vi.fn()}
+      />,
+    );
+
+    const content = document.querySelector(".diff-commit-workspace-content");
+    const composer = document.querySelector(".git-commit-composer");
+    expect(Boolean(
+      content && composer &&
+      (content.compareDocumentPosition(composer) & Node.DOCUMENT_POSITION_FOLLOWING),
+    )).toBe(true);
+    expect(composer?.classList.contains("git-commit-composer--bottom")).toBe(true);
+  });
+
   it("maps nested repository diff paths to cross-platform workspace file paths", () => {
     expect(resolveRepositoryWorkspaceFilePath("/workspace", "services/api", "src/App.tsx"))
       .toBe("services/api/src/App.tsx");
@@ -210,7 +353,7 @@ describe("GitDiffPanel", () => {
         {...baseProps}
         workspaceId="workspace-1"
         workspacePath="/workspace"
-        gitRoot="services/api"
+        gitRoot="/workspace/services/api"
         unstagedFiles={[{ path: "src/App.tsx", status: "M", additions: 1, deletions: 1 }]}
         diffEntries={[{ path: "src/App.tsx", status: "M", diff: "@@ -1 +1 @@\n-old\n+new" }]}
         modalPreviewRequest={{ path: "src/App.tsx", requestId: 77, maximized: true }}
@@ -222,9 +365,16 @@ describe("GitDiffPanel", () => {
     });
     const previewProps = mockEditableDiffReviewSurface.mock.lastCall?.[0] as {
       files?: Array<{ workspaceRelativeFilePath?: string }>;
+      fullDiffLoader?: (path: string) => Promise<string>;
     };
     expect(previewProps.files?.[0]?.workspaceRelativeFilePath)
       .toBe("services/api/src/App.tsx");
+    await previewProps.fullDiffLoader?.("src/App.tsx");
+    expect(vi.mocked(invoke)).toHaveBeenCalledWith("get_git_file_full_diff", {
+      workspaceId: "workspace-1",
+      path: "src/App.tsx",
+      repositoryRoot: "services/api",
+    });
   });
   it("disables commit and shows explicit hint when only unstaged changes exist", () => {
     const onCommit = vi.fn();
@@ -447,6 +597,324 @@ describe("GitDiffPanel", () => {
     expect(onSelectFile).toHaveBeenCalledWith("b.ts");
   });
 
+  it.each(["flat", "tree"] as const)(
+    "routes a single-repository unstaged context-menu Stage through the Git submenu only in %s view",
+    async (gitDiffListView) => {
+      const onStageFile = vi.fn(async () => undefined);
+      const onRevertFile = vi.fn(async () => undefined);
+      const onOpenFile = vi.fn();
+      const onRefreshGitStatus = vi.fn();
+      const onRefreshGitDiffs = vi.fn();
+      render(
+        <GitDiffPanel
+          {...baseProps}
+          gitDiffListView={gitDiffListView}
+          unstagedFiles={[
+            { path: "src/main.ts", status: "M", additions: 1, deletions: 1 },
+          ]}
+          onStageFile={onStageFile}
+          onRevertFile={onRevertFile}
+          onOpenFile={onOpenFile}
+          onRefreshGitStatus={onRefreshGitStatus}
+          onRefreshGitDiffs={onRefreshGitDiffs}
+        />,
+      );
+
+      const row = document.querySelector<HTMLElement>(
+        '.diff-row[data-section="unstaged"][data-path="src/main.ts"]',
+      );
+      if (!row) {
+        throw new Error("Expected unstaged file row");
+      }
+      const gitMenu = await openGitFileContextMenu(row);
+
+      expect(onStageFile).not.toHaveBeenCalled();
+      expect(onRevertFile).not.toHaveBeenCalled();
+      expect(onOpenFile).not.toHaveBeenCalled();
+      expect(onRefreshGitStatus).not.toHaveBeenCalled();
+      expect(onRefreshGitDiffs).not.toHaveBeenCalled();
+      expect(
+        within(gitMenu)
+          .getByRole("menuitem", { name: "Discard change" })
+          .classList.contains("is-danger"),
+      ).toBe(true);
+
+      fireEvent.click(
+        within(gitMenu).getByRole("menuitem", { name: "Stage file" }),
+      );
+
+      await waitFor(() => {
+        expect(onStageFile).toHaveBeenCalledOnce();
+        expect(onStageFile).toHaveBeenCalledWith("src/main.ts");
+      });
+      expect(onRevertFile).not.toHaveBeenCalled();
+      expect(onOpenFile).not.toHaveBeenCalled();
+      expect(onRefreshGitStatus).not.toHaveBeenCalled();
+      expect(onRefreshGitDiffs).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps same-path staged context-menu actions isolated from the unstaged section", async () => {
+    const onStageFile = vi.fn(async () => undefined);
+    const onUnstageFile = vi.fn(async () => undefined);
+    const onRevertFile = vi.fn(async () => undefined);
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        stagedFiles={[
+          { path: "shared.ts", status: "M", additions: 1, deletions: 0 },
+        ]}
+        unstagedFiles={[
+          { path: "shared.ts", status: "M", additions: 0, deletions: 1 },
+        ]}
+        onStageFile={onStageFile}
+        onUnstageFile={onUnstageFile}
+        onRevertFile={onRevertFile}
+      />,
+    );
+
+    const stagedRow = document.querySelector<HTMLElement>(
+      '.diff-row[data-section="staged"][data-path="shared.ts"]',
+    );
+    if (!stagedRow) {
+      throw new Error("Expected staged file row");
+    }
+    const gitMenu = await openGitFileContextMenu(stagedRow);
+
+    expect(within(gitMenu).getByRole("menuitem", { name: "Unstage file" })).toBeTruthy();
+    expect(within(gitMenu).queryByRole("menuitem", { name: "Stage file" })).toBeNull();
+    expect(within(gitMenu).queryByRole("menuitem", { name: "Discard change" })).toBeNull();
+
+    fireEvent.click(within(gitMenu).getByRole("menuitem", { name: "Unstage file" }));
+
+    await waitFor(() => {
+      expect(onUnstageFile).toHaveBeenCalledOnce();
+      expect(onUnstageFile).toHaveBeenCalledWith("shared.ts");
+    });
+    expect(onStageFile).not.toHaveBeenCalled();
+    expect(onRevertFile).not.toHaveBeenCalled();
+  });
+
+  it("limits a single-repository context-menu batch to the clicked section", async () => {
+    const onStageFile = vi.fn(async () => undefined);
+    const onUnstageFile = vi.fn(async () => undefined);
+    const onRevertFile = vi.fn(async () => undefined);
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        stagedFiles={[
+          { path: "staged-only.ts", status: "M", additions: 1, deletions: 0 },
+        ]}
+        unstagedFiles={[
+          { path: "src/a.ts", status: "M", additions: 1, deletions: 0 },
+          { path: "src/b.ts", status: "M", additions: 1, deletions: 0 },
+        ]}
+        onStageFile={onStageFile}
+        onUnstageFile={onUnstageFile}
+        onRevertFile={onRevertFile}
+      />,
+    );
+
+    const selectedRows = [
+      document.querySelector<HTMLElement>(
+        '.diff-row[data-section="staged"][data-path="staged-only.ts"]',
+      ),
+      document.querySelector<HTMLElement>(
+        '.diff-row[data-section="unstaged"][data-path="src/a.ts"]',
+      ),
+      document.querySelector<HTMLElement>(
+        '.diff-row[data-section="unstaged"][data-path="src/b.ts"]',
+      ),
+    ];
+    if (selectedRows.some((row) => !row)) {
+      throw new Error("Expected all staged and unstaged file rows");
+    }
+    selectedRows.forEach((row) => fireEvent.click(row as HTMLElement, { ctrlKey: true }));
+
+    const gitMenu = await openGitFileContextMenu(selectedRows[1] as HTMLElement);
+    expect(within(gitMenu).getByRole("menuitem", { name: "Stage files (2)" })).toBeTruthy();
+    expect(within(gitMenu).getByRole("menuitem", { name: "Discard changes (2)" })).toBeTruthy();
+    expect(within(gitMenu).queryByRole("menuitem", { name: /Unstage/ })).toBeNull();
+
+    fireEvent.click(within(gitMenu).getByRole("menuitem", { name: "Stage files (2)" }));
+
+    await waitFor(() => {
+      expect(onStageFile).toHaveBeenCalledTimes(2);
+    });
+    expect(onStageFile).toHaveBeenNthCalledWith(1, "src/a.ts");
+    expect(onStageFile).toHaveBeenNthCalledWith(2, "src/b.ts");
+    expect(onUnstageFile).not.toHaveBeenCalled();
+    expect(onRevertFile).not.toHaveBeenCalled();
+
+    const discardMenu = await openGitFileContextMenu(selectedRows[1] as HTMLElement);
+    fireEvent.click(
+      within(discardMenu).getByRole("menuitem", { name: "Discard changes (2)" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "common.cancel" }));
+    expect(onRevertFile).not.toHaveBeenCalled();
+
+    const confirmedDiscardMenu = await openGitFileContextMenu(
+      selectedRows[1] as HTMLElement,
+    );
+    fireEvent.click(
+      within(confirmedDiscardMenu).getByRole("menuitem", {
+        name: "Discard changes (2)",
+      }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "git.discardDialogConfirmAction" }),
+    );
+
+    await waitFor(() => {
+      expect(onRevertFile).toHaveBeenCalledTimes(2);
+    });
+    expect(onRevertFile).toHaveBeenNthCalledWith(1, "src/a.ts");
+    expect(onRevertFile).toHaveBeenNthCalledWith(2, "src/b.ts");
+    expect(onRevertFile).not.toHaveBeenCalledWith("staged-only.ts");
+  });
+
+  it.each(["flat", "tree"] as const)(
+    "opens nested single-repository File History for only the clicked row in %s view",
+    async (gitDiffListView) => {
+      const onOpenFileHistory = vi.fn();
+      const onStageFile = vi.fn(async () => undefined);
+      const onRevertFile = vi.fn(async () => undefined);
+      render(
+        <GitDiffPanel
+          {...baseProps}
+          workspaceId="ws-1"
+          workspacePath="/workspace"
+          gitRoot="/workspace/services/api"
+          gitDiffListView={gitDiffListView}
+          unstagedFiles={[
+            { path: "src/a.ts", status: "M", additions: 1, deletions: 0 },
+            { path: "src/b.ts", status: "M", additions: 1, deletions: 0 },
+          ]}
+          onStageFile={onStageFile}
+          onRevertFile={onRevertFile}
+          onOpenFileHistory={onOpenFileHistory}
+        />,
+      );
+
+      const firstRow = document.querySelector<HTMLElement>(
+        '.diff-row[data-section="unstaged"][data-path="src/a.ts"]',
+      );
+      const clickedRow = document.querySelector<HTMLElement>(
+        '.diff-row[data-section="unstaged"][data-path="src/b.ts"]',
+      );
+      if (!firstRow || !clickedRow) {
+        throw new Error("Expected both nested repository rows");
+      }
+      fireEvent.click(firstRow, { ctrlKey: true });
+      fireEvent.click(clickedRow, { ctrlKey: true });
+
+      const gitMenu = await openGitFileContextMenu(clickedRow);
+      expect(
+        within(gitMenu).getByRole("menuitem", { name: "Stage files (2)" }),
+      ).toBeTruthy();
+      fireEvent.click(
+        within(gitMenu).getByRole("menuitem", { name: "Show file history" }),
+      );
+
+      expect(onOpenFileHistory).toHaveBeenCalledOnce();
+      expect(onOpenFileHistory).toHaveBeenCalledWith({
+        workspaceId: "ws-1",
+        workspacePath: "/workspace",
+        repositoryRoot: "services/api",
+        path: "src/b.ts",
+        displayPath: "services/api/src/b.ts",
+      });
+      expect(onStageFile).not.toHaveBeenCalled();
+      expect(onRevertFile).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    {
+      path: "mutation-disabled.ts",
+      mutationDisabled: true,
+    },
+    {
+      path: "diff-only-fallback.ts",
+      isDiffOnlyFallback: true,
+    },
+  ])("does not expose mutation menu actions for $path", ({ path, ...fileFlags }) => {
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        unstagedFiles={[
+          {
+            path,
+            status: "M",
+            additions: 1,
+            deletions: 1,
+            ...fileFlags,
+          },
+        ]}
+        onStageFile={vi.fn(async () => undefined)}
+        onRevertFile={vi.fn(async () => undefined)}
+      />,
+    );
+
+    const row = document.querySelector<HTMLElement>(
+      `.diff-row[data-section="unstaged"][data-path="${path}"]`,
+    );
+    if (!row) {
+      throw new Error(`Expected disabled mutation row: ${path}`);
+    }
+    fireEvent.contextMenu(row);
+
+    expect(screen.queryByRole("menuitem", { name: "Git" })).toBeNull();
+  });
+
+  it("keeps File History available on a mutation-disabled row without mutation actions", async () => {
+    const onOpenFileHistory = vi.fn();
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        workspaceId="ws-1"
+        workspacePath="/workspace"
+        unstagedFiles={[
+          {
+            path: "readonly.ts",
+            status: "M",
+            additions: 1,
+            deletions: 1,
+            mutationDisabled: true,
+          },
+        ]}
+        onStageFile={vi.fn(async () => undefined)}
+        onRevertFile={vi.fn(async () => undefined)}
+        onOpenFileHistory={onOpenFileHistory}
+      />,
+    );
+
+    const row = document.querySelector<HTMLElement>(
+      '.diff-row[data-section="unstaged"][data-path="readonly.ts"]',
+    );
+    if (!row) {
+      throw new Error("Expected mutation-disabled row");
+    }
+    const gitMenu = await openGitFileContextMenu(row);
+
+    expect(
+      within(gitMenu).queryByRole("menuitem", { name: "Stage file" }),
+    ).toBeNull();
+    expect(
+      within(gitMenu).queryByRole("menuitem", { name: "Discard change" }),
+    ).toBeNull();
+    fireEvent.click(
+      within(gitMenu).getByRole("menuitem", { name: "Show file history" }),
+    );
+    expect(onOpenFileHistory).toHaveBeenCalledWith({
+      workspaceId: "ws-1",
+      workspacePath: "/workspace",
+      repositoryRoot: "",
+      path: "readonly.ts",
+      displayPath: "readonly.ts",
+    });
+  });
+
   it("opens engine menu then language menu before generating commit message", async () => {
     const onGenerateCommitMessage = vi.fn();
 
@@ -467,6 +935,31 @@ describe("GitDiffPanel", () => {
 
     await waitFor(() => {
       expect(onGenerateCommitMessage).toHaveBeenCalledWith("en", "codex");
+    });
+  });
+
+  it("moves commit composer from the current page menu", async () => {
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        onGenerateCommitMessage={vi.fn()}
+        unstagedFiles={[{ path: "file.txt", status: "M", additions: 1, deletions: 0 }]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Generate commit message" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Commit box position" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Top" }));
+
+    await waitFor(() => {
+      const composer = document.querySelector(".git-commit-composer");
+      const content = document.querySelector(".diff-commit-workspace-content");
+      expect(composer).toBeTruthy();
+      expect(content).toBeTruthy();
+      expect(
+        composer?.compareDocumentPosition(content as Node) ?? 0,
+      ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      expect(composer?.classList.contains("git-commit-composer--top")).toBe(true);
     });
   });
 
@@ -508,6 +1001,903 @@ describe("GitDiffPanel", () => {
         undefined,
         [{ repositoryRoot: "services/api", selectedPaths: ["pom.xml"] }],
       );
+    });
+  });
+
+  it("renders multi-repository commit composer above repository groups when configured", () => {
+    writeClientStoreValue("layout", "git.commitComposerPlacement", "top");
+
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        workspaceId="ws-1"
+        multiRepositoryMode
+        repositoryStatuses={[
+          {
+            repositoryRoot: "services/api",
+            displayName: "api",
+            branchName: "main",
+            stagedFiles: [
+              { path: "pom.xml", status: "M", additions: 1, deletions: 0 },
+            ],
+            unstagedFiles: [],
+            totalAdditions: 1,
+            totalDeletions: 0,
+            error: null,
+          },
+        ]}
+        commitMessage="fix: multi top composer"
+        onGenerateCommitMessage={vi.fn()}
+      />,
+    );
+
+    const content = document.querySelector(".git-multi-repository-changes__content");
+    const composer = document.querySelector(".git-commit-composer");
+    expect(Boolean(
+      composer && content &&
+      (composer.compareDocumentPosition(content) & Node.DOCUMENT_POSITION_FOLLOWING),
+    )).toBe(true);
+    expect(composer?.classList.contains("git-commit-composer--top")).toBe(true);
+  });
+
+  it("forwards repository identity when a multi-repository file row opens", () => {
+    const onOpenFile = vi.fn();
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        workspaceId="ws-1"
+        multiRepositoryMode
+        repositoryStatuses={[
+          {
+            repositoryRoot: "services/api",
+            displayName: "api",
+            branchName: "main",
+            stagedFiles: [],
+            unstagedFiles: [
+              { path: "pom.xml", status: "M", additions: 1, deletions: 0 },
+            ],
+            totalAdditions: 1,
+            totalDeletions: 0,
+            error: null,
+          },
+        ]}
+        onOpenFile={onOpenFile}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "pom.xml" }));
+
+    expect(onOpenFile).toHaveBeenCalledWith("pom.xml", "services/api");
+  });
+
+  it("scopes multi-repository context-menu stage and unstage actions to the clicked repository", async () => {
+    const onStageRepositoryFile = vi.fn(async () => undefined);
+    const onUnstageRepositoryFile = vi.fn(async () => undefined);
+    const onRevertRepositoryFile = vi.fn(async () => undefined);
+    const onRefreshRepositoryStatuses = vi.fn(async () => undefined);
+    const onOpenFile = vi.fn();
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        workspaceId="ws-1"
+        multiRepositoryMode
+        repositoryStatuses={[
+          {
+            repositoryRoot: "services/a",
+            displayName: "a",
+            branchName: "main",
+            stagedFiles: [
+              { path: "pom.xml", status: "M", additions: 1, deletions: 0 },
+            ],
+            unstagedFiles: [],
+            totalAdditions: 1,
+            totalDeletions: 0,
+            error: null,
+          },
+          {
+            repositoryRoot: "services/b",
+            displayName: "b",
+            branchName: "main",
+            stagedFiles: [],
+            unstagedFiles: [
+              { path: "pom.xml", status: "M", additions: 0, deletions: 1 },
+            ],
+            totalAdditions: 0,
+            totalDeletions: 1,
+            error: null,
+          },
+        ]}
+        onStageRepositoryFile={onStageRepositoryFile}
+        onUnstageRepositoryFile={onUnstageRepositoryFile}
+        onRevertRepositoryFile={onRevertRepositoryFile}
+        onRefreshRepositoryStatuses={onRefreshRepositoryStatuses}
+        onOpenFile={onOpenFile}
+      />,
+    );
+
+    const repositoryGroups = document.querySelectorAll<HTMLElement>(
+      ".git-repository-change-group",
+    );
+    const stagedRow = repositoryGroups[0]?.querySelector<HTMLElement>(
+      '.diff-row[data-section="staged"][data-path="pom.xml"]',
+    );
+    const unstagedRow = repositoryGroups[1]?.querySelector<HTMLElement>(
+      '.diff-row[data-section="unstaged"][data-path="pom.xml"]',
+    );
+    if (!stagedRow || !unstagedRow) {
+      throw new Error("Expected same-path rows in both repositories");
+    }
+
+    const stageMenu = await openGitFileContextMenu(unstagedRow);
+    expect(onStageRepositoryFile).not.toHaveBeenCalled();
+    expect(onUnstageRepositoryFile).not.toHaveBeenCalled();
+    expect(onRevertRepositoryFile).not.toHaveBeenCalled();
+    expect(onRefreshRepositoryStatuses).not.toHaveBeenCalled();
+    expect(onOpenFile).not.toHaveBeenCalled();
+    fireEvent.click(within(stageMenu).getByRole("menuitem", { name: "Stage file" }));
+
+    await waitFor(() => {
+      expect(onStageRepositoryFile).toHaveBeenCalledWith("services/b", "pom.xml");
+      expect(onRefreshRepositoryStatuses).toHaveBeenCalledTimes(1);
+    });
+    expect(onStageRepositoryFile).not.toHaveBeenCalledWith("services/a", "pom.xml");
+    expect(onUnstageRepositoryFile).not.toHaveBeenCalled();
+
+    const unstageMenu = await openGitFileContextMenu(stagedRow);
+    expect(onUnstageRepositoryFile).not.toHaveBeenCalled();
+    expect(onRefreshRepositoryStatuses).toHaveBeenCalledTimes(1);
+    fireEvent.click(within(unstageMenu).getByRole("menuitem", { name: "Unstage file" }));
+
+    await waitFor(() => {
+      expect(onUnstageRepositoryFile).toHaveBeenCalledWith("services/a", "pom.xml");
+      expect(onRefreshRepositoryStatuses).toHaveBeenCalledTimes(2);
+    });
+    expect(onUnstageRepositoryFile).not.toHaveBeenCalledWith("services/b", "pom.xml");
+    expect(onRevertRepositoryFile).not.toHaveBeenCalled();
+    expect(onOpenFile).not.toHaveBeenCalled();
+  });
+
+  it("preserves an empty workspace-root scope in multi-repository context-menu actions", async () => {
+    const onStageRepositoryFile = vi.fn(async () => undefined);
+    const onRefreshRepositoryStatuses = vi.fn(async () => undefined);
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        workspaceId="ws-1"
+        multiRepositoryMode
+        repositoryStatuses={[
+          {
+            repositoryRoot: "",
+            displayName: "workspace",
+            branchName: "main",
+            stagedFiles: [],
+            unstagedFiles: [
+              { path: "root.txt", status: "M", additions: 1, deletions: 0 },
+            ],
+            totalAdditions: 1,
+            totalDeletions: 0,
+            error: null,
+          },
+        ]}
+        onStageRepositoryFile={onStageRepositoryFile}
+        onRefreshRepositoryStatuses={onRefreshRepositoryStatuses}
+      />,
+    );
+
+    const row = document.querySelector<HTMLElement>(
+      '.diff-row[data-section="unstaged"][data-path="root.txt"]',
+    );
+    if (!row) {
+      throw new Error("Expected workspace-root file row");
+    }
+    const gitMenu = await openGitFileContextMenu(row);
+    expect(onStageRepositoryFile).not.toHaveBeenCalled();
+    expect(onRefreshRepositoryStatuses).not.toHaveBeenCalled();
+
+    fireEvent.click(within(gitMenu).getByRole("menuitem", { name: "Stage file" }));
+
+    await waitFor(() => {
+      expect(onStageRepositoryFile).toHaveBeenCalledWith("", "root.txt");
+      expect(onRefreshRepositoryStatuses).toHaveBeenCalledOnce();
+    });
+  });
+
+  it("opens multi-repository File History with exact same-path and empty-root identities", async () => {
+    const onOpenFileHistory = vi.fn();
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        workspaceId="ws-1"
+        workspacePath="/workspace"
+        multiRepositoryMode
+        repositoryStatuses={[
+          {
+            repositoryRoot: "",
+            displayName: "workspace",
+            branchName: "main",
+            stagedFiles: [],
+            unstagedFiles: [
+              { path: "pom.xml", status: "M", additions: 1, deletions: 0 },
+            ],
+            totalAdditions: 1,
+            totalDeletions: 0,
+            error: null,
+          },
+          {
+            repositoryRoot: "services/api",
+            displayName: "api",
+            branchName: "main",
+            stagedFiles: [],
+            unstagedFiles: [
+              { path: "pom.xml", status: "M", additions: 1, deletions: 0 },
+            ],
+            totalAdditions: 1,
+            totalDeletions: 0,
+            error: null,
+          },
+        ]}
+        onOpenFileHistory={onOpenFileHistory}
+      />,
+    );
+
+    const repositoryGroups = document.querySelectorAll<HTMLElement>(
+      ".git-repository-change-group",
+    );
+    const rootRow = repositoryGroups[0]?.querySelector<HTMLElement>(
+      '.diff-row[data-section="unstaged"][data-path="pom.xml"]',
+    );
+    const nestedRow = repositoryGroups[1]?.querySelector<HTMLElement>(
+      '.diff-row[data-section="unstaged"][data-path="pom.xml"]',
+    );
+    if (!rootRow || !nestedRow) {
+      throw new Error("Expected same-path root and nested repository rows");
+    }
+
+    const nestedMenu = await openGitFileContextMenu(nestedRow);
+    fireEvent.click(
+      within(nestedMenu).getByRole("menuitem", { name: "Show file history" }),
+    );
+    expect(onOpenFileHistory).toHaveBeenLastCalledWith({
+      workspaceId: "ws-1",
+      workspacePath: "/workspace",
+      repositoryRoot: "services/api",
+      path: "pom.xml",
+      displayPath: "services/api/pom.xml",
+    });
+
+    const rootMenu = await openGitFileContextMenu(rootRow);
+    fireEvent.click(
+      within(rootMenu).getByRole("menuitem", { name: "Show file history" }),
+    );
+    expect(onOpenFileHistory).toHaveBeenLastCalledWith({
+      workspaceId: "ws-1",
+      workspacePath: "/workspace",
+      repositoryRoot: "",
+      path: "pom.xml",
+      displayPath: "pom.xml",
+    });
+    expect(onOpenFileHistory).toHaveBeenCalledTimes(2);
+  });
+
+  it("dismisses a stale file context menu when the repository topology changes", async () => {
+    const onStageRepositoryFile = vi.fn(async () => undefined);
+    const onRefreshRepositoryStatuses = vi.fn(async () => undefined);
+    const { rerender } = render(
+      <GitDiffPanel
+        {...baseProps}
+        workspaceId="ws-a"
+        multiRepositoryMode
+        repositoryStatuses={[
+          {
+            repositoryRoot: "services/a",
+            displayName: "a",
+            branchName: "main",
+            stagedFiles: [],
+            unstagedFiles: [
+              { path: "pom.xml", status: "M", additions: 1, deletions: 0 },
+            ],
+            totalAdditions: 1,
+            totalDeletions: 0,
+            error: null,
+          },
+        ]}
+        onStageRepositoryFile={onStageRepositoryFile}
+        onRefreshRepositoryStatuses={onRefreshRepositoryStatuses}
+      />,
+    );
+
+    const row = document.querySelector<HTMLElement>(
+      '.diff-row[data-section="unstaged"][data-path="pom.xml"]',
+    );
+    if (!row) {
+      throw new Error("Expected repository-scoped file row");
+    }
+    const gitMenu = await openGitFileContextMenu(row);
+    expect(within(gitMenu).getByRole("menuitem", { name: "Stage file" })).toBeTruthy();
+
+    rerender(
+      <GitDiffPanel
+        {...baseProps}
+        workspaceId="ws-b"
+        multiRepositoryMode
+        repositoryStatuses={[
+          {
+            repositoryRoot: "services/b",
+            displayName: "b",
+            branchName: "main",
+            stagedFiles: [],
+            unstagedFiles: [
+              { path: "pom.xml", status: "M", additions: 1, deletions: 0 },
+            ],
+            totalAdditions: 1,
+            totalDeletions: 0,
+            error: null,
+          },
+        ]}
+        onStageRepositoryFile={onStageRepositoryFile}
+        onRefreshRepositoryStatuses={onRefreshRepositoryStatuses}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByRole("menuitem", { name: "Git" })).toBeNull();
+    });
+    expect(onStageRepositoryFile).not.toHaveBeenCalled();
+    expect(onRefreshRepositoryStatuses).not.toHaveBeenCalled();
+  });
+
+  it("dismisses a stale History menu when the navigation callback changes", async () => {
+    const files = [
+      { path: "src/main.ts", status: "M", additions: 1, deletions: 0 },
+    ];
+    const firstHistoryCallback = vi.fn();
+    const secondHistoryCallback = vi.fn();
+    const { rerender } = render(
+      <GitDiffPanel
+        {...baseProps}
+        workspaceId="ws-1"
+        workspacePath="/workspace"
+        unstagedFiles={files}
+        onOpenFileHistory={firstHistoryCallback}
+      />,
+    );
+
+    const row = document.querySelector<HTMLElement>(
+      '.diff-row[data-section="unstaged"][data-path="src/main.ts"]',
+    );
+    if (!row) {
+      throw new Error("Expected file history row");
+    }
+    const gitMenu = await openGitFileContextMenu(row);
+    expect(
+      within(gitMenu).getByRole("menuitem", { name: "Show file history" }),
+    ).toBeTruthy();
+
+    rerender(
+      <GitDiffPanel
+        {...baseProps}
+        workspaceId="ws-1"
+        workspacePath="/workspace"
+        unstagedFiles={files}
+        onOpenFileHistory={secondHistoryCallback}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByRole("menuitem", { name: "Git" })).toBeNull();
+    });
+    expect(firstHistoryCallback).not.toHaveBeenCalled();
+    expect(secondHistoryCallback).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      name: "mutation-disabled file",
+      mutationDisabled: true,
+      repositoryError: null,
+      withCallbacks: true,
+    },
+    {
+      name: "repository error",
+      mutationDisabled: false,
+      repositoryError: "status unavailable",
+      withCallbacks: true,
+    },
+    {
+      name: "missing mutation callbacks",
+      mutationDisabled: false,
+      repositoryError: null,
+      withCallbacks: false,
+    },
+  ])(
+    "suppresses native and custom mutation menus for a multi-repository $name",
+    ({ mutationDisabled, repositoryError, withCallbacks }) => {
+      const onStageRepositoryFile = vi.fn(async () => undefined);
+      const onRevertRepositoryFile = vi.fn(async () => undefined);
+      const onRefreshRepositoryStatuses = vi.fn(async () => undefined);
+      render(
+        <GitDiffPanel
+          {...baseProps}
+          workspaceId="ws-1"
+          multiRepositoryMode
+          repositoryStatuses={[
+            {
+              repositoryRoot: "services/api",
+              displayName: "api",
+              branchName: "main",
+              stagedFiles: [],
+              unstagedFiles: [
+                {
+                  path: "pom.xml",
+                  status: "M",
+                  additions: 1,
+                  deletions: 0,
+                  mutationDisabled,
+                },
+              ],
+              totalAdditions: 1,
+              totalDeletions: 0,
+              error: repositoryError,
+            },
+          ]}
+          onStageRepositoryFile={
+            withCallbacks ? onStageRepositoryFile : undefined
+          }
+          onRevertRepositoryFile={
+            withCallbacks ? onRevertRepositoryFile : undefined
+          }
+          onRefreshRepositoryStatuses={onRefreshRepositoryStatuses}
+        />,
+      );
+
+      const row = document.querySelector<HTMLElement>(
+        '.diff-row[data-section="unstaged"][data-path="pom.xml"]',
+      );
+      if (!row) {
+        throw new Error("Expected repository-scoped file row");
+      }
+      const contextMenuEvent = createEvent.contextMenu(row);
+      fireEvent(row, contextMenuEvent);
+
+      expect(contextMenuEvent.defaultPrevented).toBe(true);
+      expect(screen.queryByRole("menuitem", { name: "Git" })).toBeNull();
+      expect(onStageRepositoryFile).not.toHaveBeenCalled();
+      expect(onRevertRepositoryFile).not.toHaveBeenCalled();
+      expect(onRefreshRepositoryStatuses).not.toHaveBeenCalled();
+    },
+  );
+
+  it("confirms multi-repository context-menu discard before mutating and refreshes once", async () => {
+    const onRevertRepositoryFile = vi.fn(async () => undefined);
+    const onRefreshRepositoryStatuses = vi.fn(async () => undefined);
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        workspaceId="ws-1"
+        multiRepositoryMode
+        repositoryStatuses={[
+          {
+            repositoryRoot: "services/api",
+            displayName: "api",
+            branchName: "main",
+            stagedFiles: [],
+            unstagedFiles: [
+              { path: "pom.xml", status: "M", additions: 1, deletions: 1 },
+            ],
+            totalAdditions: 1,
+            totalDeletions: 1,
+            error: null,
+          },
+        ]}
+        onRevertRepositoryFile={onRevertRepositoryFile}
+        onRefreshRepositoryStatuses={onRefreshRepositoryStatuses}
+      />,
+    );
+
+    const row = document.querySelector<HTMLElement>(
+      '.diff-row[data-section="unstaged"][data-path="pom.xml"]',
+    );
+    if (!row) {
+      throw new Error("Expected repository-scoped file row");
+    }
+    const gitMenu = await openGitFileContextMenu(row);
+    const discardItem = within(gitMenu).getByRole("menuitem", {
+      name: "Discard change",
+    });
+    expect(discardItem.classList.contains("is-danger")).toBe(true);
+    expect(onRevertRepositoryFile).not.toHaveBeenCalled();
+    expect(onRefreshRepositoryStatuses).not.toHaveBeenCalled();
+
+    fireEvent.click(discardItem);
+    expect(screen.getByRole("button", {
+      name: "git.discardDialogConfirmAction",
+    })).toBeTruthy();
+    expect(onRevertRepositoryFile).not.toHaveBeenCalled();
+    expect(onRefreshRepositoryStatuses).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", {
+      name: "git.discardDialogConfirmAction",
+    }));
+
+    await waitFor(() => {
+      expect(onRevertRepositoryFile).toHaveBeenCalledWith("services/api", "pom.xml");
+      expect(onRefreshRepositoryStatuses).toHaveBeenCalledOnce();
+    });
+  });
+
+  it("confirms repository-scoped discard and keeps same-path repositories isolated", async () => {
+    const onRevertRepositoryFile = vi.fn(async () => undefined);
+    const onRefreshRepositoryStatuses = vi.fn(async () => undefined);
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        workspaceId="ws-1"
+        multiRepositoryMode
+        repositoryStatuses={[
+          {
+            repositoryRoot: "services/a",
+            displayName: "a",
+            branchName: "main",
+            stagedFiles: [],
+            unstagedFiles: [
+              { path: "pom.xml", status: "M", additions: 1, deletions: 0 },
+            ],
+            totalAdditions: 1,
+            totalDeletions: 0,
+            error: null,
+          },
+          {
+            repositoryRoot: "services/b",
+            displayName: "b",
+            branchName: "main",
+            stagedFiles: [],
+            unstagedFiles: [
+              { path: "pom.xml", status: "M", additions: 1, deletions: 0 },
+            ],
+            totalAdditions: 1,
+            totalDeletions: 0,
+            error: null,
+          },
+        ]}
+        onRevertRepositoryFile={onRevertRepositoryFile}
+        onRefreshRepositoryStatuses={onRefreshRepositoryStatuses}
+      />,
+    );
+
+    const discardButtons = document.querySelectorAll<HTMLButtonElement>(
+      ".diff-row-action--discard",
+    );
+    expect(discardButtons).toHaveLength(2);
+
+    fireEvent.click(discardButtons[1] as HTMLButtonElement);
+    fireEvent.click(screen.getByRole("button", { name: "common.cancel" }));
+    expect(onRevertRepositoryFile).not.toHaveBeenCalled();
+
+    fireEvent.click(discardButtons[1] as HTMLButtonElement);
+    fireEvent.click(screen.getByRole("button", { name: "git.discardDialogConfirmAction" }));
+
+    await waitFor(() => {
+      expect(onRevertRepositoryFile).toHaveBeenCalledWith("services/b", "pom.xml");
+      expect(onRefreshRepositoryStatuses).toHaveBeenCalledTimes(1);
+    });
+    expect(onRevertRepositoryFile).not.toHaveBeenCalledWith("services/a", "pom.xml");
+  });
+
+  it("opens the latest repository-scoped modal preview without same-path cross-talk", async () => {
+    let resolveFirstRepository: ((value: unknown) => void) | null = null;
+    vi.mocked(invoke).mockImplementation((command, args) => {
+      const repositoryRoot = args && !Array.isArray(args)
+        ? (args as Record<string, unknown>).repositoryRoot
+        : undefined;
+      if (command === "get_git_diffs" && repositoryRoot === "services/a") {
+        return new Promise((resolve) => {
+          resolveFirstRepository = resolve;
+        });
+      }
+      if (command === "get_git_diffs" && repositoryRoot === "services/b") {
+        return Promise.resolve([{
+          path: "pom.xml",
+          status: "M",
+          diff: "@@ -1 +1 @@\n-old-b\n+new-b",
+        }]);
+      }
+      if (command === "get_git_file_full_diff") {
+        return Promise.resolve("full scoped diff");
+      }
+      return Promise.resolve(null);
+    });
+
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        workspaceId="ws-1"
+        workspacePath="/workspace"
+        multiRepositoryMode
+        repositoryStatuses={[
+          {
+            repositoryRoot: "services/a",
+            displayName: "a",
+            branchName: "main",
+            stagedFiles: [],
+            unstagedFiles: [{ path: "pom.xml", status: "M", additions: 1, deletions: 1 }],
+            totalAdditions: 1,
+            totalDeletions: 1,
+            error: null,
+          },
+          {
+            repositoryRoot: "services/b",
+            displayName: "b",
+            branchName: "main",
+            stagedFiles: [],
+            unstagedFiles: [{ path: "pom.xml", status: "M", additions: 1, deletions: 1 }],
+            totalAdditions: 1,
+            totalDeletions: 1,
+            error: null,
+          },
+        ]}
+      />,
+    );
+
+    const previewButtons = document.querySelectorAll<HTMLButtonElement>(
+      '.diff-row[data-path="pom.xml"] .diff-row-action--preview-modal',
+    );
+    expect(previewButtons).toHaveLength(2);
+    fireEvent.click(previewButtons[0]);
+    fireEvent.click(previewButtons[1]);
+
+    await waitFor(() => {
+      expect(mockEditableDiffReviewSurface).toHaveBeenCalled();
+    });
+    expect(vi.mocked(invoke)).toHaveBeenCalledWith("get_git_diffs", {
+      workspaceId: "ws-1",
+      repositoryRoot: "services/a",
+    });
+    expect(vi.mocked(invoke)).toHaveBeenCalledWith("get_git_diffs", {
+      workspaceId: "ws-1",
+      repositoryRoot: "services/b",
+    });
+
+    const latestPreviewProps = mockEditableDiffReviewSurface.mock.lastCall?.[0] as {
+      files?: Array<{ diff?: string; workspaceRelativeFilePath?: string }>;
+      fullDiffLoader?: (path: string) => Promise<string>;
+    };
+    expect(latestPreviewProps.files?.[0]).toMatchObject({
+      diff: "@@ -1 +1 @@\n-old-b\n+new-b",
+      workspaceRelativeFilePath: "services/b/pom.xml",
+    });
+    await latestPreviewProps.fullDiffLoader?.("pom.xml");
+    expect(vi.mocked(invoke)).toHaveBeenCalledWith("get_git_file_full_diff", {
+      workspaceId: "ws-1",
+      path: "pom.xml",
+      repositoryRoot: "services/b",
+    });
+
+    await act(async () => {
+      resolveFirstRepository?.([{
+        path: "pom.xml",
+        status: "M",
+        diff: "@@ -1 +1 @@\n-old-a\n+new-a",
+      }]);
+    });
+    const settledPreviewProps = mockEditableDiffReviewSurface.mock.lastCall?.[0] as {
+      files?: Array<{ diff?: string; workspaceRelativeFilePath?: string }>;
+    };
+    expect(settledPreviewProps.files?.[0]).toMatchObject({
+      diff: "@@ -1 +1 @@\n-old-b\n+new-b",
+      workspaceRelativeFilePath: "services/b/pom.xml",
+    });
+  });
+
+  it("invalidates a pending repository preview when the workspace changes", async () => {
+    let resolveOldWorkspace: ((value: unknown) => void) | null = null;
+    vi.mocked(invoke).mockImplementation((command) => {
+      if (command === "get_git_diffs") {
+        return new Promise((resolve) => {
+          resolveOldWorkspace = resolve;
+        });
+      }
+      return Promise.resolve(null);
+    });
+    const repositoryStatuses = [{
+      repositoryRoot: "services/api",
+      displayName: "api",
+      branchName: "main",
+      stagedFiles: [],
+      unstagedFiles: [{ path: "pom.xml", status: "M", additions: 1, deletions: 1 }],
+      totalAdditions: 1,
+      totalDeletions: 1,
+      error: null,
+    }];
+    const { rerender } = render(
+      <GitDiffPanel
+        {...baseProps}
+        workspaceId="workspace-a"
+        workspacePath="/workspace-a"
+        multiRepositoryMode
+        repositoryStatuses={repositoryStatuses}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Open diff preview modal" }));
+    expect(document.querySelector(".git-history-diff-modal")).toBeTruthy();
+
+    rerender(
+      <GitDiffPanel
+        {...baseProps}
+        workspaceId="workspace-b"
+        workspacePath="/workspace-b"
+        multiRepositoryMode
+        repositoryStatuses={repositoryStatuses}
+      />,
+    );
+    await waitFor(() => {
+      expect(document.querySelector(".git-history-diff-modal")).toBeNull();
+    });
+
+    await act(async () => {
+      resolveOldWorkspace?.([{
+        path: "pom.xml",
+        status: "M",
+        diff: "@@ -1 +1 @@\n-old-a\n+new-a",
+      }]);
+    });
+    expect(document.querySelector(".git-history-diff-modal")).toBeNull();
+  });
+
+  it("preserves an explicit workspace-root repository scope", async () => {
+    vi.mocked(invoke).mockImplementation((command) => {
+      if (command === "get_git_diffs") {
+        return Promise.resolve([{
+          path: "pom.xml",
+          status: "M",
+          diff: "@@ -1 +1 @@\n-old\n+new",
+        }]);
+      }
+      if (command === "get_git_file_full_diff") {
+        return Promise.resolve("full root diff");
+      }
+      return Promise.resolve(null);
+    });
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        workspaceId="workspace-1"
+        workspacePath="/workspace"
+        multiRepositoryMode
+        repositoryStatuses={[{
+          repositoryRoot: "",
+          displayName: "workspace",
+          branchName: "main",
+          stagedFiles: [],
+          unstagedFiles: [{ path: "pom.xml", status: "M", additions: 1, deletions: 1 }],
+          totalAdditions: 1,
+          totalDeletions: 1,
+          error: null,
+        }]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Open diff preview modal" }));
+    await waitFor(() => expect(mockEditableDiffReviewSurface).toHaveBeenCalled());
+    expect(vi.mocked(invoke)).toHaveBeenCalledWith("get_git_diffs", {
+      workspaceId: "workspace-1",
+      repositoryRoot: "",
+    });
+    const latestPreviewProps = mockEditableDiffReviewSurface.mock.lastCall?.[0] as {
+      fullDiffLoader?: (path: string) => Promise<string>;
+    };
+    await latestPreviewProps.fullDiffLoader?.("pom.xml");
+    expect(vi.mocked(invoke)).toHaveBeenCalledWith("get_git_file_full_diff", {
+      workspaceId: "workspace-1",
+      path: "pom.xml",
+      repositoryRoot: "",
+    });
+  });
+
+  it("does not reopen a repository preview closed while its request is pending", async () => {
+    let resolvePendingPreview: ((value: unknown) => void) | null = null;
+    vi.mocked(invoke).mockImplementation((command) => {
+      if (command === "get_git_diffs") {
+        return new Promise((resolve) => {
+          resolvePendingPreview = resolve;
+        });
+      }
+      return Promise.resolve(null);
+    });
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        workspaceId="workspace-1"
+        workspacePath="/workspace"
+        multiRepositoryMode
+        repositoryStatuses={[{
+          repositoryRoot: "services/api",
+          displayName: "api",
+          branchName: "main",
+          stagedFiles: [],
+          unstagedFiles: [{ path: "pom.xml", status: "M", additions: 1, deletions: 1 }],
+          totalAdditions: 1,
+          totalDeletions: 1,
+          error: null,
+        }]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Open diff preview modal" }));
+    const overlay = document.querySelector<HTMLElement>(".git-history-diff-modal-overlay");
+    if (!overlay) {
+      throw new Error("Expected repository preview overlay to open");
+    }
+    fireEvent.click(overlay);
+    expect(document.querySelector(".git-history-diff-modal")).toBeNull();
+
+    await act(async () => {
+      resolvePendingPreview?.([{
+        path: "pom.xml",
+        status: "M",
+        diff: "@@ -1 +1 @@\n-old\n+new",
+      }]);
+    });
+    expect(document.querySelector(".git-history-diff-modal")).toBeNull();
+  });
+
+  it("settles a failed repository preview to unavailable", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(invoke).mockImplementation((command) => {
+      if (command === "get_git_diffs") {
+        return Promise.reject(new Error("scoped diff failed"));
+      }
+      return Promise.resolve(null);
+    });
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        workspaceId="workspace-1"
+        workspacePath="/workspace"
+        multiRepositoryMode
+        repositoryStatuses={[{
+          repositoryRoot: "services/api",
+          displayName: "api",
+          branchName: "main",
+          stagedFiles: [],
+          unstagedFiles: [{ path: "pom.xml", status: "M", additions: 1, deletions: 1 }],
+          totalAdditions: 1,
+          totalDeletions: 1,
+          error: null,
+        }]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Open diff preview modal" }));
+    expect(await screen.findByText("git.diffUnavailable")).toBeTruthy();
+    expect(screen.queryByText("common.loading")).toBeNull();
+    expect(errorSpy).toHaveBeenCalledWith(
+      "Failed to load repository-scoped git diff",
+      expect.any(Error),
+    );
+  });
+
+  it("closes a single-repository preview when the selected git root changes", async () => {
+    const previewProps = {
+      ...baseProps,
+      workspaceId: "workspace-1",
+      workspacePath: "/workspace",
+      gitRoot: "services/a",
+      unstagedFiles: [{ path: "pom.xml", status: "M", additions: 1, deletions: 1 }],
+      diffEntries: [{
+        path: "pom.xml",
+        status: "M",
+        diff: "@@ -1 +1 @@\n-old\n+new",
+      }],
+    };
+    const { rerender } = render(<GitDiffPanel {...previewProps} />);
+
+    fireEvent.doubleClick(screen.getByLabelText("pom.xml"));
+    expect(document.querySelector(".git-history-diff-modal")).toBeTruthy();
+
+    rerender(<GitDiffPanel {...previewProps} gitRoot="services/b" />);
+    await waitFor(() => {
+      expect(document.querySelector(".git-history-diff-modal")).toBeNull();
     });
   });
 
@@ -906,7 +2296,7 @@ describe("GitDiffPanel", () => {
     expect(onGitDiffListViewChange).not.toHaveBeenCalled();
   });
 
-  it("opens git history panel from Hub button", () => {
+  it("opens git history from Git Graph while hiding the legacy Git mode option", () => {
     const onOpenGitHistoryPanel = vi.fn();
     render(
       <GitDiffPanel
@@ -919,7 +2309,13 @@ describe("GitDiffPanel", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Git panel view" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Hub" }));
+    expect(screen.queryByRole("menuitemradio", { name: /^Git\b/ })).toBeNull();
+
+    const gitGraphAction = screen.getByRole("menuitem", { name: "Git Graph" });
+    expect(gitGraphAction.querySelector(".lucide-git-commit-horizontal")).toBeTruthy();
+    expect(gitGraphAction.classList.contains("git-panel-select-option--git-graph")).toBe(true);
+
+    fireEvent.click(gitGraphAction);
     expect(onOpenGitHistoryPanel).toHaveBeenCalledTimes(1);
   });
 
@@ -1051,6 +2447,88 @@ describe("GitDiffPanel", () => {
     expect(onOpenFile).toHaveBeenCalledTimes(1);
     expect(onOpenFile).toHaveBeenCalledWith("src/a.ts");
     expect(onSelectFile).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["mouse click", (row: HTMLElement) => fireEvent.click(row), "flat" as const],
+    ["Enter", (row: HTMLElement) => fireEvent.keyDown(row, { key: "Enter" }), "tree" as const],
+  ])("opens a renamed destination with %s", (_activation, activate, gitDiffListView) => {
+    const onSelectFile = vi.fn();
+    const onOpenFile = vi.fn();
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        gitDiffListView={gitDiffListView}
+        onSelectFile={onSelectFile}
+        onOpenFile={onOpenFile}
+        unstagedFiles={[
+          {
+            path: "archive/spec.md",
+            oldPath: "changes/spec.md",
+            status: "R",
+            additions: 0,
+            deletions: 0,
+          },
+        ]}
+      />,
+    );
+
+    activate(
+      document.querySelector<HTMLElement>(
+        '.diff-row[data-path="archive/spec.md"]',
+      ) as HTMLElement,
+    );
+
+    expect(onOpenFile).toHaveBeenCalledOnce();
+    expect(onOpenFile).toHaveBeenCalledWith("archive/spec.md");
+    expect(onOpenFile).not.toHaveBeenCalledWith("changes/spec.md");
+    expect(onSelectFile).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["mouse click", (row: HTMLElement) => fireEvent.click(row)],
+    ["Space", (row: HTMLElement) => fireEvent.keyDown(row, { key: " " })],
+  ])("routes deleted row %s activation to read-only diff preview", (_activation, activate) => {
+    const onOpenFile = vi.fn();
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        workspaceId="ws-1"
+        workspacePath="/workspace"
+        onOpenFile={onOpenFile}
+        diffEntries={[
+          {
+            path: "src/deleted.ts",
+            status: "D",
+            diff: "@@ -1 +0,0 @@\n-export {};",
+          },
+        ]}
+        unstagedFiles={[
+          {
+            path: "src/deleted.ts",
+            status: "D",
+            additions: 0,
+            deletions: 1,
+          },
+        ]}
+      />,
+    );
+
+    activate(
+      document.querySelector<HTMLElement>(
+        '.diff-row[data-path="src/deleted.ts"]',
+      ) as HTMLElement,
+    );
+
+    expect(onOpenFile).not.toHaveBeenCalled();
+    expect(document.querySelector(".git-history-diff-modal")).toBeTruthy();
+    const previewProps = mockEditableDiffReviewSurface.mock.lastCall?.[0] as {
+      files?: Array<{ filePath?: string; status?: string }>;
+    };
+    expect(previewProps.files?.[0]).toMatchObject({
+      filePath: "src/deleted.ts",
+      status: "D",
+    });
   });
 
   it("opens modal preview from explicit action without triggering row selection", () => {
@@ -1594,7 +3072,7 @@ describe("GitDiffPanel", () => {
     expect(screen.getByText("git.chooseRepo")).toBeTruthy();
   });
 
-  it("opens git root panel from the Diff menu switch repository action", () => {
+  it("hides repository switching from the Diff menu while preserving the root selector", () => {
     render(
       <GitDiffPanel
         {...baseProps}
@@ -1607,10 +3085,13 @@ describe("GitDiffPanel", () => {
     expect(screen.queryByText("git.chooseRepo")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Git panel view" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Switch Git repository" }));
+    expect(screen.getByRole("menu")).toBeTruthy();
+    expect(
+      screen.queryByRole("menuitem", { name: "Switch Git repository" }),
+    ).toBeNull();
 
+    fireEvent.click(screen.getByRole("button", { name: "Switch" }));
     expect(screen.getByText("git.chooseRepo")).toBeTruthy();
-    expect(screen.queryByRole("menu")).toBeNull();
   });
 
   it("renders compact red alert on root row and hides raw git error", () => {

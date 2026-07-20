@@ -111,6 +111,10 @@ const tauriWindowMocks = vi.hoisted(() => {
   };
 });
 
+const agentSessionMocks = vi.hoisted(() => ({
+  reloadAgentCatalog: vi.fn(async () => undefined),
+}));
+
 function createNoopFunction() {
   return vi.fn();
 }
@@ -322,6 +326,7 @@ vi.mock("./features/app/hooks/useAppSettingsController", () => ({
     setAppSettings: startupState.setAppSettings,
     doctor: null,
     claudeDoctor: null,
+    kimiDoctor: null,
     appSettingsLoading: startupState.appSettingsLoading,
     reduceTransparency: false,
     setReduceTransparency: createNoopFunction(),
@@ -852,7 +857,7 @@ vi.mock("./app-shell-parts/useSelectedAgentSession", () => ({
     selectedAgentRef: { current: null },
     handleSelectAgent: createNoopFunction(),
     reloadSelectedAgent: createNoopFunction(),
-    reloadAgentCatalog: vi.fn(async () => undefined),
+    reloadAgentCatalog: agentSessionMocks.reloadAgentCatalog,
   }),
 }));
 
@@ -1283,6 +1288,8 @@ describe("AppShell startup", () => {
     tauriWindowMocks.getCurrentWindow.mockImplementation(() => ({
       setTitle: tauriWindowMocks.setTitle,
     }));
+    agentSessionMocks.reloadAgentCatalog.mockReset();
+    agentSessionMocks.reloadAgentCatalog.mockResolvedValue(undefined);
     resetStartupTraceForTests();
     consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     consoleInfoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
@@ -1292,6 +1299,15 @@ describe("AppShell startup", () => {
     consoleErrorSpy.mockRestore();
     consoleInfoSpy.mockRestore();
     vi.clearAllMocks();
+  });
+
+  it("requests the agent catalog once during a cold-start settings lifecycle", async () => {
+    const view = render(<AppShell />);
+
+    await waitFor(() => {
+      expect(view.getByTestId("app-shell-sentinel")).toBeTruthy();
+    });
+    expect(agentSessionMocks.reloadAgentCatalog).toHaveBeenCalledTimes(1);
   });
 
   it("mounts with a stored thread-scoped codex composer selection without entering an update loop", async () => {

@@ -16,9 +16,11 @@ import {
   generateThreadTitle,
   getGitHubIssues,
   getGitLog,
+  getGitCommitHistory,
   getGitPushPreview,
   getGitStatus,
   getGitDiffs,
+  getGitFileBlame,
   getOpenAppIcon,
   getModelList,
   getPromptsList,
@@ -37,6 +39,7 @@ import {
   listGitRepositorySummaries,
   checkoutGitBranch,
   createGitBranch,
+  createGitPrWorkflow,
   runWorkspaceCommand,
   runSpecCommand,
   resetGitCommit,
@@ -103,6 +106,7 @@ import {
   runCodexDoctor,
   runClaudeDoctor,
   getCliInstallPlan,
+  getCliVersionStatus,
   runCliInstaller,
   setOpenCodeMcpToggle,
   switchEngine,
@@ -115,6 +119,7 @@ import {
   engineSendMessageSync,
   deleteClaudeSession,
   deleteGeminiSession,
+  deleteKimiSession,
   sendConversationCompletionEmail,
   appendClientErrorLog,
   exportDiagnosticsBundle,
@@ -222,6 +227,51 @@ describe("tauri invoke wrappers", () => {
       selectedPaths: undefined,
       repositorySelections: [],
     });
+  });
+
+  it("forwards explicit large-range confirmation only on the confirmed retry", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValue({
+      ok: true,
+      status: "success",
+      message: "created",
+      stages: [],
+    });
+    const options = {
+      upstreamRepo: "example/mossx",
+      baseBranch: "main",
+      headOwner: "developer",
+      headBranch: "feature/large-pr",
+      title: "feat(git): large pull request",
+    };
+
+    await createGitPrWorkflow("ws-1", options);
+    expect(invokeMock).toHaveBeenLastCalledWith("create_git_pr_workflow", {
+      workspaceId: "ws-1",
+      upstreamRepo: "example/mossx",
+      baseBranch: "main",
+      headOwner: "developer",
+      headBranch: "feature/large-pr",
+      title: "feat(git): large pull request",
+      body: null,
+      commentAfterCreate: null,
+      commentBody: null,
+      allowLargeRange: null,
+      confirmedRangeFingerprint: null,
+    });
+
+    await createGitPrWorkflow("ws-1", {
+      ...options,
+      allowLargeRange: true,
+      confirmedRangeFingerprint: "base-revision...head-revision",
+    });
+    expect(invokeMock).toHaveBeenLastCalledWith(
+      "create_git_pr_workflow",
+      expect.objectContaining({
+        allowLargeRange: true,
+        confirmedRangeFingerprint: "base-revision...head-revision",
+      }),
+    );
   });
 
   it("maps Web assets status and install commands without payload drift", async () => {
@@ -547,9 +597,19 @@ describe("tauri invoke wrappers", () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({ canRun: true });
     invokeMock.mockResolvedValueOnce({ ok: true });
+    invokeMock.mockResolvedValueOnce({
+      engine: "kimi",
+      installed: false,
+      localVersion: null,
+      latestVersion: null,
+      updateAvailable: false,
+      nodeOk: true,
+      details: null,
+    });
 
     await getCliInstallPlan("codex", "installLatest", "npmGlobal");
     await runCliInstaller("claude", "updateLatest", "npmGlobal", "run-1");
+    await getCliVersionStatus("kimi");
 
     expect(invokeMock).toHaveBeenCalledWith("cli_install_plan", {
       engine: "codex",
@@ -561,6 +621,9 @@ describe("tauri invoke wrappers", () => {
       action: "updateLatest",
       strategy: "npmGlobal",
       runId: "run-1",
+    });
+    expect(invokeMock).toHaveBeenCalledWith("cli_version_status", {
+      engine: "kimi",
     });
     expect(
       invokeMock.mock.calls.flatMap(([, payload]) =>
@@ -1274,6 +1337,82 @@ describe("tauri invoke wrappers", () => {
     expect(invokeMock).toHaveBeenCalledWith("get_git_log", {
       workspaceId: "ws-3",
       limit: 40,
+    });
+  });
+
+  it("maps optional path and repository scope for git commit history", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({
+      snapshotId: "snapshot-1",
+      total: 0,
+      offset: 0,
+      limit: 100,
+      hasMore: false,
+      commits: [],
+    });
+
+    await getGitCommitHistory("ws-3", {
+      path: "src/value.ts",
+      repositoryRoot: "packages/app",
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith("get_git_commit_history", {
+      workspaceId: "ws-3",
+      branch: null,
+      query: null,
+      author: null,
+      dateFrom: null,
+      dateTo: null,
+      snapshotId: null,
+      path: "src/value.ts",
+      offset: 0,
+      limit: 100,
+      repositoryRoot: "packages/app",
+    });
+  });
+
+  it("preserves the repository-wide git commit history payload when path is omitted", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({
+      snapshotId: "snapshot-1",
+      total: 0,
+      offset: 0,
+      limit: 100,
+      hasMore: false,
+      commits: [],
+    });
+
+    await getGitCommitHistory("ws-3");
+
+    expect(invokeMock).toHaveBeenCalledWith("get_git_commit_history", {
+      workspaceId: "ws-3",
+      branch: null,
+      query: null,
+      author: null,
+      dateFrom: null,
+      dateTo: null,
+      snapshotId: null,
+      path: null,
+      offset: 0,
+      limit: 100,
+    });
+  });
+
+  it("maps repository scope for file blame", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({
+      path: "src/value.ts",
+      headSha: "abc123",
+      lineCount: 1,
+      hunks: [],
+    });
+
+    await getGitFileBlame("ws-3", "src/value.ts", "packages/app");
+
+    expect(invokeMock).toHaveBeenCalledWith("get_git_file_blame", {
+      workspaceId: "ws-3",
+      path: "src/value.ts",
+      repositoryRoot: "packages/app",
     });
   });
 
@@ -2588,6 +2727,31 @@ describe("tauri invoke wrappers", () => {
     });
   });
 
+  it("rejects every Gemini execution RPC before invoking the backend", async () => {
+    const invokeMock = vi.mocked(invoke);
+
+    await expect(switchEngine("gemini")).rejects.toThrow(
+      "Gemini CLI is disabled in this client",
+    );
+    await expect(getEngineModels("gemini")).rejects.toThrow(
+      "Gemini CLI is disabled in this client",
+    );
+    await expect(
+      engineSendMessage("ws-gemini", {
+        text: "must not run",
+        engine: "gemini",
+      }),
+    ).rejects.toThrow("Gemini CLI is disabled in this client");
+    await expect(
+      engineSendMessageSync("ws-gemini", {
+        text: "must not run",
+        engine: "gemini",
+      }),
+    ).rejects.toThrow("Gemini CLI is disabled in this client");
+
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+
   it("maps sync engine send custom spec root payload", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({
@@ -2988,6 +3152,18 @@ describe("tauri invoke wrappers", () => {
     expect(invokeMock).toHaveBeenCalledWith("delete_gemini_session", {
       workspacePath: "/tmp/workspace",
       sessionId: "gemini-session-1",
+    });
+  });
+
+  it("maps delete_kimi_session params", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce(undefined);
+
+    await deleteKimiSession("/tmp/workspace", "kimi-session-1");
+
+    expect(invokeMock).toHaveBeenCalledWith("delete_kimi_session", {
+      workspacePath: "/tmp/workspace",
+      sessionId: "kimi-session-1",
     });
   });
 

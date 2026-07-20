@@ -316,3 +316,35 @@ export async function deleteGeminiSession(workspacePath: string, sessionId: stri
     sessionId,
   });
 }
+
+/**
+ * List Kimi CLI session history for a workspace path.
+ */
+export async function listKimiSessions(workspacePath: string, limit?: number | null): Promise<Record<string, unknown> | unknown[] | null> {
+  return traceStartupInvoke("list_kimi_sessions", "global", () =>
+    invoke<Record<string, unknown> | unknown[] | null>("list_kimi_sessions", {
+      workspacePath,
+      limit: limit ?? null,
+    }),
+  );
+}
+
+/**
+ * Load full message history for a specific Kimi CLI session.
+ */
+export async function loadKimiSession(workspacePath: string, sessionId: string): Promise<Record<string, unknown> | null> {
+  return invoke<Record<string, unknown> | null>("load_kimi_session", {
+    workspacePath,
+    sessionId,
+  });
+}
+
+/**
+ * Delete a Kimi CLI session (remove session file from disk).
+ */
+export async function deleteKimiSession(workspacePath: string, sessionId: string): Promise<void> {
+  return invoke<void>("delete_kimi_session", {
+    workspacePath,
+    sessionId,
+  });
+}

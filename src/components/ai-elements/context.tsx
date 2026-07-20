@@ -151,10 +151,15 @@ export const Context = ({
   </ContextContext.Provider>
 );
 
-const ContextIcon = () => {
-  const context = useContextValue();
+export type ContextUsageIconProps = ComponentProps<"svg"> & {
+  usedPercent: number | null;
+};
+
+export const ContextUsageIcon = ({
+  usedPercent,
+  ...props
+}: ContextUsageIconProps) => {
   const circumference = 2 * Math.PI * ICON_RADIUS;
-  const usedPercent = resolveUsedPercent(context);
   const usedRatio =
     usedPercent === null
       ? 0
@@ -169,6 +174,7 @@ const ContextIcon = () => {
       style={{ color: "currentcolor" }}
       viewBox={`0 0 ${ICON_VIEWBOX} ${ICON_VIEWBOX}`}
       width="20"
+      {...props}
     >
       <circle
         cx={ICON_CENTER}
@@ -200,7 +206,8 @@ export type ContextTriggerProps = ComponentProps<typeof Button>;
 
 export const ContextTrigger = ({ children, ...props }: ContextTriggerProps) => {
   const context = useContextValue();
-  const renderedPercent = formatContextPercent(resolveUsedPercent(context));
+  const usedPercent = resolveUsedPercent(context);
+  const renderedPercent = formatContextPercent(usedPercent);
 
   return (
     <HoverCardTrigger asChild>
@@ -211,7 +218,7 @@ export const ContextTrigger = ({ children, ...props }: ContextTriggerProps) => {
               {renderedPercent}
             </span>
           ) : null}
-          <ContextIcon />
+          <ContextUsageIcon usedPercent={usedPercent} />
         </Button>
       )}
     </HoverCardTrigger>

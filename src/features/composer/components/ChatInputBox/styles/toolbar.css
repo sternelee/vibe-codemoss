@@ -52,16 +52,6 @@
   flex: 0 0 auto;
 }
 
-.button-area-main-surface {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0;
-  flex: 0 0 auto;
-  min-width: 0;
-  height: 32px;
-}
-
 .button-area-readiness-surface {
   display: flex;
   align-items: center;
@@ -91,23 +81,6 @@
   border-bottom: none;
   border-top-left-radius: 0;
   border-top-right-radius: 0;
-  background: transparent;
-}
-
-.button-area-main-surface .context-bar--tool-popover {
-  width: auto;
-}
-
-.button-area-main-surface .context-bar--tool-popover .context-tools,
-.button-area-main-surface .context-bar--tool-popover .context-tools-right {
-  flex: 0 0 auto;
-  gap: 0;
-}
-
-.button-area-main-surface .context-bar--tool-popover .context-dual-usage {
-  height: 32px;
-  padding: 0;
-  border: none;
   background: transparent;
 }
 

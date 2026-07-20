@@ -3,11 +3,17 @@ import type {
   CommitMessageLanguage,
   CommitMessageRepositorySelection,
 } from "../../../services/tauri";
-import type { GitHubIssue, GitHubPullRequest, GitLogEntry } from "../../../types";
+import type {
+  GitFileStatus,
+  GitHubIssue,
+  GitHubPullRequest,
+  GitLogEntry,
+} from "../../../types";
 import type { CodeAnnotationBridgeProps } from "../../code-annotations/types";
 import type { PanelTabId } from "../../layout/components/PanelTabs";
 import type { RepositoryGitStatus } from "../hooks/useMultiRepositoryGitStatus";
 import type { RepositoryCommitSelection } from "./GitMultiRepositoryChanges";
+import type { FileHistoryTarget } from "../../git-history/types";
 
 export type GitModalPreviewRequest = {
   path: string;
@@ -18,6 +24,7 @@ export type GitModalPreviewRequest = {
 export type GitDiffPanelProps = CodeAnnotationBridgeProps & {
   workspaceId?: string | null;
   workspacePath?: string | null;
+  headerControlsTarget?: HTMLElement | null;
   mode: "diff" | "log" | "issues" | "prs";
   onModeChange: (mode: "diff" | "log" | "issues" | "prs") => void;
   diffEntries?: {
@@ -83,24 +90,11 @@ export type GitDiffPanelProps = CodeAnnotationBridgeProps & {
   onPickGitRoot?: () => void | Promise<void>;
   selectedPath?: string | null;
   onSelectFile?: (path: string | null) => void;
-  onOpenFile?: (path: string) => void;
+  onOpenFile?: (path: string, repositoryRoot?: string | null) => void;
+  onOpenFileHistory?: (target: FileHistoryTarget) => void;
   modalPreviewRequest?: GitModalPreviewRequest | null;
-  stagedFiles: {
-    path: string;
-    status: string;
-    additions: number;
-    deletions: number;
-    isDiffOnlyFallback?: boolean;
-    mutationDisabled?: boolean;
-  }[];
-  unstagedFiles: {
-    path: string;
-    status: string;
-    additions: number;
-    deletions: number;
-    isDiffOnlyFallback?: boolean;
-    mutationDisabled?: boolean;
-  }[];
+  stagedFiles: GitFileStatus[];
+  unstagedFiles: GitFileStatus[];
   onStageAllChanges?: () => void | Promise<void>;
   onStageFile?: (path: string) => Promise<void> | void;
   onUnstageFile?: (path: string) => Promise<void> | void;
@@ -138,6 +132,7 @@ export type GitDiffPanelProps = CodeAnnotationBridgeProps & {
   onRefreshRepositoryStatuses?: () => Promise<void> | void;
   onStageRepositoryFile?: (repositoryRoot: string, path: string) => Promise<void>;
   onUnstageRepositoryFile?: (repositoryRoot: string, path: string) => Promise<void>;
+  onRevertRepositoryFile?: (repositoryRoot: string, path: string) => Promise<void>;
   onStageRepositoryAll?: (repositoryRoot: string) => Promise<void>;
   onCommitRepositories?: (selections: RepositoryCommitSelection[]) => Promise<void> | void;
   repositoryCommitSummary?: string | null;

@@ -416,6 +416,7 @@ pub fn engine_event_to_app_server_event_with_turn_context(
                     EngineType::Codex => "codex",
                     EngineType::Gemini => "gemini",
                     EngineType::OpenCode => "opencode",
+                    EngineType::Kimi => "kimi",
                 },
             }
         }),
@@ -1129,7 +1130,10 @@ mod tests {
             mapped.message["params"]["itemId"],
             Value::String("askuserquestion-ask-req-1".to_string())
         );
-        assert_ne!(mapped.message["params"]["itemId"], json!("assistant-item-9"));
+        assert_ne!(
+            mapped.message["params"]["itemId"],
+            json!("assistant-item-9")
+        );
         // turnId still carries the assistant item so turn association is unchanged.
         assert_eq!(
             mapped.message["params"]["turnId"],

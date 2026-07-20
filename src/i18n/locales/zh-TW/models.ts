@@ -30,22 +30,6 @@ const models = {
       "gpt54": {
         "label": "gpt-5.4",
         "description": "適合日常編碼的強大模型。"
-      },
-      "gpt54mini": {
-        "label": "gpt-5.4-mini",
-        "description": "適合較簡單編碼任務的小型、快速且具成本效益的模型。"
-      },
-      "gpt53codex": {
-        "label": "gpt-5.3-codex",
-        "description": "針對編碼最佳化的模型。"
-      },
-      "gpt53codexSpark": {
-        "label": "gpt-5.3-codex-spark",
-        "description": "超快速編碼模型。"
-      },
-      "gpt52": {
-        "label": "gpt-5.2",
-        "description": "針對專業工作與長時間執行的代理最佳化。"
       }
     }
   }

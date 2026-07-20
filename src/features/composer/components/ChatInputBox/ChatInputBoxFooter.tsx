@@ -273,7 +273,6 @@ export function ChatInputBoxFooter({
   selectedNoteCardIds = [],
   shortcutActions,
   readinessSurface,
-  mainSurface,
   toolSurface,
   panelToggleSurface,
   curatedSkillSurface,
@@ -338,7 +337,6 @@ export function ChatInputBoxFooter({
   selectedNoteCardIds?: string[];
   shortcutActions?: ShortcutAction[];
   readinessSurface?: React.ReactNode;
-  mainSurface?: React.ReactNode;
   toolSurface?: React.ReactNode;
   panelToggleSurface?: React.ReactNode;
   curatedSkillSurface?: React.ReactNode;
@@ -568,7 +566,6 @@ export function ChatInputBoxFooter({
         onClearAgent={onClearAgent}
         shortcutActions={shortcutActions}
         readinessSurface={readinessSurface}
-        mainSurface={mainSurface}
         toolSurface={toolSurface}
         panelToggleSurface={panelToggleSurface}
         curatedSkillSurface={curatedSkillSurface}
@@ -979,6 +976,7 @@ export function ChatInputBoxFooter({
         isVisible={agentCompletion.isOpen}
         position={agentCompletion.position}
         width={350}
+        className="completion-dropdown--agent"
         items={agentCompletion.items}
         selectedIndex={agentCompletion.activeIndex}
         loading={agentCompletion.loading}

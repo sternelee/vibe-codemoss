@@ -6,17 +6,17 @@ Defines the git-panel-diff-view behavior contract, covering Dual List View Modes
 ## Requirements
 ### Requirement: Dual List View Modes
 
-The Git panel SHALL keep Diff-specific mode actions discoverable from the `Diff`
-mode menu without requiring a separate always-visible toolbar row.
+The Git panel SHALL keep Diff-specific view actions discoverable from the `Diff`
+mode menu without requiring a separate always-visible toolbar row, and SHALL NOT
+expose repository switching from that menu.
 
-#### Scenario: repository switcher opens from the Diff menu
+#### Scenario: repository switcher is hidden from the Diff menu
 
 - **WHEN** the active Git panel mode is `diff`
 - **AND** repository scanning is available for the workspace
 - **WHEN** the user opens the `Diff` mode menu
-- **THEN** the menu SHALL include an action to switch the Git repository used by the Diff panel
-- **AND** selecting that action SHALL open the existing repository selector panel
-- **AND** the selector SHALL continue using the existing scan, clear, and select repository behavior.
+- **THEN** the menu SHALL NOT include an action to switch the Git repository used by the Diff panel
+- **AND** the existing repository scan, clear, select, and selector-panel contracts SHALL remain available to non-menu callers.
 
 #### Scenario: Git changes section header uses compact neutral controls
 
@@ -25,6 +25,29 @@ mode menu without requiring a separate always-visible toolbar row.
 - **AND** the section count SHALL render with the project shadcn Badge compact secondary treatment
 - **AND** the manual refresh action SHALL stay hidden until the section header is hovered or keyboard-focused, matching the section Stage/Unstage action reveal behavior
 - **AND** modified file status markers shown as `M` SHALL use the warning/yellow status color rather than the info/blue accent.
+
+### Requirement: Multi-Repository Change Section Collapse
+
+The multi-repository Diff surface SHALL provide functional staged and unstaged
+section collapse controls scoped by workspace identity, repository identity, and section type.
+Collapsing a section MUST remain a presentation-only operation.
+
+#### Scenario: collapse one repository section
+
+- **WHEN** the user activates a staged or unstaged section header in a repository group
+- **THEN** that section SHALL update its expanded state and hide its file rows
+- **AND** the header SHALL expose the current state through `aria-expanded`.
+
+#### Scenario: collapse state is independently scoped
+
+- **WHEN** the user collapses one staged or unstaged section
+- **THEN** sections with another type, repository identity, or workspace identity SHALL retain their existing expanded state.
+
+#### Scenario: collapse preserves Git and commit state
+
+- **WHEN** the user collapses or expands a multi-repository section
+- **THEN** the operation SHALL NOT change commit selection
+- **AND** it SHALL NOT invoke stage, unstage, discard, refresh, or file-open behavior.
 
 ### Requirement: Tree Hierarchy Interaction
 
@@ -473,13 +496,20 @@ The session activity surface SHALL show which conversation turn produced which c
 
 ### Requirement: Manual Git Status Refresh Affordance
 
-The Git Diff panel SHALL expose a manual refresh affordance for the active workspace Git status without changing the existing automatic polling cadence.
+The Git Diff panel SHALL expose a manual refresh affordance for the active workspace Git status without changing the existing automatic polling cadence. In multi-repository mode, each rendered repository change group SHALL expose the same aggregate status refresh affordance in its header.
 
 #### Scenario: User manually refreshes Git status
 
 - **WHEN** the Git Diff panel is visible for an active workspace
 - **THEN** the panel SHALL render an icon button with an accessible refresh status label
 - **AND** clicking the button SHALL invoke the existing Git status refresh callback.
+
+#### Scenario: Multi-repository headers retain refresh parity
+
+- **WHEN** the Git Diff panel renders repository change groups in multi-repository mode
+- **THEN** each repository group header SHALL expose a keyboard-accessible refresh icon button
+- **AND** activating any repository header refresh button SHALL invoke the existing aggregate repository status refresh callback
+- **AND** an aggregate refresh already in flight SHALL disable the repository header refresh buttons until it settles.
 
 #### Scenario: Manual refresh reuses existing status path
 
@@ -521,3 +551,352 @@ Git diff file opening MUST 结合 workspace root 与 repository-relative path �
 
 - **WHEN** diff entry 属于 workspace 内的 nested Git repository
 - **THEN** file open action MUST 定位到 nested repository 中的真实文件，而不得打开 parent root 下的同名或不存在路径
+
+### Requirement: Git Diff Changed-File Context Menus SHALL Be Unified
+
+The Git Diff panel SHALL expose the same `Git` context submenu for mutation-enabled changed-file rows in single-repository and multi-repository modes. The menu SHALL reuse the shared renderer context-menu surface and SHALL NOT fall back to the WebView native context menu.
+
+#### Scenario: single and multi repository rows use the same Git submenu
+
+- **WHEN** the user opens the context menu for a status-backed single-repository flat/tree row or multi-repository grouped row
+- **THEN** the system SHALL prevent the WebView native context menu
+- **AND** it SHALL render a root `Git` submenu using the shared `RendererContextMenu`
+- **AND** repository topology SHALL NOT change the submenu presentation or action ordering.
+
+#### Scenario: staged row exposes only unstage
+
+- **WHEN** the user opens the Git submenu for a staged changed-file row
+- **THEN** the submenu SHALL expose `Unstage file`
+- **AND** it SHALL NOT expose Stage or Discard actions for that staged row.
+
+#### Scenario: unstaged row exposes stage and discard
+
+- **WHEN** the user opens the Git submenu for an unstaged changed-file row
+- **THEN** the submenu SHALL expose `Stage file`
+- **AND** it SHALL expose `Discard change` with destructive visual semantics
+- **AND** it SHALL NOT expose Unstage for that unstaged row.
+
+#### Scenario: disabled mutation row does not expose Git mutations
+
+- **WHEN** a changed-file row is diff-only, `mutationDisabled`, stale, or has no available mutation callback
+- **THEN** the system SHALL prevent the WebView native context menu
+- **AND** it SHALL NOT expose Stage, Unstage, or Discard actions.
+
+#### Scenario: opening a menu is presentation-only
+
+- **WHEN** the user opens, navigates, dismisses, or cancels a changed-file context menu
+- **THEN** the system SHALL NOT open the file, change commit inclusion, collapse a section, or refresh Git status
+- **AND** it SHALL NOT execute a mutation until the user activates a concrete menu item.
+
+#### Scenario: topology changes invalidate an open file menu
+
+- **WHEN** the workspace, repository status topology, file section, mutation availability, or scoped callback changes while a changed-file context menu is open
+- **THEN** the system SHALL close that file context menu
+- **AND** the stale menu action SHALL NOT remain activatable against its previous target.
+
+### Requirement: Git Diff File Context Actions MUST Preserve Repository And Section Scope
+
+Every Git Diff file context action MUST target the clicked row's workspace, explicit repository identity, section, normalized repository-relative path, and operation. Context-menu actions SHALL reuse existing mutation, confirmation, and refresh paths instead of invoking a parallel Git service flow.
+
+#### Scenario: same relative path in two repositories stays isolated
+
+- **WHEN** two repository groups contain the same repository-relative path
+- **AND** the user activates a context action on the second repository's row
+- **THEN** the mutation callback MUST receive the second row's `repositoryRoot + path`
+- **AND** it MUST NOT mutate the first repository.
+
+#### Scenario: workspace-root repository identity remains explicit
+
+- **WHEN** a multi-repository row belongs to `repositoryRoot === ""`
+- **THEN** its context action MUST preserve the empty string as explicit workspace-root identity
+- **AND** it MUST NOT fall back to a configured nested repository.
+
+#### Scenario: same path in staged and unstaged sections follows clicked section
+
+- **WHEN** the same path has staged and unstaged evidence
+- **AND** the user opens the context menu on one section's row
+- **THEN** the action matrix MUST be derived from the clicked section
+- **AND** path-only matching MUST NOT expose operations from the sibling section.
+
+#### Scenario: single repository bulk target remains section-local
+
+- **WHEN** multiple selected rows include the context-menu target
+- **THEN** a bulk context action MUST include only mutation-enabled selected paths from the clicked section
+- **AND** it MUST NOT mutate selected paths from another section or repository.
+
+#### Scenario: discard reuses confirmation and refresh
+
+- **WHEN** the user activates Discard from an unstaged file context menu
+- **THEN** the existing destructive confirmation dialog SHALL open before mutation
+- **AND** cancel SHALL perform zero mutations
+- **AND** confirm SHALL execute the existing current-repository or explicit-repository revert path
+- **AND** a successful multi-repository revert SHALL refresh aggregate repository status exactly once.
+
+#### Scenario: multi repository stage and unstage refresh once
+
+- **WHEN** a multi-repository Stage or Unstage context action succeeds
+- **THEN** the existing scoped mutation callback SHALL receive `repositoryRoot + path`
+- **AND** the aggregate repository status refresh callback SHALL run exactly once.
+
+### Requirement: Git Diff File Context Menu SHALL Expose Clicked-File History
+
+The Git Diff panel SHALL expose `Git -> 显示文件历史` for a changed-file row when the host provides File History navigation and the row can be mapped to a valid workspace/repository/file identity. The History action MUST remain read-only and MUST target the clicked row rather than the current bulk mutation selection.
+
+#### Scenario: Single root repository row opens file history
+
+- **WHEN** the user activates `显示文件历史` for a single-repository changed-file row whose Git root is the workspace root
+- **THEN** the system SHALL open File History with the active `workspaceId/workspacePath`
+- **AND** it SHALL use `repositoryRoot=""` and the normalized repository-relative clicked path.
+
+#### Scenario: Single nested repository row opens file history
+
+- **WHEN** the active single repository is nested below the workspace root
+- **AND** the user activates `显示文件历史` for one of its changed-file rows
+- **THEN** the target SHALL use the normalized workspace-relative repository root
+- **AND** `path` SHALL remain repository-relative while `displayPath` SHALL be workspace-relative.
+
+#### Scenario: Multi repository row preserves explicit identity
+
+- **WHEN** two repository groups contain the same relative path
+- **AND** the user activates History on one group
+- **THEN** the target MUST preserve that row's exact `repositoryRoot + path`
+- **AND** `repositoryRoot=""` MUST remain an explicit workspace-root identity.
+
+#### Scenario: History ignores bulk mutation selection
+
+- **WHEN** multiple single-repository changed files are selected
+- **AND** the user activates History from one clicked row
+- **THEN** the system SHALL open exactly the clicked file's history
+- **AND** it SHALL NOT derive the History target from the selected path collection.
+
+#### Scenario: Read-only history remains available without mutations
+
+- **WHEN** a valid status-backed row is diff-only or `mutationDisabled`
+- **AND** the host provides File History navigation
+- **THEN** the Git submenu SHALL expose `显示文件历史`
+- **AND** it SHALL NOT expose Stage, Unstage, or Discard.
+
+#### Scenario: Invalid history capability does not create a dead entry
+
+- **WHEN** the host callback, workspace identity, repository scope, or valid relative path is unavailable
+- **THEN** the system SHALL omit `显示文件历史`
+- **AND** it SHALL preserve any independently available mutation actions.
+
+#### Scenario: History menu target becomes stale
+
+- **WHEN** workspace path, repository topology, or File History callback identity changes while a Git Diff file menu is open
+- **THEN** the system SHALL close that file menu
+- **AND** the previous History target SHALL NOT remain activatable.
+
+### Requirement: Git changed-file surfaces share one renderer contract
+主 Source Control、Git History worktree 与 commit details changed-file surfaces MUST 通过 canonical adapter 使用同一 flat/tree topology、file row 与 folder row renderer；页面容器 MUST NOT 维护等价的平行 row/tree JSX。
+
+#### Scenario: Worktree surfaces render the same file model
+- **WHEN** 主 Source Control 与 Git History worktree 展示同一组 staged/unstaged files
+- **THEN** 两处 MUST 使用相同 status、path、folder、keyboard activation 与 collapse semantics
+
+#### Scenario: Commit details uses read-only shared rows
+- **WHEN** commit details 展示 historical changed files
+- **THEN** 它 MUST 使用相同 shared renderer，并仅通过 adapter 禁用 worktree mutation actions
+
+### Requirement: Shared changed-file renderer preserves domain actions
+共享 renderer MUST 通过 typed callbacks/slots 接收 selection、inclusion、stage、unstage、discard 与 preview commands，且 MUST NOT 自行执行 Git service calls。
+
+#### Scenario: Worktree action remains scoped
+- **WHEN** 用户在 shared row 点击 stage、unstage、discard 或 inclusion control
+- **THEN** renderer MUST 调用所属页面注入的 command，并阻止 row activation 抢占该 action
+
+### Requirement: Git panel groups changed files by repository when necessary
+The Git panel MUST use repository grouping only when multiple dirty repositories are visible, while preserving the existing single-repository file list contract。
+
+#### Scenario: Single repository file list
+- **WHEN** commit workspace contains exactly one dirty repository
+- **THEN** file rows SHALL preserve existing flat/tree layout、status、preview 与 inclusion controls
+- **AND** no redundant repository group header SHALL be rendered
+
+#### Scenario: Multi repository file list
+- **WHEN** commit workspace contains multiple dirty repositories
+- **THEN** each repository SHALL have an accessible group header with repository name、branch and file count
+- **AND** file rows within the group SHALL preserve existing status、preview and inclusion controls
+
+### Requirement: Repository group selection composes with file selection
+Repository headers and file rows MUST expose one coherent tri-state selection model scoped to their repository。
+
+#### Scenario: Toggle an entire repository group
+- **WHEN** user toggles a repository group inclusion control
+- **THEN** all committable files in that repository SHALL change inclusion state
+- **AND** files in other repositories SHALL remain unchanged
+
+#### Scenario: Repository group is partially selected
+- **WHEN** only part of a repository's committable files are included
+- **THEN** repository header SHALL expose mixed selection state
+
+### Requirement: Multi-Repository Changed-File Direct Opens MUST Preserve Repository Identity
+
+The Git Diff panel MUST carry the owning `repositoryRoot` with every multi-repository changed-file direct-open request until the repository-relative path is projected into the shared workspace-relative editor path.
+
+#### Scenario: Click a changed file in a nested repository
+
+- **WHEN** 用户单击 multi-repository changed-file row
+- **THEN** editor MUST open the file under that row's owning `repositoryRoot`
+- **AND** the open action MUST NOT depend on or mutate the configured single-repository `gitRoot`
+
+#### Scenario: Same relative path exists in different repositories
+
+- **WHEN** two repositories each expose a changed file with the same repository-relative path
+- **AND** 用户依次单击两个 rows
+- **THEN** each open request MUST resolve to its distinct workspace-relative path
+- **AND** one repository MUST NOT reuse the other repository's tab identity
+
+#### Scenario: Workspace-root repository is explicitly selected by the row
+
+- **WHEN** a multi-repository row belongs to the workspace-root repository represented by an empty `repositoryRoot`
+- **THEN** its repository-relative path MUST remain workspace-relative without an added nested-root prefix
+- **AND** a configured nested `gitRoot` MUST NOT override the explicit workspace-root identity
+
+#### Scenario: Existing single-repository file open remains compatible
+
+- **WHEN** a single-repository changed-file caller omits a repository override
+- **THEN** the editor MUST continue resolving Git-domain paths through the configured `gitRoot`
+- **AND** non-Git file entrypoints MUST continue treating their paths as workspace-domain inputs
+
+### Requirement: Multi-Repository File Actions MUST Keep One Repository Scope Contract
+
+Every multi-repository changed-file action that consumes a repository-relative path MUST either carry its owning `repositoryRoot` or intentionally operate on an already projected workspace-relative path.
+
+#### Scenario: Repository-aware action audit
+
+- **WHEN** direct open, modal preview, stage, unstage, commit selection, file tree decoration and file history entrypoints are exercised for multiple repositories
+- **THEN** each Git-domain action MUST preserve the owning repository identity
+- **AND** changed-file direct-open handlers MUST NOT be replaced by noop adapters
+
+### Requirement: Multi-Repository Changed-File Preview Preserves Repository Identity
+
+The Git Diff panel MUST open multi-repository changed-file modal previews using repository-scoped identity and MUST reuse the canonical editable review surface.
+
+#### Scenario: Open preview from a multi-repository file row
+
+- **WHEN** 用户点击 multi-repository changed-file row 的 modal preview action
+- **THEN** Git Diff panel MUST 打开现有 unified preview modal
+- **AND** patch 与 full-context diff reads MUST 使用该 row 所属的 `repositoryRoot`
+- **AND** workspace edit target MUST resolve through the same repository root
+
+#### Scenario: Same relative path exists in different repositories
+
+- **WHEN** 两个 repository 都包含相同 repository-relative `filePath`
+- **AND** 用户依次请求两个文件的 preview
+- **THEN** modal MUST 展示最后一次请求 repository 的 diff
+- **AND** earlier stale response MUST NOT overwrite the latest preview state
+
+#### Scenario: Single-repository preview remains unchanged
+
+- **WHEN** Git Diff panel 不处于 multi-repository mode
+- **THEN** changed-file preview MUST continue using the existing single-repository `diffEntries` path
+- **AND** system MUST NOT add a repository-scoped diff request to that existing activation path
+
+#### Scenario: Selected single-repository preview loads editable baseline
+
+- **WHEN** 左侧 Git panel 已选择 explicit `gitRoot` 并打开 changed-file preview
+- **THEN** existing `diffEntries` MUST 继续作为 patch source
+- **AND** editable compare baseline/full-context reads MUST 使用当前 `gitRoot`
+- **AND** loading MUST settle to content or an explicit unavailable/error state
+
+#### Scenario: Preview context changes while a request is in flight
+
+- **WHEN** preview 打开或 repository-scoped request pending 时 `workspaceId`、single/multi mode 或 single-mode `gitRoot` 发生变化
+- **THEN** previous request generation MUST become stale
+- **AND** previous modal MUST close before it can edit against the new workspace context
+- **AND** a late response MUST NOT reopen or overwrite preview state
+
+### Requirement: Multi-Repository Change Groups Match Single-Repository Density
+
+Multi-repository repository groups MUST preserve the shared changed-file renderer and SHALL use the single-repository file-row density baseline.
+
+#### Scenario: Repository header uses compact file-row dimensions
+
+- **WHEN** multi-repository change groups are rendered
+- **THEN** each repository header SHALL use the shared `26px` file-row minimum-height baseline and shared typography/padding tokens
+- **AND** repository metadata SHALL remain truncated and readable within a narrow Git side panel
+
+#### Scenario: Changed-file rows do not gain multi-repository scaling
+
+- **WHEN** staged or unstaged files render inside a repository group
+- **THEN** file and folder rows MUST keep the same shared renderer dimensions used by single-repository mode
+- **AND** multi-repository CSS MUST NOT introduce larger row-specific font size, icon size, or vertical padding
+
+### Requirement: Desktop Git Mode Selector SHALL Live In The Right Panel Toolbar
+
+Desktop right panel SHALL render the existing Git mode selector in the toolbar layer when the Git tab is active, without changing the selector's behavior or the responsive panel-tab contract.
+
+#### Scenario: Active Git tab places selector before panel tabs
+
+- **WHEN** the desktop right panel active tab is `git`
+- **THEN** the current Git mode selector SHALL render in the `right-panel-toolbar` leading slot
+- **AND** the responsive panel tabs SHALL remain in the same toolbar after that slot
+- **AND** the Git content area SHALL NOT reserve an empty selector row when no other floating Git action is present.
+
+#### Scenario: Non-Git tab does not retain selector
+
+- **WHEN** the desktop right panel active tab changes from `git` to another tab
+- **THEN** the toolbar SHALL NOT retain the Git mode selector or its menu
+- **AND** the selected Git mode SHALL remain owned by the existing Git panel state.
+
+#### Scenario: Current selector capabilities remain reachable
+
+- **WHEN** the user opens or operates the relocated selector
+- **THEN** Diff, Issues, Pull Requests, flat/tree list view, and the Git Graph action SHALL invoke their existing callbacks
+- **AND** the hidden `log` mode SHALL remain compatible with non-menu callers
+- **AND** outside click, Escape close with focus restore, configured list-view shortcut, and active-state accessibility semantics SHALL remain available.
+
+#### Scenario: Lazy target fallback preserves reachability
+
+- **WHEN** the Git panel renders before the toolbar mount target is available
+- **THEN** the selector SHALL remain available through its existing inline location
+- **AND** once the target becomes available the same selector behavior SHALL move to the toolbar without duplicated controls.
+
+#### Scenario: Narrow and swapped desktop layouts remain usable
+
+- **WHEN** the right panel is narrow or the desktop layout is swapped
+- **THEN** the selector and responsive panel tabs SHALL remain within the toolbar layout
+- **AND** the selector menu SHALL remain visible within the right panel bounds without horizontal overflow or toolbar clipping.
+
+#### Scenario: Worktree action remains independent
+
+- **WHEN** the Git panel exposes a worktree apply action
+- **THEN** that action SHALL remain in its existing Git content action row
+- **AND** relocating the mode selector SHALL NOT hide, move, or alter the worktree action callback.
+
+### Requirement: Diff mode menu MUST expose one Git Graph history entry
+
+The Git Diff mode menu MUST expose the existing Git History panel through a single `Git Graph` action and MUST keep the legacy `log` mode compatible with non-menu callers.
+
+#### Scenario: menu presents one Git history navigation action
+
+- **WHEN** the user opens the Git Diff mode menu
+- **THEN** the menu SHALL show a `Git Graph` action with the `GitCommitHorizontal` icon
+- **AND** the menu SHALL NOT show the legacy `Git` (`log`) selectable option
+
+#### Scenario: Git Graph preserves the existing navigation callback
+
+- **WHEN** the user activates the `Git Graph` action
+- **THEN** the UI SHALL invoke the existing `onOpenGitHistoryPanel` callback exactly once
+- **AND** no Git data operation SHALL be triggered directly by the menu action
+
+#### Scenario: hidden log option remains compatible
+
+- **WHEN** a non-menu caller activates the existing `log` mode
+- **THEN** the panel MUST retain its existing `log` mode metadata and render behavior
+- **AND** the UI-only menu change MUST NOT remove or alter the `log` mode type, state, callback, or data flow
+
+#### Scenario: Sidebar uses the same Git Graph presentation
+
+- **WHEN** the Sidebar settings menu renders its Git History action
+- **THEN** the action SHALL use the `Git Graph` label and `GitCommitHorizontal` icon
+- **AND** activating it SHALL preserve the existing `onAppModeChange` and menu-close behavior
+
+#### Scenario: Git Graph quick action is visually emphasized
+
+- **WHEN** the Git Diff mode menu renders the `Git Graph` action
+- **THEN** its label SHALL use bold weight and a theme-aware accent color
+- **AND** its icon SHALL use the same accent color across normal, hover, focus, and active states
+- **AND** adjacent menu items SHALL retain their existing typography and color

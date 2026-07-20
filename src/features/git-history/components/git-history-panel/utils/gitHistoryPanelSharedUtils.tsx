@@ -1,14 +1,12 @@
 import type { ReactNode } from "react";
 import type { GitCommitFileChange } from "../../../../../types";
+import {
+  buildDiffTree,
+  compactDiffTree,
+  type DiffTreeFolderNode,
+} from "../../../../git/utils/diffTree";
 
-const FILE_TREE_ROOT_PATH = "__repo_root__";
-
-type FileTreeNode = {
-  name: string;
-  path: string;
-  dirs: Map<string, FileTreeNode>;
-  files: GitCommitFileChange[];
-};
+const FILE_TREE_ROOT_PATH = "/";
 
 type FileTreeItem =
   | {
@@ -141,7 +139,7 @@ export function getPathLeafName(path: string | null | undefined): string {
 export function collectDirPaths(files: GitCommitFileChange[]): Set<string> {
   const paths = new Set<string>([FILE_TREE_ROOT_PATH]);
   for (const file of files) {
-    const parts = file.path.split("/").filter(Boolean);
+    const parts = file.path.replace(/\\/g, "/").split("/").filter(Boolean);
     let current = "";
     for (let index = 0; index < parts.length - 1; index += 1) {
       const part = parts[index] ?? "";
@@ -174,69 +172,25 @@ export function buildFileTreeItems(
   expandedDirs: Set<string>,
   rootLabel?: string,
 ): FileTreeItem[] {
-  const root: FileTreeNode = {
-    name: "",
-    path: "",
-    dirs: new Map<string, FileTreeNode>(),
-    files: [],
-  };
-
-  for (const file of files) {
-    const parts = file.path.split("/").filter(Boolean);
-    if (!parts.length) {
-      root.files.push(file);
-      continue;
-    }
-
-    let node = root;
-    let currentPath = "";
-    for (let index = 0; index < parts.length - 1; index += 1) {
-      const part = parts[index] ?? "";
-      currentPath = currentPath ? `${currentPath}/${part}` : part;
-      let child = node.dirs.get(part);
-      if (!child) {
-        child = {
-          name: part,
-          path: currentPath,
-          dirs: new Map<string, FileTreeNode>(),
-          files: [],
-        };
-        node.dirs.set(part, child);
-      }
-      node = child;
-    }
-    node.files.push(file);
-  }
-
+  const root = compactDiffTree(buildDiffTree(files, "git-history"));
   const items: FileTreeItem[] = [];
 
-  const collapseDirChain = (
-    start: FileTreeNode,
-  ): { node: FileTreeNode; label: string; path: string } => {
-    return {
-      node: start,
-      label: start.name,
-      path: start.path,
-    };
-  };
-
-  const walk = (node: FileTreeNode, depth: number) => {
-    const dirs = Array.from(node.dirs.values()).sort((a, b) =>
+  const walk = (node: DiffTreeFolderNode<GitCommitFileChange>, depth: number) => {
+    const dirs = Array.from(node.folders.values()).sort((a, b) =>
       a.name.localeCompare(b.name),
     );
     for (const dir of dirs) {
-      const collapsed = collapseDirChain(dir);
-      const expanded = expandedDirs.has(collapsed.path);
+      const expanded = expandedDirs.has(dir.path);
       items.push({
-        id: `dir:${collapsed.path}`,
+        id: `dir:${dir.path}`,
         type: "dir",
-        label: collapsed.label,
-        path: collapsed.path,
+        label: dir.name,
+        path: dir.path,
         depth,
         expanded,
       });
       if (expanded) {
-        walk(collapsed.node, depth + 1);
+        walk(dir, depth + 1);
       }
     }
 
@@ -244,7 +198,7 @@ export function buildFileTreeItems(
       a.path.localeCompare(b.path),
     );
     for (const file of leafFiles) {
-      const segments = file.path.split("/").filter(Boolean);
+      const segments = file.path.replace(/\\/g, "/").split("/").filter(Boolean);
       const label = segments[segments.length - 1] ?? file.path;
       items.push({
         id: `file:${buildFileKey(file)}`,

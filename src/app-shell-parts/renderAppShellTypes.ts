@@ -52,6 +52,7 @@ export type RenderAppShellFlattenedContext = {
   directories: any;
   doctor: any;
   claudeDoctor: any;
+  kimiDoctor: any;
   editorSplitCompanion: any;
   editorSplitLayout: any;
   engineStatuses: any;

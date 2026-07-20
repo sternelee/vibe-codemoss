@@ -63,19 +63,18 @@ pub(crate) async fn get_git_status(
     let mut total_additions = 0i64;
     let mut total_deletions = 0i64;
     for entry in statuses.iter() {
-        let path = entry.path().unwrap_or("");
-        if path.is_empty() {
+        let entry_path = entry.path().unwrap_or("");
+        if entry_path.is_empty() {
             continue;
         }
         if let Some(index) = index.as_ref() {
-            if let Some(entry) = index.get_path(Path::new(path), 0) {
+            if let Some(entry) = index.get_path(Path::new(entry_path), 0) {
                 if entry.flags_extended & INDEX_SKIP_WORKTREE_FLAG != 0 {
                     continue;
                 }
             }
         }
         let status = entry.status();
-        let normalized_path = normalize_git_path(path);
         let include_index = status.intersects(
             Status::INDEX_NEW
                 | Status::INDEX_MODIFIED
@@ -90,20 +89,28 @@ pub(crate) async fn get_git_status(
                 | Status::WT_RENAMED
                 | Status::WT_TYPECHANGE,
         );
-        let should_compute_path_diff_stats =
-            should_compute_diff_stats && !should_skip_diff_stats(&repo_root, path);
+        let index_identity = include_index
+            .then(|| git_status_path_identity(&entry, GitStatusLayer::Index))
+            .flatten();
+        let workdir_identity = include_workdir
+            .then(|| git_status_path_identity(&entry, GitStatusLayer::Workdir))
+            .flatten();
         let mut combined_additions = 0i64;
         let mut combined_deletions = 0i64;
 
-        if include_index {
+        if let Some(identity) = index_identity.as_ref() {
+            let should_compute_path_diff_stats =
+                should_compute_diff_stats && !should_skip_diff_stats(&repo_root, &identity.path);
             let (additions, deletions) = if should_compute_path_diff_stats {
-                diff_stats_for_path(&repo, head_tree.as_ref(), path, true, false).unwrap_or((0, 0))
+                diff_stats_for_identity(&repo, head_tree.as_ref(), identity, GitStatusLayer::Index)
+                    .unwrap_or((0, 0))
             } else {
                 (0, 0)
             };
             if let Some(status_str) = status_for_index(status) {
                 staged_files.push(GitFileStatus {
-                    path: normalized_path.clone(),
+                    path: identity.path.clone(),
+                    old_path: identity.old_path.clone(),
                     status: status_str.to_string(),
                     additions,
                     deletions,
@@ -115,15 +122,24 @@ pub(crate) async fn get_git_status(
             total_deletions += deletions;
         }
 
-        if include_workdir {
+        if let Some(identity) = workdir_identity.as_ref() {
+            let should_compute_path_diff_stats =
+                should_compute_diff_stats && !should_skip_diff_stats(&repo_root, &identity.path);
             let (additions, deletions) = if should_compute_path_diff_stats {
-                diff_stats_for_path(&repo, head_tree.as_ref(), path, false, true).unwrap_or((0, 0))
+                diff_stats_for_identity(
+                    &repo,
+                    head_tree.as_ref(),
+                    identity,
+                    GitStatusLayer::Workdir,
+                )
+                .unwrap_or((0, 0))
             } else {
                 (0, 0)
             };
             if let Some(status_str) = status_for_workdir(status) {
                 unstaged_files.push(GitFileStatus {
-                    path: normalized_path.clone(),
+                    path: identity.path.clone(),
+                    old_path: identity.old_path.clone(),
                     status: status_str.to_string(),
                     additions,
                     deletions,
@@ -135,12 +151,13 @@ pub(crate) async fn get_git_status(
             total_deletions += deletions;
         }
 
-        if include_index || include_workdir {
+        if let Some(identity) = workdir_identity.as_ref().or(index_identity.as_ref()) {
             let status_str = status_for_workdir(status)
                 .or_else(|| status_for_index(status))
                 .unwrap_or("--");
             files.push(GitFileStatus {
-                path: normalized_path,
+                path: identity.path.clone(),
+                old_path: identity.old_path.clone(),
                 status: status_str.to_string(),
                 additions: combined_additions,
                 deletions: combined_deletions,
@@ -199,7 +216,7 @@ pub(crate) async fn stage_git_file(
     let repo_root = resolve_git_root_for_scope(&entry, repository_root.as_deref())?;
     // If libgit2 reports a rename, we want a single UI action to stage both the
     // old + new paths so the change actually moves to the staged section.
-    for path in action_paths_for_file(&repo_root, &path) {
+    for path in action_paths_for_file(&repo_root, &path, GitStatusLayer::Workdir) {
         run_git_command(&repo_root, &["add", "-A", "--", &path]).await?;
     }
     Ok(())
@@ -259,7 +276,7 @@ pub(crate) async fn unstage_git_file(
     };
 
     let repo_root = resolve_git_root_for_scope(&entry, repository_root.as_deref())?;
-    for path in action_paths_for_file(&repo_root, &path) {
+    for path in action_paths_for_file(&repo_root, &path, GitStatusLayer::Index) {
         run_git_command(&repo_root, &["restore", "--staged", "--", &path]).await?;
     }
     Ok(())
@@ -291,7 +308,7 @@ pub(crate) async fn revert_git_file(
     };
 
     let repo_root = resolve_git_root_for_scope(&entry, repository_root.as_deref())?;
-    for path in action_paths_for_file(&repo_root, &path) {
+    for path in action_paths_for_file(&repo_root, &path, GitStatusLayer::Workdir) {
         if run_git_command(
             &repo_root,
             &["restore", "--staged", "--worktree", "--", &path],
@@ -476,6 +493,7 @@ pub(crate) async fn get_git_push_preview(
                 .map(|parent| parent.id().to_string())
                 .collect(),
             refs: refs_map.get(&oid).cloned().unwrap_or_default(),
+            file_path: None,
         });
     }
 
@@ -887,7 +905,7 @@ pub(crate) async fn get_git_diffs(
             .recurse_untracked_dirs(true)
             .show_untracked_content(true);
 
-        let diff = match head_tree.as_ref() {
+        let mut diff = match head_tree.as_ref() {
             Some(tree) => repo
                 .diff_tree_to_workdir_with_index(Some(tree), Some(&mut options))
                 .map_err(|e| e.to_string())?,
@@ -895,6 +913,7 @@ pub(crate) async fn get_git_diffs(
                 .diff_tree_to_workdir_with_index(None, Some(&mut options))
                 .map_err(|e| e.to_string())?,
         };
+        find_git_diff_renames(&mut diff).map_err(|e| e.to_string())?;
 
         let mut results = Vec::new();
         let mut total_diff_bytes = 0usize;
@@ -1048,17 +1067,19 @@ pub(crate) async fn get_git_file_full_diff(
 
     let repo_root = resolve_git_root_for_scope(&entry, repository_root.as_deref())?;
     let normalized_path = normalize_git_path(&path);
+    let diff_paths = git_diff_paths_for_file(&repo_root, &normalized_path);
     let full_diff = {
-        let args = [
-            "diff",
-            "HEAD",
-            "--unified=999999",
-            "--",
-            normalized_path.as_str(),
+        let mut args = vec![
+            "diff".to_string(),
+            "--find-renames".to_string(),
+            "--unified=999999".to_string(),
+            "HEAD".to_string(),
+            "--".to_string(),
         ];
+        args.extend(diff_paths.iter().cloned());
         let git_bin = resolve_git_binary().map_err(|e| format!("Failed to run git: {e}"))?;
         let output = crate::utils::async_command(git_bin)
-            .args(args)
+            .args(&args)
             .current_dir(&repo_root)
             .env("PATH", git_env_path())
             .output()
@@ -1080,15 +1101,17 @@ pub(crate) async fn get_git_file_full_diff(
         let head_tree = repo.head().ok().and_then(|head| head.peel_to_tree().ok());
 
         let mut options = DiffOptions::new();
+        for path in &diff_paths {
+            options.pathspec(path);
+        }
         options
-            .pathspec(&normalized_path)
             .include_untracked(true)
             .recurse_untracked_dirs(true)
             .show_untracked_content(true)
             .context_lines(200_000)
             .interhunk_lines(200_000);
 
-        let diff = match head_tree.as_ref() {
+        let mut diff = match head_tree.as_ref() {
             Some(tree) => repo
                 .diff_tree_to_workdir_with_index(Some(tree), Some(&mut options))
                 .map_err(|e| e.to_string())?,
@@ -1096,6 +1119,7 @@ pub(crate) async fn get_git_file_full_diff(
                 .diff_tree_to_workdir_with_index(None, Some(&mut options))
                 .map_err(|e| e.to_string())?,
         };
+        find_git_diff_renames(&mut diff).map_err(|e| e.to_string())?;
 
         for (index, _delta) in diff.deltas().enumerate() {
             let patch = match git2::Patch::from_diff(&diff, index) {
@@ -1117,6 +1141,36 @@ pub(crate) async fn get_git_file_full_diff(
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub(crate) async fn get_git_file_blame(
+    workspace_id: String,
+    path: String,
+    repository_root: Option<String>,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<GitFileBlameResponse, String> {
+    if should_forward_git_remote(&state).await {
+        return forward_git_remote(
+            &state,
+            &app,
+            "get_git_file_blame",
+            json!({ "workspaceId": workspace_id.clone(), "path": path.clone(), "repositoryRoot": repository_root.clone() }),
+        )
+        .await;
+    }
+    let workspaces = state.workspaces.lock().await;
+    let entry = workspaces
+        .get(&workspace_id)
+        .ok_or("workspace not found")?
+        .clone();
+    drop(workspaces);
+
+    let repo_root = resolve_git_root_for_scope(&entry, repository_root.as_deref())?;
+    tokio::task::spawn_blocking(move || build_git_file_blame(&repo_root, &path))
+        .await
+        .map_err(|error| format!("Git blame worker failed: {error}"))?
 }
 
 #[tauri::command]
@@ -1250,6 +1304,7 @@ pub(crate) async fn get_git_commit_history(
     date_from: Option<i64>,
     date_to: Option<i64>,
     snapshot_id: Option<String>,
+    path: Option<String>,
     offset: Option<usize>,
     limit: Option<usize>,
     repository_root: Option<String>,
@@ -1257,7 +1312,7 @@ pub(crate) async fn get_git_commit_history(
     state: State<'_, AppState>,
 ) -> Result<GitHistoryResponse, String> {
     if should_forward_git_remote(&state).await {
-        return forward_git_remote(&state, &app, "get_git_commit_history", json!({ "workspaceId": workspace_id.clone(), "branch": branch.clone(), "query": query.clone(), "author": author.clone(), "dateFrom": date_from, "dateTo": date_to, "snapshotId": snapshot_id.clone(), "offset": offset, "limit": limit, "repositoryRoot": repository_root.clone() })).await;
+        return forward_git_remote(&state, &app, "get_git_commit_history", json!({ "workspaceId": workspace_id.clone(), "branch": branch.clone(), "query": query.clone(), "author": author.clone(), "dateFrom": date_from, "dateTo": date_to, "snapshotId": snapshot_id.clone(), "path": path.clone(), "offset": offset, "limit": limit, "repositoryRoot": repository_root.clone() })).await;
     }
     let workspaces = state.workspaces.lock().await;
     let entry = workspaces
@@ -1267,47 +1322,35 @@ pub(crate) async fn get_git_commit_history(
     drop(workspaces);
 
     let repo_root = resolve_git_root_for_scope(&entry, repository_root.as_deref())?;
+    let branch_filter = branch.map(|value| value.trim().to_string());
+    let branch_filter = branch_filter.filter(|value| !value.is_empty());
+    let path_filter = path
+        .as_deref()
+        .map(crate::shared::git_core::normalize_file_history_path)
+        .transpose()?;
+    let file_history_entries = if let Some(path) = path_filter.as_deref() {
+        Some(
+            crate::shared::git_core::list_file_history_entries(
+                &repo_root,
+                branch_filter.as_deref(),
+                path,
+            )
+            .await?,
+        )
+    } else {
+        None
+    };
     let repo = open_repository_at_root(&repo_root)?;
     let mut revwalk = repo.revwalk().map_err(|e| e.to_string())?;
     revwalk
         .set_sorting(Sort::TOPOLOGICAL | Sort::TIME)
         .map_err(|e| e.to_string())?;
 
-    let branch_filter = branch.map(|value| value.trim().to_string());
-    let branch_filter = branch_filter.filter(|value| !value.is_empty());
-    let mut has_ref = false;
-    if let Some(selected_branch) = branch_filter.as_ref() {
-        let lower = selected_branch.to_lowercase();
-        if lower == "all" || lower == "*" {
-            if revwalk.push_glob("refs/heads/*").is_ok() {
-                has_ref = true;
-            }
-            if revwalk.push_glob("refs/remotes/*").is_ok() {
-                has_ref = true;
-            }
-        } else {
-            let local_ref = format!("refs/heads/{selected_branch}");
-            if let Ok(oid) = repo.refname_to_id(&local_ref) {
-                revwalk.push(oid).map_err(|e| e.to_string())?;
-                has_ref = true;
-            } else {
-                let remote_ref = format!("refs/remotes/{selected_branch}");
-                if let Ok(oid) = repo.refname_to_id(&remote_ref) {
-                    revwalk.push(oid).map_err(|e| e.to_string())?;
-                    has_ref = true;
-                } else if let Ok(object) = repo.revparse_single(selected_branch) {
-                    revwalk.push(object.id()).map_err(|e| e.to_string())?;
-                    has_ref = true;
-                }
-            }
-            if !has_ref {
-                return Err(format!("Branch or ref not found: {selected_branch}"));
-            }
-        }
-    }
-    if !has_ref {
-        revwalk.push_head().map_err(|e| e.to_string())?;
-    }
+    crate::shared::git_core::push_git_history_branch_scope(
+        &repo,
+        &mut revwalk,
+        branch_filter.as_deref(),
+    )?;
 
     let offset = offset.unwrap_or(0);
     let limit = limit.unwrap_or(100).clamp(1, 500);
@@ -1328,14 +1371,15 @@ pub(crate) async fn get_git_commit_history(
         .and_then(|head| head.target())
         .map(|oid| oid.to_string())
         .unwrap_or_else(|| "detached".to_string());
-    let current_snapshot_id = format!(
-        "{}:{}:{}:{}:{}:{}",
-        head_sha,
-        branch_filter.clone().unwrap_or_else(|| "HEAD".to_string()),
-        query_filter.clone().unwrap_or_default(),
-        author_filter.clone().unwrap_or_default(),
-        date_from.unwrap_or_default(),
-        date_to.unwrap_or_default()
+    let current_snapshot_id = crate::shared::git_core::build_git_history_snapshot_id(
+        &head_sha,
+        branch_filter.as_deref(),
+        query_filter.as_deref(),
+        author_filter.as_deref(),
+        date_from,
+        date_to,
+        repository_root.as_deref(),
+        path_filter.as_deref(),
     );
     if let Some(previous_snapshot_id) = provided_snapshot_id {
         if previous_snapshot_id != current_snapshot_id {
@@ -1344,8 +1388,21 @@ pub(crate) async fn get_git_commit_history(
     }
 
     let mut filtered = Vec::new();
-    for oid_result in revwalk {
-        let oid = oid_result.map_err(|e| e.to_string())?;
+    let mut historical_paths = HashMap::new();
+    let history_oids = match file_history_entries {
+        Some(entries) => entries
+            .into_iter()
+            .map(|entry| {
+                let oid = Oid::from_str(&entry.oid).map_err(|error| error.to_string())?;
+                historical_paths.insert(oid, entry.path);
+                Ok(oid)
+            })
+            .collect::<Result<Vec<_>, String>>()?,
+        None => revwalk
+            .map(|oid| oid.map_err(|error| error.to_string()))
+            .collect::<Result<Vec<_>, _>>()?,
+    };
+    for oid in history_oids {
         let commit = repo.find_commit(oid).map_err(|e| e.to_string())?;
         let commit_time = commit.time().seconds();
         if date_from.is_some_and(|value| commit_time < value) {
@@ -1397,6 +1454,7 @@ pub(crate) async fn get_git_commit_history(
             timestamp: commit_time,
             parents,
             refs,
+            file_path: historical_paths.get(&oid).cloned(),
         });
     }
 
@@ -1639,48 +1697,16 @@ pub(crate) async fn get_git_commit_diff(
         let Some(display_path) = display_path else {
             continue;
         };
-        let old_path_str = old_path.map(|path| path.to_string_lossy());
-        let new_path_str = new_path.map(|path| path.to_string_lossy());
         let display_path_str = display_path.to_string_lossy();
         let normalized_path = normalize_git_path(&display_path_str);
-        let old_image_mime = old_path_str.as_deref().and_then(image_mime_type);
-        let new_image_mime = new_path_str.as_deref().and_then(image_mime_type);
-        let is_image = old_image_mime.is_some() || new_image_mime.is_some();
-
-        if is_image {
-            let is_deleted = delta.status() == git2::Delta::Deleted;
-            let is_added = delta.status() == git2::Delta::Added;
-
-            let old_image_data = if !is_added && old_image_mime.is_some() {
-                parent_tree
-                    .as_ref()
-                    .and_then(|tree| old_path.and_then(|path| tree.get_path(path).ok()))
-                    .and_then(|entry| repo.find_blob(entry.id()).ok())
-                    .and_then(blob_to_base64)
-            } else {
-                None
-            };
-
-            let new_image_data = if !is_deleted && new_image_mime.is_some() {
-                new_path
-                    .and_then(|path| commit_tree.get_path(path).ok())
-                    .and_then(|entry| repo.find_blob(entry.id()).ok())
-                    .and_then(blob_to_base64)
-            } else {
-                None
-            };
-
-            results.push(GitCommitDiff {
-                path: normalized_path,
-                status: status_for_delta(delta.status()).to_string(),
-                diff: String::new(),
-                is_binary: true,
-                is_image: true,
-                old_image_data,
-                new_image_data,
-                old_image_mime: old_image_mime.map(str::to_string),
-                new_image_mime: new_image_mime.map(str::to_string),
-            });
+        if let Some(image_diff) = build_image_commit_diff(
+            &repo,
+            parent_tree.as_ref(),
+            &commit_tree,
+            &delta,
+            status_for_delta(delta.status()),
+        ) {
+            results.push(image_diff);
             continue;
         }
 
@@ -1853,11 +1879,13 @@ pub(crate) async fn create_git_pr_workflow(
     body: Option<String>,
     comment_after_create: Option<bool>,
     comment_body: Option<String>,
+    allow_large_range: Option<bool>,
+    confirmed_range_fingerprint: Option<String>,
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<GitPrWorkflowResult, String> {
     if should_forward_git_remote(&state).await {
-        return forward_git_remote(&state, &app, "create_git_pr_workflow", json!({ "workspaceId": workspace_id.clone(), "upstreamRepo": upstream_repo.clone(), "baseBranch": base_branch.clone(), "headOwner": head_owner.clone(), "headBranch": head_branch.clone(), "title": title.clone(), "body": body.clone(), "commentAfterCreate": comment_after_create, "commentBody": comment_body.clone() })).await;
+        return forward_git_remote(&state, &app, "create_git_pr_workflow", json!({ "workspaceId": workspace_id.clone(), "upstreamRepo": upstream_repo.clone(), "baseBranch": base_branch.clone(), "headOwner": head_owner.clone(), "headBranch": head_branch.clone(), "title": title.clone(), "body": body.clone(), "commentAfterCreate": comment_after_create, "commentBody": comment_body.clone(), "allowLargeRange": allow_large_range, "confirmedRangeFingerprint": confirmed_range_fingerprint.clone() })).await;
     }
     commands_pr_workflow::create_git_pr_workflow_impl(
         workspace_id,
@@ -1869,6 +1897,8 @@ pub(crate) async fn create_git_pr_workflow(
         body,
         comment_after_create,
         comment_body,
+        allow_large_range,
+        confirmed_range_fingerprint,
         state,
     )
     .await
@@ -2150,4 +2180,34 @@ pub(crate) async fn get_github_pull_request_comments(
         serde_json::from_slice(&output.stdout).map_err(|e| e.to_string())?;
 
     Ok(comments)
+}
+
+#[tauri::command]
+pub(crate) async fn generate_pull_request_content(
+    workspace_id: String,
+    language: Option<String>,
+    engine: Option<String>,
+    base_branch: String,
+    head_branch: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<crate::types::PullRequestGeneratedContent, String> {
+    if should_forward_git_remote(&state).await {
+        return Err("PR content generation is unavailable in remote mode".to_string());
+    }
+    let resolved_engine = engine
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("codex");
+    super::pull_request_content::generate_pull_request_content_impl(
+        &workspace_id,
+        language.as_deref(),
+        resolved_engine,
+        &base_branch,
+        &head_branch,
+        &state,
+        &app,
+    )
+    .await
 }

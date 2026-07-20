@@ -2,6 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   ClaudeCurrentConfig as VendorClaudeCurrentConfig,
   CodexProviderConfig as VendorCodexProviderConfig,
+  KimiCurrentConfig as VendorKimiCurrentConfig,
+  KimiProviderConfig as VendorKimiProviderConfig,
   ProviderConfig as VendorProviderConfig,
 } from "../../features/vendors/types";
 
@@ -92,6 +94,43 @@ export async function deleteCodexProvider(id: string): Promise<void> {
 
 export async function switchCodexProvider(id: string): Promise<void> {
   return invoke("vendor_switch_codex_provider", { id });
+}
+
+export async function getKimiProviders(): Promise<VendorKimiProviderConfig[]> {
+  return invoke<VendorKimiProviderConfig[]>("vendor_get_kimi_providers");
+}
+
+export async function getCurrentKimiConfig(): Promise<VendorKimiCurrentConfig> {
+  return invoke<VendorKimiCurrentConfig>("vendor_get_current_kimi_config");
+}
+
+export async function addKimiProvider(provider: unknown): Promise<void> {
+  return invoke("vendor_add_kimi_provider", { provider });
+}
+
+export async function updateKimiProvider(
+  id: string,
+  updates: unknown,
+): Promise<void> {
+  return invoke("vendor_update_kimi_provider", { id, updates });
+}
+
+export async function deleteKimiProvider(id: string): Promise<void> {
+  return invoke("vendor_delete_kimi_provider", { id });
+}
+
+export async function switchKimiProvider(id: string): Promise<void> {
+  return invoke("vendor_switch_kimi_provider", { id });
+}
+
+export async function fetchKimiProviderModels(
+  baseUrl: string,
+  apiKey: string,
+): Promise<VendorModelListResult> {
+  return invoke<VendorModelListResult>("vendor_fetch_kimi_models", {
+    baseUrl,
+    apiKey,
+  });
 }
 
 export interface GeminiVendorSettings {

@@ -30,22 +30,6 @@ const models = {
       "gpt54": {
         "label": "gpt-5.4",
         "description": "일상 코딩에 강력한 모델."
-      },
-      "gpt54mini": {
-        "label": "gpt-5.4-mini",
-        "description": "간단한 코딩 작업을 위한 작고 빠르며 비용 효율적인 모델."
-      },
-      "gpt53codex": {
-        "label": "gpt-5.3-codex",
-        "description": "코딩에 최적화된 모델."
-      },
-      "gpt53codexSpark": {
-        "label": "gpt-5.3-codex-spark",
-        "description": "초고속 코딩 모델."
-      },
-      "gpt52": {
-        "label": "gpt-5.2",
-        "description": "전문 작업과 장기 실행 에이전트에 최적화됨."
       }
     }
   }

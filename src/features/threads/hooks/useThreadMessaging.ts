@@ -19,6 +19,7 @@ import type {
   WorkspaceInfo,
   BrowserContextSendAttachment,
   IntentCanvasContextSendAttachment,
+  SelectedAgentOption,
 } from "../../../types";
 import type { AutoSessionMetadata } from "../../../services/tauri";
 import {
@@ -33,6 +34,7 @@ import {
   engineSendMessage as engineSendMessageService,
   engineInterrupt as engineInterruptService,
   listGeminiSessions as listGeminiSessionsService,
+  listKimiSessions as listKimiSessionsService,
 } from "../../../services/tauri";
 import { sendSharedSessionTurn } from "../../shared-session/runtime/sendSharedSessionTurn";
 import { projectMemoryFacade } from "../../project-memory/services/projectMemoryFacade";
@@ -88,6 +90,7 @@ import {
   mapNetworkErrorToUserMessage,
   normalizeAccessMode,
   pickLikelyGeminiSessionId,
+  pickLikelyKimiSessionId,
   primeThreadStreamLatencyForSend,
   resolveCollaborationModeIdFromPayload,
   resolveRecoverableCodexFirstPacketTimeout,
@@ -115,6 +118,9 @@ import {
   withMemoryScoutTimeout,
 } from "./messageRuntimeController";
 import { useCodexMessageRecovery } from "./useCodexMessageRecovery";
+import { assertEngineExecutionEnabled } from "../../../utils/engineExecutionPolicy";
+import { resolveSelectedAgentForSend } from "../utils/resolveSelectedAgentForSend";
+import { BUILT_IN_AGENT_RESOLUTION_FAILED_EVENT } from "../../agent-catalog/events";
 
 type SendMessageOptions = {
   skipPromptExpansion?: boolean;
@@ -130,12 +136,7 @@ type SendMessageOptions = {
   selectedMemoryInjectionMode?: MemoryContextInjectionMode;
   memoryReferenceEnabled?: boolean;
   selectedNoteCardIds?: string[];
-  selectedAgent?: {
-    id: string;
-    name: string;
-    prompt?: string | null;
-    icon?: string | null;
-  } | null;
+  selectedAgent?: SelectedAgentOption | null;
   browserContextAttachment?: BrowserContextSendAttachment | null;
   intentCanvasContextAttachments?: IntentCanvasContextSendAttachment[];
   codexInvalidThreadRetryAttempted?: boolean;
@@ -161,7 +162,7 @@ type HandleFusionStalledOptions = {
 type RunWithCreateSessionLoading = <T>(
   params: {
     workspace: WorkspaceInfo;
-    engine: "claude" | "codex" | "gemini" | "opencode";
+    engine: "claude" | "codex" | "gemini" | "kimi" | "opencode";
   },
   action: () => Promise<T>,
 ) => Promise<T>;
@@ -202,7 +203,7 @@ type UseThreadMessagingOptions = {
   claudeThinkingVisible?: boolean;
   steerEnabled: boolean;
   customPrompts: CustomPromptOption[];
-  activeEngine?: "claude" | "codex" | "gemini" | "opencode";
+  activeEngine?: "claude" | "codex" | "gemini" | "kimi" | "opencode";
   threadStatusById: ThreadState["threadStatusById"];
   itemsByThread: ThreadState["itemsByThread"];
   activeTurnIdByThread: ThreadState["activeTurnIdByThread"];
@@ -217,7 +218,7 @@ type UseThreadMessagingOptions = {
   getThreadEngine: (
     workspaceId: string,
     threadId: string,
-  ) => "claude" | "codex" | "gemini" | "opencode" | undefined;
+  ) => "claude" | "codex" | "gemini" | "kimi" | "opencode" | undefined;
   getThreadKind?: (
     workspaceId: string,
     threadId: string,
@@ -254,7 +255,7 @@ type UseThreadMessagingOptions = {
     workspaceId: string,
     options?: {
       activate?: boolean;
-      engine?: "claude" | "codex" | "gemini" | "opencode";
+      engine?: "claude" | "codex" | "gemini" | "kimi" | "opencode";
       folderId?: string | null;
       autoSession?: AutoSessionMetadata | null;
       providerProfileId?: string | null;
@@ -339,6 +340,7 @@ export function useThreadMessaging({
     claudeCandidateSessionIdByPendingThreadRef,
     claudePendingThreadAwaitingNativeSessionRef,
     geminiSessionIdByPendingThreadRef,
+    kimiSessionIdByPendingThreadRef,
     isClaudePendingThreadAwaitingNativeSession,
     isThreadIdCompatibleWithEngine,
     normalizeEngineSelection,
@@ -367,6 +369,11 @@ export function useThreadMessaging({
       const messageText = text.trim();
       if (!messageText && images.length === 0) {
         return;
+      }
+      const threadKind = resolveThreadKind(workspace.id, threadId);
+      const resolvedThreadEngine = resolveThreadEngine(workspace.id, threadId);
+      if (threadKind !== "shared") {
+        assertEngineExecutionEnabled(resolvedThreadEngine);
       }
       if (threadId.startsWith("claude-pending-")) {
         const reconciledThreadId = await reconcileClaudePendingThreadFromCandidate(
@@ -423,8 +430,6 @@ export function useThreadMessaging({
           return;
         }
       }
-      const threadKind = resolveThreadKind(workspace.id, threadId);
-      const resolvedThreadEngine = resolveThreadEngine(workspace.id, threadId);
       const resolvedEngine =
         threadKind === "shared"
           ? normalizeSharedSessionEngine(activeEngine)
@@ -570,8 +575,32 @@ export function useThreadMessaging({
           new Set([...finalImages, ...noteInjectionResult.imagePaths]),
         );
       }
-      const resolvedSelectedAgent =
+      let resolvedSelectedAgent =
         resolvedEngine !== "opencode" ? options?.selectedAgent ?? null : null;
+      if (resolvedSelectedAgent?.source === "builtIn") {
+        const selectedBuiltInAgentId = resolvedSelectedAgent.id;
+        const sendResolution = await resolveSelectedAgentForSend(resolvedSelectedAgent);
+        resolvedSelectedAgent = sendResolution.agent;
+        if (sendResolution.error) {
+          onDebug?.({
+            id: `${Date.now()}-built-in-agent-resolution-error`,
+            timestamp: Date.now(),
+            source: "error",
+            label: "agent/built-in resolution error",
+            payload: sendResolution.error.message,
+          });
+          pushErrorToast({
+            title: t("messages.builtInAgentUnavailableTitle"),
+            message: t("messages.builtInAgentUnavailableMessage"),
+            durationMs: 4200,
+          });
+          window.dispatchEvent(
+            new CustomEvent(BUILT_IN_AGENT_RESOLUTION_FAILED_EVENT, {
+              detail: { agentId: selectedBuiltInAgentId },
+            }),
+          );
+        }
+      }
       const selectedAgentName =
         resolvedEngine !== "opencode"
           ? resolvedSelectedAgent?.name?.trim() || null
@@ -1310,6 +1339,10 @@ export function useThreadMessaging({
               ? threadId.slice("gemini:".length)
             : resolvedEngine === "gemini" && threadId.startsWith("gemini-pending-")
               ? (geminiSessionIdByPendingThreadRef.current.get(threadId) ?? null)
+            : resolvedEngine === "kimi" && threadId.startsWith("kimi:")
+              ? threadId.slice("kimi:".length)
+            : resolvedEngine === "kimi" && threadId.startsWith("kimi-pending-")
+              ? (kimiSessionIdByPendingThreadRef.current.get(threadId) ?? null)
             : resolvedEngine === "opencode" && isOpenCodeSession
               ? threadId.slice("opencode:".length)
               : null;
@@ -1507,6 +1540,38 @@ export function useThreadMessaging({
                   threadId,
                   sessionId: responseSessionId,
                   source: "geminiSessionListFallback",
+                },
+              });
+            }
+          }
+          if (resolvedEngine === "kimi" && threadId.startsWith("kimi-pending-")) {
+            let responseSessionId = extractSessionIdFromEngineSendResponse(response);
+            if (!responseSessionId) {
+              const workspacePath = workspace.path?.trim();
+              if (workspacePath) {
+                try {
+                  const sessions = await listKimiSessionsService(workspacePath, 6);
+                  responseSessionId = pickLikelyKimiSessionId(
+                    sessions,
+                    sendRequestedAt - 120_000,
+                  );
+                } catch {
+                  responseSessionId = null;
+                }
+              }
+            }
+            if (responseSessionId) {
+              kimiSessionIdByPendingThreadRef.current.set(threadId, responseSessionId);
+              onDebug?.({
+                id: `${Date.now()}-client-kimi-session-cache`,
+                timestamp: Date.now(),
+                source: "client",
+                label: "thread/session cached",
+                payload: {
+                  workspaceId: workspace.id,
+                  threadId,
+                  sessionId: responseSessionId,
+                  source: "kimiSessionListFallback",
                 },
               });
             }
@@ -1787,6 +1852,7 @@ export function useThreadMessaging({
       effort,
       finalizeCodexPendingThread,
       geminiSessionIdByPendingThreadRef,
+      kimiSessionIdByPendingThreadRef,
       getCustomName,
       getThreadEngine,
       isClaudePendingThreadAwaitingNativeSession,
@@ -1860,6 +1926,9 @@ export function useThreadMessaging({
         const storedThreadEngine = getThreadEngine(activeWorkspace.id, activeThreadId);
         const threadKind = resolveThreadKind(activeWorkspace.id, activeThreadId);
         const threadEngine = resolveThreadEngine(activeWorkspace.id, activeThreadId);
+        if (threadKind !== "shared") {
+          assertEngineExecutionEnabled(threadEngine);
+        }
         const threadIdCompatible = isThreadIdCompatibleWithEngine(
           currentEngine,
           activeThreadId,
@@ -1871,6 +1940,7 @@ export function useThreadMessaging({
           });
           return;
         }
+        assertEngineExecutionEnabled(currentEngine);
         // If current thread differs from current selection, or threadId prefix is incompatible, create a new thread.
         if (threadEngine !== currentEngine || !threadIdCompatible) {
           onDebug?.({
@@ -1906,6 +1976,7 @@ export function useThreadMessaging({
       }
 
       // No engine switch, proceed normally
+      assertEngineExecutionEnabled(currentEngine);
       const threadId = activeThreadId
         ? await ensureThreadForActiveWorkspace()
         : await startThreadForMessageSend(

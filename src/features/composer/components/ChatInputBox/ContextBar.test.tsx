@@ -215,8 +215,13 @@ describe("ContextBar live canvas controls visibility", () => {
     expect(screen.getAllByText("130%").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("0%")).toBeTruthy();
 
-    const ring = container.querySelector(".context-dual-usage-ring") as HTMLElement | null;
-    expect(ring?.style.getPropertyValue("--dual-usage-percent")).toBe("100%");
+    const summary = container.querySelector(".context-dual-usage");
+    const percentage = summary?.querySelector(".context-dual-usage-percent");
+    const ring = summary?.querySelector("svg");
+    const progressCircle = ring?.querySelectorAll("circle")[1];
+
+    expect(percentage?.nextElementSibling).toBe(ring);
+    expect(progressCircle?.getAttribute("stroke-dashoffset")).toBe("0");
   });
 
   it("shows sync-pending copy after automatic compaction completes before usage refresh", () => {

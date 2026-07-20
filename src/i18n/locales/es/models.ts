@@ -30,22 +30,6 @@ const models = {
       "gpt54": {
         "label": "gpt-5.4",
         "description": "Modelo potente para la codificación diaria."
-      },
-      "gpt54mini": {
-        "label": "gpt-5.4-mini",
-        "description": "Modelo pequeño, rápido y rentable para tareas de codificación más sencillas."
-      },
-      "gpt53codex": {
-        "label": "gpt-5.3-codex",
-        "description": "Modelo optimizado para codificación."
-      },
-      "gpt53codexSpark": {
-        "label": "gpt-5.3-codex-spark",
-        "description": "Modelo de codificación ultrarrápido."
-      },
-      "gpt52": {
-        "label": "gpt-5.2",
-        "description": "Optimizado para el trabajo profesional y agentes de larga duración."
       }
     }
   }

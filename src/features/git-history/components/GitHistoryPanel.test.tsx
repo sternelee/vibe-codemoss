@@ -3,8 +3,10 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import { createPortal } from "react-dom";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ask } from "@tauri-apps/plugin-dialog";
 import { GitHistoryPanel, buildFileTreeItems, getDefaultColumnWidths } from "./GitHistoryPanel";
 import { publishGitRepositoryActionIntent } from "../../git/types/gitRepositoryActions";
+import { getGitHistoryAuthorColorSlot } from "./git-history-panel/utils/gitHistoryAuthorPalette";
 
 vi.mock("@tanstack/react-virtual", () => ({
   useVirtualizer: ({ count }: { count: number }) => {
@@ -38,6 +40,15 @@ const mockTranslate = (key: string, options?: Record<string, unknown>) => {
   ) {
     return `${options.sourceBranch} -> ${options.remote}:${options.targetBranch}`;
   }
+  if (
+    key.startsWith("git.historyCreatePrRange") &&
+    typeof options.base === "string" &&
+    typeof options.head === "string" &&
+    typeof options.target === "string" &&
+    typeof options.count === "number"
+  ) {
+    return `${key}:${options.base}...${options.head}->${options.target}:${options.count}`;
+  }
   if (typeof options.count === "number") {
     return `${key}:${options.count}`;
   }
@@ -46,6 +57,14 @@ const mockTranslate = (key: string, options?: Record<string, unknown>) => {
   }
   return key;
 };
+
+const getGitOperationTokenSurfaces = (
+  container: ParentNode,
+  expectedText: string,
+): HTMLElement[] =>
+  Array.from(
+    container.querySelectorAll<HTMLElement>(".git-history-operation-tokens"),
+  ).filter((element) => element.textContent === expectedText);
 
 const mockI18n = {
   language: "en",
@@ -66,18 +85,30 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 vi.mock("./GitHistoryWorktreePanel", () => ({
   GitHistoryWorktreePanel: ({
     onOpenDiffPath,
+    repositoryRoot,
+    rootFolderName,
   }: {
     onOpenDiffPath?: (path: string) => void;
-  }) => (
-    <div data-testid="worktree-panel">
-      <button
-        type="button"
-        onClick={() => onOpenDiffPath?.("src/worktree/ChangedFile.ts")}
+    repositoryRoot?: string | null;
+    rootFolderName?: string;
+  }) => {
+    const [mountedRepositoryRoot] = useState(repositoryRoot);
+    return (
+      <div
+        data-testid="worktree-panel"
+        data-mounted-repository-root={mountedRepositoryRoot ?? "legacy"}
+        data-repository-root={repositoryRoot ?? "legacy"}
+        data-root-folder-name={rootFolderName}
       >
-        open-worktree-preview
-      </button>
-    </div>
-  ),
+        <button
+          type="button"
+          onClick={() => onOpenDiffPath?.("src/worktree/ChangedFile.ts")}
+        >
+          open-worktree-preview
+        </button>
+      </div>
+    );
+  },
 }));
 
 vi.mock("../../git/components/GitDiffViewer", () => ({
@@ -232,6 +263,12 @@ vi.mock("../../../services/tauri", () => ({
       },
     ],
   })),
+  generatePullRequestContent: vi.fn(async () => ({
+    title: "feat(pr): generated title",
+    body: "## Background\n- generated body",
+    engine: "codex",
+    language: "zh",
+  })),
   listGitRoots: vi.fn(async () => []),
   listGitBranches: vi.fn(async () => ({
     branches: [],
@@ -320,7 +357,7 @@ beforeEach(() => {
 });
 
 describe("GitHistoryPanel helpers", () => {
-  it("keeps changed file tree directories expanded from root", () => {
+  it("keeps compact changed file tree directories expanded from root", () => {
     const items = buildFileTreeItems(
       [
         {
@@ -335,18 +372,96 @@ describe("GitHistoryPanel helpers", () => {
       ],
       new Set(["a", "a/b", "a/b/c"]),
     );
-    expect(items.map((item) => item.label)).toEqual(["a", "b", "c", "d.txt"]);
+    expect(items.map((item) => item.label)).toEqual(["a.b.c", "d.txt"]);
   });
 
-  it("returns sane default widths for 3:2:3:2 layout", () => {
+  it("returns exact 3:4:3 defaults for the visible desktop columns", () => {
     const widths = getDefaultColumnWidths(1600);
-    expect(widths.overviewWidth).toBeGreaterThan(0);
-    expect(widths.branchesWidth).toBeGreaterThan(0);
-    expect(widths.commitsWidth).toBeGreaterThan(0);
+    expect(widths.branchesWidth).toBe(475);
+    expect(widths.commitsWidth).toBe(634);
+    expect(1600 - 16 - widths.branchesWidth - widths.commitsWidth).toBe(475);
   });
 });
 
 describe("GitHistoryPanel interactions", () => {
+  it("shows only the branch, commit, and details columns", async () => {
+    const { container } = render(<GitHistoryPanel workspace={workspace as never} />);
+
+    await screen.findByText("feat: one");
+
+    const overview = container.querySelector(".git-history-overview");
+    const mainGrid = container.querySelector(".git-history-main-grid");
+
+    expect(overview?.hasAttribute("hidden")).toBe(true);
+    expect(overview?.getAttribute("aria-hidden")).toBe("true");
+    expect(screen.queryByRole("button", { name: "open-worktree-preview" })).toBeNull();
+    expect(mainGrid?.querySelector(":scope > .git-history-branches")).toBeTruthy();
+    expect(mainGrid?.querySelector(":scope > .git-history-commits")).toBeTruthy();
+    expect(mainGrid?.querySelector(":scope > .git-history-details")).toBeTruthy();
+  });
+
+  it("projects stable author colors onto virtualized commit rows", async () => {
+    vi.mocked(tauriService.getGitCommitHistory).mockResolvedValueOnce({
+      snapshotId: "snap-author-colors",
+      total: 3,
+      offset: 0,
+      limit: 100,
+      hasMore: false,
+      commits: [
+        {
+          sha: "a".repeat(40),
+          shortSha: "aaaaaaa",
+          summary: "feat: alice one",
+          message: "alice one",
+          author: "Alice",
+          authorEmail: "alice@example.com",
+          timestamp: 1739300000,
+          parents: [],
+          refs: [],
+        },
+        {
+          sha: "b".repeat(40),
+          shortSha: "bbbbbbb",
+          summary: "feat: alice two",
+          message: "alice two",
+          author: "Renamed Alice",
+          authorEmail: "ALICE@EXAMPLE.COM",
+          timestamp: 1739299000,
+          parents: [],
+          refs: [],
+        },
+        {
+          sha: "c".repeat(40),
+          shortSha: "ccccccc",
+          summary: "fix: bob",
+          message: "bob",
+          author: "Bob",
+          authorEmail: "bob@example.com",
+          timestamp: 1739298000,
+          parents: [],
+          refs: [],
+        },
+      ],
+    });
+
+    render(<GitHistoryPanel workspace={workspace as never} />);
+
+    const firstAliceRow = (await screen.findByText("feat: alice one")).closest(
+      ".git-history-commit-row",
+    );
+    const secondAliceRow = screen.getByText("feat: alice two").closest(
+      ".git-history-commit-row",
+    );
+    const bobRow = screen.getByText("fix: bob").closest(".git-history-commit-row");
+    const aliceSlot = getGitHistoryAuthorColorSlot("alice@example.com", "Alice");
+    const bobSlot = getGitHistoryAuthorColorSlot("bob@example.com", "Bob");
+
+    expect(aliceSlot).not.toBe(bobSlot);
+    expect(firstAliceRow?.classList.contains(`git-history-author-color-${aliceSlot}`)).toBe(true);
+    expect(secondAliceRow?.classList.contains(`git-history-author-color-${aliceSlot}`)).toBe(true);
+    expect(bobRow?.classList.contains(`git-history-author-color-${bobSlot}`)).toBe(true);
+  });
+
   it("switches a multi-repository history target through the repository picker", async () => {
     const onSelectRepository = vi.fn();
     const onSelectWorkspace = vi.fn();
@@ -381,6 +496,15 @@ describe("GitHistoryPanel interactions", () => {
 
     expect(onSelectRepository).toHaveBeenCalledWith("services/b");
     await waitFor(() => {
+      expect(
+        screen.getByTestId("worktree-panel").getAttribute("data-repository-root"),
+      ).toBe("services/b");
+      expect(
+        screen.getByTestId("worktree-panel").getAttribute("data-mounted-repository-root"),
+      ).toBe("services/b");
+      expect(
+        screen.getByTestId("worktree-panel").getAttribute("data-root-folder-name"),
+      ).toBe("service-b");
       expect(tauriService.listGitBranches).toHaveBeenCalledWith("w1", "services/b");
       expect(tauriService.getGitStatus).toHaveBeenCalledWith("w1", "services/b");
       expect(tauriService.getGitCommitHistory).toHaveBeenCalledWith(
@@ -523,6 +647,227 @@ describe("GitHistoryPanel interactions", () => {
       });
   });
 
+  it("generates title and body from the same remote-tracking range as PR preview", async () => {
+    render(<GitHistoryPanel workspace={workspace as never} />);
+    await clickReadyCreatePrAction();
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "git.historyCreatePrDialogTitle",
+    });
+    const generateButtons = within(dialog).getAllByRole<HTMLButtonElement>(
+      "button",
+      { name: "git.historyGeneratePrTitleBody" },
+    );
+    expect(generateButtons).toHaveLength(1);
+    expect(
+      within(dialog).getByRole("textbox", {
+        name: "git.historyCreatePrFieldTitle",
+      }),
+    ).toBeTruthy();
+    expect(
+      within(dialog).getByRole("textbox", {
+        name: "git.historyCreatePrFieldBody",
+      }),
+    ).toBeTruthy();
+    await waitFor(() => expect(generateButtons[0]?.disabled).toBe(false));
+
+    fireEvent.click(generateButtons[0]!);
+    fireEvent.click(
+      await screen.findByRole("menuitem", {
+        name: "git.historyGeneratePrMenuCodex",
+      }),
+    );
+    fireEvent.click(
+      await screen.findByRole("menuitem", {
+        name: "git.historyGeneratePrMenuZh",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(tauriService.generatePullRequestContent).toHaveBeenCalledWith(
+        "w1",
+        "zh",
+        "codex",
+        "upstream/main",
+        "codex/feat-gitv9-v0.1.8",
+        expect.any(Function),
+      );
+      expect(screen.getByDisplayValue("feat(pr): generated title")).toBeTruthy();
+      expect(
+        dialog.querySelector<HTMLTextAreaElement>(
+          ".git-history-create-pr-textarea",
+        )?.value,
+      ).toBe("## Background\n- generated body");
+    });
+
+    const confirmButton = within(dialog)
+      .getByText("git.historyCreatePrAction")
+      .closest("button");
+    expect(confirmButton).toBeTruthy();
+    await waitFor(() => expect(confirmButton?.disabled).toBe(false));
+    fireEvent.click(confirmButton as HTMLElement);
+    await waitFor(() => {
+      expect(tauriService.createGitPrWorkflow).toHaveBeenCalledWith(
+        "w1",
+        expect.objectContaining({
+          title: "feat(pr): generated title",
+          body: "## Background\n- generated body",
+        }),
+      );
+    });
+  });
+
+  it("disables PR generation until both preview refs are available", async () => {
+    vi.mocked(tauriService.getGitPrWorkflowDefaults).mockResolvedValueOnce({
+      upstreamRepo: "chenxiangning/mossx",
+      baseBranch: "main",
+      headOwner: "chenxiangning",
+      headBranch: "",
+      title: "fix(git): stabilize",
+      body: "body",
+      commentBody: "@maintainer please review",
+      canCreate: true,
+      disabledReason: null,
+    });
+
+    render(<GitHistoryPanel workspace={workspace as never} />);
+    await clickReadyCreatePrAction();
+    const generateButton = await screen.findByRole<HTMLButtonElement>("button", {
+      name: "git.historyGeneratePrTitleBody",
+    });
+
+    await waitFor(() => expect(generateButton.disabled).toBe(true));
+    expect(generateButton.title).toBe("git.historyGeneratePrMissingBaseOrHead");
+    expect(tauriService.generatePullRequestContent).not.toHaveBeenCalled();
+  });
+
+  it("reconfirms create-pr when the evaluated range fingerprint changes", async () => {
+    vi.mocked(tauriService.createGitPrWorkflow)
+      .mockResolvedValueOnce({
+        ok: false,
+        status: "failed",
+        message: "241 changed files require confirmation",
+        errorCategory: "range-confirmation-required",
+        rangeGate: {
+          changedFiles: 241,
+          threshold: 240,
+          severity: "large",
+          requiresConfirmation: true,
+          rangeFingerprint: "base-v1...head-v1",
+        },
+        stages: [{ key: "precheck", status: "failed", detail: "confirmation required" }],
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: "failed",
+        message: "325 changed files require confirmation",
+        errorCategory: "range-confirmation-required",
+        rangeGate: {
+          changedFiles: 325,
+          threshold: 240,
+          severity: "diff-incomplete",
+          requiresConfirmation: true,
+          rangeFingerprint: "base-v2...head-v1",
+        },
+        stages: [{ key: "precheck", status: "failed", detail: "confirmation required" }],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: "success",
+        message: "created",
+        prUrl: "https://github.com/example/repo/pull/13",
+        prNumber: 13,
+        stages: [
+          { key: "precheck", status: "success", detail: "precheck ok" },
+          { key: "push", status: "success", detail: "push ok" },
+          { key: "create", status: "success", detail: "create ok" },
+          { key: "comment", status: "skipped", detail: "skipped" },
+        ],
+      });
+
+    render(<GitHistoryPanel workspace={workspace as never} />);
+    await clickReadyCreatePrAction();
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("fix(git): stabilize")).toBeTruthy();
+    });
+    const confirmButton = screen.getByText("git.historyCreatePrAction").closest("button");
+    await waitFor(() => expect(confirmButton?.disabled).toBe(false));
+    fireEvent.click(confirmButton as HTMLElement);
+
+    await waitFor(() => {
+      expect(ask).toHaveBeenCalledWith(
+        "git.historyCreatePrRangeLargeConfirm:upstream/main...HEAD->chenxiangning:codex/feat-gitv9-v0.1.8:241",
+        {
+          title: "git.historyCreatePrRangeConfirmTitle",
+          kind: "warning",
+        },
+      );
+      expect(ask).toHaveBeenCalledWith(
+        "git.historyCreatePrRangeDiffIncompleteConfirm:upstream/main...HEAD->chenxiangning:codex/feat-gitv9-v0.1.8:325",
+        {
+          title: "git.historyCreatePrRangeConfirmTitle",
+          kind: "warning",
+        },
+      );
+      expect(tauriService.createGitPrWorkflow).toHaveBeenCalledTimes(3);
+    });
+    const firstOptions = vi.mocked(tauriService.createGitPrWorkflow).mock.calls[0]?.[1];
+    const firstConfirmedOptions =
+      vi.mocked(tauriService.createGitPrWorkflow).mock.calls[1]?.[1];
+    const secondConfirmedOptions =
+      vi.mocked(tauriService.createGitPrWorkflow).mock.calls[2]?.[1];
+    expect(firstOptions).not.toHaveProperty("allowLargeRange");
+    expect(firstConfirmedOptions).toEqual(
+      expect.objectContaining({
+        allowLargeRange: true,
+        confirmedRangeFingerprint: "base-v1...head-v1",
+      }),
+    );
+    expect(secondConfirmedOptions).toEqual(
+      expect.objectContaining({
+        allowLargeRange: true,
+        confirmedRangeFingerprint: "base-v2...head-v1",
+      }),
+    );
+    expect(await screen.findByText("git.historyCreatePrResultSuccess")).toBeTruthy();
+  });
+
+  it("cancels create-pr range confirmation without showing a generic failure", async () => {
+    vi.mocked(ask).mockResolvedValueOnce(false);
+    vi.mocked(tauriService.createGitPrWorkflow).mockResolvedValueOnce({
+      ok: false,
+      status: "failed",
+      message: "241 changed files require confirmation",
+      errorCategory: "range-confirmation-required",
+      rangeGate: {
+        changedFiles: 241,
+        threshold: 240,
+        severity: "large",
+        requiresConfirmation: true,
+        rangeFingerprint: "base-v1...head-v1",
+      },
+      stages: [{ key: "precheck", status: "failed", detail: "confirmation required" }],
+    });
+
+    render(<GitHistoryPanel workspace={workspace as never} />);
+    await clickReadyCreatePrAction();
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("fix(git): stabilize")).toBeTruthy();
+    });
+    const confirmButton = screen.getByText("git.historyCreatePrAction").closest("button");
+    await waitFor(() => expect(confirmButton?.disabled).toBe(false));
+    fireEvent.click(confirmButton as HTMLElement);
+
+    await waitFor(() => {
+      expect(ask).toHaveBeenCalledWith(
+        "git.historyCreatePrRangeLargeConfirm:upstream/main...HEAD->chenxiangning:codex/feat-gitv9-v0.1.8:241",
+        expect.objectContaining({ kind: "warning" }),
+      );
+    });
+    expect(tauriService.createGitPrWorkflow).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("git.historyCreatePrResultFailed")).toBeNull();
+  });
+
   it("toggles create-pr dialog maximize state", async () => {
     render(<GitHistoryPanel workspace={workspace as never} />);
 
@@ -615,7 +960,8 @@ describe("GitHistoryPanel interactions", () => {
     const dialog = await screen.findByRole("dialog", { name: "git.historyPullDialogTitle" });
     expect(within(dialog).getAllByText("origin").length).toBeGreaterThan(0);
     expect(within(dialog).getAllByText("main").length).toBeGreaterThan(0);
-    expect(within(dialog).getAllByText("git pull origin main").length).toBeGreaterThan(0);
+    expect(getGitOperationTokenSurfaces(dialog, "git pull origin main")).toHaveLength(2);
+    expect(within(dialog).getByRole("button", { name: "--rebase" })).toBeTruthy();
     expect(tauriService.pullGit).not.toHaveBeenCalled();
 
     fireEvent.click(within(dialog).getByRole("button", { name: "git.pull" }));
@@ -623,11 +969,108 @@ describe("GitHistoryPanel interactions", () => {
     await waitFor(() => {
       expect(tauriService.pullGit).toHaveBeenCalledWith(
         "w1",
-        expect.objectContaining({
+        {
           remote: "origin",
           branch: "main",
-        }),
+          strategy: null,
+          noCommit: false,
+          noVerify: false,
+        },
       );
+    });
+  });
+
+  it("updates pull explanations from the selected option combination", async () => {
+    render(<GitHistoryPanel workspace={workspace as never} />);
+
+    const pullButton = await screen.findByRole("button", { name: "git.pull" });
+    await waitFor(() => {
+      expect(tauriService.listGitBranches).toHaveBeenCalledWith("w1");
+    });
+
+    fireEvent.click(pullButton);
+    const dialog = await screen.findByRole("dialog", { name: "git.historyPullDialogTitle" });
+
+    expect(within(dialog).getByText("git.historyPullExplanationIntentDefault")).toBeTruthy();
+    expect(within(dialog).getByText("git.historyPullExplanationEffectDefault")).toBeTruthy();
+    expect(within(dialog).getByRole("status").textContent).toContain(
+      "git.historyPullExplanationEffectDefault",
+    );
+    expect(within(dialog).getByRole("button", { name: "--rebase" })).toBeTruthy();
+
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "git.historyPullDialogModifyOptions" }),
+    );
+    expect(within(dialog).queryByRole("button", { name: "--rebase" })).toBeNull();
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "git.historyPullDialogModifyOptions" }),
+    );
+    fireEvent.click(within(dialog).getByRole("button", { name: "--rebase" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "--no-commit" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "--no-verify" }));
+
+    expect(within(dialog).getByText("git.historyPullExplanationIntentRebase")).toBeTruthy();
+    expect(within(dialog).getByText("git.historyPullExplanationEffectRebase")).toBeTruthy();
+    expect(
+      within(dialog).getByText("git.historyPullExplanationEffectNoCommitRebase"),
+    ).toBeTruthy();
+    expect(
+      within(dialog).getByText("git.historyPullExplanationEffectNoVerifyRebase"),
+    ).toBeTruthy();
+    const coloredCommands = getGitOperationTokenSurfaces(
+      dialog,
+      "git pull origin main --rebase --no-commit --no-verify",
+    );
+    expect(coloredCommands).toHaveLength(2);
+    expect(coloredCommands.every((command) => command.getAttribute("translate") === "no")).toBe(
+      true,
+    );
+    expect(coloredCommands.every((command) => !command.hasAttribute("aria-label"))).toBe(true);
+    expect(
+      Array.from(
+        coloredCommands.at(-1)?.querySelectorAll(".git-history-operation-token") ?? [],
+        (token) => token.textContent?.trim(),
+      ),
+    ).toEqual(["git pull", "origin", "main", "--rebase", "--no-commit", "--no-verify"]);
+    expect(tauriService.pullGit).not.toHaveBeenCalled();
+
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "git.historyPullDialogModifyOptions" }),
+    );
+    fireEvent.click(within(dialog).getByRole("button", { name: "--no-commit" }));
+
+    expect(
+      within(dialog).queryByText("git.historyPullExplanationEffectNoCommitRebase"),
+    ).toBeNull();
+    expect(
+      getGitOperationTokenSurfaces(dialog, "git pull origin main --rebase --no-verify"),
+    ).toHaveLength(2);
+    expect(tauriService.pullGit).not.toHaveBeenCalled();
+  });
+
+  it("forwards the exact selected pull option payload after confirmation", async () => {
+    render(<GitHistoryPanel workspace={workspace as never} />);
+
+    const pullButton = await screen.findByRole("button", { name: "git.pull" });
+    await waitFor(() => {
+      expect(tauriService.listGitBranches).toHaveBeenCalledWith("w1");
+    });
+
+    fireEvent.click(pullButton);
+    const dialog = await screen.findByRole("dialog", { name: "git.historyPullDialogTitle" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "--rebase" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "--no-commit" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "--no-verify" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "git.pull" }));
+
+    await waitFor(() => {
+      expect(tauriService.pullGit).toHaveBeenCalledWith("w1", {
+        remote: "origin",
+        branch: "main",
+        strategy: "--rebase",
+        noCommit: true,
+        noVerify: true,
+      });
     });
   });
 
@@ -700,7 +1143,14 @@ describe("GitHistoryPanel interactions", () => {
     expect(screen.getByText("git.historyWillNotHappenTitle")).toBeTruthy();
     expect(screen.getByText("git.historyExampleTitle")).toBeTruthy();
     expect(screen.getByText("git.historyFetchDialogWillHappen")).toBeTruthy();
-    expect(screen.getByText("git fetch --all")).toBeTruthy();
+    const [fetchCommand] = getGitOperationTokenSurfaces(document, "git fetch --all");
+    expect(fetchCommand).toBeTruthy();
+    expect(
+      Array.from(
+        fetchCommand?.querySelectorAll(".git-history-operation-token") ?? [],
+        (token) => token.textContent?.trim(),
+      ),
+    ).toEqual(["git fetch", "--all"]);
   });
 
   it("shows sync preflight summary before execution", async () => {
@@ -715,6 +1165,15 @@ describe("GitHistoryPanel interactions", () => {
       expect(screen.getByText("git.historySyncDialogAheadBehind")).toBeTruthy();
       expect(screen.getByText("feat: one")).toBeTruthy();
     });
+    const syncDialog = screen.getByRole("dialog", { name: "git.historySyncDialogTitle" });
+    expect(getGitOperationTokenSurfaces(syncDialog, "git pull && git push")).toHaveLength(2);
+    expect(
+      syncDialog.querySelector(".git-history-toolbar-confirm-hero-line")
+        ?.querySelectorAll(".git-history-operation-token").length,
+    ).toBe(5);
+    expect(
+      syncDialog.querySelector(".git-history-operation-summary")?.textContent,
+    ).toBe("git.historySyncDialogAheadBehind");
     expect(tauriService.syncGit).not.toHaveBeenCalled();
   });
 
@@ -1536,10 +1995,12 @@ describe("GitHistoryPanel interactions", () => {
   });
 
   it("opens working-tree preview with the canonical modal header controls", async () => {
-    render(<GitHistoryPanel workspace={workspace as never} />);
-    const openPreviewButton = await screen.findByRole("button", {
-      name: "open-worktree-preview",
-    });
+    const { container } = render(<GitHistoryPanel workspace={workspace as never} />);
+    const overviewStatusSource = container.querySelector(".git-history-overview");
+    expect(overviewStatusSource?.hasAttribute("hidden")).toBe(true);
+    const openPreviewButton = within(overviewStatusSource as HTMLElement).getByText(
+      "open-worktree-preview",
+    );
 
     vi.mocked(tauriService.getGitStatus).mockResolvedValueOnce({
       files: [
@@ -1669,12 +2130,25 @@ describe("GitHistoryPanel interactions", () => {
       expect(screen.getByText("git.historyPushDialogPreviewCommits")).toBeTruthy();
     });
 
-    fireEvent.change(screen.getByLabelText("git.historyPushDialogTargetBranchLabel"), {
+    const pushTargetBranchInput = screen.getByLabelText(
+      "git.historyPushDialogTargetBranchLabel",
+    );
+    expect(pushTargetBranchInput.classList.contains("git-history-operation-branch-input")).toBe(true);
+    fireEvent.change(pushTargetBranchInput, {
       target: { value: "cxn/feat-003" },
     });
     fireEvent.click(screen.getByText("git.historyPushDialogPushToGerrit"));
     await waitFor(() => {
-      expect(screen.getByText("main -> origin:refs/for/cxn/feat-003")).toBeTruthy();
+      const pushTarget = screen
+        .getByRole("dialog", { name: "git.historyPushDialogTitle" })
+        .querySelector<HTMLElement>(".git-history-push-target");
+      expect(pushTarget).toBeTruthy();
+      expect(
+        Array.from(
+          pushTarget?.querySelectorAll(".git-history-operation-token") ?? [],
+          (token) => token.textContent,
+        ).join(""),
+      ).toBe("main -> origin:refs/for/cxn/feat-003");
     });
     fireEvent.change(screen.getByLabelText("git.historyPushDialogTopicLabel"), {
       target: { value: "optimize" },
@@ -2030,8 +2504,10 @@ describe("GitHistoryPanel interactions", () => {
     vi.mocked(clientStorage.getClientStoreSync).mockImplementation((store, key) => {
       if (store === "layout" && String(key).startsWith("gitHistoryPanel:")) {
         return {
-          selectedBranch: "all",
+          selectedBranch: "main",
           commitQuery: "aaaa",
+          commitAuthor: "example.com",
+          commitDatePreset: "7d",
           selectedCommitSha: "a".repeat(40),
           diffStyle: "split",
         } as never;
@@ -2041,12 +2517,278 @@ describe("GitHistoryPanel interactions", () => {
 
     render(<GitHistoryPanel workspace={workspace as never} />);
 
+    const queryInput = await screen.findByLabelText("git.historyFilterQueryLabel");
+    expect((queryInput as HTMLInputElement).value).toBe("aaaa");
+    expect(
+      (screen.getByLabelText("git.historyFilterAuthorLabel") as HTMLInputElement).value,
+    ).toBe("example.com");
+    expect(
+      screen.getByLabelText("git.historyFilterBranchLabel").textContent,
+    ).toContain("main");
+    expect(
+      screen.getByLabelText("git.historyFilterDateLabel").textContent,
+    ).toContain("git.historyFilterDateLast7Days");
+
     await waitFor(() => {
-      const input = screen.getByPlaceholderText("git.historySearchCommits") as HTMLInputElement;
-      expect(input.value).toBe("aaaa");
+      expect(clientStorage.writeClientStoreValue).toHaveBeenCalledWith(
+        "layout",
+        "gitHistoryPanel:w1",
+        expect.objectContaining({
+          selectedBranch: "main",
+          commitQuery: "aaaa",
+          commitAuthor: "example.com",
+          commitDatePreset: "7d",
+        }),
+      );
+    });
+    expect(await screen.findByText("<tester@example.com>")).toBeTruthy();
+  });
+
+  it("debounces text filters into one combined server-side history request", async () => {
+    render(<GitHistoryPanel workspace={workspace as never} />);
+    await screen.findByText("feat: one");
+    vi.mocked(tauriService.getGitCommitHistory).mockClear();
+
+    fireEvent.change(screen.getByLabelText("git.historyFilterQueryLabel"), {
+      target: { value: "fix renderer" },
+    });
+    fireEvent.change(screen.getByLabelText("git.historyFilterAuthorLabel"), {
+      target: { value: "tester@example.com" },
+    });
+    await waitFor(() => {
+      expect(tauriService.getGitCommitHistory).toHaveBeenCalledTimes(1);
+      expect(tauriService.getGitCommitHistory).toHaveBeenLastCalledWith("w1", {
+        branch: "all",
+        query: "fix renderer",
+        author: "tester@example.com",
+        dateFrom: null,
+        dateTo: null,
+        snapshotId: null,
+        offset: 0,
+        limit: 100,
+      });
+    });
+  });
+
+  it("clears filters immediately and returns branch scope to the current branch", async () => {
+    render(<GitHistoryPanel workspace={workspace as never} />);
+    await screen.findByText("feat: one");
+
+    fireEvent.change(screen.getByLabelText("git.historyFilterQueryLabel"), {
+      target: { value: "temporary" },
+    });
+    await waitFor(() => {
+      expect(tauriService.getGitCommitHistory).toHaveBeenLastCalledWith(
+        "w1",
+        expect.objectContaining({ query: "temporary" }),
+      );
     });
 
-    expect(clientStorage.writeClientStoreValue).toHaveBeenCalled();
+    vi.mocked(tauriService.getGitCommitHistory).mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "git.historyFilterClear" }));
+
+    await waitFor(() => {
+      expect(tauriService.getGitCommitHistory).toHaveBeenCalledTimes(1);
+      expect(tauriService.getGitCommitHistory).toHaveBeenLastCalledWith("w1", {
+        branch: "main",
+        query: null,
+        author: null,
+        dateFrom: null,
+        dateTo: null,
+        snapshotId: null,
+        offset: 0,
+        limit: 100,
+      });
+    });
+  });
+
+  it("reuses the exact applied filters for pagination and snapshot refresh", async () => {
+    vi.mocked(clientStorage.getClientStoreSync).mockImplementation((store, key) => {
+      if (store === "layout" && String(key).startsWith("gitHistoryPanel:")) {
+        return {
+          selectedBranch: "main",
+          commitQuery: "renderer",
+          commitAuthor: "tester",
+          commitDatePreset: "7d",
+        } as never;
+      }
+      return undefined;
+    });
+    vi.mocked(tauriService.getGitCommitHistory)
+      .mockResolvedValueOnce({
+        snapshotId: "snap-filtered",
+        total: 2,
+        offset: 0,
+        limit: 100,
+        hasMore: true,
+        commits: [
+          {
+            sha: "a".repeat(40),
+            shortSha: "aaaaaaa",
+            summary: "feat: filtered",
+            message: "filtered",
+            author: "tester",
+            authorEmail: "tester@example.com",
+            timestamp: 1739300000,
+            parents: [],
+            refs: [],
+          },
+        ],
+      })
+      .mockRejectedValueOnce(new Error("History snapshot expired. Please refresh commits."))
+      .mockResolvedValueOnce({
+        snapshotId: "snap-refreshed",
+        total: 1,
+        offset: 0,
+        limit: 100,
+        hasMore: false,
+        commits: [
+          {
+            sha: "b".repeat(40),
+            shortSha: "bbbbbbb",
+            summary: "feat: refreshed",
+            message: "refreshed",
+            author: "tester",
+            authorEmail: "tester@example.com",
+            timestamp: 1739300000,
+            parents: [],
+            refs: [],
+          },
+        ],
+      });
+
+    render(<GitHistoryPanel workspace={workspace as never} />);
+    await screen.findByText("feat: filtered");
+    await waitFor(() => {
+      expect(tauriService.getGitCommitHistory).toHaveBeenCalledTimes(3);
+    });
+    expect(screen.getByText("feat: refreshed")).toBeTruthy();
+    const historyCalls = vi.mocked(tauriService.getGitCommitHistory).mock.calls;
+    expect(historyCalls).toHaveLength(3);
+    const firstOptions = historyCalls[0]?.[1];
+    expect(firstOptions).toEqual({
+      branch: "main",
+      query: "renderer",
+      author: "tester",
+      dateFrom: expect.any(Number),
+      dateTo: expect.any(Number),
+      snapshotId: null,
+      offset: 0,
+      limit: 100,
+    });
+    expect(historyCalls[1]?.[1]).toEqual({
+      ...firstOptions,
+      snapshotId: "snap-filtered",
+      offset: 1,
+    });
+    expect(historyCalls[2]?.[1]).toEqual({
+      ...firstOptions,
+      snapshotId: null,
+      offset: 0,
+    });
+  });
+
+  it("re-anchors date filters for each new first-page snapshot", async () => {
+    vi.mocked(clientStorage.getClientStoreSync).mockImplementation((store, key) => {
+      if (store === "layout" && String(key).startsWith("gitHistoryPanel:")) {
+        return { commitDatePreset: "7d" } as never;
+      }
+      return undefined;
+    });
+    const firstNow = Date.UTC(2026, 6, 17, 1, 0, 0);
+    const secondNow = Date.UTC(2026, 6, 17, 2, 0, 0);
+    const dateNowSpy = vi.spyOn(Date, "now").mockReturnValue(firstNow);
+
+    render(<GitHistoryPanel workspace={workspace as never} />);
+    await screen.findByText("feat: one");
+    await waitFor(() => {
+      expect(tauriService.getGitCommitHistory).toHaveBeenCalledTimes(1);
+    });
+    const firstOptions = vi.mocked(tauriService.getGitCommitHistory).mock.calls[0]?.[1];
+
+    dateNowSpy.mockReturnValue(secondNow);
+    fireEvent.click(screen.getByRole("button", { name: "git.historyFilterBranchLabel" }));
+    fireEvent.click(await screen.findByRole("option", { name: /main/ }));
+
+    await waitFor(() => {
+      expect(tauriService.getGitCommitHistory).toHaveBeenCalledTimes(2);
+    });
+    const secondOptions = vi.mocked(tauriService.getGitCommitHistory).mock.calls[1]?.[1];
+    expect(firstOptions?.dateTo).toBe(Math.floor(firstNow / 1_000));
+    expect(secondOptions?.dateTo).toBe(Math.floor(secondNow / 1_000));
+    expect(secondOptions?.dateFrom).toBe(
+      Math.floor((secondNow - 7 * 24 * 60 * 60 * 1_000) / 1_000),
+    );
+
+    dateNowSpy.mockRestore();
+  });
+
+  it("ignores a stale first-page response after filters change", async () => {
+    let resolveStaleResponse: ((response: Awaited<ReturnType<typeof tauriService.getGitCommitHistory>>) => void)
+      | null = null;
+    const staleResponse = new Promise<
+      Awaited<ReturnType<typeof tauriService.getGitCommitHistory>>
+    >((resolve) => {
+      resolveStaleResponse = resolve;
+    });
+    vi.mocked(tauriService.getGitCommitHistory)
+      .mockImplementationOnce(() => staleResponse)
+      .mockResolvedValueOnce({
+        snapshotId: "snap-current",
+        total: 1,
+        offset: 0,
+        limit: 100,
+        hasMore: false,
+        commits: [
+          {
+            sha: "c".repeat(40),
+            shortSha: "ccccccc",
+            summary: "feat: current result",
+            message: "current",
+            author: "tester",
+            authorEmail: "tester@example.com",
+            timestamp: 1739300000,
+            parents: [],
+            refs: [],
+          },
+        ],
+      });
+
+    render(<GitHistoryPanel workspace={workspace as never} />);
+    await waitFor(() => {
+      expect(tauriService.getGitCommitHistory).toHaveBeenCalledTimes(1);
+    });
+    fireEvent.change(screen.getByLabelText("git.historyFilterQueryLabel"), {
+      target: { value: "current" },
+    });
+    await screen.findByText("feat: current result");
+
+    await act(async () => {
+      resolveStaleResponse?.({
+        snapshotId: "snap-stale",
+        total: 1,
+        offset: 0,
+        limit: 100,
+        hasMore: false,
+        commits: [
+          {
+            sha: "d".repeat(40),
+            shortSha: "ddddddd",
+            summary: "feat: stale result",
+            message: "stale",
+            author: "tester",
+            authorEmail: "tester@example.com",
+            timestamp: 1739300000,
+            parents: [],
+            refs: [],
+          },
+        ],
+      });
+      await staleResponse;
+    });
+
+    expect(screen.getByText("feat: current result")).toBeTruthy();
+    expect(screen.queryByText("feat: stale result")).toBeNull();
   });
 
   it("does not refetch history in a loop after snapshot update", async () => {

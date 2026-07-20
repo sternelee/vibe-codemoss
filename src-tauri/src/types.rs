@@ -47,6 +47,8 @@ impl<'de> Deserialize<'de> for WorkspaceSessionAttributionMode {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct GitFileStatus {
     pub(crate) path: String,
+    #[serde(default, rename = "oldPath", skip_serializing_if = "Option::is_none")]
+    pub(crate) old_path: Option<String>,
     pub(crate) status: String,
     pub(crate) additions: i64,
     pub(crate) deletions: i64,
@@ -68,6 +70,27 @@ pub(crate) struct GitFileDiff {
     pub(crate) old_image_mime: Option<String>,
     #[serde(rename = "newImageMime")]
     pub(crate) new_image_mime: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct GitBlameHunk {
+    pub(crate) start_line: usize,
+    pub(crate) line_count: usize,
+    pub(crate) commit_sha: String,
+    pub(crate) author: String,
+    pub(crate) authored_at: i64,
+    pub(crate) summary: String,
+    pub(crate) original_path: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct GitFileBlameResponse {
+    pub(crate) path: String,
+    pub(crate) head_sha: String,
+    pub(crate) line_count: usize,
+    pub(crate) hunks: Vec<GitBlameHunk>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -133,6 +156,8 @@ pub(crate) struct GitHistoryCommit {
     pub(crate) parents: Vec<String>,
     #[serde(default)]
     pub(crate) refs: Vec<String>,
+    #[serde(default, rename = "filePath", skip_serializing_if = "Option::is_none")]
+    pub(crate) file_path: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -170,6 +195,18 @@ pub(crate) struct GitBranchCompareCommitSets {
     pub(crate) target_only_commits: Vec<GitHistoryCommit>,
     #[serde(rename = "currentOnlyCommits")]
     pub(crate) current_only_commits: Vec<GitHistoryCommit>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
+pub(crate) struct PullRequestGeneratedContent {
+    #[serde(default)]
+    pub(crate) title: String,
+    #[serde(default)]
+    pub(crate) body: String,
+    #[serde(default)]
+    pub(crate) engine: String,
+    #[serde(default)]
+    pub(crate) language: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -214,6 +251,25 @@ pub(crate) struct GitPrExistingPullRequest {
     pub(crate) base_ref_name: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum GitPrRangeGateSeverity {
+    Large,
+    DiffIncomplete,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub(crate) struct GitPrRangeGate {
+    #[serde(rename = "changedFiles")]
+    pub(crate) changed_files: usize,
+    pub(crate) threshold: usize,
+    pub(crate) severity: GitPrRangeGateSeverity,
+    #[serde(rename = "requiresConfirmation")]
+    pub(crate) requires_confirmation: bool,
+    #[serde(rename = "rangeFingerprint")]
+    pub(crate) range_fingerprint: String,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct GitPrWorkflowResult {
     pub(crate) ok: bool,
@@ -231,6 +287,8 @@ pub(crate) struct GitPrWorkflowResult {
     pub(crate) existing_pr: Option<GitPrExistingPullRequest>,
     #[serde(rename = "retryCommand")]
     pub(crate) retry_command: Option<String>,
+    #[serde(rename = "rangeGate")]
+    pub(crate) range_gate: Option<GitPrRangeGate>,
     pub(crate) stages: Vec<GitPrWorkflowStage>,
 }
 
@@ -891,8 +949,8 @@ fn default_email_inbound_settings() -> EmailInboundSettings {
     EmailInboundSettings::default()
 }
 
-fn default_engine_enabled() -> bool {
-    true
+fn default_gemini_enabled() -> bool {
+    crate::engine_policy::GEMINI_RUNTIME_ENABLED
 }
 
 fn default_opencode_enabled() -> bool {
@@ -929,11 +987,13 @@ pub(crate) struct AppSettings {
     pub(crate) codex_bin: Option<String>,
     #[serde(default, rename = "claudeBin")]
     pub(crate) claude_bin: Option<String>,
+    #[serde(default, rename = "kimiBin")]
+    pub(crate) kimi_bin: Option<String>,
     #[serde(default, rename = "codexArgs")]
     pub(crate) codex_args: Option<String>,
     #[serde(default, rename = "terminalShellPath")]
     pub(crate) terminal_shell_path: Option<String>,
-    #[serde(default = "default_engine_enabled", rename = "geminiEnabled")]
+    #[serde(default = "default_gemini_enabled", rename = "geminiEnabled")]
     pub(crate) gemini_enabled: bool,
     #[serde(default = "default_opencode_enabled", rename = "opencodeEnabled")]
     pub(crate) opencode_enabled: bool,
@@ -1310,6 +1370,13 @@ pub(crate) struct AppSettings {
         rename = "enabledCuratedSkillIds"
     )]
     pub(crate) enabled_curated_skill_ids: Vec<String>,
+    /// Built-in Agent Catalog ids the user explicitly enabled for discovery in
+    /// the Composer `#` picker. Enablement never injects a prompt by itself.
+    #[serde(
+        default = "default_enabled_builtin_agent_ids",
+        rename = "enabledBuiltInAgentIds"
+    )]
+    pub(crate) enabled_builtin_agent_ids: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -1700,6 +1767,10 @@ pub(crate) fn default_enabled_curated_skill_ids() -> Vec<String> {
     vec!["lazy-senior-dev".to_string()]
 }
 
+pub(crate) fn default_enabled_builtin_agent_ids() -> Vec<String> {
+    Vec::new()
+}
+
 fn is_allowed_codex_auto_compaction_threshold_percent(value: u16) -> bool {
     value == 92 || ((100..=200).contains(&value) && value % 10 == 0)
 }
@@ -1734,7 +1805,14 @@ impl AppSettings {
     }
 
     pub(crate) fn sanitize_engine_gates(&mut self) {
-        self.gemini_enabled = self.gemini_enabled != false;
+        self.gemini_enabled = crate::engine_policy::GEMINI_RUNTIME_ENABLED;
+        if self
+            .default_engine
+            .as_deref()
+            .is_some_and(|engine| engine.trim().eq_ignore_ascii_case("gemini"))
+        {
+            self.default_engine = None;
+        }
         self.opencode_enabled = self.opencode_enabled != false;
     }
 }
@@ -1744,9 +1822,10 @@ impl Default for AppSettings {
         Self {
             codex_bin: None,
             claude_bin: None,
+            kimi_bin: None,
             codex_args: None,
             terminal_shell_path: None,
-            gemini_enabled: default_engine_enabled(),
+            gemini_enabled: default_gemini_enabled(),
             opencode_enabled: default_opencode_enabled(),
             session_attribution_mode: WorkspaceSessionAttributionMode::Related,
             backend_mode: BackendMode::Local,
@@ -1851,6 +1930,7 @@ impl Default for AppSettings {
             browser_agent_allow_external_provider_fallback:
                 default_browser_agent_allow_external_provider_fallback(),
             enabled_curated_skill_ids: default_enabled_curated_skill_ids(),
+            enabled_builtin_agent_ids: default_enabled_builtin_agent_ids(),
         }
     }
 }
@@ -1910,12 +1990,68 @@ pub(crate) struct CodexProviderConfig {
     pub(crate) custom_models: Option<Vec<CodexCustomModel>>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct KimiProviderConfig {
+    pub(crate) id: String,
+    pub(crate) name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) remark: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) website_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) created_at: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) sort_order: Option<i64>,
+    #[serde(default)]
+    pub(crate) is_active: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) is_local_provider: Option<bool>,
+    #[serde(default)]
+    pub(crate) base_url: String,
+    #[serde(default)]
+    pub(crate) api_key: String,
+    #[serde(default)]
+    pub(crate) model: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) provider_type: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) max_context_size: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) display_name: Option<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        AppSettings, BackendMode, EmailSenderProvider, EmailSenderSecurity, WorkspaceEntry,
-        WorkspaceGroup, WorkspaceKind, WorkspaceSessionAttributionMode, WorkspaceSettings,
+        AppSettings, BackendMode, EmailSenderProvider, EmailSenderSecurity, GitFileStatus,
+        WorkspaceEntry, WorkspaceGroup, WorkspaceKind, WorkspaceSessionAttributionMode,
+        WorkspaceSettings,
     };
+
+    #[test]
+    fn git_file_status_serializes_optional_rename_source_as_old_path() {
+        let renamed = GitFileStatus {
+            path: "archive/spec.md".to_string(),
+            old_path: Some("changes/spec.md".to_string()),
+            status: "R".to_string(),
+            additions: 0,
+            deletions: 0,
+        };
+        let renamed_json = serde_json::to_value(renamed).expect("serialize rename status");
+        assert_eq!(renamed_json["path"], "archive/spec.md");
+        assert_eq!(renamed_json["oldPath"], "changes/spec.md");
+
+        let modified = GitFileStatus {
+            path: "src/app.ts".to_string(),
+            old_path: None,
+            status: "M".to_string(),
+            additions: 1,
+            deletions: 0,
+        };
+        let modified_json = serde_json::to_value(modified).expect("serialize modified status");
+        assert!(modified_json.get("oldPath").is_none());
+    }
 
     #[test]
     fn app_settings_round_trips_last_composer_prefs_by_engine() {
@@ -1958,6 +2094,7 @@ mod tests {
         assert!(settings.web_service_token.is_none());
         assert!(settings.custom_skill_directories.is_empty());
         assert!(!settings.system_proxy_enabled);
+        assert!(!settings.gemini_enabled);
         assert!(!settings.opencode_enabled);
         assert_eq!(
             settings.session_attribution_mode,
@@ -2175,10 +2312,24 @@ mod tests {
     }
 
     #[test]
-    fn app_settings_defaults_enable_gemini_and_disable_opencode() {
+    fn app_settings_defaults_disable_retired_optional_engines() {
         let settings = AppSettings::default();
-        assert!(settings.gemini_enabled);
+        assert!(!settings.gemini_enabled);
         assert!(!settings.opencode_enabled);
+    }
+
+    #[test]
+    fn app_settings_sanitizer_forces_legacy_gemini_true_to_false() {
+        let mut settings: AppSettings =
+            serde_json::from_str(r#"{"geminiEnabled":true,"defaultEngine":"gemini"}"#)
+                .expect("deserialize legacy settings");
+        assert!(settings.gemini_enabled);
+        assert_eq!(settings.default_engine.as_deref(), Some("gemini"));
+
+        settings.sanitize_engine_gates();
+
+        assert!(!settings.gemini_enabled);
+        assert!(settings.default_engine.is_none());
     }
 
     #[test]

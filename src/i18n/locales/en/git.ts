@@ -59,7 +59,7 @@ const git = {
     listView: "File list view",
     listFlat: "Flat",
     listTree: "Tree",
-    historyQuickAction: "Hub",
+    historyQuickAction: "Git Graph",
     previewInline: "Preview in center pane",
     previewInlineAction: "Preview diff in center pane",
     previewModal: "Preview in modal",
@@ -212,6 +212,9 @@ const git = {
     generateCommitMessageEngineGemini: "Use Gemini engine",
     generateCommitMessageEngineOpenCode: "Use OpenCode engine",
     generateCommitMessageLastConfig: "Use last configuration",
+    commitComposerPlacementMenuLabel: "Commit box position",
+    commitComposerPlacementBottom: "Bottom",
+    commitComposerPlacementTop: "Top",
     commitMessageRequiresCodex:
       "AI commit message generation requires the Codex CLI. Install it with: npm install -g @openai/codex",
     noMessage: "No message",
@@ -248,6 +251,12 @@ const git = {
     historyWorkspacePickerStatusNoRepo:
       "No child Git repositories found. Switch workspace or add one manually.",
     historyTitle: "Git",
+    fileHistoryTitle: "File History",
+    fileHistoryClose: "Close File History",
+    fileHistoryLoading: "Loading file history...",
+    fileHistoryLoadingMore: "Loading more commits...",
+    fileHistoryEmpty: "This file has no commit history.",
+    fileHistoryRetry: "Retry",
     historyProject: "Project",
     historyCommitCount: "{{count}} commits",
     historyClosePanel: "Close Git History",
@@ -264,6 +273,7 @@ const git = {
     repositoryMenuCompareRevision: "Compare with revision...",
     repositoryMenuCompareBranch: "Compare with branch or tag...",
     repositoryMenuHistory: "Show history",
+    repositoryMenuFileHistory: "Show file history",
     repositoryMenuRollback: "Rollback changes...",
     repositoryMenuPush: "Push...",
     repositoryMenuPull: "Pull...",
@@ -350,6 +360,20 @@ const git = {
     historyCreatePrFieldHeadBranch: "head branch",
     historyCreatePrFieldTitle: "PR title",
     historyCreatePrFieldBody: "PR body",
+    historyGeneratePrTitleBody: "Generate PR title and body with AI",
+    historyGeneratePrLoading: "AI is generating… ({{elapsed}}s)",
+    historyGeneratePrLoadingSlow: "AI is still generating (large diff)… ({{elapsed}}s)",
+    historyGeneratePrSuccessWithEngine: "✓ {{engine}} generated the PR title and body",
+    historyGeneratePrError: "PR content generation failed: {{error}}",
+    historyGeneratePrTimeout: "AI generation timed out, please retry",
+    historyGeneratePrUnsupportedEngine: "The selected engine is unavailable",
+    historyGeneratePrMissingBaseOrHead: "Select both base and head branches first",
+    historyGeneratePrMenuTitle: "Choose PR content generation",
+    historyGeneratePrMenuLastConfig: "Use last configuration",
+    historyGeneratePrMenuCodex: "Use Codex engine",
+    historyGeneratePrMenuClaude: "Use Claude engine",
+    historyGeneratePrMenuZh: "Generate Chinese content",
+    historyGeneratePrMenuEn: "Generate English content",
     historyCreatePrTitlePlaceholder: "fix(git): describe change",
     historyCreatePrCommentAfterCreate: "Comment after create (@review)",
     historyCreatePrCommentBody: "Comment body",
@@ -381,6 +405,11 @@ const git = {
     historyCreatePrRetryCommand: "Retry command",
     historyCreatePrCopied: "Copied",
     historyCreatePrFormIncomplete: "Fill required fields first",
+    historyCreatePrRangeConfirmTitle: "Confirm large pull request",
+    historyCreatePrRangeLargeConfirm:
+      "{{base}}...{{head}} contains {{count}} changed files, above the normal review threshold of {{threshold}}. After confirmation it will be pushed to {{target}}. Confirm that the PR range is correct before continuing.",
+    historyCreatePrRangeDiffIncompleteConfirm:
+      "{{base}}...{{head}} contains {{count}} changed files, and GitHub may not display the complete diff. After confirmation it will be pushed to {{target}}. Continue creating the PR?",
     historyCreatePrAction: "Create PR",
     historyPullDialogTitle: "Pull Changes",
     historyPullDialogRemoteLabel: "Remote",
@@ -392,6 +421,57 @@ const git = {
       "Pull will run with the selected remote, target branch, and options.",
     historyPullDialogWillNotHappen:
       "This action will not push local commits to remote.",
+    historyPullExplanationDefaultLabel: "Git default",
+    historyPullExplanationIntentDefault:
+      "Fetch {{remote}}/{{targetBranch}}, then integrate it into the current branch using the applicable Git configuration.",
+    historyPullExplanationIntentRebase:
+      "Fetch {{remote}}/{{targetBranch}}, then replay your local commits on top of the latest remote commit.",
+    historyPullExplanationIntentFfOnly:
+      "Fetch {{remote}}/{{targetBranch}}, and update the current branch only if it can fast-forward.",
+    historyPullExplanationIntentNoFf:
+      "Fetch {{remote}}/{{targetBranch}} and disable fast-forward if pull uses merge. A configured rebase may still take precedence.",
+    historyPullExplanationIntentSquash:
+      "Fetch {{remote}}/{{targetBranch}} and leave the combined changes uncommitted if pull uses merge. A configured rebase may still take precedence.",
+    historyPullExplanationEffectDefault:
+      "No strategy is selected. Git will use branch, repository, or user configuration, so different repositories may behave differently.",
+    historyPullExplanationEffectRebase:
+      "Local-only commits are replayed one by one for a linear history. Rebase pauses if conflicts need resolution.",
+    historyPullExplanationEffectFfOnly:
+      "The branch pointer moves forward only when the histories have not diverged. Otherwise pull stops with an error.",
+    historyPullExplanationEffectNoFf:
+      "On the merge path, a merge commit is created even when fast-forward is possible. This option alone does not force pull to use merge.",
+    historyPullExplanationEffectSquash:
+      "On the merge path, the combined changes are left ready for your manual commit without moving the current branch. This option alone does not force merge.",
+    historyPullExplanationEffectNoCommitDefault:
+      "If Git ultimately performs a merge that needs a merge commit, it stops before committing. A fast-forward cannot be paused.",
+    historyPullExplanationEffectNoCommitRebase:
+      "The flag remains in the command, but the rebase path creates no merge commit, so it adds no commit-before-pause effect.",
+    historyPullExplanationEffectNoCommitFfOnly:
+      "A fast-forward creates no merge commit, so there is nothing for this option to pause and it adds no effect.",
+    historyPullExplanationEffectNoCommitNoFf:
+      "If pull uses merge, Git stops before the merge commit so you can inspect and commit manually. On a configured rebase path, there is no merge commit to pause.",
+    historyPullExplanationEffectNoCommitSquash:
+      "On the merge path, --squash already leaves changes uncommitted, so this option adds nothing. On a rebase path, it adds no merge-commit pause.",
+    historyPullExplanationEffectNoVerifyDefault:
+      "If Git ultimately creates a merge commit, it skips pre-merge-commit and commit-msg hooks. Fetch and later manual commits are unaffected.",
+    historyPullExplanationEffectNoVerifyRebase:
+      "The flag remains in the command, but git pull does not pass merge-hook verification to the rebase path, so it adds no effect here.",
+    historyPullExplanationEffectNoVerifyFfOnly:
+      "A fast-forward creates no merge commit and runs no merge-commit hooks, so this option adds no effect.",
+    historyPullExplanationEffectNoVerifyNoFf:
+      "If pull creates a merge commit, Git skips its pre-merge-commit and commit-msg hooks, so repository checks may be bypassed. A rebase path does not use those merge hooks.",
+    historyPullExplanationEffectNoVerifySquash:
+      "On the merge-and-squash path, no merge commit is created, so there are no merge-commit hooks to skip. On a rebase path, this flag adds no merge-hook effect.",
+    historyPullExplanationWillNotDefault:
+      "This action will not push local commits. Without an explicit strategy, the dialog does not promise whether Git will merge, rebase, or stop.",
+    historyPullExplanationWillNotRebase:
+      "It will not create a merge commit or push. Replayed local commits are not guaranteed to keep their original hashes.",
+    historyPullExplanationWillNotFfOnly:
+      "It will not create a merge commit, rebase, or push. Diverged histories are not integrated automatically.",
+    historyPullExplanationWillNotNoFf:
+      "It will not push. This option alone does not guarantee that rebase is disabled; applicable Git configuration can still select it.",
+    historyPullExplanationWillNotSquash:
+      "It will not push. The uncommitted squash result is not guaranteed when applicable Git configuration selects rebase.",
     historySyncDialogTitle: "Sync Branch",
     historySyncDialogTarget: "{{sourceBranch}} -> {{remote}}:{{targetBranch}}",
     historySyncDialogAheadBehind: "ahead {{ahead}} / behind {{behind}}",
@@ -427,6 +507,22 @@ const git = {
     historyExampleTitle: "Example",
     historySearchBranches: "Search branches",
     historySearchCommits: "Search commits",
+    historyFilterQueryLabel: "Search",
+    historyFilterQueryPlaceholder: "Search commit message or hash",
+    historyFilterBranchLabel: "Branch",
+    historyFilterBranchSearch: "Search branches",
+    historyFilterBranchEmpty: "No branches found",
+    historyFilterAuthorLabel: "User",
+    historyFilterAuthorPlaceholder: "Name or email",
+    historyFilterDateLabel: "Date",
+    historyFilterDateSearch: "Search date ranges",
+    historyFilterDateEmpty: "No date ranges found",
+    historyFilterDateAll: "All time",
+    historyFilterDateToday: "Today",
+    historyFilterDateLast7Days: "Last 7 days",
+    historyFilterDateLast30Days: "Last 30 days",
+    historyFilterClear: "Clear",
+    historyFilterClearField: "Clear {{field}}",
     historyLoadingCommits: "Loading commits...",
     historyNoCommitsFound: "No commits found.",
     historyLoadMore: "Load more",

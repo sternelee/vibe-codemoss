@@ -31,12 +31,16 @@ mod codex_thread_mode_state;
 mod daemon_state;
 #[path = "cc_gui_daemon/engine_bridge.rs"]
 mod engine;
+#[path = "../engine_policy.rs"]
+mod engine_policy;
 #[path = "../files/io.rs"]
 mod file_io;
 #[path = "../files/ops.rs"]
 mod file_ops;
 #[path = "../files/policy.rs"]
 mod file_policy;
+#[path = "../git/range_gate.rs"]
+mod git_pr_range_gate;
 #[allow(dead_code)]
 #[path = "../git_utils.rs"]
 mod git_utils;
@@ -113,6 +117,9 @@ mod remote_backend {
     }
 }
 #[allow(dead_code)]
+#[path = "../agent_catalog.rs"]
+mod agent_catalog;
+#[allow(dead_code)]
 #[path = "../curated_skills.rs"]
 mod curated_skills;
 #[allow(dead_code)]
@@ -153,10 +160,11 @@ mod codex {
     pub(crate) type WorkspaceSession = crate::backend::app_server::WorkspaceSession;
     pub(crate) use crate::codex_doctor::{
         run_claude_doctor_with_settings, run_codex_doctor_with_settings,
+        run_kimi_doctor_with_settings,
     };
     pub(crate) use crate::codex_installer::{
-        build_cli_install_plan_with_backend, run_cli_installer_with_progress, CliInstallBackend,
-        CliInstallProgressEvent,
+        build_cli_install_plan_with_backend, resolve_cli_version_status,
+        run_cli_installer_with_progress, CliInstallBackend, CliInstallProgressEvent,
     };
     pub(crate) async fn ensure_codex_session(
         _workspace_id: &str,
@@ -259,9 +267,8 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::process::Command;
 use tokio::sync::{broadcast, mpsc, oneshot, Mutex};
-use uuid::Uuid;
 
-use backend::app_server::{spawn_workspace_session, WorkspaceSession};
+use backend::app_server::{spawn_workspace_session, RuntimeShutdownSource, WorkspaceSession};
 use backend::events::{AppServerEvent, EventSink, TerminalOutput};
 use shared::{
     codex_core, files_core, git_core, proxy_core, settings_core, thread_titles_core,
@@ -270,10 +277,10 @@ use shared::{
 use storage::{read_settings, read_workspaces};
 use types::{
     AppSettings, BranchInfo, GitBranchCompareCommitSets, GitBranchListItem, GitBranchUpdateResult,
-    GitCommitDetails, GitCommitDiff, GitCommitFileChange, GitFileDiff, GitFileStatus,
-    GitHistoryCommit, GitHistoryResponse, GitHubIssue, GitHubIssuesResponse, GitHubPullRequest,
-    GitHubPullRequestComment, GitHubPullRequestDiff, GitHubPullRequestsResponse, GitLogEntry,
-    GitLogResponse, GitPrWorkflowDefaults, GitPrWorkflowResult, GitPrWorkflowStage,
+    GitCommitDetails, GitCommitDiff, GitCommitFileChange, GitFileBlameResponse, GitFileDiff,
+    GitFileStatus, GitHistoryCommit, GitHistoryResponse, GitHubIssue, GitHubIssuesResponse,
+    GitHubPullRequest, GitHubPullRequestComment, GitHubPullRequestDiff, GitHubPullRequestsResponse,
+    GitLogEntry, GitLogResponse, GitPrWorkflowDefaults, GitPrWorkflowResult, GitPrWorkflowStage,
     GitPushPreviewResponse, WorkspaceEntry, WorkspaceInfo, WorkspaceSettings, WorktreeSetupStatus,
 };
 use utils::normalize_git_path;
@@ -777,6 +784,7 @@ fn parse_engine_type_string(value: Option<&str>) -> Option<engine::EngineType> {
         "codex" => Some(engine::EngineType::Codex),
         "gemini" => Some(engine::EngineType::Gemini),
         "opencode" => Some(engine::EngineType::OpenCode),
+        "kimi" => Some(engine::EngineType::Kimi),
         _ => None,
     }
 }
@@ -1064,6 +1072,15 @@ async fn handle_rpc_request(
                 .await?;
             Ok(Value::String(diff))
         }
+        "get_git_file_blame" => {
+            let workspace_id = parse_string(&params, "workspaceId")?;
+            let path = parse_string(&params, "path")?;
+            let repository_root = parse_optional_string(&params, "repositoryRoot");
+            let response = state
+                .get_git_file_blame(workspace_id, path, repository_root)
+                .await?;
+            serde_json::to_value(response).map_err(|error| error.to_string())
+        }
         "get_git_log" => {
             let workspace_id = parse_string(&params, "workspaceId")?;
             let limit = parse_optional_usize(&params, "limit");
@@ -1078,6 +1095,7 @@ async fn handle_rpc_request(
             let date_from = parse_optional_i64(&params, "dateFrom");
             let date_to = parse_optional_i64(&params, "dateTo");
             let snapshot_id = parse_optional_string(&params, "snapshotId");
+            let path = parse_optional_string(&params, "path");
             let offset = parse_optional_usize(&params, "offset").unwrap_or(0);
             let limit = parse_optional_usize(&params, "limit").unwrap_or(100);
             let repository_root = parse_optional_string(&params, "repositoryRoot");
@@ -1090,6 +1108,7 @@ async fn handle_rpc_request(
                     date_from,
                     date_to,
                     snapshot_id,
+                    path,
                     offset,
                     limit,
                     repository_root,
@@ -1123,6 +1142,9 @@ async fn handle_rpc_request(
             let body = parse_optional_string(&params, "body");
             let comment_after_create = parse_optional_bool(&params, "commentAfterCreate");
             let comment_body = parse_optional_string(&params, "commentBody");
+            let allow_large_range = parse_optional_bool(&params, "allowLargeRange");
+            let confirmed_range_fingerprint =
+                parse_optional_string(&params, "confirmedRangeFingerprint");
             let response = state
                 .create_git_pr_workflow(
                     workspace_id,
@@ -1134,6 +1156,8 @@ async fn handle_rpc_request(
                     body,
                     comment_after_create,
                     comment_body,
+                    allow_large_range,
+                    confirmed_range_fingerprint,
                 )
                 .await?;
             serde_json::to_value(response).map_err(|err| err.to_string())
@@ -1506,6 +1530,10 @@ async fn handle_rpc_request(
             let claude_bin = parse_optional_string(&params, "claudeBin");
             state.claude_doctor(claude_bin).await
         }
+        "kimi_doctor" => {
+            let kimi_bin = parse_optional_string(&params, "kimiBin");
+            state.kimi_doctor(kimi_bin).await
+        }
         "cli_install_plan" => {
             let engine =
                 serde_json::from_value(params.get("engine").cloned().unwrap_or(Value::Null))
@@ -1517,6 +1545,12 @@ async fn handle_rpc_request(
                 serde_json::from_value(params.get("strategy").cloned().unwrap_or(Value::Null))
                     .map_err(|err| format!("invalid cli installer strategy: {err}"))?;
             state.cli_install_plan(engine, action, strategy).await
+        }
+        "cli_version_status" => {
+            let engine =
+                serde_json::from_value(params.get("engine").cloned().unwrap_or(Value::Null))
+                    .map_err(|err| format!("invalid cli version status engine: {err}"))?;
+            state.cli_version_status(engine).await
         }
         "cli_install_run" => {
             let engine =
@@ -1756,6 +1790,11 @@ async fn handle_rpc_request(
             let limit = parse_optional_u32(&params, "limit").map(|value| value as usize);
             state.list_gemini_sessions(workspace_path, limit).await
         }
+        "list_kimi_sessions" => {
+            let workspace_path = parse_string(&params, "workspacePath")?;
+            let limit = parse_optional_u32(&params, "limit").map(|value| value as usize);
+            state.list_kimi_sessions(workspace_path, limit).await
+        }
         "list_workspace_sessions" => {
             let workspace_id = parse_string(&params, "workspaceId")?;
             let query = parse_optional_value(&params, "query")
@@ -1937,6 +1976,11 @@ async fn handle_rpc_request(
             let session_id = parse_string(&params, "sessionId")?;
             state.load_gemini_session(workspace_path, session_id).await
         }
+        "load_kimi_session" => {
+            let workspace_path = parse_string(&params, "workspacePath")?;
+            let session_id = parse_string(&params, "sessionId")?;
+            state.load_kimi_session(workspace_path, session_id).await
+        }
         "load_codex_session" => {
             let workspace_id = parse_string(&params, "workspaceId")?;
             let session_id = parse_string(&params, "sessionId")?;
@@ -1947,6 +1991,14 @@ async fn handle_rpc_request(
             let session_id = parse_string(&params, "sessionId")?;
             state
                 .delete_gemini_session(workspace_path, session_id)
+                .await?;
+            Ok(json!({ "ok": true }))
+        }
+        "delete_kimi_session" => {
+            let workspace_path = parse_string(&params, "workspacePath")?;
+            let session_id = parse_string(&params, "sessionId")?;
+            state
+                .delete_kimi_session(workspace_path, session_id)
                 .await?;
             Ok(json!({ "ok": true }))
         }
@@ -2272,6 +2324,26 @@ async fn handle_client(
     write_task.abort();
 }
 
+#[cfg(unix)]
+async fn wait_for_shutdown_signal() -> Result<&'static str, String> {
+    let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+        .map_err(|error| format!("failed to register SIGTERM handler: {error}"))?;
+    let mut interrupt = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::interrupt())
+        .map_err(|error| format!("failed to register SIGINT handler: {error}"))?;
+    tokio::select! {
+        _ = terminate.recv() => Ok("SIGTERM"),
+        _ = interrupt.recv() => Ok("SIGINT"),
+    }
+}
+
+#[cfg(not(unix))]
+async fn wait_for_shutdown_signal() -> Result<&'static str, String> {
+    tokio::signal::ctrl_c()
+        .await
+        .map_err(|error| format!("failed to register shutdown handler: {error}"))?;
+    Ok("Ctrl-C")
+}
+
 fn main() {
     if let Err(err) = fix_path_env::fix() {
         eprintln!("Failed to sync PATH from shell: {err}");
@@ -2310,19 +2382,67 @@ fn main() {
                 .display()
         );
 
+        let mut shutdown_signal = Box::pin(wait_for_shutdown_signal());
+        let mut client_tasks = tokio::task::JoinSet::new();
         loop {
-            match listener.accept().await {
-                Ok((socket, _addr)) => {
-                    let config = Arc::clone(&config);
-                    let state = Arc::clone(&state);
-                    let events = events_tx.clone();
-                    tokio::spawn(async move {
-                        handle_client(socket, config, state, events).await;
-                    });
+            tokio::select! {
+                shutdown_result = &mut shutdown_signal => {
+                    match shutdown_result {
+                        Ok(signal) => eprintln!("cc_gui_daemon received {signal}; shutting down"),
+                        Err(error) => eprintln!("cc_gui_daemon shutdown signal error: {error}"),
+                    }
+                    break;
                 }
-                Err(_) => continue,
+                accept_result = listener.accept() => {
+                    match accept_result {
+                        Ok((socket, _addr)) => {
+                            let config = Arc::clone(&config);
+                            let state = Arc::clone(&state);
+                            let events = events_tx.clone();
+                            client_tasks.spawn(async move {
+                                handle_client(socket, config, state, events).await;
+                            });
+                        }
+                        Err(_) => continue,
+                    }
+                }
+                Some(join_result) = client_tasks.join_next(), if !client_tasks.is_empty() => {
+                    if let Err(error) = join_result {
+                        eprintln!("cc_gui_daemon client task failed: {error}");
+                    }
+                }
             }
         }
+
+        client_tasks.abort_all();
+        while client_tasks.join_next().await.is_some() {}
+        state.runtime_manager.begin_shutdown();
+        state.engine_manager.claude_manager.interrupt_all().await;
+        if let Err(error) = state.engine_manager.shutdown_gemini_sessions().await {
+            eprintln!("cc_gui_daemon Gemini shutdown failed: {error}");
+        }
+        let codex_sessions = {
+            let mut sessions = state.sessions.lock().await;
+            sessions
+                .drain()
+                .map(|(_, session)| session)
+                .collect::<Vec<_>>()
+        };
+        for session in codex_sessions {
+            let workspace_id = session.entry.id.clone();
+            if let Err(error) = runtime::terminate_workspace_session_with_source(
+                session,
+                Some(state.runtime_manager.as_ref()),
+                RuntimeShutdownSource::AppExit,
+            )
+            .await
+            {
+                eprintln!(
+                    "cc_gui_daemon Codex shutdown failed for workspace {workspace_id}: {error}"
+                );
+            }
+        }
+        state.runtime_manager.note_shutdown().await;
     });
 }
 

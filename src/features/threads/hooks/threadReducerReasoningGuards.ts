@@ -14,6 +14,8 @@ export function isLocalCliReasoningThread(threadId: string) {
     threadId.startsWith("claude-pending-") ||
     threadId.startsWith("gemini:") ||
     threadId.startsWith("gemini-pending-") ||
+    threadId.startsWith("kimi:") ||
+    threadId.startsWith("kimi-pending-") ||
     threadId.startsWith("opencode:") ||
     threadId.startsWith("opencode-pending-")
   );
@@ -21,6 +23,10 @@ export function isLocalCliReasoningThread(threadId: string) {
 
 export function isGeminiReasoningThread(threadId: string) {
   return threadId.startsWith("gemini:") || threadId.startsWith("gemini-pending-");
+}
+
+export function isKimiReasoningThread(threadId: string) {
+  return threadId.startsWith("kimi:") || threadId.startsWith("kimi-pending-");
 }
 
 export function isClaudeReasoningThread(threadId: string) {
@@ -33,7 +39,9 @@ export function shouldAcceptReasoningDelta(
 ) {
   // Gemini may emit reasoning fallback snapshots after processing settles.
   // Keep these deltas so realtime reasoning stays consistent with history.
-  if (isGeminiReasoningThread(threadId)) {
+  // Kimi shares the same spawn-per-turn runtime shape, so it gets the same
+  // fallback-snapshot acceptance.
+  if (isGeminiReasoningThread(threadId) || isKimiReasoningThread(threadId)) {
     return true;
   }
   if (!isLocalCliReasoningThread(threadId)) {

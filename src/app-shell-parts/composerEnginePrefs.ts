@@ -1,6 +1,6 @@
 import type { AccessMode, ComposerEnginePrefs, EngineType } from "../types";
 
-const ENGINE_TYPES: EngineType[] = ["claude", "codex", "gemini", "opencode"];
+const ENGINE_TYPES: EngineType[] = ["claude", "codex", "gemini", "kimi", "opencode"];
 const ACCESS_MODES = new Set<AccessMode>([
   "default",
   "read-only",

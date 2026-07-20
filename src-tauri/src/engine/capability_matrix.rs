@@ -18,6 +18,7 @@ pub fn capability_state(engine_type: EngineType, capability: &str) -> &'static s
         EngineType::Codex => EngineFeatures::codex(),
         EngineType::Gemini => EngineFeatures::gemini(),
         EngineType::OpenCode => EngineFeatures::opencode(),
+        EngineType::Kimi => EngineFeatures::kimi(),
     };
 
     match capability {

@@ -28,11 +28,12 @@ use crate::types::WorkspaceEntry;
 
 use super::codex_prompt_service::{normalize_custom_spec_root, run_codex_prompt_sync};
 use super::events::{engine_event_to_app_server_event_with_turn_context, EngineEvent};
+use super::kimi::resolve_kimi_session_id_for_engine_send;
 use super::remote_bridge::{
     call_remote_typed, remote_detect_engines_request, remote_engine_interrupt_request,
     remote_engine_send_message_sync_request,
 };
-use super::status::{detect_gemini_status, load_opencode_models};
+use super::status::{detect_kimi_status, load_opencode_models};
 use super::{
     engine_disabled_diagnostic, engine_enabled_in_settings, EngineConfig, EngineStatus, EngineType,
 };
@@ -179,7 +180,7 @@ fn collect_stale_child_candidates(
             }
             let progress_evidence = match workspace.engine {
                 EngineType::Claude => "timing-only",
-                EngineType::OpenCode | EngineType::Gemini => "unsupported",
+                EngineType::OpenCode | EngineType::Gemini | EngineType::Kimi => "unsupported",
                 // Codex is intentionally not part of this child-process parity
                 // path (it has its own wrapper runtime).
                 EngineType::Codex => "unsupported",
@@ -204,6 +205,7 @@ fn engine_type_label(engine: EngineType) -> &'static str {
         EngineType::OpenCode => "opencode",
         EngineType::Gemini => "gemini",
         EngineType::Codex => "codex",
+        EngineType::Kimi => "kimi",
     }
 }
 
@@ -304,6 +306,26 @@ fn ensure_engine_enabled(
     Err(engine_disabled_diagnostic(engine_type)
         .unwrap_or("Engine is disabled in CLI validation settings")
         .to_string())
+}
+
+fn resolve_enabled_engine_for_send(
+    settings: &crate::types::AppSettings,
+    requested_engine: Option<EngineType>,
+    active_engine: EngineType,
+) -> Result<EngineType, String> {
+    let effective_engine = requested_engine.unwrap_or(active_engine);
+    ensure_engine_enabled(settings, effective_engine)?;
+    Ok(effective_engine)
+}
+
+fn validate_remote_requested_engine(
+    settings: &crate::types::AppSettings,
+    requested_engine: Option<EngineType>,
+) -> Result<Option<EngineType>, String> {
+    if let Some(engine_type) = requested_engine {
+        ensure_engine_enabled(settings, engine_type)?;
+    }
+    Ok(requested_engine)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -1098,6 +1120,9 @@ pub async fn switch_engine(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
+    let settings = read_app_settings_snapshot(&state).await;
+    ensure_engine_enabled(&settings, engine_type)?;
+
     if remote_backend::is_remote_mode(&*state).await {
         let _: Value = call_remote_typed(
             &*state,
@@ -1109,8 +1134,6 @@ pub async fn switch_engine(
         return Ok(());
     }
     let manager = &state.engine_manager;
-    let settings = read_app_settings_snapshot(&state).await;
-    ensure_engine_enabled(&settings, engine_type)?;
     manager.set_active_engine(engine_type).await
 }
 
@@ -1278,6 +1301,29 @@ pub async fn get_engine_active_process_diagnostics(
             registered_active_processes,
         });
     }
+    for (workspace_id, session) in state.engine_manager.list_kimi_sessions().await {
+        let active_process_snapshots = session.active_process_snapshots(sampled_at_ms).await;
+        let active_process_ids = active_process_snapshots
+            .iter()
+            .map(|process| process.pid)
+            .collect::<Vec<_>>();
+        if active_process_ids.is_empty() {
+            continue;
+        }
+        let registered_active_processes = active_process_snapshots
+            .into_iter()
+            .map(|process| RegisteredEngineActiveProcessDiagnostic {
+                pid: process.pid,
+                registered_age_ms: process.registered_age_ms,
+            })
+            .collect();
+        workspaces.push(EngineWorkspaceActiveProcessDiagnostics {
+            workspace_id,
+            engine: EngineType::Kimi,
+            active_process_ids,
+            registered_active_processes,
+        });
+    }
     let stale_child_candidates = collect_stale_child_candidates(&workspaces, sampled_at_ms);
     Ok(build_engine_active_process_diagnostics(
         sampled_at_ms,
@@ -1295,6 +1341,9 @@ pub async fn get_engine_models(
     app: AppHandle,
 ) -> Result<Vec<super::ModelInfo>, String> {
     let force_refresh = force_refresh.unwrap_or(false);
+    let settings = read_app_settings_snapshot(&state).await;
+    ensure_engine_enabled(&settings, engine_type)?;
+
     if remote_backend::is_remote_mode(&*state).await {
         return call_remote_typed(
             &*state,
@@ -1305,8 +1354,6 @@ pub async fn get_engine_models(
         .await;
     }
     let manager = &state.engine_manager;
-    let settings = read_app_settings_snapshot(&state).await;
-    ensure_engine_enabled(&settings, engine_type)?;
 
     match engine_type {
         EngineType::OpenCode => {
@@ -1329,19 +1376,20 @@ pub async fn get_engine_models(
 
             Ok(fresh_models)
         }
-        EngineType::Gemini => {
-            let config = manager.get_engine_config(EngineType::Gemini).await;
+        EngineType::Gemini => Ok(Vec::new()),
+        EngineType::Kimi => {
+            let config = manager.get_engine_config(EngineType::Kimi).await;
             let custom_bin = config
                 .as_ref()
                 .and_then(|cfg| cfg.bin_path.as_ref())
                 .map(|s| s.as_str());
-            let fresh_status = detect_gemini_status(custom_bin).await;
+            let fresh_status = detect_kimi_status(custom_bin).await;
 
             if !fresh_status.models.is_empty() {
                 return Ok(fresh_status.models);
             }
 
-            if let Some(cached) = manager.get_engine_status(EngineType::Gemini).await {
+            if let Some(cached) = manager.get_engine_status(EngineType::Kimi).await {
                 if !cached.models.is_empty() {
                     return Ok(cached.models);
                 }
@@ -1403,7 +1451,11 @@ pub async fn engine_send_message(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<Value, String> {
+    let requested_engine = engine;
+    let settings = read_app_settings_snapshot(&state).await;
+
     if remote_backend::is_remote_mode(&*state).await {
+        let remote_engine = validate_remote_requested_engine(&settings, requested_engine)?;
         let images = images.map(|paths| {
             paths
                 .into_iter()
@@ -1417,7 +1469,7 @@ pub async fn engine_send_message(
             json!({
                 "workspaceId": workspace_id,
                 "text": text,
-                "engine": engine,
+                "engine": remote_engine,
                 "model": model,
                 "effort": effort,
                 "disableThinking": disable_thinking.unwrap_or(false),
@@ -1438,10 +1490,8 @@ pub async fn engine_send_message(
 
     let manager = &state.engine_manager;
     let active_engine = manager.get_active_engine().await;
-    let requested_engine = engine;
-    let effective_engine = requested_engine.unwrap_or(active_engine);
-    let settings = read_app_settings_snapshot(&state).await;
-    ensure_engine_enabled(&settings, effective_engine)?;
+    let effective_engine =
+        resolve_enabled_engine_for_send(&settings, requested_engine, active_engine)?;
     log::info!(
         "[engine_send_message] engine={:?} active_engine={:?} workspace_id={} model={:?} continue_session={} thread_id={:?} session_id={:?} fork_session_id={:?} agent={:?} variant={:?}",
         effective_engine,
@@ -1907,7 +1957,7 @@ pub async fn engine_send_message(
 
             let session = manager
                 .get_or_create_gemini_session(&workspace_id, &workspace_path)
-                .await;
+                .await?;
 
             let resolved_session_id = if continue_session {
                 if session_id.is_some() {
@@ -2114,6 +2164,191 @@ pub async fn engine_send_message(
                 }
             }))
         }
+        EngineType::Kimi => {
+            let workspace_path = {
+                let workspaces = state.workspaces.lock().await;
+                workspaces
+                    .get(&workspace_id)
+                    .map(|w| std::path::PathBuf::from(&w.path))
+                    .ok_or_else(|| "Workspace not found".to_string())?
+            };
+
+            let session = manager
+                .get_or_create_kimi_session(&workspace_id, &workspace_path)
+                .await;
+
+            let resolved_session_id = resolve_kimi_session_id_for_engine_send(
+                continue_session,
+                session_id,
+                session.get_session_id().await,
+            );
+            let response_session_id = resolved_session_id.clone();
+
+            let params = super::SendMessageParams {
+                text,
+                model: model
+                    .as_ref()
+                    .map(|value| value.trim())
+                    .filter(|value| !value.is_empty())
+                    .map(|value| value.to_string()),
+                effort,
+                disable_thinking: false,
+                access_mode,
+                images,
+                continue_session,
+                session_id: resolved_session_id,
+                fork_session_id: None,
+                agent: None,
+                variant: None,
+                collaboration_mode: None,
+                custom_spec_root: normalized_custom_spec_root.clone(),
+            };
+
+            let turn_id = format!("kimi-turn-{}", uuid::Uuid::new_v4());
+            let thread_id = thread_id.unwrap_or_else(|| turn_id.clone());
+            let item_id = format!("kimi-item-{}", uuid::Uuid::new_v4());
+
+            let mut receiver = session.subscribe();
+            let app_clone = app.clone();
+            let mut current_thread_id = thread_id.clone();
+            let item_id_clone = item_id.clone();
+            let turn_id_for_forwarder = turn_id.clone();
+            let mut accumulated_agent_text = String::new();
+            tokio::spawn(async move {
+                let deadline = tokio::time::Instant::now()
+                    + std::time::Duration::from_secs(EVENT_FORWARDER_TIMEOUT_SECS);
+                let mut render_state = GeminiRenderRoutingState::default();
+                loop {
+                    let recv_result = tokio::time::timeout_at(deadline, receiver.recv()).await;
+                    let turn_event = match recv_result {
+                        Ok(Ok(event)) => event,
+                        Ok(Err(tokio::sync::broadcast::error::RecvError::Closed)) => break,
+                        Ok(Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped))) => {
+                            log::warn!(
+                                "Kimi event forwarder lagged; skipped {} events for turn {}",
+                                skipped,
+                                turn_id_for_forwarder
+                            );
+                            continue;
+                        }
+                        Err(_) => break,
+                    };
+                    if turn_event.turn_id != turn_id_for_forwarder {
+                        continue;
+                    }
+
+                    let event = turn_event.event;
+                    let is_terminal = event.is_terminal();
+                    let render_lane = match &event {
+                        EngineEvent::TextDelta { .. } => GeminiRenderLane::Text,
+                        EngineEvent::ReasoningDelta { .. } => GeminiRenderLane::Reasoning,
+                        EngineEvent::ToolStarted { .. }
+                        | EngineEvent::ToolCompleted { .. }
+                        | EngineEvent::ToolInputUpdated { .. }
+                        | EngineEvent::ToolOutputDelta { .. } => GeminiRenderLane::Tool,
+                        _ => GeminiRenderLane::Other,
+                    };
+                    let routed_item_id =
+                        next_gemini_routed_item_id(&mut render_state, render_lane, &item_id_clone);
+
+                    if let EngineEvent::TextDelta { text, .. } = &event {
+                        render_state.saw_text_delta = true;
+                        accumulated_agent_text.push_str(text);
+                    }
+
+                    if let EngineEvent::TurnCompleted { result, .. } = &event {
+                        let fallback_text =
+                            extract_turn_result_text(result.as_ref()).unwrap_or_default();
+                        let completed_text = if should_prefer_turn_result_text(result.as_ref()) {
+                            fallback_text
+                        } else if accumulated_agent_text.trim().is_empty() {
+                            fallback_text
+                        } else {
+                            accumulated_agent_text.clone()
+                        };
+                        // Kimi text blocks always arrive as TextDelta, so this
+                        // synthetic completion only fires as a safety net.
+                        if !completed_text.trim().is_empty() && !render_state.saw_text_delta {
+                            let synthetic = AppServerEvent {
+                                workspace_id: event.workspace_id().to_string(),
+                                message: json!({
+                                    "method": "item/completed",
+                                    "params": {
+                                        "threadId": &current_thread_id,
+                                        "item": {
+                                            "id": &routed_item_id,
+                                            "type": "agentMessage",
+                                            "text": completed_text,
+                                            "status": "completed",
+                                        }
+                                    }
+                                }),
+                            };
+                            let _ = app_clone.emit("app-server-event", synthetic);
+                        }
+                    }
+
+                    if let Some(payload) = engine_event_to_app_server_event_with_turn_context(
+                        &event,
+                        &current_thread_id,
+                        &routed_item_id,
+                        Some(&turn_id_for_forwarder),
+                    ) {
+                        let _ = app_clone.emit("app-server-event", payload);
+                    }
+
+                    if let EngineEvent::SessionStarted {
+                        session_id, engine, ..
+                    } = &event
+                    {
+                        if !session_id.is_empty() && session_id != "pending" {
+                            if matches!(engine, EngineType::Kimi) {
+                                current_thread_id = format!("kimi:{}", session_id);
+                            }
+                        }
+                    }
+
+                    if is_terminal {
+                        break;
+                    }
+                }
+            });
+
+            let session_clone = session.clone();
+            let turn_id_clone = turn_id.clone();
+            tokio::spawn(async move {
+                if let Err(e) = session_clone.send_message(params, &turn_id_clone).await {
+                    log::error!("Kimi send_message failed: {}", e);
+                }
+            });
+            if let (Some(session_id), Some(metadata)) =
+                (response_session_id.as_deref(), auto_session.clone())
+            {
+                record_auto_session_metadata_if_present(
+                    &state,
+                    &workspace_id,
+                    Some(session_id),
+                    Some(metadata),
+                    "kimi",
+                )
+                .await;
+            }
+
+            Ok(json!({
+                "engine": "kimi",
+                "sessionId": response_session_id,
+                "result": {
+                    "turn": {
+                        "id": turn_id,
+                        "status": "started"
+                    },
+                },
+                "turn": {
+                    "id": turn_id,
+                    "status": "started"
+                }
+            }))
+        }
     }
 }
 
@@ -2141,11 +2376,14 @@ pub async fn engine_send_message_sync(
     if text.trim().is_empty() {
         return Err("Prompt text cannot be empty".to_string());
     }
+    let settings = read_app_settings_snapshot(&state).await;
+
     if remote_backend::is_remote_mode(&*state).await {
+        let remote_engine = validate_remote_requested_engine(&settings, engine)?;
         let (method, params) = remote_engine_send_message_sync_request(
             workspace_id,
             text,
-            engine,
+            remote_engine,
             model,
             effort,
             disable_thinking,
@@ -2164,7 +2402,7 @@ pub async fn engine_send_message_sync(
 
     let manager = &state.engine_manager;
     let active_engine = manager.get_active_engine().await;
-    let effective_engine = engine.unwrap_or(active_engine);
+    let effective_engine = resolve_enabled_engine_for_send(&settings, engine, active_engine)?;
     let normalized_custom_spec_root = normalize_custom_spec_root(custom_spec_root.as_deref());
 
     match effective_engine {
@@ -2370,7 +2608,7 @@ pub async fn engine_send_message_sync(
 
             let session = manager
                 .get_or_create_gemini_session(&workspace_id, &workspace_path)
-                .await;
+                .await?;
             let resolved_session_id = if continue_session {
                 if session_id.is_some() {
                     session_id
@@ -2411,12 +2649,9 @@ pub async fn engine_send_message_sync(
             };
 
             let turn_id = format!("gemini-sync-{}", uuid::Uuid::new_v4());
-            let response = timeout(
-                Duration::from_secs(900),
-                session.send_message(params, &turn_id),
-            )
-            .await
-            .map_err(|_| "Gemini response timed out".to_string())??;
+            let response = session
+                .send_message_with_timeout(params, &turn_id, Duration::from_secs(900))
+                .await?;
             record_auto_session_metadata_if_present(
                 &state,
                 &workspace_id,
@@ -2428,6 +2663,67 @@ pub async fn engine_send_message_sync(
 
             Ok(json!({
                 "engine": "gemini",
+                "sessionId": response_session_id,
+                "text": response
+            }))
+        }
+        EngineType::Kimi => {
+            let workspace_path = {
+                let workspaces = state.workspaces.lock().await;
+                workspaces
+                    .get(&workspace_id)
+                    .map(|w| std::path::PathBuf::from(&w.path))
+                    .ok_or_else(|| "Workspace not found".to_string())?
+            };
+
+            let session = manager
+                .get_or_create_kimi_session(&workspace_id, &workspace_path)
+                .await;
+            let resolved_session_id = resolve_kimi_session_id_for_engine_send(
+                continue_session,
+                session_id,
+                session.get_session_id().await,
+            );
+
+            let params = super::SendMessageParams {
+                text,
+                model: model
+                    .as_ref()
+                    .map(|value| value.trim())
+                    .filter(|value| !value.is_empty())
+                    .map(|value| value.to_string()),
+                effort,
+                disable_thinking: false,
+                access_mode,
+                images,
+                continue_session,
+                session_id: resolved_session_id,
+                fork_session_id: None,
+                agent: None,
+                variant: None,
+                collaboration_mode: None,
+                custom_spec_root: normalized_custom_spec_root.clone(),
+            };
+
+            let turn_id = format!("kimi-sync-{}", uuid::Uuid::new_v4());
+            let response = timeout(
+                Duration::from_secs(900),
+                session.send_message(params, &turn_id),
+            )
+            .await
+            .map_err(|_| "Kimi response timed out".to_string())??;
+            let response_session_id = session.get_session_id().await;
+            record_auto_session_metadata_if_present(
+                &state,
+                &workspace_id,
+                response_session_id.as_deref(),
+                auto_session,
+                "kimi",
+            )
+            .await;
+
+            Ok(json!({
+                "engine": "kimi",
                 "sessionId": response_session_id,
                 "text": response
             }))
@@ -2474,6 +2770,12 @@ pub async fn engine_interrupt(
         }
         EngineType::Gemini => {
             if let Some(session) = manager.get_gemini_session(&workspace_id).await {
+                session.interrupt().await?;
+            }
+            Ok(())
+        }
+        EngineType::Kimi => {
+            if let Some(session) = manager.get_kimi_session(&workspace_id).await {
                 session.interrupt().await?;
             }
             Ok(())
@@ -2527,6 +2829,12 @@ pub async fn engine_interrupt_turn(
         }
         EngineType::Gemini => {
             if let Some(session) = manager.get_gemini_session(&workspace_id).await {
+                session.interrupt_turn(&turn_id).await?;
+            }
+            Ok(())
+        }
+        EngineType::Kimi => {
+            if let Some(session) = manager.get_kimi_session(&workspace_id).await {
                 session.interrupt_turn(&turn_id).await?;
             }
             Ok(())

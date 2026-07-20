@@ -1,7 +1,7 @@
 // searchPalette — Simplified Chinese UI strings
 const searchPalette = {
   searchPalette: {
-    placeholder: "搜索文件、看板、会话、消息、Skills、Commands…",
+    placeholder: "搜索文件、接口、看板、会话、消息、Skills、Commands…",
     placeholderFiltered: "搜索 {{content}}…",
     inputAria: "搜索输入",
     scope: "范围",
@@ -12,7 +12,13 @@ const searchPalette = {
     allWorkspaces: "所有空间",
     noResults: "没有搜索结果",
     noResultsHint:
-      "可尝试文件路径、任务标题、会话标题、消息正文、Skill 名称或 Command 名称。",
+      "可尝试接口路径、HTTP method、文件路径、任务标题、会话标题、消息正文、Skill 名称或 Command 名称。",
+    fileIndexLoading: "正在补齐文件索引…",
+    fileIndexPartial: "文件索引不完整，当前结果可能遗漏部分文件。",
+    fileIndexError: "文件索引加载失败，当前结果可能不完整；重新打开搜索可重试。",
+    apiIndexLoading: "正在扫描磁盘并建立接口索引…",
+    apiIndexRefreshing: "正在后台刷新接口索引，当前结果仍可使用。",
+    apiIndexError: "接口索引加载失败；重新打开搜索可重试。",
     navigate: "导航",
     open: "打开",
     close: "关闭",
@@ -21,6 +27,7 @@ const searchPalette = {
     sourceTag: "来源",
     locationTag: "位置",
     typeFile: "文件",
+    typeApi: "接口",
     typeKanban: "看板",
     typeThread: "会话",
     typeMessage: "消息",
@@ -28,6 +35,7 @@ const searchPalette = {
     typeSkill: "Skill",
     typeCommand: "Command",
     sourceFiles: "文件索引",
+    sourceApis: "接口索引",
     sourceKanban: "看板数据",
     sourceThreads: "会话标题",
     sourceMessages: "消息正文",
@@ -36,6 +44,7 @@ const searchPalette = {
     sourceCommands: "Commands 列表",
     contentAll: "全部",
     contentFiles: "文件",
+    contentApis: "接口",
     contentKanban: "看板",
     contentThreads: "会话",
     contentMessages: "消息",

@@ -30,22 +30,6 @@ const models = {
       "gpt54": {
         "label": "gpt-5.4",
         "description": "Modelo robusto para programação do dia a dia."
-      },
-      "gpt54mini": {
-        "label": "gpt-5.4-mini",
-        "description": "Modelo pequeno, rápido e econômico para tarefas de programação mais simples."
-      },
-      "gpt53codex": {
-        "label": "gpt-5.3-codex",
-        "description": "Modelo otimizado para programação."
-      },
-      "gpt53codexSpark": {
-        "label": "gpt-5.3-codex-spark",
-        "description": "Modelo de programação ultrarrápido."
-      },
-      "gpt52": {
-        "label": "gpt-5.2",
-        "description": "Otimizado para trabalho profissional e agentes de execução prolongada."
       }
     }
   }

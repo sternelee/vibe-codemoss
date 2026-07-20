@@ -491,15 +491,6 @@ describe('ChatInputBoxAdapter toggle bridge', () => {
         used: 512,
         total: 8192,
       },
-      dualContextUsage: {
-        usedTokens: 512,
-        contextWindow: 8192,
-        percent: 6.25,
-        hasUsage: true,
-        compactionState: 'idle',
-        compactionSource: null,
-        usageSyncPendingAfterCompaction: false,
-      },
       claudeContextUsage: {
         usedTokens: 256,
         contextWindow: 8192,
@@ -540,15 +531,6 @@ describe('ChatInputBoxAdapter toggle bridge', () => {
       <ChatInputBoxAdapter
         {...stableProps}
         contextUsage={{ used: 512, total: 8192 }}
-        dualContextUsage={{
-          usedTokens: 512,
-          contextWindow: 8192,
-          percent: 6.25,
-          hasUsage: true,
-          compactionState: 'idle',
-          compactionSource: null,
-          usageSyncPendingAfterCompaction: false,
-        }}
         claudeContextUsage={{
           usedTokens: 256,
           contextWindow: 8192,
@@ -1180,15 +1162,6 @@ describe('ChatInputBoxAdapter toggle bridge', () => {
       onTextChange: () => {},
       selectedEngine: "codex",
       contextUsage: { used: 512, total: 8192 },
-      dualContextUsage: {
-        usedTokens: 512,
-        contextWindow: 8192,
-        percent: 6.25,
-        hasUsage: true,
-        compactionState: "idle",
-        compactionSource: null,
-        usageSyncPendingAfterCompaction: false,
-      },
       accountRateLimits: {
         primary: {
           usedPercent: 12,
@@ -1221,15 +1194,6 @@ describe('ChatInputBoxAdapter toggle bridge', () => {
         {...stableProps}
         streamActivityPhase="ingress"
         contextUsage={{ used: 512, total: 8192 }}
-        dualContextUsage={{
-          usedTokens: 512,
-          contextWindow: 8192,
-          percent: 6.25,
-          hasUsage: true,
-          compactionState: "idle",
-          compactionSource: null,
-          usageSyncPendingAfterCompaction: false,
-        }}
         accountRateLimits={{
           primary: {
             usedPercent: 12,
@@ -1494,48 +1458,20 @@ describe('ChatInputBoxAdapter toggle bridge', () => {
     ]);
   });
 
-  it('forwards dual context usage model and flag to ChatInputBox', async () => {
+  it('keeps Codex dual usage presentation out of the ChatInputBox adapter path', async () => {
     renderAdapter({
       contextUsage: { used: 120_000, total: 256_000 },
-      contextDualViewEnabled: true,
-      dualContextUsage: {
-        usedTokens: 80_000,
-        contextWindow: 256_000,
-        percent: 31.25,
-        hasUsage: true,
-        compactionState: 'idle',
-        compactionSource: null,
-        usageSyncPendingAfterCompaction: false,
-      },
     });
 
     await waitFor(() => expect(mockState.latestProps).toBeTruthy());
 
     const latest = mockState.latestProps as {
-      contextDualViewEnabled?: boolean;
-      dualContextUsage?: {
-        usedTokens: number;
-        contextWindow: number;
-        percent: number;
-        hasUsage: boolean;
-        compactionState: string;
-        compactionSource: string | null;
-        usageSyncPendingAfterCompaction: boolean;
-      } | null;
       usageUsedTokens?: number;
       usageMaxTokens?: number;
     };
 
-    expect(latest.contextDualViewEnabled).toBe(true);
-    expect(latest.dualContextUsage).toMatchObject({
-      usedTokens: 80_000,
-      contextWindow: 256_000,
-      percent: 31.25,
-      hasUsage: true,
-      compactionState: 'idle',
-      compactionSource: null,
-      usageSyncPendingAfterCompaction: false,
-    });
+    expect(latest).not.toHaveProperty('contextDualViewEnabled');
+    expect(latest).not.toHaveProperty('dualContextUsage');
     expect(latest.usageUsedTokens).toBe(120_000);
     expect(latest.usageMaxTokens).toBe(256_000);
   });
@@ -1568,22 +1504,6 @@ describe('ChatInputBoxAdapter toggle bridge', () => {
     expect(mapped?.queuedAt).toBe(1_700_000_000_000);
     expect(mapped?.content).toBe(longMessage);
     expect(mapped?.fullContent).toBe(longMessage);
-  });
-
-  it('forwards manual context compaction callback to ChatInputBox', async () => {
-    const onRequestContextCompaction = vi.fn();
-    renderAdapter({
-      selectedEngine: 'codex',
-      contextDualViewEnabled: true,
-      onRequestContextCompaction,
-    });
-
-    await waitFor(() => expect(mockState.latestProps).toBeTruthy());
-
-    const latest = mockState.latestProps as {
-      onRequestContextCompaction?: () => Promise<void> | void;
-    };
-    expect(latest.onRequestContextCompaction).toBe(onRequestContextCompaction);
   });
 
   it('bridges @@ manual memory provider and selection callback', async () => {
@@ -2115,5 +2035,31 @@ describe('ChatInputBoxAdapter toggle bridge', () => {
       gemini: true,
       opencode: true,
     });
+  });
+
+  it('routes kimi provider selection to the kimi engine', async () => {
+    const onSelectEngine = vi.fn();
+    renderAdapter({ selectedEngine: 'claude', onSelectEngine });
+
+    await waitFor(() => expect(mockState.latestProps).toBeTruthy());
+
+    const latest = mockState.latestProps as {
+      onProviderSelect?: (providerId: string) => void;
+    };
+    act(() => {
+      latest.onProviderSelect?.('kimi');
+    });
+
+    expect(onSelectEngine).toHaveBeenCalledWith('kimi');
+  });
+
+  it('reports kimi as the current provider when the kimi engine is selected', async () => {
+    renderAdapter({ selectedEngine: 'kimi' });
+
+    await waitFor(() => expect(mockState.latestProps).toBeTruthy());
+
+    const latest = mockState.latestProps as { currentProvider?: string };
+
+    expect(latest.currentProvider).toBe('kimi');
   });
 });

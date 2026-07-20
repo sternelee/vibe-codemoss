@@ -225,12 +225,14 @@ describe("Sidebar", () => {
 
   it("hides removed and primary navigation entries in settings dropdown", async () => {
     const onToggleTerminal = vi.fn();
+    const onAppModeChange = vi.fn();
     const { container } = render(
       <Sidebar
         {...baseProps}
         showTerminalButton
         isTerminalOpen={false}
         onToggleTerminal={onToggleTerminal}
+        onAppModeChange={onAppModeChange}
       />,
     );
 
@@ -253,8 +255,13 @@ describe("Sidebar", () => {
     expect(menu.getByRole("menuitem", { name: "Project Memory" })).toBeTruthy();
     expect(menu.queryByRole("menuitem", { name: "Release Notes" })).toBeNull();
     expect(menu.queryByRole("menuitem", { name: "Terminal" })).toBeNull();
-    expect(menu.getByRole("menuitem", { name: "Git" })).toBeTruthy();
+    const gitGraphItem = menu.getByRole("menuitem", { name: "Git Graph" });
+    expect(gitGraphItem.querySelector(".lucide-git-commit-horizontal")).toBeTruthy();
     expect(menu.queryByRole("menuitem", { name: "Open home" })).toBeNull();
+
+    fireEvent.click(gitGraphItem);
+    expect(onAppModeChange).toHaveBeenCalledWith("gitHistory");
+    expect(container.querySelector(".sidebar-settings-dropdown")).toBeNull();
   });
 
   it("shows pinned threads even when pinned version is zero", () => {

@@ -908,8 +908,6 @@
   --composer-submit-button-bg-hover: #1d4ed8;
   --composer-submit-button-shadow: rgba(37, 99, 235, 0.28);
   --composer-submit-button-shadow-hover: rgba(37, 99, 235, 0.36);
-  width: 24px;
-  height: 24px;
   background: var(--composer-submit-button-bg);
   color: #ffffff;
   box-shadow: 0 8px 22px var(--composer-submit-button-shadow);
@@ -1137,10 +1135,5 @@
   .home-chat-composer-host .selector-button {
     min-width: 32px;
     height: 32px;
-  }
-
-  .home-chat-composer-host .submit-button {
-    width: 36px;
-    height: 36px;
   }
 }

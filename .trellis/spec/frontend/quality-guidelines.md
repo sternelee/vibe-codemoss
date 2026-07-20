@@ -74,6 +74,65 @@ npm run doctor:strict
 - 文件落位、命名、抽象层级是否符合规范？
 - 新增动态 Tauri window label 时，普通固定窗口 label 是否仍保持原语义？动态 label glob 是否进入 capability `windows`？相关权限是否有测试断言？
 
+## Scenario: Fast Markdown Worker Stale Settlement Boundary
+
+### 1. Scope / Trigger
+
+- Trigger：修改 `compileFastMarkdownWithWorkerFallback`、Worker timeout/unavailable/error fallback、artifact cache 或 `shouldAcceptWorkerArtifact`。
+- 目标：request scope 已失效后，任何 Worker settlement 都必须停止；不得再在 main thread 编译、sanitize、finalize 或写 cache。
+
+### 2. Signatures
+
+- `compileFastMarkdownWithWorkerFallback(args, options): Promise<FastMarkdownRenderResult>`
+- `options.shouldAcceptWorkerArtifact?: () => boolean`
+- stale diagnostic/error：`fast-markdown-worker-result-stale`
+
+### 3. Contracts
+
+- stale guard MUST sit between Worker/cache attempt settlement and every consumer/fallback branch。
+- cache hit、Worker success、Worker unavailable、Worker reject、Worker timeout MUST all evaluate the same current-scope predicate。
+- stale request MUST fail closed before `finalizeFastMarkdownArtifact`、`compileFastMarkdown`、sanitize and cache write。
+- active request 的 unavailable/reject/timeout MUST preserve the existing main-thread fallback；stale protection 不能把正常降级一起关掉。
+- stale drop MUST increment its diagnostic counter；不得伪装成普通 Worker failure/fallback。
+
+### 4. Validation & Error Matrix
+
+| Worker/cache 结果 | request active | request stale |
+|---|---|---|
+| trusted cache hit | return cached result | throw stale；不消费 cache |
+| Worker artifact | finalize artifact | throw stale；不 finalize |
+| unavailable (`null`) | main-thread fallback | throw stale；不 fallback |
+| reject / timeout | record fallback + main-thread compile | throw stale；不 compile |
+
+### 5. Good / Base / Bad Cases
+
+- Good：统一 guard 放在“attempt 已结算、结果尚未消费”的 boundary，一处覆盖所有分支。
+- Base：没有传 predicate 的调用方按 active request 处理，保持兼容。
+- Bad：只在 Worker success 分支检查 stale；timeout/reject 仍会在已切换页面上占用主线程。
+
+### 6. Tests Required
+
+- `workerAdapterDiagnostics.test.ts` MUST cover stale cache hit、success、unavailable、reject、timeout。
+- 同一测试文件 MUST retain at least one active reject/timeout fallback assertion，证明正常降级未被破坏。
+- Assertions MUST prove `finalizeFastMarkdownArtifact` / main-thread compile side effects did not run for stale settlement。
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```typescript
+const artifact = await precomputeFastMarkdownInWorker(args);
+return artifact ? finalizeFastMarkdownArtifact(artifact) : compileFastMarkdown(args);
+```
+
+#### Correct
+
+```typescript
+const artifact = await precomputeFastMarkdownInWorker(args);
+throwIfWorkerRequestIsStale(options);
+return artifact ? finalizeFastMarkdownArtifact(artifact) : compileFastMarkdown(args);
+```
+
 ## Scenario: Dynamic Tauri WebviewWindow label capability contract
 
 ### 1. Scope / Trigger
@@ -380,3 +439,78 @@ import("@codemirror/search").then(({ search }) => setExtension(search({ top: tru
 - Pure normalization assertion：锁定 parenthesized display body 不出现 nested single-dollar delimiters。
 - File preview regression：覆盖 list、blockquote、unmatched/incompatible prefix 与 `lineMap`。
 - 若问题来自真实会话，verification artifact SHOULD 记录匿名化 fixture 或 session UUID replay 结果，但 test MUST NOT 依赖用户 home directory。
+## Scenario: Global Search Lazy Provider Hydration And Cross-Workspace File Navigation
+
+### 1. Scope / Trigger
+
+- Trigger：新增 global search provider，且 provider 数据来自 workspace disk/cache；或 search result 会打开另一个 workspace 的文件。
+- 目标：未 hydrate 不得伪装成 empty，query 不得触发磁盘 IO，跨 workspace navigation 不得写入旧 workspace 的 file-tab state。
+
+### 2. Signatures
+
+- Search snapshot：`WorkspaceSearchApiSnapshot { endpoints, status, error }`
+- Hydration status：`SearchApiHydrationStatus = "idle" | "loading" | "complete" | "error"`
+- Project Map bridge：`readProjectMapRelationships({ workspaceId })` / `scanProjectMapRelationships({ workspaceId })`
+- File open：`handleOpenFile(path, location?, { targetWorkspace })`
+- Endpoint navigation：`SearchResult.fileLine` → `handleOpenFile(path, { line, column, scrollPosition: "center" }, ...)`
+
+### 3. Contracts
+
+- Palette open 且 filter 包含 provider 时，MUST 先读 cache；missing/stale 才触发 disk scan。
+- Query keystroke MUST 只消费 memory snapshot，不得调用 disk bridge。
+- `loading` 与 confirmed `complete + []` MUST 是不同状态；error MUST 可在下一次 palette lifecycle 重试。
+- Hydration effect MUST 使用 latest ref 读取 snapshot；发布 `loading` 不得 cleanup 自己的 in-flight request。
+- Workspace hydration MUST keep a hook-lifetime in-flight Promise registry；scope/filter/palette lifecycle cleanup 后，新 consumer MUST 复用同一 request 并最终收敛。
+- Cross-workspace result MUST 显式传 `targetWorkspace` 给 `handleOpenFile`；只先调用 `selectWorkspace()` 不足以保证 file-tab ownership。
+- API endpoint result MUST preserve a valid same-source `evidence.line`; navigation MUST center、focus and briefly flash that handler line.
+- Missing/invalid endpoint line MUST degrade to file-only open，不得猜测行号。
+- CodeMirror centered-scroll runtime MUST stay inside lazy `FileCodeMirrorEditorImpl`；shell hooks 只能通过 type-only handle / imperative method 调用。
+
+### 4. Validation & Error Matrix
+
+| 场景 | 必须行为 | 禁止行为 |
+|---|---|---|
+| cache missing | loading → scan → read → complete/empty | 立即显示 confirmed empty |
+| cache stale | 旧结果可搜 + 后台 refresh | 清空结果后等待 |
+| scan error | provider error、其他结果继续、下次可重试 | silent catch 或阻断 palette |
+| query 连续变化 | 复用 snapshot | 每次击键扫描磁盘 |
+| 跨 workspace 文件结果 | target workspace tab state 收到文件 | 文件写入旧 active workspace |
+| endpoint 有可信 evidence line | handler line 居中、聚焦、短暂 flash | 只打开文件顶部 |
+| endpoint 无可信 line | 安全打开文件 | 猜测 annotation/method 行号 |
+| hydration 中切 scope/filter/开关 palette | 复用 in-flight request 并收敛 | snapshot 永久 loading/refreshing |
+| centered editor navigation | lazy implementation 内 dispatch | shell runtime import `@codemirror/view` |
+
+### 5. Good / Base / Bad Cases
+
+- Good：provider data/state 独立，active workspace 优先，global workspace bounded hydration。
+- Base：可复用已有 bounded full scan；只有 metric evidence 证明必要时才抽取 shared walker 后做 provider-only scan。
+- Bad：复制一套 ignore walker/parser，或把多个 provider 的 loading/error 合并成一个不可归因状态。
+
+### 6. Tests Required
+
+- Provider test：path、method + path、handler/operation、non-HTTP endpoint。
+- Hook test：missing cache 触发一次 scan，完成后 endpoint 进入 `apiSources`。
+- Component test：loading 不显示 confirmed no-results，file/API 状态可并存。
+- Navigation test：`targetWorkspace` 精确传入，target workspace file-tab state 接收 path。
+- Endpoint navigation test：same-source evidence line、missing-line fallback、centered location payload。
+- Lifecycle test：scan pending 时关闭/重开 palette，scan count 保持 1 且 active consumer 最终 complete。
+- Lazy-boundary gate：shell hook 对 `@codemirror/view` 保持 `import type`。
+- Gates：`npm run typecheck`、`npm run lint`、`npm run check:runtime-contracts`、focused Vitest。
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```typescript
+selectWorkspace(result.workspaceId);
+handleOpenFile(result.filePath);
+```
+
+#### Correct
+
+```typescript
+selectWorkspace(result.workspaceId);
+handleOpenFile(result.filePath, undefined, {
+  targetWorkspace: workspacesById.get(result.workspaceId),
+});
+```

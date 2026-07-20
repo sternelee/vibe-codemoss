@@ -5,6 +5,7 @@ import { archiveThread as archiveThreadService } from "../../../services/tauri";
 import {
   deleteClaudeSession as deleteClaudeSessionService,
   deleteGeminiSession as deleteGeminiSessionService,
+  deleteKimiSession as deleteKimiSessionService,
   deleteOpenCodeSession as deleteOpenCodeSessionService,
   deleteCodexSession as deleteCodexSessionService,
   renameThreadTitleKey as renameThreadTitleKeyService,
@@ -171,6 +172,15 @@ export function createDeleteThreadForWorkspaceAction(params: {
         throw new Error("workspace not connected");
       }
       await deleteGeminiSessionService(workspacePath, sessionId);
+      return;
+    }
+    if (threadId.startsWith("kimi:")) {
+      const sessionId = threadId.slice("kimi:".length);
+      const workspacePath = workspacePathsByIdRef.current[workspaceId];
+      if (!workspacePath) {
+        throw new Error("workspace not connected");
+      }
+      await deleteKimiSessionService(workspacePath, sessionId);
       return;
     }
     await deleteCodexSessionService(workspaceId, threadId);

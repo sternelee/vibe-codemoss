@@ -11,6 +11,7 @@ export function useAppSettingsController() {
     saveSettings,
     doctor,
     claudeDoctor,
+    kimiDoctor,
     isLoading: appSettingsLoading,
   } = useAppSettings();
 
@@ -44,6 +45,7 @@ export function useAppSettingsController() {
     queueSaveSettings,
     doctor,
     claudeDoctor,
+    kimiDoctor,
     appSettingsLoading,
     reduceTransparency,
     setReduceTransparency,

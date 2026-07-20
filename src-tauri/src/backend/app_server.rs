@@ -163,8 +163,8 @@ pub(crate) use crate::backend::app_server_cli::{
 };
 #[allow(unused_imports)]
 pub use crate::backend::app_server_cli::{
-    build_command_for_binary, build_command_for_binary_with_console, find_cli_binary,
-    get_cli_debug_info,
+    build_command_for_binary, build_command_for_binary_with_console, find_claude_code_binary,
+    find_cli_binary, get_cli_debug_info,
 };
 
 const DEFAULT_REQUEST_TIMEOUT_SECS: u64 = 300;
@@ -545,7 +545,7 @@ impl WorkspaceSession {
     }
 
     pub(crate) async fn probe_health(&self, timeout_duration: Duration) -> Result<(), String> {
-        self.send_request_with_timeout("model/list", json!({}), timeout_duration)
+        self.send_request_with_timeout("collaborationMode/list", json!({}), timeout_duration)
             .await
             .map(|_| ())
     }

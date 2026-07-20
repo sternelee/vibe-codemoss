@@ -3,6 +3,29 @@ use super::*;
 const GIT_STATUS_DIFF_STATS_FILE_LIMIT: usize = 120;
 const GIT_STATUS_DIFF_STATS_MAX_FILE_BYTES: u64 = 256 * 1024;
 
+fn build_pr_precheck_failure(reason: String, command: &str) -> GitPrWorkflowResult {
+    GitPrWorkflowResult {
+        ok: false,
+        status: "failed".to_string(),
+        message: reason.clone(),
+        error_category: Some("precheck".to_string()),
+        next_action_hint: Some("Fix the PR precheck failure, then retry.".to_string()),
+        pr_url: None,
+        pr_number: None,
+        existing_pr: None,
+        retry_command: None,
+        range_gate: None,
+        stages: vec![GitPrWorkflowStage {
+            key: "precheck".to_string(),
+            status: "failed".to_string(),
+            detail: reason,
+            command: Some(command.to_string()),
+            stdout: None,
+            stderr: None,
+        }],
+    }
+}
+
 fn open_repository_at_root(repo_root: &Path) -> Result<git2::Repository, String> {
     git2::Repository::open_ext(
         repo_root,
@@ -791,36 +814,46 @@ impl DaemonState {
         let mut total_deletions = 0i64;
 
         for status_entry in statuses.iter() {
-            let Some(path) = status_entry.path() else {
-                continue;
-            };
-            if path.is_empty() {
-                continue;
-            }
             let status = status_entry.status();
-            let normalized_path = normalize_git_path(path);
-
             let index_status = status_for_index(status);
             let workdir_status = status_for_workdir(status);
-            let should_compute_path_diff_stats =
-                should_compute_diff_stats && !should_skip_diff_stats(&repo_root, path);
+            let index_identity = index_status
+                .is_some()
+                .then(|| {
+                    crate::git_utils::git_status_path_identity(
+                        &status_entry,
+                        crate::git_utils::GitStatusLayer::Index,
+                    )
+                })
+                .flatten();
+            let workdir_identity = workdir_status
+                .is_some()
+                .then(|| {
+                    crate::git_utils::git_status_path_identity(
+                        &status_entry,
+                        crate::git_utils::GitStatusLayer::Workdir,
+                    )
+                })
+                .flatten();
             let mut combined_additions = 0i64;
             let mut combined_deletions = 0i64;
-            if let Some(stage) = index_status {
+            if let (Some(stage), Some(identity)) = (index_status, index_identity.as_ref()) {
+                let should_compute_path_diff_stats = should_compute_diff_stats
+                    && !should_skip_diff_stats(&repo_root, &identity.path);
                 let (additions, deletions) = if should_compute_path_diff_stats {
-                    crate::git_utils::diff_stats_for_path(
+                    crate::git_utils::diff_stats_for_identity(
                         &repo,
                         head_tree.as_ref(),
-                        path,
-                        true,
-                        false,
+                        identity,
+                        crate::git_utils::GitStatusLayer::Index,
                     )
                     .unwrap_or((0, 0))
                 } else {
                     (0, 0)
                 };
                 staged_files.push(GitFileStatus {
-                    path: normalized_path.clone(),
+                    path: identity.path.clone(),
+                    old_path: identity.old_path.clone(),
                     status: stage.to_string(),
                     additions,
                     deletions,
@@ -830,21 +863,23 @@ impl DaemonState {
                 total_additions += additions;
                 total_deletions += deletions;
             }
-            if let Some(stage) = workdir_status {
+            if let (Some(stage), Some(identity)) = (workdir_status, workdir_identity.as_ref()) {
+                let should_compute_path_diff_stats = should_compute_diff_stats
+                    && !should_skip_diff_stats(&repo_root, &identity.path);
                 let (additions, deletions) = if should_compute_path_diff_stats {
-                    crate::git_utils::diff_stats_for_path(
+                    crate::git_utils::diff_stats_for_identity(
                         &repo,
                         head_tree.as_ref(),
-                        path,
-                        false,
-                        true,
+                        identity,
+                        crate::git_utils::GitStatusLayer::Workdir,
                     )
                     .unwrap_or((0, 0))
                 } else {
                     (0, 0)
                 };
                 unstaged_files.push(GitFileStatus {
-                    path: normalized_path.clone(),
+                    path: identity.path.clone(),
+                    old_path: identity.old_path.clone(),
                     status: stage.to_string(),
                     additions,
                     deletions,
@@ -854,9 +889,10 @@ impl DaemonState {
                 total_additions += additions;
                 total_deletions += deletions;
             }
-            if index_status.is_some() || workdir_status.is_some() {
+            if let Some(identity) = workdir_identity.as_ref().or(index_identity.as_ref()) {
                 files.push(GitFileStatus {
-                    path: normalized_path,
+                    path: identity.path.clone(),
+                    old_path: identity.old_path.clone(),
                     status: workdir_status.or(index_status).unwrap_or("--").to_string(),
                     additions: combined_additions,
                     deletions: combined_deletions,
@@ -896,7 +932,7 @@ impl DaemonState {
                 .recurse_untracked_dirs(true)
                 .show_untracked_content(true);
 
-            let diff = match head_tree.as_ref() {
+            let mut diff = match head_tree.as_ref() {
                 Some(tree) => repo
                     .diff_tree_to_workdir_with_index(Some(tree), Some(&mut options))
                     .map_err(|error| error.to_string())?,
@@ -904,6 +940,8 @@ impl DaemonState {
                     .diff_tree_to_workdir_with_index(None, Some(&mut options))
                     .map_err(|error| error.to_string())?,
             };
+            crate::git_utils::find_git_diff_renames(&mut diff)
+                .map_err(|error| error.to_string())?;
 
             let mut results = Vec::new();
             for (index, delta) in diff.deltas().enumerate() {
@@ -962,21 +1000,23 @@ impl DaemonState {
         if trimmed_path.is_empty() {
             return Err("path is required".to_string());
         }
-        let diff_head =
-            git_core::run_git_diff(&repo_root, &["diff", "HEAD", "--", trimmed_path]).await;
+        let diff_paths = crate::git_utils::git_diff_paths_for_file(&repo_root, trimmed_path);
+        let mut diff_head_args = vec!["diff", "--find-renames", "HEAD", "--"];
+        diff_head_args.extend(diff_paths.iter().map(String::as_str));
+        let diff_head = git_core::run_git_diff(&repo_root, &diff_head_args).await;
         let mut content = match diff_head {
             Ok(bytes) => String::from_utf8_lossy(&bytes).to_string(),
             Err(_) => String::new(),
         };
         if content.trim().is_empty() {
-            if let Ok(bytes) =
-                git_core::run_git_diff(&repo_root, &["diff", "--", trimmed_path]).await
-            {
+            let mut workdir_args = vec!["diff", "--find-renames", "--"];
+            workdir_args.extend(diff_paths.iter().map(String::as_str));
+            if let Ok(bytes) = git_core::run_git_diff(&repo_root, &workdir_args).await {
                 content = String::from_utf8_lossy(&bytes).to_string();
             }
-            if let Ok(bytes) =
-                git_core::run_git_diff(&repo_root, &["diff", "--cached", "--", trimmed_path]).await
-            {
+            let mut staged_args = vec!["diff", "--find-renames", "--cached", "--"];
+            staged_args.extend(diff_paths.iter().map(String::as_str));
+            if let Ok(bytes) = git_core::run_git_diff(&repo_root, &staged_args).await {
                 let staged = String::from_utf8_lossy(&bytes).to_string();
                 if !staged.trim().is_empty() {
                     if !content.trim().is_empty() {
@@ -987,6 +1027,22 @@ impl DaemonState {
             }
         }
         Ok(content)
+    }
+
+    pub(crate) async fn get_git_file_blame(
+        &self,
+        workspace_id: String,
+        path: String,
+        repository_root: Option<String>,
+    ) -> Result<GitFileBlameResponse, String> {
+        let repo_root = self
+            .git_repo_root_for_scope(&workspace_id, repository_root.as_deref())
+            .await?;
+        tokio::task::spawn_blocking(move || {
+            crate::git_utils::build_git_file_blame(&repo_root, &path)
+        })
+        .await
+        .map_err(|error| format!("Git blame worker failed: {error}"))?
     }
 
     pub(crate) async fn get_git_log(
@@ -1035,6 +1091,7 @@ impl DaemonState {
         date_from: Option<i64>,
         date_to: Option<i64>,
         snapshot_id: Option<String>,
+        path: Option<String>,
         offset: usize,
         limit: usize,
         repository_root: Option<String>,
@@ -1042,34 +1099,46 @@ impl DaemonState {
         let repo_root = self
             .git_repo_root_for_scope(&workspace_id, repository_root.as_deref())
             .await?;
-        let repo = open_repository_at_root(&repo_root)?;
         let query = trim_optional(query).map(|entry| entry.to_lowercase());
         let author = trim_optional(author).map(|entry| entry.to_lowercase());
         let date_from = date_from.map(normalize_epoch_seconds);
         let date_to = date_to.map(normalize_epoch_seconds);
         let offset = offset.min(50_000);
         let limit = limit.clamp(1, 500);
-
-        let mut revwalk = repo.revwalk().map_err(|error| error.to_string())?;
-        revwalk
-            .set_sorting(git2::Sort::TOPOLOGICAL | git2::Sort::TIME)
-            .map_err(|error| error.to_string())?;
-
-        if let Some(branch_name) = trim_optional(branch) {
-            let normalized = normalize_local_branch_ref(&branch_name);
-            let local_ref = format!("refs/heads/{normalized}");
-            if revwalk.push_ref(&local_ref).is_err() && revwalk.push_ref(&branch_name).is_err() {
-                return Err(format!("Branch or ref not found: {branch_name}"));
-            }
-        } else if let Some(head) = repo.head().ok().and_then(|value| value.target()) {
-            revwalk.push(head).map_err(|error| error.to_string())?;
+        let branch = trim_optional(branch);
+        let path = path
+            .as_deref()
+            .map(git_core::normalize_file_history_path)
+            .transpose()?;
+        let file_history_entries = if let Some(path) = path.as_deref() {
+            Some(git_core::list_file_history_entries(&repo_root, branch.as_deref(), path).await?)
         } else {
-            return Err("HEAD does not point to a commit".to_string());
-        }
-
+            None
+        };
+        let repo = open_repository_at_root(&repo_root)?;
+        let mut historical_paths = HashMap::new();
+        let history_oids = match file_history_entries {
+            Some(entries) => entries
+                .into_iter()
+                .map(|entry| {
+                    let oid = git2::Oid::from_str(&entry.oid).map_err(|error| error.to_string())?;
+                    historical_paths.insert(oid, entry.path);
+                    Ok(oid)
+                })
+                .collect::<Result<Vec<_>, String>>()?,
+            None => {
+                let mut revwalk = repo.revwalk().map_err(|error| error.to_string())?;
+                revwalk
+                    .set_sorting(git2::Sort::TOPOLOGICAL | git2::Sort::TIME)
+                    .map_err(|error| error.to_string())?;
+                git_core::push_git_history_branch_scope(&repo, &mut revwalk, branch.as_deref())?;
+                revwalk
+                    .map(|oid| oid.map_err(|error| error.to_string()))
+                    .collect::<Result<Vec<_>, _>>()?
+            }
+        };
         let mut filtered = Vec::<GitHistoryCommit>::new();
-        for oid_result in revwalk {
-            let oid = oid_result.map_err(|error| error.to_string())?;
+        for oid in history_oids {
             let commit = repo.find_commit(oid).map_err(|error| error.to_string())?;
             let timestamp = commit.time().seconds();
             if let Some(lower_bound) = date_from {
@@ -1125,6 +1194,7 @@ impl DaemonState {
                 timestamp,
                 parents,
                 refs: Vec::new(),
+                file_path: historical_paths.get(&oid).cloned(),
             });
         }
 
@@ -1132,9 +1202,27 @@ impl DaemonState {
         let commits: Vec<GitHistoryCommit> =
             filtered.into_iter().skip(offset).take(limit).collect();
         let has_more = offset.saturating_add(commits.len()) < total;
-        let snapshot_id = trim_optional(snapshot_id).unwrap_or_else(|| Uuid::new_v4().to_string());
+        let head_sha = repo
+            .head()
+            .ok()
+            .and_then(|head| head.target())
+            .map(|oid| oid.to_string())
+            .unwrap_or_else(|| "detached".to_string());
+        let current_snapshot_id = git_core::build_git_history_snapshot_id(
+            &head_sha,
+            branch.as_deref(),
+            query.as_deref(),
+            author.as_deref(),
+            date_from,
+            date_to,
+            repository_root.as_deref(),
+            path.as_deref(),
+        );
+        if trim_optional(snapshot_id).is_some_and(|value| value != current_snapshot_id) {
+            return Err("History snapshot expired. Please refresh commits.".to_string());
+        }
         Ok(GitHistoryResponse {
-            snapshot_id,
+            snapshot_id: current_snapshot_id,
             total,
             offset,
             limit,
@@ -1325,16 +1413,26 @@ impl DaemonState {
 
         let mut files = Vec::<GitCommitDiff>::new();
         for (index, delta) in diff.deltas().enumerate() {
-            let display_path = delta
-                .new_file()
-                .path()
-                .or_else(|| delta.old_file().path())
+            let old_path = delta.old_file().path();
+            let new_path = delta.new_file().path();
+            let display_path = new_path
+                .or(old_path)
                 .map(|path| normalize_git_path(&path.to_string_lossy()))
                 .unwrap_or_default();
             if display_path.is_empty() {
                 continue;
             }
             let status = status_for_delta(delta.status()).to_string();
+            if let Some(image_diff) = crate::git_utils::build_image_commit_diff(
+                &repo,
+                parent_tree.as_ref(),
+                &tree,
+                &delta,
+                &status,
+            ) {
+                files.push(image_diff);
+                continue;
+            }
             let patch = git2::Patch::from_diff(&diff, index).map_err(|error| error.to_string())?;
             if let Some(mut patch) = patch {
                 let content =
@@ -1394,11 +1492,17 @@ impl DaemonState {
         let repo_root = self
             .git_repo_root_for_scope(&workspace_id, repository_root.as_deref())
             .await?;
-        let path = path.trim();
-        if path.is_empty() {
+        let paths = crate::git_utils::git_action_paths_for_file(
+            &repo_root,
+            &path,
+            crate::git_utils::GitStatusLayer::Workdir,
+        );
+        if paths.is_empty() {
             return Err("path is required".to_string());
         }
-        git_core::run_git_command(&repo_root, &["add", "-A", "--", path]).await?;
+        for path in paths {
+            git_core::run_git_command(&repo_root, &["add", "-A", "--", &path]).await?;
+        }
         Ok(())
     }
 
@@ -1423,11 +1527,17 @@ impl DaemonState {
         let repo_root = self
             .git_repo_root_for_scope(&workspace_id, repository_root.as_deref())
             .await?;
-        let path = path.trim();
-        if path.is_empty() {
+        let paths = crate::git_utils::git_action_paths_for_file(
+            &repo_root,
+            &path,
+            crate::git_utils::GitStatusLayer::Index,
+        );
+        if paths.is_empty() {
             return Err("path is required".to_string());
         }
-        git_core::run_git_command(&repo_root, &["restore", "--staged", "--", path]).await?;
+        for path in paths {
+            git_core::run_git_command(&repo_root, &["restore", "--staged", "--", &path]).await?;
+        }
         Ok(())
     }
 
@@ -1440,18 +1550,24 @@ impl DaemonState {
         let repo_root = self
             .git_repo_root_for_scope(&workspace_id, repository_root.as_deref())
             .await?;
-        let path = path.trim();
-        if path.is_empty() {
+        let paths = crate::git_utils::git_action_paths_for_file(
+            &repo_root,
+            &path,
+            crate::git_utils::GitStatusLayer::Workdir,
+        );
+        if paths.is_empty() {
             return Err("path is required".to_string());
         }
-        if git_core::run_git_command(
-            &repo_root,
-            &["restore", "--staged", "--worktree", "--", path],
-        )
-        .await
-        .is_err()
-        {
-            git_core::run_git_command(&repo_root, &["clean", "-f", "--", path]).await?;
+        for path in paths {
+            if git_core::run_git_command(
+                &repo_root,
+                &["restore", "--staged", "--worktree", "--", &path],
+            )
+            .await
+            .is_err()
+            {
+                git_core::run_git_command(&repo_root, &["clean", "-f", "--", &path]).await?;
+            }
         }
         Ok(())
     }
@@ -2098,6 +2214,7 @@ impl DaemonState {
                     .map(|parent| parent.id().to_string())
                     .collect(),
                 refs: Vec::new(),
+                file_path: None,
             });
         }
 
@@ -2194,6 +2311,8 @@ impl DaemonState {
         body: Option<String>,
         comment_after_create: Option<bool>,
         comment_body: Option<String>,
+        allow_large_range: Option<bool>,
+        confirmed_range_fingerprint: Option<String>,
     ) -> Result<GitPrWorkflowResult, String> {
         let repo_root = self.git_repo_root(&workspace_id).await?;
         let upstream_repo = upstream_repo.trim().to_string();
@@ -2208,6 +2327,128 @@ impl DaemonState {
             || title.is_empty()
         {
             return Err("Missing required PR workflow fields.".to_string());
+        }
+
+        let fetch_command = format!("git fetch upstream {base_branch}");
+        if let Err(reason) = git_core::run_git_command_owned_non_interactive(
+            repo_root.clone(),
+            vec![
+                "fetch".to_string(),
+                "upstream".to_string(),
+                base_branch.clone(),
+            ],
+        )
+        .await
+        {
+            return Ok(build_pr_precheck_failure(reason, &fetch_command));
+        }
+        let base_ref = format!("upstream/{base_branch}");
+        let revision_output = match git_core::run_git_command_owned_non_interactive(
+            repo_root.clone(),
+            vec![
+                "rev-parse".to_string(),
+                base_ref.clone(),
+                "HEAD".to_string(),
+            ],
+        )
+        .await
+        {
+            Ok(output) => output,
+            Err(reason) => {
+                return Ok(build_pr_precheck_failure(
+                    reason,
+                    "git rev-parse upstream/<base> HEAD",
+                ));
+            }
+        };
+        let Some(range_fingerprint) =
+            git_pr_range_gate::parse_pr_range_fingerprint(&revision_output)
+        else {
+            return Ok(build_pr_precheck_failure(
+                "Unable to resolve the current PR range fingerprint.".to_string(),
+                "git rev-parse upstream/<base> HEAD",
+            ));
+        };
+        let range_ref = format!("{base_ref}...HEAD");
+        let range_output = match git_core::run_git_command_owned_non_interactive(
+            repo_root.clone(),
+            vec!["diff".to_string(), "--name-only".to_string(), range_ref],
+        )
+        .await
+        {
+            Ok(output) => output,
+            Err(reason) => {
+                return Ok(build_pr_precheck_failure(
+                    reason,
+                    "git diff --name-only upstream/<base>...HEAD",
+                ));
+            }
+        };
+        let changed_paths = range_output
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty())
+            .map(ToOwned::to_owned)
+            .collect::<Vec<_>>();
+        match git_pr_range_gate::evaluate_pr_range_gate(
+            &changed_paths,
+            allow_large_range.unwrap_or(false),
+            confirmed_range_fingerprint.as_deref(),
+            &range_fingerprint,
+        ) {
+            git_pr_range_gate::PrRangeGateDecision::Pass { .. } => {}
+            git_pr_range_gate::PrRangeGateDecision::ConfirmationRequired {
+                category,
+                reason,
+                range_gate,
+            } => {
+                return Ok(GitPrWorkflowResult {
+                    ok: false,
+                    status: "failed".to_string(),
+                    message: reason.clone(),
+                    error_category: Some(category),
+                    next_action_hint: Some(
+                        "Review the large PR range, then confirm once to continue.".to_string(),
+                    ),
+                    pr_url: None,
+                    pr_number: None,
+                    existing_pr: None,
+                    retry_command: None,
+                    range_gate: Some(range_gate),
+                    stages: vec![GitPrWorkflowStage {
+                        key: "precheck".to_string(),
+                        status: "failed".to_string(),
+                        detail: reason,
+                        command: Some("git diff --name-only upstream/<base>...HEAD".to_string()),
+                        stdout: None,
+                        stderr: None,
+                    }],
+                });
+            }
+            git_pr_range_gate::PrRangeGateDecision::Blocked { category, reason } => {
+                return Ok(GitPrWorkflowResult {
+                    ok: false,
+                    status: "failed".to_string(),
+                    message: reason.clone(),
+                    error_category: Some(category),
+                    next_action_hint: Some(
+                        "Fix branch base/range first, then retry PR workflow.".to_string(),
+                    ),
+                    pr_url: None,
+                    pr_number: None,
+                    existing_pr: None,
+                    retry_command: None,
+                    range_gate: None,
+                    stages: vec![GitPrWorkflowStage {
+                        key: "precheck".to_string(),
+                        status: "failed".to_string(),
+                        detail: reason,
+                        command: Some("git diff --name-only upstream/<base>...HEAD".to_string()),
+                        stdout: None,
+                        stderr: None,
+                    }],
+                });
+            }
         }
 
         let body_text = trim_optional(body).unwrap_or_else(|| "".to_string());
@@ -2256,6 +2497,7 @@ impl DaemonState {
                     "gh pr create --repo {} --base {} --head {} --title {:?}",
                     upstream_repo, base_branch, head_ref, title
                 )),
+                range_gate: None,
                 stages: vec![GitPrWorkflowStage {
                     key: "create-pr".to_string(),
                     status: "failed".to_string(),
@@ -2322,6 +2564,7 @@ impl DaemonState {
             pr_number,
             existing_pr: None,
             retry_command: None,
+            range_gate: None,
             stages,
         })
     }
@@ -2549,6 +2792,7 @@ impl DaemonState {
                         timestamp,
                         parents: Vec::new(),
                         refs: Vec::new(),
+                        file_path: None,
                     })
                 })
                 .collect()
@@ -2812,5 +3056,24 @@ impl DaemonState {
             old_image_mime: None,
             new_image_mime: None,
         })
+    }
+}
+
+#[cfg(test)]
+mod pr_precheck_tests {
+    use super::*;
+
+    #[test]
+    fn daemon_pr_precheck_failure_is_structured() {
+        let result =
+            build_pr_precheck_failure("fetch failed".to_string(), "git fetch upstream main");
+
+        assert!(!result.ok);
+        assert_eq!(result.status, "failed");
+        assert_eq!(result.error_category.as_deref(), Some("precheck"));
+        assert!(result.range_gate.is_none());
+        assert_eq!(result.stages.len(), 1);
+        assert_eq!(result.stages[0].key, "precheck");
+        assert_eq!(result.stages[0].status, "failed");
     }
 }

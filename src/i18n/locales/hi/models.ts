@@ -30,22 +30,6 @@ const models = {
       "gpt54": {
         "label": "gpt-5.4",
         "description": "रोज़मर्रा की कोडिंग के लिए सशक्त मॉडल।"
-      },
-      "gpt54mini": {
-        "label": "gpt-5.4-mini",
-        "description": "सरल कोडिंग कार्यों के लिए छोटा, तेज़ और लागत-कुशल मॉडल।"
-      },
-      "gpt53codex": {
-        "label": "gpt-5.3-codex",
-        "description": "कोडिंग-अनुकूलित मॉडल।"
-      },
-      "gpt53codexSpark": {
-        "label": "gpt-5.3-codex-spark",
-        "description": "अति-तेज़ कोडिंग मॉडल।"
-      },
-      "gpt52": {
-        "label": "gpt-5.2",
-        "description": "पेशेवर कार्य और लंबे समय तक चलने वाले Agent के लिए अनुकूलित।"
       }
     }
   }

@@ -28,6 +28,8 @@ pub mod events;
 pub mod gemini;
 pub mod gemini_history;
 pub(crate) mod gemini_proxy_guard;
+pub mod kimi;
+pub mod kimi_history;
 pub mod manager;
 pub mod opencode;
 pub(crate) mod remote_bridge;
@@ -56,6 +58,8 @@ pub enum EngineType {
     Gemini,
     /// OpenCode CLI
     OpenCode,
+    /// Kimi Code CLI
+    Kimi,
 }
 
 impl Default for EngineType {
@@ -72,6 +76,7 @@ impl EngineType {
             EngineType::Codex => "Codex",
             EngineType::Gemini => "Gemini",
             EngineType::OpenCode => "OpenCode",
+            EngineType::Kimi => "Kimi CLI",
         }
     }
 
@@ -82,12 +87,11 @@ impl EngineType {
             EngineType::Codex => "codex",
             EngineType::Gemini => "gemini",
             EngineType::OpenCode => "opencode",
+            EngineType::Kimi => "kimi",
         }
     }
 }
 
-pub(crate) const GEMINI_DISABLED_DIAGNOSTIC: &str =
-    "Gemini CLI is disabled in CLI validation settings";
 pub(crate) const OPENCODE_DISABLED_DIAGNOSTIC: &str =
     "OpenCode CLI is disabled in CLI validation settings";
 
@@ -96,17 +100,17 @@ pub(crate) fn engine_enabled_in_settings(
     engine_type: EngineType,
 ) -> bool {
     match engine_type {
-        EngineType::Gemini => settings.gemini_enabled,
+        EngineType::Gemini => crate::engine_policy::GEMINI_RUNTIME_ENABLED,
         EngineType::OpenCode => settings.opencode_enabled,
-        EngineType::Claude | EngineType::Codex => true,
+        EngineType::Claude | EngineType::Codex | EngineType::Kimi => true,
     }
 }
 
 pub(crate) fn engine_disabled_diagnostic(engine_type: EngineType) -> Option<&'static str> {
     match engine_type {
-        EngineType::Gemini => Some(GEMINI_DISABLED_DIAGNOSTIC),
+        EngineType::Gemini => Some(crate::engine_policy::GEMINI_DISABLED_DIAGNOSTIC),
         EngineType::OpenCode => Some(OPENCODE_DISABLED_DIAGNOSTIC),
-        EngineType::Claude | EngineType::Codex => None,
+        EngineType::Claude | EngineType::Codex | EngineType::Kimi => None,
     }
 }
 
@@ -116,6 +120,7 @@ pub(crate) fn disabled_engine_status(engine_type: EngineType) -> EngineStatus {
         EngineType::Codex => EngineFeatures::codex(),
         EngineType::Gemini => EngineFeatures::gemini(),
         EngineType::OpenCode => EngineFeatures::opencode(),
+        EngineType::Kimi => EngineFeatures::kimi(),
     };
     EngineStatus {
         engine_type,
@@ -307,6 +312,19 @@ impl EngineFeatures {
             mcp: true,
         }
     }
+
+    /// Features for Kimi CLI
+    pub fn kimi() -> Self {
+        Self {
+            reasoning_effort: false,
+            collaboration_mode: false,
+            image_input: false,
+            session_resume: true,
+            tools_control: true,
+            streaming: true,
+            mcp: false,
+        }
+    }
 }
 
 /// Parameters for sending a message to an engine
@@ -421,5 +439,17 @@ mod tests {
         let codex = EngineFeatures::codex();
         assert!(codex.reasoning_effort);
         assert!(codex.collaboration_mode);
+    }
+
+    #[test]
+    fn gemini_runtime_policy_ignores_legacy_enabled_setting() {
+        let mut settings = crate::types::AppSettings::default();
+        settings.gemini_enabled = true;
+
+        assert!(!engine_enabled_in_settings(&settings, EngineType::Gemini));
+        assert_eq!(
+            engine_disabled_diagnostic(EngineType::Gemini),
+            Some(crate::engine_policy::GEMINI_DISABLED_DIAGNOSTIC)
+        );
     }
 }

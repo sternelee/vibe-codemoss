@@ -9,7 +9,7 @@ import { loadClaudeSession as loadClaudeSessionService } from "../../../services
 import { parseClaudeHistoryMessagesWithShadowRecovery } from "../loaders/claudeHistoryLoader";
 import type { ThreadAction } from "./useThreadsReducer";
 
-type ThreadEngine = "claude" | "codex" | "gemini" | "opencode";
+type ThreadEngine = "claude" | "codex" | "gemini" | "kimi" | "opencode";
 
 type RunWithCreateSessionLoading = <T>(
   params: {
@@ -90,6 +90,9 @@ export function useThreadMessagingThreadResolution({
   const geminiSessionIdByPendingThreadRef = useRef<Map<string, string>>(
     new Map(),
   );
+  const kimiSessionIdByPendingThreadRef = useRef<Map<string, string>>(
+    new Map(),
+  );
 
   const normalizeEngineSelection = useCallback(
     (engine: ThreadEngine | undefined): ThreadEngine =>
@@ -99,7 +102,9 @@ export function useThreadMessagingThreadResolution({
           ? "opencode"
           : engine === "gemini"
             ? "gemini"
-            : "codex",
+            : engine === "kimi"
+              ? "kimi"
+              : "codex",
     [],
   );
 
@@ -117,6 +122,12 @@ export function useThreadMessagingThreadResolution({
         threadId.startsWith("gemini-pending-")
       ) {
         return "gemini";
+      }
+      if (
+        threadId.startsWith("kimi:") ||
+        threadId.startsWith("kimi-pending-")
+      ) {
+        return "kimi";
       }
       if (
         threadId.startsWith("opencode:") ||
@@ -146,6 +157,12 @@ export function useThreadMessagingThreadResolution({
           threadId.startsWith("gemini-pending-")
         );
       }
+      if (engine === "kimi") {
+        return (
+          threadId.startsWith("kimi:") ||
+          threadId.startsWith("kimi-pending-")
+        );
+      }
       if (engine === "opencode") {
         return (
           threadId.startsWith("opencode:") ||
@@ -157,6 +174,8 @@ export function useThreadMessagingThreadResolution({
         !threadId.startsWith("claude-pending-") &&
         !threadId.startsWith("gemini:") &&
         !threadId.startsWith("gemini-pending-") &&
+        !threadId.startsWith("kimi:") &&
+        !threadId.startsWith("kimi-pending-") &&
         !threadId.startsWith("opencode:") &&
         !threadId.startsWith("opencode-pending-")
       );
@@ -286,6 +305,7 @@ export function useThreadMessagingThreadResolution({
     claudeCandidateSessionIdByPendingThreadRef,
     claudePendingThreadAwaitingNativeSessionRef,
     geminiSessionIdByPendingThreadRef,
+    kimiSessionIdByPendingThreadRef,
     isClaudePendingThreadAwaitingNativeSession,
     isThreadIdCompatibleWithEngine,
     normalizeEngineSelection,

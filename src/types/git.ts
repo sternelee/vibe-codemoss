@@ -1,5 +1,6 @@
 export type GitFileStatus = {
   path: string;
+  oldPath?: string | null;
   status: string;
   additions: number;
   deletions: number;
@@ -18,6 +19,23 @@ export type GitFileDiff = {
   newImageData?: string | null;
   oldImageMime?: string | null;
   newImageMime?: string | null;
+};
+
+export type GitBlameHunk = {
+  startLine: number;
+  lineCount: number;
+  commitSha: string;
+  author: string;
+  authoredAt: number;
+  summary: string;
+  originalPath: string | null;
+};
+
+export type GitFileBlameResponse = {
+  path: string;
+  headSha: string;
+  lineCount: number;
+  hunks: GitBlameHunk[];
 };
 
 export type GitCommitDiff = {
@@ -71,6 +89,7 @@ export type GitHistoryCommit = {
   timestamp: number;
   parents: string[];
   refs: string[];
+  filePath?: string | null;
 };
 
 export type GitHistoryResponse = {
@@ -134,6 +153,16 @@ export type GitPrExistingPullRequest = {
   baseRefName: string;
 };
 
+export type GitPrRangeGateSeverity = "large" | "diff-incomplete";
+
+export type GitPrRangeGate = {
+  changedFiles: number;
+  threshold: number;
+  severity: GitPrRangeGateSeverity;
+  requiresConfirmation: boolean;
+  rangeFingerprint: string;
+};
+
 export type GitPrWorkflowResult = {
   ok: boolean;
   status: "success" | "failed" | "existing";
@@ -144,6 +173,7 @@ export type GitPrWorkflowResult = {
   prNumber?: number | null;
   existingPr?: GitPrExistingPullRequest | null;
   retryCommand?: string | null;
+  rangeGate?: GitPrRangeGate | null;
   stages: GitPrWorkflowStage[];
 };
 

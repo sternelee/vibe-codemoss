@@ -17,6 +17,7 @@ import {
 import {
   isClaudeReasoningThread,
   isGeminiReasoningThread,
+  isKimiReasoningThread,
 } from "./threadReducerReasoningGuards";
 
 function isUserMessageItem(
@@ -930,7 +931,7 @@ export function mergeReasoningTextForThread(
   existing: string,
   incoming: string,
 ) {
-  if (isGeminiReasoningThread(threadId)) {
+  if (isGeminiReasoningThread(threadId) || isKimiReasoningThread(threadId)) {
     const normalizedExisting = normalizeReasoningReadableText(existing);
     const normalizedIncoming = normalizeReasoningReadableText(incoming);
     if (!normalizedExisting) {

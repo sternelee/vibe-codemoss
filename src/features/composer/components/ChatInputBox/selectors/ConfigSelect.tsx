@@ -12,6 +12,7 @@ import { AgentIcon } from '../../../../../components/AgentIcon';
 import { agentProvider, CREATE_NEW_AGENT_ID, EMPTY_STATE_ID, type AgentItem } from '../providers/agentProvider';
 import type { AccountRateLimitsInfo, CodexSpeedMode, ProviderId, SelectedAgent } from '../types';
 import { formatRelativeTime } from '../../../../../utils/time';
+import { formatRateLimitWindowLabel } from '../../../../../utils/rateLimitLabels';
 
 interface ConfigSelectProps {
   currentProvider: string;
@@ -123,6 +124,12 @@ export const ConfigSelect = ({
     return {
       sessionPercent,
       weeklyPercent,
+      sessionLimitLabel: formatRateLimitWindowLabel(
+        accountRateLimits?.primary?.windowDurationMins,
+      ),
+      weeklyLimitLabel: formatRateLimitWindowLabel(
+        accountRateLimits?.secondary?.windowDurationMins,
+      ),
       showWeekly: Boolean(accountRateLimits?.secondary),
       sessionResetLabel: formatUsageReset(
         accountRateLimits?.primary?.resetsAt,
@@ -155,7 +162,9 @@ export const ConfigSelect = ({
     try {
       const list = await agentProvider('', controller.signal);
       if (controller.signal.aborted) return;
-      setAgentItems(list);
+      setAgentItems(
+        list.filter((agent) => agent.itemKind !== "sectionHeader"),
+      );
     } catch (error) {
       if ((error as Error).name === 'AbortError') return;
       setAgentItems([{
@@ -297,6 +306,11 @@ export const ConfigSelect = ({
                   name: agent.name,
                   prompt: agent.prompt,
                   icon: agent.icon,
+                  source: agent.source,
+                  divisionId: agent.divisionId,
+                  divisionLabel: agent.divisionLabel,
+                  sourceRevision: agent.sourceRevision,
+                  promptHash: agent.promptHash,
                 });
                 setIsOpen(false);
                 setActiveSubmenu('none');
@@ -362,7 +376,7 @@ export const ConfigSelect = ({
 
       <div className="selector-usage-row">
         <div className="selector-usage-row-top">
-          <span>5h limit</span>
+          <span>{usageSnapshot.sessionLimitLabel}</span>
           <span>
             {usageSnapshot.sessionPercent === null
               ? '--'
@@ -385,7 +399,7 @@ export const ConfigSelect = ({
       {usageSnapshot.showWeekly && (
         <div className="selector-usage-row">
           <div className="selector-usage-row-top">
-            <span>Weekly limit</span>
+            <span>{usageSnapshot.weeklyLimitLabel}</span>
             <span>
               {usageSnapshot.weeklyPercent === null
                 ? '--'
@@ -522,12 +536,17 @@ export const ConfigSelect = ({
                         onOpenAgentSettings?.();
                         return;
                       }
-                      onAgentSelect?.({
-                        id: agent.id,
-                        name: agent.name,
-                        prompt: agent.prompt,
-                        icon: agent.icon,
-                      });
+                    onAgentSelect?.({
+                      id: agent.id,
+                      name: agent.name,
+                      prompt: agent.prompt,
+                      icon: agent.icon,
+                      source: agent.source,
+                      divisionId: agent.divisionId,
+                      divisionLabel: agent.divisionLabel,
+                      sourceRevision: agent.sourceRevision,
+                      promptHash: agent.promptHash,
+                    });
                     }}
                   >
                     {isCreate ? (
@@ -718,7 +737,7 @@ export const ConfigSelect = ({
                 </div>
                 <div className="selector-usage-row">
                   <div className="selector-usage-row-top">
-                    <span>5h limit</span>
+                    <span>{usageSnapshot.sessionLimitLabel}</span>
                     <span>
                       {usageSnapshot.sessionPercent === null
                         ? '--'
@@ -738,7 +757,7 @@ export const ConfigSelect = ({
                 {usageSnapshot.showWeekly && (
                   <div className="selector-usage-row">
                     <div className="selector-usage-row-top">
-                      <span>Weekly limit</span>
+                      <span>{usageSnapshot.weeklyLimitLabel}</span>
                       <span>
                         {usageSnapshot.weeklyPercent === null
                           ? '--'

@@ -598,14 +598,17 @@ async fn collect_workspace_cleanup_ids(
     ids
 }
 
-async fn cleanup_engine_sessions_for_workspace(state: &AppState, workspace_id: &str) {
+async fn cleanup_engine_sessions_for_workspace(
+    state: &AppState,
+    workspace_id: &str,
+) -> Result<(), String> {
     crate::terminal::cleanup_terminal_sessions_for_workspace(state, workspace_id).await;
     crate::engine::commands::clear_mcp_toggle_state(workspace_id);
     state
         .engine_manager
         .remove_claude_session(workspace_id)
         .await;
-    state
+    let gemini_cleanup_result = state
         .engine_manager
         .remove_gemini_session(workspace_id)
         .await;
@@ -617,6 +620,8 @@ async fn cleanup_engine_sessions_for_workspace(state: &AppState, workspace_id: &
         .engine_manager
         .remove_opencode_session(workspace_id)
         .await;
+    gemini_cleanup_result
+        .map_err(|error| format!("Gemini cleanup failed for workspace {workspace_id}: {error}"))
 }
 
 #[tauri::command]
@@ -1249,6 +1254,7 @@ pub(crate) async fn add_workspace(
         codex_bin.as_deref().or(codex_bin_setting.as_deref()),
         None,
         None,
+        None,
     )
     .await;
 
@@ -1280,6 +1286,10 @@ pub(crate) async fn add_workspace(
             // Gemini follows local CLI session model (no persistent daemon session).
             add_workspace_for_cli_engine(EngineType::Gemini, path, codex_bin, &state).await
         }
+        EngineType::Kimi => {
+            // Kimi follows local CLI session model (no persistent daemon session).
+            add_workspace_for_cli_engine(EngineType::Kimi, path, codex_bin, &state).await
+        }
     }
 }
 
@@ -1292,7 +1302,7 @@ async fn add_workspace_for_cli_engine(
     state: &AppState,
 ) -> Result<WorkspaceInfo, String> {
     use crate::engine::status::{
-        detect_claude_status, detect_gemini_status, detect_opencode_status,
+        detect_claude_status, detect_kimi_status, detect_opencode_status,
     };
     use std::path::PathBuf;
 
@@ -1304,6 +1314,7 @@ async fn add_workspace_for_cli_engine(
         EngineType::Claude => "claude",
         EngineType::Gemini => "gemini",
         EngineType::OpenCode => "opencode",
+        EngineType::Kimi => "kimi",
         _ => return Err(format!("Unsupported CLI engine: {:?}", engine_type)),
     };
 
@@ -1325,8 +1336,15 @@ async fn add_workspace_for_cli_engine(
             };
             detect_claude_status(claude_bin.as_deref()).await.installed
         }
-        EngineType::Gemini => detect_gemini_status(None).await.installed,
+        EngineType::Gemini => false,
         EngineType::OpenCode => detect_opencode_status(None).await.installed,
+        EngineType::Kimi => {
+            let kimi_bin = {
+                let settings = state.app_settings.lock().await;
+                settings.kimi_bin.clone()
+            };
+            detect_kimi_status(kimi_bin.as_deref()).await.installed
+        }
         _ => false,
     };
     if !cli_installed {
@@ -1660,8 +1678,17 @@ pub(crate) async fn remove_workspace(
     )
     .await?;
 
+    let mut cleanup_errors = Vec::new();
     for workspace_id in cleanup_ids {
-        cleanup_engine_sessions_for_workspace(&state, &workspace_id).await;
+        if let Err(error) = cleanup_engine_sessions_for_workspace(&state, &workspace_id).await {
+            cleanup_errors.push(error);
+        }
+    }
+    if !cleanup_errors.is_empty() {
+        return Err(format!(
+            "workspace removed but engine cleanup failed: {}",
+            cleanup_errors.join("; ")
+        ));
     }
 
     Ok(())
@@ -1696,7 +1723,9 @@ pub(crate) async fn remove_worktree(
     )
     .await?;
 
-    cleanup_engine_sessions_for_workspace(&state, &id).await;
+    cleanup_engine_sessions_for_workspace(&state, &id)
+        .await
+        .map_err(|error| format!("worktree removed but engine cleanup failed: {error}"))?;
 
     Ok(())
 }

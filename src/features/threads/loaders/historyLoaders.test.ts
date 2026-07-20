@@ -4,6 +4,7 @@ import { createCodexHistoryLoader } from "./codexHistoryLoader";
 import { parseCodexSessionHistory } from "./codexSessionHistory";
 import { createGeminiHistoryLoader } from "./geminiHistoryLoader";
 import { parseGeminiHistoryMessages } from "./geminiHistoryParser";
+import { createKimiHistoryLoader } from "./kimiHistoryLoader";
 
 describe("history loaders", () => {
   it("loads codex history into normalized snapshot", async () => {
@@ -685,6 +686,82 @@ describe("history loaders", () => {
         role: "assistant",
       }),
     );
+  });
+
+  it("loads kimi history into normalized snapshot", async () => {
+    const loader = createKimiHistoryLoader({
+      workspaceId: "ws-kimi",
+      workspacePath: "/tmp/workspace",
+      loadKimiSession: vi.fn().mockResolvedValue({
+        messages: [
+          {
+            id: "kimi-user-1",
+            kind: "message",
+            role: "user",
+            text: "hello",
+          },
+          {
+            id: "kimi-assistant-1",
+            kind: "message",
+            role: "assistant",
+            text: "hi",
+          },
+          {
+            id: "kimi-tool-1",
+            kind: "tool",
+            role: "assistant",
+            toolType: "Grep",
+            title: "Grep",
+            toolInput: { pattern: "foo" },
+          },
+          {
+            id: "kimi-tool-1-result",
+            kind: "tool",
+            role: "assistant",
+            toolType: "result",
+            title: "Result",
+            text: "3 matches",
+          },
+        ],
+      }),
+    });
+
+    const snapshot = await loader.load("kimi:session-1");
+    expect(snapshot.engine).toBe("kimi");
+    expect(snapshot.threadId).toBe("kimi:session-1");
+    expect(snapshot.items).toHaveLength(3);
+    expect(snapshot.items[0]).toEqual(
+      expect.objectContaining({
+        kind: "message",
+        role: "user",
+      }),
+    );
+    expect(snapshot.items[1]).toEqual(
+      expect.objectContaining({
+        kind: "message",
+        role: "assistant",
+      }),
+    );
+    expect(snapshot.items[2]).toEqual(
+      expect.objectContaining({
+        kind: "tool",
+        status: "completed",
+        output: "3 matches",
+      }),
+    );
+  });
+
+  it("returns an empty kimi snapshot when workspace path is missing", async () => {
+    const loader = createKimiHistoryLoader({
+      workspaceId: "ws-kimi",
+      workspacePath: null,
+      loadKimiSession: vi.fn(),
+    });
+
+    const snapshot = await loader.load("kimi:session-1");
+    expect(snapshot.engine).toBe("kimi");
+    expect(snapshot.threadId).toBe("kimi:session-1");
+    expect(snapshot.items).toHaveLength(0);
   });
 
   it("hydrates gemini final completion time and duration from message timestamps", () => {

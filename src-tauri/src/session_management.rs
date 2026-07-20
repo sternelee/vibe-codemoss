@@ -934,6 +934,10 @@ pub(crate) async fn delete_workspace_sessions_core(
         .get_engine_config(engine::EngineType::Gemini)
         .await
         .and_then(|item| item.home_dir);
+    let kimi_home_dir = engine_manager
+        .get_engine_config(engine::EngineType::Kimi)
+        .await
+        .and_then(|item| item.home_dir);
     let mut async_delete_handles: Vec<(
         WorkspaceSessionMutationTarget,
         JoinHandle<Result<(), String>>,
@@ -965,6 +969,20 @@ pub(crate) async fn delete_workspace_sessions_core(
                         &workspace_path,
                         &raw_id,
                         gemini_home_dir.as_deref(),
+                    )
+                    .await
+                });
+                async_delete_handles.push((target, handle));
+            }
+            "kimi" => {
+                let workspace_path = target.owner_workspace_path.clone();
+                let kimi_home_dir = kimi_home_dir.clone();
+                let raw_id = target.native_session_id.clone();
+                let handle = tokio::spawn(async move {
+                    engine::kimi_history::delete_kimi_session(
+                        &workspace_path,
+                        &raw_id,
+                        kimi_home_dir.as_deref(),
                     )
                     .await
                 });
@@ -2460,6 +2478,9 @@ async fn build_global_engine_catalog_entries(
     let gemini_config = engine_manager
         .get_engine_config(engine::EngineType::Gemini)
         .await;
+    let kimi_config = engine_manager
+        .get_engine_config(engine::EngineType::Kimi)
+        .await;
     let claude_config = engine_manager
         .get_engine_config(engine::EngineType::Claude)
         .await;
@@ -2623,6 +2644,83 @@ async fn build_global_engine_catalog_entries(
                     error
                 );
                     partial_sources.push(SESSION_CATALOG_PARTIAL_GEMINI.to_string());
+                }
+            }
+        }
+
+        if include_engine("kimi") {
+            match engine::kimi_history::list_kimi_sessions(
+                &workspace_path,
+                Some(scan_mode.limit()),
+                kimi_config
+                    .as_ref()
+                    .and_then(|item| item.home_dir.as_deref()),
+            )
+            .await
+            {
+                Ok(sessions) => {
+                    for session in sessions {
+                        let session_id = format!("kimi:{}", session.session_id);
+                        let archived_at =
+                            metadata_by_workspace_id
+                                .get(&workspace.id)
+                                .and_then(|metadata| {
+                                    archived_at_for_session(metadata, &workspace.id, &session_id)
+                                });
+                        let entry = WorkspaceSessionCatalogEntry {
+                            session_id,
+                            stable_session_key: None,
+                            canonical_session_id: session.canonical_session_id,
+                            parent_session_id: None,
+                            workspace_id: workspace.id.clone(),
+                            workspace_label: Some(workspace.name.clone()),
+                            engine: session.engine.unwrap_or_else(|| "kimi".to_string()),
+                            title: session.first_message,
+                            updated_at: session.updated_at.max(0),
+                            archived_at,
+                            thread_kind: "native".to_string(),
+                            source: None,
+                            source_label: None,
+                            provider_profile_id: None,
+                            provider_profile_source: None,
+                            provider_profile_name: None,
+                            provider_availability: None,
+                            source_completeness: None,
+                            source_status_reason: None,
+                            size_bytes: session.file_size_bytes,
+                            cwd: None,
+                            attribution_status: session.attribution_status.or_else(|| {
+                                Some(
+                                    SessionCatalogAttributionStatus::StrictMatch
+                                        .as_str()
+                                        .to_string(),
+                                )
+                            }),
+                            attribution_reason: None,
+                            attribution_confidence: None,
+                            matched_workspace_id: Some(workspace.id.clone()),
+                            matched_workspace_label: Some(workspace.name.clone()),
+                            folder_id: None,
+                            auto_session: None,
+                            exists_on_disk: false,
+                            inconsistency_code: None,
+                            delete_mode: None,
+                            physical_path: None,
+                            children_count: None,
+                        };
+                        entries.push(finalize_existing_catalog_entry(
+                            entry,
+                            &metadata_by_workspace_id,
+                        ));
+                    }
+                }
+                Err(error) => {
+                    log::warn!(
+                    "[session_management.list_global_codex_sessions] kimi history unavailable for workspace {}: {}",
+                    workspace.id,
+                    error
+                );
+                    partial_sources.push(SESSION_CATALOG_PARTIAL_KIMI.to_string());
                 }
             }
         }

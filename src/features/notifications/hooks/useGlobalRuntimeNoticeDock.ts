@@ -64,6 +64,8 @@ function resolveRuntimeEngineLabel(engine: string) {
       return "Claude Code";
     case "gemini":
       return "Gemini";
+    case "kimi":
+      return "Kimi";
     case "opencode":
       return "OpenCode";
     case "codex":

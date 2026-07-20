@@ -12,6 +12,8 @@ const timelineSnapshots = vi.hoisted(() => ({
     threadId: string | null;
     liveAssistantIsFinal: boolean | null;
     liveAssistantText: string | null;
+    liveReasoningItemId: string | null;
+    latestReasoningId: string | null;
     presentationMode: string;
     sessionFileChangesSummary: TurnFileChangesSummary | null;
     isWorking: boolean;
@@ -33,6 +35,8 @@ vi.mock("./MessagesTimeline", () => ({
     groupedEntries: GroupedEntry[];
     threadId: string | null;
     liveAssistantItem: Extract<ConversationItem, { kind: "message" }> | null;
+    liveReasoningItem: Extract<ConversationItem, { kind: "reasoning" }> | null;
+    latestReasoningId: string | null;
     presentationMode: string;
     sessionFileChangesSummary: TurnFileChangesSummary | null;
     isWorking: boolean;
@@ -43,6 +47,8 @@ vi.mock("./MessagesTimeline", () => ({
       threadId: props.threadId,
       liveAssistantIsFinal: props.liveAssistantItem?.isFinal ?? null,
       liveAssistantText: props.liveAssistantItem?.text ?? null,
+      liveReasoningItemId: props.liveReasoningItem?.id ?? null,
+      latestReasoningId: props.latestReasoningId,
       presentationMode: props.presentationMode,
       sessionFileChangesSummary: props.sessionFileChangesSummary,
       isWorking: props.isWorking,
@@ -219,6 +225,68 @@ describe("Messages streaming presentation contract", () => {
     expect(
       threadBSnapshots.some((entry) =>
         entry.renderedTexts.some((text) => text.includes("B 会话")),
+      ),
+    ).toBe(true);
+  });
+
+  it("surfaces a newly inserted live reasoning row before the deferred snapshot catches up", () => {
+    const initialItems: ConversationItem[] = [
+      {
+        id: "user-1",
+        kind: "message",
+        role: "user",
+        text: "具体模型型号",
+      },
+      {
+        id: "assistant-1",
+        kind: "message",
+        role: "assistant",
+        text: "正在生成",
+        isFinal: false,
+      },
+    ];
+
+    const view = render(
+      <Messages
+        items={initialItems}
+        threadId="thread-live-reasoning"
+        workspaceId="ws-1"
+        isThinking
+        activeEngine="kimi"
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    timelineSnapshots.entries = [];
+
+    view.rerender(
+      <Messages
+        items={[
+          initialItems[0],
+          {
+            id: "reasoning-live",
+            kind: "reasoning",
+            summary: "思考",
+            content: "用户问具体模型型号，直接回答即可。",
+            engineSource: "kimi",
+          },
+          initialItems[1],
+        ]}
+        threadId="thread-live-reasoning"
+        workspaceId="ws-1"
+        isThinking
+        activeEngine="kimi"
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(
+      timelineSnapshots.entries.some(
+        (entry) =>
+          entry.latestReasoningId === "reasoning-live"
+          && entry.liveReasoningItemId === "reasoning-live",
       ),
     ).toBe(true);
   });

@@ -14,6 +14,7 @@ const messages = {
     "thinking": "思考中…",
     "thinkingLabel": "思考",
     "thinkingProcess": "思考プロセス",
+    "thinkingDone": "思考完了",
     "finalMessageBoundary": "最終メッセージ",
     "turnFilesChanged": {
       "title_one": "{{count}} 個のファイルを編集",
@@ -276,7 +277,9 @@ const messages = {
     "toolHeavyDetailMeta": "{{kind}} · {{count}} 項目",
     "toolHeavyDetailShow": "詳細を表示",
     "toolHeavyOutput": "出力",
-    "toolHeavyDiff": "差分"
+    "toolHeavyDiff": "差分",
+    "builtInAgentUnavailableTitle": "組み込みエージェントを利用できません",
+    "builtInAgentUnavailableMessage": "このエージェントは無効または利用不能なため、このメッセージではプロンプトを使用しません。"
   }
 };
 

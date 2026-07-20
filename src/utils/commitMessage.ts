@@ -2,12 +2,14 @@ import type {
   CommitMessageEngine,
   CommitMessageLanguage,
 } from "../services/tauri";
+import { normalizeEngineForExecution } from "./engineExecutionPolicy";
 
 const LAST_COMMIT_MESSAGE_CONFIG_KEY = "ccgui.git.lastCommitMessageConfig";
 const COMMIT_MESSAGE_ENGINES: readonly CommitMessageEngine[] = [
   "claude",
   "codex",
   "gemini",
+  "kimi",
   "opencode",
 ];
 const COMMIT_MESSAGE_LANGUAGES: readonly CommitMessageLanguage[] = ["zh", "en"];
@@ -31,7 +33,7 @@ export function readLastCommitMessageConfig(): LastCommitMessageConfig | null {
       return null;
     }
     return {
-      engine: parsed.engine as CommitMessageEngine,
+      engine: normalizeEngineForExecution(parsed.engine),
       language: parsed.language as CommitMessageLanguage,
     };
   } catch {
@@ -43,7 +45,10 @@ export function saveLastCommitMessageConfig(config: LastCommitMessageConfig): vo
   try {
     window.localStorage.setItem(
       LAST_COMMIT_MESSAGE_CONFIG_KEY,
-      JSON.stringify(config),
+      JSON.stringify({
+        ...config,
+        engine: normalizeEngineForExecution(config.engine),
+      }),
     );
   } catch {
     // localStorage unavailable — the quick option simply stays disabled

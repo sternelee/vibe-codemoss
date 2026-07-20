@@ -10,8 +10,9 @@ import {
 import { useTranslation } from "react-i18next";
 import { MainTopbar } from "../../app/components/MainTopbar";
 import { MemoryPanel } from "./MemoryPanel";
-import type { CenterMode } from "../../app/hooks/useGitPanelController";
+import type { CenterMode, EditorSplitCompanion } from "../../app/hooks/useGitPanelController";
 import { getClientStoreSync, writeClientStoreValue } from "../../../services/clientStorage";
+import { WorkspaceNoteCardsLayoutProvider, useWorkspaceNoteCardsLayoutController } from "../../note-cards/components/WorkspaceNoteCardsLayoutContext";
 
 const NOTE_CARDS_SPLIT_RATIO_KEY = "noteCardsSplitRatio";
 const DEFAULT_NOTE_CARDS_SPLIT_RATIO = 66.667;
@@ -71,7 +72,7 @@ type DesktopLayoutProps = {
   topbarLeftNode: ReactNode;
   centerMode: CenterMode;
   editorSplitLayout: "vertical" | "horizontal";
-  editorSplitCompanion: "chat" | "projectMap";
+  editorSplitCompanion: EditorSplitCompanion;
   isEditorFileMaximized: boolean;
   messagesNode: ReactNode;
   gitDiffViewerNode: ReactNode;
@@ -150,14 +151,15 @@ export function DesktopLayout({
   const noteCardsSplitRatioRef = useRef(readNoteCardsSplitRatio());
   const isEditorSplitMode = centerMode === "editor";
   const isNoteCardsSplitMode = centerMode === "notes";
-  const isEditorHorizontalSplitMode =
-    isEditorSplitMode && editorSplitLayout === "horizontal";
+  const noteCardsLayoutControls = useWorkspaceNoteCardsLayoutController(isNoteCardsSplitMode);
+  const isNoteCardsMaximized = noteCardsLayoutControls.isMaximized;
+  const isNoteCardsCompanionVisible = isNoteCardsSplitMode && !isNoteCardsMaximized;
+  const isEditorSplitNotesMounted = isEditorSplitMode && editorSplitCompanion === "notes";
+  const isEditorSplitNotesVisible = isEditorSplitNotesMounted && !isEditorFileMaximized;
+  const isEditorHorizontalSplitMode = isEditorSplitMode && (editorSplitLayout === "horizontal" || isEditorSplitNotesMounted);
   const isEditorSplitChatVisible =
     isEditorSplitMode && editorSplitCompanion === "chat" && !isEditorFileMaximized;
-  const isEditorSplitProjectMapVisible =
-    isEditorSplitMode &&
-    editorSplitCompanion === "projectMap" &&
-    !isEditorFileMaximized;
+  const isEditorSplitProjectMapVisible = isEditorSplitMode && editorSplitCompanion === "projectMap" && !isEditorFileMaximized;
   const isBrowserDockSplitVisible = centerMode === "chat" && Boolean(browserDockNode);
   const shouldPlaceComposerInChatColumn =
     isEditorSplitChatVisible || isBrowserDockSplitVisible || isNoteCardsSplitMode;
@@ -166,8 +168,10 @@ export function DesktopLayout({
     centerMode !== "projectMap" &&
     centerMode !== "intentCanvas" &&
     centerMode !== "fileCompare" &&
+    centerMode !== "fileHistory" &&
     !shouldPlaceComposerInChatColumn &&
     !isEditorSplitProjectMapVisible &&
+    !isEditorSplitNotesVisible &&
     !isEditorFileMaximized;
 
   useEffect(() => {
@@ -193,7 +197,9 @@ export function DesktopLayout({
       if (!ref) continue;
       const isInteractive =
         centerMode === mode ||
-        ((isEditorSplitChatVisible || isNoteCardsSplitMode) && mode === "chat") ||
+        (mode === "editor" && centerMode === "fileHistory") ||
+        ((isEditorSplitChatVisible || isNoteCardsCompanionVisible) && mode === "chat") ||
+        (isEditorSplitNotesVisible && mode === "notes") ||
         (isEditorSplitProjectMapVisible && mode === "projectMap");
       if (isInteractive) {
         ref.removeAttribute("inert");
@@ -207,7 +213,9 @@ export function DesktopLayout({
       for (const { ref, mode } of layers) {
         const isInteractive =
           centerMode === mode ||
-          ((isEditorSplitChatVisible || isNoteCardsSplitMode) && mode === "chat") ||
+          (mode === "editor" && centerMode === "fileHistory") ||
+          ((isEditorSplitChatVisible || isNoteCardsCompanionVisible) && mode === "chat") ||
+          (isEditorSplitNotesVisible && mode === "notes") ||
           (isEditorSplitProjectMapVisible && mode === "projectMap");
         if (ref && !isInteractive && ref.contains(activeElement)) {
           activeElement.blur();
@@ -215,7 +223,13 @@ export function DesktopLayout({
         }
       }
     }
-  }, [centerMode, isEditorSplitChatVisible, isEditorSplitProjectMapVisible, isNoteCardsSplitMode]);
+  }, [
+    centerMode,
+    isEditorSplitChatVisible,
+    isEditorSplitNotesVisible,
+    isEditorSplitProjectMapVisible,
+    isNoteCardsCompanionVisible,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -587,6 +601,10 @@ export function DesktopLayout({
                   className={`content${isEditorSplitMode ? " is-editor-split" : ""}${
                     isNoteCardsSplitMode ? " is-note-cards-split" : ""
                   }${
+                    isNoteCardsSplitMode && isNoteCardsMaximized
+                      ? " is-note-cards-maximized"
+                      : ""
+                  }${
                     isBrowserDockSplitVisible ? " is-browser-dock-split" : ""
                   }${
                     isEditorSplitMode
@@ -617,9 +635,9 @@ export function DesktopLayout({
                   </div>
                   <div
                     className={`content-layer content-layer--editor ${
-                      centerMode === "editor" ? "is-active" : "is-hidden"
+                      centerMode === "editor" || centerMode === "fileHistory" ? "is-active" : "is-hidden"
                     }`}
-                    aria-hidden={centerMode !== "editor"}
+                    aria-hidden={centerMode !== "editor" && centerMode !== "fileHistory"}
                     ref={editorLayerRef}
                   >
                     {fileViewPanelNode}
@@ -668,14 +686,16 @@ export function DesktopLayout({
                   </div>
                   <div
                     className={`content-layer content-layer--note-cards ${
-                      isNoteCardsSplitMode ? "is-active" : "is-hidden"
-                    }`}
-                    aria-hidden={!isNoteCardsSplitMode}
+                      isNoteCardsSplitMode || isEditorSplitNotesVisible ? "is-active" : "is-hidden"
+                    }${isEditorSplitNotesMounted ? " content-layer--editor-companion" : ""}`}
+                    aria-hidden={!isNoteCardsSplitMode && !isEditorSplitNotesVisible}
                     ref={noteCardsLayerRef}
                   >
-                    {noteCardsPanelNode}
+                    <WorkspaceNoteCardsLayoutProvider value={noteCardsLayoutControls}>
+                      {noteCardsPanelNode}
+                    </WorkspaceNoteCardsLayoutProvider>
                   </div>
-                  {isNoteCardsSplitMode ? (
+                  {isNoteCardsCompanionVisible ? (
                     <div
                       className="content-note-cards-split-divider"
                       role="separator"
@@ -692,7 +712,9 @@ export function DesktopLayout({
                   ) : null}
                   <div
                     className={`content-layer content-layer--chat ${
-                      centerMode === "chat" || isEditorSplitChatVisible || isNoteCardsSplitMode
+                      centerMode === "chat" ||
+                      isEditorSplitChatVisible ||
+                      isNoteCardsCompanionVisible
                         ? "is-active"
                         : "is-hidden"
                     }${
@@ -700,7 +722,11 @@ export function DesktopLayout({
                     }${
                       isNoteCardsSplitMode ? " content-layer--note-cards-companion" : ""
                     }`}
-                    aria-hidden={centerMode !== "chat" && !isEditorSplitChatVisible && !isNoteCardsSplitMode}
+                    aria-hidden={
+                      centerMode !== "chat" &&
+                      !isEditorSplitChatVisible &&
+                      !isNoteCardsCompanionVisible
+                    }
                     ref={chatLayerRef}
                   >
                     {messagesNode}

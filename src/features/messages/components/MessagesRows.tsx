@@ -6,6 +6,7 @@ import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
 import Search from "lucide-react/dist/esm/icons/search";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import LoaderCircle from "lucide-react/dist/esm/icons/loader-circle";
+import Brain from "lucide-react/dist/esm/icons/brain";
 import { AgentIcon } from "../../../components/AgentIcon";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -590,7 +591,7 @@ export const WorkingIndicator = memo(function WorkingIndicator({
     activityLabel,
   );
   const supportsStreamActivityPhaseFx =
-    activeEngine === "codex" || activeEngine === "claude" || activeEngine === "gemini";
+    activeEngine === "codex" || activeEngine === "claude" || activeEngine === "gemini" || activeEngine === "kimi";
   const visualStreamActivityPhase =
     activeEngine === "codex" && streamActivityPhase === "ingress"
       ? "waiting"
@@ -858,7 +859,9 @@ export const MessageRow = memo(function MessageRow({
   // 避免每个 token 都同步阻塞主线程。非流式或历史消息文本不变，等价于直通。
   const deferredDisplayText = useDeferredValue(displayText);
   const streamingDisplayText =
-    item.role === "assistant" && isStreaming ? deferredDisplayText : displayText;
+    item.role === "assistant" && isStreaming && !streamMitigationProfile
+      ? deferredDisplayText
+      : displayText;
   useEffect(() => {
     appendMessageRowRenderBudgetDiagnostic({
       threadId,
@@ -1760,11 +1763,7 @@ export const ReasoningRow = memo(function ReasoningRow({
   if (isEncryptedCodexReasoning) {
     return null;
   }
-  const title = activeEngine === "claude"
-    ? t("messages.thinkingLabel")
-    : isLive
-      ? t("messages.thinkingProcess")
-      : t("messages.thinkingLabel");
+  const title = isLive ? t("messages.thinking") : t("messages.thinkingProcess");
   return (
     <div className={`thinking-block${isExpanded ? " is-expanded" : ""}${isLive ? " is-live" : ""}`}>
       <button
@@ -1773,6 +1772,7 @@ export const ReasoningRow = memo(function ReasoningRow({
         onClick={() => onToggle(item.id)}
       >
         <span className="thinking-header-copy">
+          <Brain className="thinking-brain-icon" size={15} aria-hidden />
           <span className="thinking-title">{title}</span>
         </span>
         <span

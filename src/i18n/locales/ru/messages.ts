@@ -14,6 +14,7 @@ const messages = {
     "thinking": "Размышление…",
     "thinkingLabel": "Размышление",
     "thinkingProcess": "Процесс размышления",
+    "thinkingDone": "Размышление завершено",
     "finalMessageBoundary": "Итоговое сообщение",
     "turnFilesChanged": {
       "title_one": "Изменён {{count}} файл",
@@ -276,7 +277,9 @@ const messages = {
     "toolHeavyDetailMeta": "{{kind}} · {{count}} элементов",
     "toolHeavyDetailShow": "Показать детали",
     "toolHeavyOutput": "Вывод",
-    "toolHeavyDiff": "Diff"
+    "toolHeavyDiff": "Diff",
+    "builtInAgentUnavailableTitle": "Встроенный агент недоступен",
+    "builtInAgentUnavailableMessage": "Агент отключён или недоступен, поэтому его промпт не будет использован в этом сообщении."
   }
 };
 

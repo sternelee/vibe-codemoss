@@ -14,6 +14,7 @@ const messages = {
     "thinking": "Pensando…",
     "thinkingLabel": "Pensando",
     "thinkingProcess": "Processo de raciocínio",
+    "thinkingDone": "Pensamento concluído",
     "finalMessageBoundary": "Mensagem final",
     "turnFilesChanged": {
       "title_one": "{{count}} arquivo editado",
@@ -276,7 +277,9 @@ const messages = {
     "toolHeavyDetailMeta": "{{kind}} · {{count}} itens",
     "toolHeavyDetailShow": "Mostrar detalhe",
     "toolHeavyOutput": "Saída",
-    "toolHeavyDiff": "Diff"
+    "toolHeavyDiff": "Diff",
+    "builtInAgentUnavailableTitle": "Agent integrado indisponível",
+    "builtInAgentUnavailableMessage": "Este agent está desabilitado ou indisponível, então o prompt dele não será usado nesta mensagem."
   }
 };
 
