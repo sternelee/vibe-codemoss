@@ -37,6 +37,7 @@ use validation::validate_local_branch_name;
 #[cfg(test)]
 use crate::types::{GitPrRangeGate, GitPrRangeGateSeverity};
 
+mod pull_request_content;
 mod range_gate;
 mod validation;
 
@@ -1859,6 +1860,17 @@ mod tests {
                 "Git remote forwarding matrix is missing category {category}"
             );
         }
+    }
+
+    #[test]
+    fn pull_request_content_generation_remote_mode_fails_closed() {
+        let command_source = include_str!("commands.rs");
+        let command = command_source
+            .split("pub(crate) async fn generate_pull_request_content(")
+            .nth(1)
+            .expect("PR content generation command");
+        assert!(command.contains("PR content generation is unavailable in remote mode"));
+        assert!(!command.contains("\"generate_pull_request_content\","));
     }
 
     #[test]

@@ -197,6 +197,18 @@ pub(crate) struct GitBranchCompareCommitSets {
     pub(crate) current_only_commits: Vec<GitHistoryCommit>,
 }
 
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
+pub(crate) struct PullRequestGeneratedContent {
+    #[serde(default)]
+    pub(crate) title: String,
+    #[serde(default)]
+    pub(crate) body: String,
+    #[serde(default)]
+    pub(crate) engine: String,
+    #[serde(default)]
+    pub(crate) language: String,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct GitPrWorkflowDefaults {
     #[serde(rename = "upstreamRepo")]
