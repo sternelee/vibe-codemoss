@@ -833,7 +833,7 @@ impl ClaudeSession {
         if let Some(ref custom) = self.bin_path {
             return custom.clone();
         }
-        crate::backend::app_server::find_cli_binary("claude", None)
+        crate::backend::app_server::find_claude_code_binary(None)
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or_else(|| "claude".to_string())
     }

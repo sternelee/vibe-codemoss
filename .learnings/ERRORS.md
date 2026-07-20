@@ -38,6 +38,44 @@ Use `npx vitest run <test-file>` for focused suites; reserve `npm test` for the 
 
 ---
 
+## [ERR-20260720-001] zsh_reserved_status_variable
+
+**Logged**: 2026-07-20T12:30:47+08:00
+**Priority**: low
+**Status**: resolved
+**Area**: infra
+
+### Summary
+
+zsh 中 `status` 是只读特殊参数，不能用作 shell 校验脚本的普通退出码变量。
+
+### Error
+
+```text
+zsh:2: read-only variable: status
+```
+
+### Context
+
+- Claude CLI 卸载后的只读验证脚本尝试执行 `status=0`。
+- 卸载命令此前已经完成；失败仅影响首次验证脚本。
+
+### Suggested Fix
+
+在 zsh 脚本中使用任务特定变量名，例如 `verify_exit_code`。
+
+### Metadata
+
+- Reproducible: yes
+- Related Files: none
+
+### Resolution
+
+- **Resolved**: 2026-07-20T12:30:47+08:00
+- **Notes**: 后续验证改用 `verify_exit_code`。
+
+---
+
 ## [ERR-20260719-001] multi_file_apply_patch_anchor_mismatch
 
 **Logged**: 2026-07-19T16:40:00+08:00

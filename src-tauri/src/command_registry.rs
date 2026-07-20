@@ -143,6 +143,7 @@ pub(crate) fn invoke_handler(
         crate::codex::kimi_doctor,
         crate::codex::cli_install_plan,
         crate::codex::cli_install_run,
+        crate::codex::cli_version_status,
         crate::codex::start_thread,
         crate::codex::send_user_message,
         crate::codex::turn_interrupt,

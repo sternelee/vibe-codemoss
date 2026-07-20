@@ -5,8 +5,8 @@ use tokio::time::timeout;
 
 use crate::backend::app_server::{
     build_codex_path_env, build_engine_environment_diagnosis, check_cli_binary,
-    check_codex_installation, classify_endpoint_failure, get_cli_debug_info,
-    probe_codex_app_server, resolve_codex_launch_context,
+    check_codex_installation, classify_endpoint_failure, find_claude_code_binary,
+    get_cli_debug_info, probe_codex_app_server, resolve_codex_launch_context,
 };
 use crate::codex::launch_profile::resolve_global_codex_launch_profile;
 use crate::types::AppSettings;
@@ -162,6 +162,9 @@ pub(crate) async fn run_claude_doctor_with_settings(
     let requested_bin = resolved
         .clone()
         .filter(|value| !value.trim().is_empty())
+        .or_else(|| {
+            find_claude_code_binary(None).map(|path| path.to_string_lossy().to_string())
+        })
         .unwrap_or_else(|| "claude".to_string());
     let path_env = build_codex_path_env(Some(requested_bin.as_str()));
     let debug_info = get_cli_debug_info(Some(requested_bin.as_str()));

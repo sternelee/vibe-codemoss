@@ -10,7 +10,7 @@ use tokio::time::timeout;
 
 use super::{disabled_engine_status, EngineFeatures, EngineStatus, EngineType, ModelInfo};
 use crate::app_paths;
-use crate::backend::app_server::{build_codex_path_env, find_cli_binary};
+use crate::backend::app_server::{build_codex_path_env, find_claude_code_binary, find_cli_binary};
 use crate::backend::app_server_cli::resolve_safe_opencode_binary;
 
 /// Timeout for CLI commands
@@ -42,6 +42,9 @@ fn resolve_bin_path(name: &str, custom_bin: Option<&str>) -> Option<PathBuf> {
         if custom_path.exists() {
             return Some(custom_path);
         }
+    }
+    if name == "claude" {
+        return find_claude_code_binary(None);
     }
     find_cli_binary(name, None)
 }

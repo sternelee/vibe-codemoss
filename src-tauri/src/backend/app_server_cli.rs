@@ -379,6 +379,183 @@ pub fn find_cli_binary(name: &str, custom_bin: Option<&str>) -> Option<PathBuf> 
     }
 }
 
+fn claude_native_bin_path() -> Option<PathBuf> {
+    std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/bin/claude"))
+}
+
+fn push_unique_claude_candidate(candidates: &mut Vec<PathBuf>, path: PathBuf) {
+    if !path.exists() {
+        return;
+    }
+    if candidates.iter().any(|existing| paths_equal(existing, &path)) {
+        return;
+    }
+    candidates.push(path);
+}
+
+/// Resolve `claude` the same way an interactive terminal does (login + interactive shell PATH / nvm).
+fn resolve_claude_via_login_shell() -> Option<PathBuf> {
+    #[cfg(windows)]
+    {
+        return None;
+    }
+
+    #[cfg(not(windows))]
+    {
+        let shell = env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
+        let mut command = crate::utils::std_command(&shell);
+        // `-lic`: login + interactive so tools like nvm from `.zshrc` are available,
+        // matching what users see from `claude -v` in Terminal.
+        command.arg("-lic");
+        command.arg("command -v claude");
+        command.stdin(std::process::Stdio::null());
+        command.stdout(std::process::Stdio::piped());
+        command.stderr(std::process::Stdio::null());
+        let output = command.output().ok()?;
+        if !output.status.success() {
+            return None;
+        }
+        let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if path.is_empty() {
+            return None;
+        }
+        let path = PathBuf::from(path);
+        path.exists().then_some(path)
+    }
+}
+
+fn collect_claude_code_candidates(custom_bin: Option<&str>) -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+
+    if let Some(bin) = custom_bin.filter(|value| !value.trim().is_empty()) {
+        push_unique_claude_candidate(&mut candidates, PathBuf::from(bin.trim()));
+    }
+
+    if let Some(native_bin) = claude_native_bin_path() {
+        push_unique_claude_candidate(&mut candidates, native_bin);
+    }
+
+    if let Some(from_shell) = resolve_claude_via_login_shell() {
+        push_unique_claude_candidate(&mut candidates, from_shell);
+    }
+
+    if let Ok(home) = env::var("HOME") {
+        let nvm_root = Path::new(&home).join(".nvm/versions/node");
+        if let Ok(entries) = std::fs::read_dir(nvm_root) {
+            for entry in entries.flatten() {
+                push_unique_claude_candidate(&mut candidates, entry.path().join("bin/claude"));
+            }
+        }
+    }
+
+    for dir in [
+        "/opt/homebrew/bin",
+        "/usr/local/bin",
+        "/usr/bin",
+    ] {
+        push_unique_claude_candidate(&mut candidates, PathBuf::from(dir).join("claude"));
+    }
+
+    if let Some(found) = find_cli_binary("claude", None) {
+        push_unique_claude_candidate(&mut candidates, found);
+    }
+
+    candidates
+}
+
+fn probe_claude_version_text(path: &Path) -> Option<String> {
+    for arg in ["--version", "-v"] {
+        let mut command = build_std_command_for_binary(path);
+        command.arg(arg);
+        command.stdout(std::process::Stdio::piped());
+        command.stderr(std::process::Stdio::piped());
+        let Ok(output) = command.output() else {
+            continue;
+        };
+        if !output.status.success() {
+            continue;
+        }
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if !stdout.is_empty() {
+            return Some(stdout);
+        }
+    }
+    None
+}
+
+fn parse_claude_semver(raw: &str) -> Option<(u64, u64, u64)> {
+    let bytes = raw.as_bytes();
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index].is_ascii_digit() {
+            let start = index;
+            while index < bytes.len() && bytes[index].is_ascii_digit() {
+                index += 1;
+            }
+            if index < bytes.len() && bytes[index] == b'.' {
+                let major: u64 = raw[start..index].parse().ok()?;
+                index += 1;
+                let minor_start = index;
+                while index < bytes.len() && bytes[index].is_ascii_digit() {
+                    index += 1;
+                }
+                if index < bytes.len() && bytes[index] == b'.' {
+                    let minor: u64 = raw[minor_start..index].parse().ok()?;
+                    index += 1;
+                    let patch_start = index;
+                    while index < bytes.len() && bytes[index].is_ascii_digit() {
+                        index += 1;
+                    }
+                    if patch_start < index {
+                        let patch: u64 = raw[patch_start..index].parse().ok()?;
+                        return Some((major, minor, patch));
+                    }
+                }
+            }
+        } else {
+            index += 1;
+        }
+    }
+    None
+}
+
+/// Resolve Claude Code CLI binary.
+/// Prefer explicit config, then official native path, then the same binary an interactive
+/// terminal would resolve (login shell / nvm), falling back to the highest-version candidate.
+pub fn find_claude_code_binary(custom_bin: Option<&str>) -> Option<PathBuf> {
+    let candidates = collect_claude_code_candidates(custom_bin);
+    if candidates.is_empty() {
+        return None;
+    }
+
+    // Prefer configured / native / login-shell order when they report a Claude Code version.
+    for candidate in &candidates {
+        if let Some(version) = probe_claude_version_text(candidate) {
+            let lower = version.to_ascii_lowercase();
+            if lower.contains("claude") || parse_claude_semver(&version).is_some() {
+                return Some(candidate.clone());
+            }
+        }
+    }
+
+    // Otherwise pick the highest parsed semver among candidates.
+    let mut best: Option<(PathBuf, (u64, u64, u64))> = None;
+    for candidate in candidates {
+        let Some(version) = probe_claude_version_text(&candidate) else {
+            continue;
+        };
+        let Some(semver) = parse_claude_semver(&version) else {
+            continue;
+        };
+        match &best {
+            None => best = Some((candidate, semver)),
+            Some((_, best_semver)) if semver > *best_semver => best = Some((candidate, semver)),
+            _ => {}
+        }
+    }
+    best.map(|(path, _)| path)
+}
+
 fn matching_custom_bin<'a>(custom_bin: Option<&'a str>, cli_name: &str) -> Option<&'a str> {
     let candidate = custom_bin?.trim();
     if candidate.is_empty() {

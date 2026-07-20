@@ -106,6 +106,7 @@ import {
   runCodexDoctor,
   runClaudeDoctor,
   getCliInstallPlan,
+  getCliVersionStatus,
   runCliInstaller,
   setOpenCodeMcpToggle,
   switchEngine,
@@ -596,9 +597,19 @@ describe("tauri invoke wrappers", () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({ canRun: true });
     invokeMock.mockResolvedValueOnce({ ok: true });
+    invokeMock.mockResolvedValueOnce({
+      engine: "kimi",
+      installed: false,
+      localVersion: null,
+      latestVersion: null,
+      updateAvailable: false,
+      nodeOk: true,
+      details: null,
+    });
 
     await getCliInstallPlan("codex", "installLatest", "npmGlobal");
     await runCliInstaller("claude", "updateLatest", "npmGlobal", "run-1");
+    await getCliVersionStatus("kimi");
 
     expect(invokeMock).toHaveBeenCalledWith("cli_install_plan", {
       engine: "codex",
@@ -610,6 +621,9 @@ describe("tauri invoke wrappers", () => {
       action: "updateLatest",
       strategy: "npmGlobal",
       runId: "run-1",
+    });
+    expect(invokeMock).toHaveBeenCalledWith("cli_version_status", {
+      engine: "kimi",
     });
     expect(
       invokeMock.mock.calls.flatMap(([, payload]) =>

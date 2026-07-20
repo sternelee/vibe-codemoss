@@ -19,7 +19,7 @@ const errors = {
     retryingCreateSessionAfterRecovery: "正在重新创建会话...",
     cliNotFound: "未找到 Claude Code CLI 或 Codex CLI。请安装其中一个。",
     cliNotFoundHint:
-      "安装 Claude Code: npm install -g @anthropic-ai/claude-code\n安装 Codex: npm install -g @openai/codex",
+      "安装 Claude Code: curl -fsSL https://claude.ai/install.sh | bash\n安装 Codex: npm install -g @openai/codex",
     codexCliNotFound:
       "未找到 Codex CLI。请安装 Codex 并确保 `codex` 在您的 PATH 中。",
     couldntOpenWorkspace: "无法打开工作区",

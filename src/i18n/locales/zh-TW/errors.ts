@@ -20,7 +20,7 @@ const errors = {
     "runtimeRecovered": "執行環境已復原。",
     "retryingCreateSessionAfterRecovery": "正在重試建立工作階段…",
     "cliNotFound": "找不到 Claude Code CLI 或 Codex CLI。請安裝其中之一。",
-    "cliNotFoundHint": "安裝 Claude Code：npm install -g @anthropic-ai/claude-code\n安裝 Codex：npm install -g @openai/codex",
+    "cliNotFoundHint": "安裝 Claude Code：curl -fsSL https://claude.ai/install.sh | bash\n安裝 Codex：npm install -g @openai/codex",
     "codexCliNotFound": "找不到 Codex CLI。請安裝 Codex 並確認 `codex` 已加入你的 PATH。",
     "couldntOpenWorkspace": "無法開啟工作區",
     "dismissError": "關閉錯誤"

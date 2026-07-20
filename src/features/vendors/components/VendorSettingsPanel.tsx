@@ -29,6 +29,11 @@ import {
   type CliEngineNavItem,
 } from "./cliEngineNav";
 import {
+  CliLifecycleHeaderActions,
+  CliLifecycleInstallerPanel,
+  CliLifecycleProvider,
+} from "./CliLifecycleHeaderActions";
+import {
   consumeVendorModelManagerRequest,
   VENDOR_MODEL_MANAGER_REQUEST_EVENT,
 } from "../modelManagerRequest";
@@ -574,7 +579,8 @@ export function VendorSettingsPanel({
 
       <div className="vendor-settings-content min-w-0 flex-1 min-h-0">
         {activeCli === "claude" ? (
-          <div className="vendor-tab-content">
+          <CliLifecycleProvider engine="claude" active>
+            <div className="vendor-tab-content">
             <CliBrandHeader
               id="claude"
               title="Claude Code CLI"
@@ -583,7 +589,9 @@ export function VendorSettingsPanel({
                 defaultValue: "Open docs",
               })}
               href={CLI_DOCS_HREF_BY_ID.claude}
+              actions={<CliLifecycleHeaderActions />}
             />
+            <CliLifecycleInstallerPanel />
             <ProviderList
               providers={claude.providers}
               loading={claude.loading}
@@ -627,7 +635,9 @@ export function VendorSettingsPanel({
               onCancel={claude.cancelDeleteProvider}
             />
           </div>
+          </CliLifecycleProvider>
         ) : activeCli === "codex" ? (
+          <CliLifecycleProvider engine="codex" active>
           <div className="vendor-tab-content">
             <CliBrandHeader
               id="codex"
@@ -637,7 +647,9 @@ export function VendorSettingsPanel({
                 defaultValue: "Open docs",
               })}
               href={CLI_DOCS_HREF_BY_ID.codex}
+              actions={<CliLifecycleHeaderActions />}
             />
+            <CliLifecycleInstallerPanel />
             {codexReloadStatus !== "idle" && (
               <div className="settings-help">
                 {codexReloadStatus === "failed"
@@ -818,7 +830,9 @@ export function VendorSettingsPanel({
               onCancel={codex.cancelDeleteCodexProvider}
             />
           </div>
+          </CliLifecycleProvider>
         ) : activeCli === "kimi" ? (
+          <CliLifecycleProvider engine="kimi" active>
           <div className="vendor-tab-content">
             <CliBrandHeader
               id="kimi"
@@ -831,7 +845,9 @@ export function VendorSettingsPanel({
                 defaultValue: "Open docs",
               })}
               href={CLI_DOCS_HREF_BY_ID.kimi}
+              actions={<CliLifecycleHeaderActions />}
             />
+            <CliLifecycleInstallerPanel />
             {kimi.kimiProviderError && (
               <div className="settings-help">
                 {t("settings.vendor.kimiProviderActionFailed")}:{" "}
@@ -889,6 +905,7 @@ export function VendorSettingsPanel({
               onCancel={kimi.cancelDeleteKimiProvider}
             />
           </div>
+          </CliLifecycleProvider>
         ) : (
           <div className="vendor-tab-content">
             <CliBrandHeader

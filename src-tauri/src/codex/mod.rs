@@ -36,8 +36,9 @@ pub(crate) use self::doctor::{
 };
 pub(crate) use self::home::{resolve_default_codex_home, resolve_workspace_codex_home};
 pub(crate) use self::installer::{
-    build_cli_install_plan_with_backend, run_cli_installer_with_progress, CliInstallAction,
-    CliInstallBackend, CliInstallEngine, CliInstallProgressEvent, CliInstallStrategy,
+    build_cli_install_plan_with_backend, resolve_cli_version_status, run_cli_installer_with_progress,
+    CliInstallAction, CliInstallBackend, CliInstallEngine, CliInstallProgressEvent,
+    CliInstallStrategy, CliVersionStatus,
 };
 use self::mcp_config::{
     list_global_mcp_servers as list_global_mcp_servers_impl, GlobalMcpServerEntry,
@@ -511,6 +512,34 @@ pub(crate) async fn claude_doctor(
 
     let settings = state.app_settings.lock().await.clone();
     run_claude_doctor_with_settings(claude_bin, &settings).await
+}
+
+#[tauri::command]
+pub(crate) async fn cli_version_status(
+    engine: CliInstallEngine,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "cli_version_status",
+            json!({ "engine": engine }),
+        )
+        .await
+        .map_err(|error| {
+            if error.contains("unknown method") || error.contains("unsupported") {
+                "Remote daemon does not support CLI version status RPC. Update the daemon or switch backend mode to local.".to_string()
+            } else {
+                error
+            }
+        });
+    }
+
+    let settings = state.app_settings.lock().await.clone();
+    let status = resolve_cli_version_status(engine, &settings).await;
+    serde_json::to_value(status).map_err(|error| error.to_string())
 }
 
 #[tauri::command]

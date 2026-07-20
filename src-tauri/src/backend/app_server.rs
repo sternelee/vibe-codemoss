@@ -163,8 +163,8 @@ pub(crate) use crate::backend::app_server_cli::{
 };
 #[allow(unused_imports)]
 pub use crate::backend::app_server_cli::{
-    build_command_for_binary, build_command_for_binary_with_console, find_cli_binary,
-    get_cli_debug_info,
+    build_command_for_binary, build_command_for_binary_with_console, find_claude_code_binary,
+    find_cli_binary, get_cli_debug_info,
 };
 
 const DEFAULT_REQUEST_TIMEOUT_SECS: u64 = 300;

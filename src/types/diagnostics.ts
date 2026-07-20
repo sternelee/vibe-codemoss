@@ -89,7 +89,7 @@ export type CliInstallEngine = "codex" | "claude" | "kimi";
 
 export type CliInstallAction = "installLatest" | "updateLatest" | "uninstall";
 
-export type CliInstallStrategy = "npmGlobal" | "cliSelfUpdate";
+export type CliInstallStrategy = "npmGlobal" | "cliSelfUpdate" | "officialNative";
 
 export type CliInstallBackend = "local" | "remote";
 
@@ -142,5 +142,15 @@ export type CliInstallProgressEvent = {
   message: string | null;
   exitCode: number | null;
   durationMs: number | null;
+};
+
+export type CliVersionStatus = {
+  engine: CliInstallEngine;
+  installed: boolean;
+  localVersion: string | null;
+  latestVersion: string | null;
+  updateAvailable: boolean;
+  nodeOk: boolean;
+  details: string | null;
 };
 

@@ -163,8 +163,8 @@ mod codex {
         run_kimi_doctor_with_settings,
     };
     pub(crate) use crate::codex_installer::{
-        build_cli_install_plan_with_backend, run_cli_installer_with_progress, CliInstallBackend,
-        CliInstallProgressEvent,
+        build_cli_install_plan_with_backend, resolve_cli_version_status,
+        run_cli_installer_with_progress, CliInstallBackend, CliInstallProgressEvent,
     };
     pub(crate) async fn ensure_codex_session(
         _workspace_id: &str,
@@ -1545,6 +1545,12 @@ async fn handle_rpc_request(
                 serde_json::from_value(params.get("strategy").cloned().unwrap_or(Value::Null))
                     .map_err(|err| format!("invalid cli installer strategy: {err}"))?;
             state.cli_install_plan(engine, action, strategy).await
+        }
+        "cli_version_status" => {
+            let engine =
+                serde_json::from_value(params.get("engine").cloned().unwrap_or(Value::Null))
+                    .map_err(|err| format!("invalid cli version status engine: {err}"))?;
+            state.cli_version_status(engine).await
         }
         "cli_install_run" => {
             let engine =

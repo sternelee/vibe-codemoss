@@ -670,6 +670,15 @@ impl DaemonState {
         serde_json::to_value(plan).map_err(|err| err.to_string())
     }
 
+    pub(super) async fn cli_version_status(
+        &self,
+        engine: crate::codex_installer::CliInstallEngine,
+    ) -> Result<Value, String> {
+        let settings = self.app_settings.lock().await.clone();
+        let status = crate::codex::resolve_cli_version_status(engine, &settings).await;
+        serde_json::to_value(status).map_err(|err| err.to_string())
+    }
+
     pub(super) async fn cli_install_run(
         &self,
         engine: crate::codex_installer::CliInstallEngine,
