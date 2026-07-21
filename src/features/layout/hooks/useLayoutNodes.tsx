@@ -171,11 +171,6 @@ const FileViewPanel = lazy(() =>
     default: m.FileViewPanel,
   })),
 );
-const FileHistoryView = lazy(() =>
-  import("../../git-history/components/FileHistoryView").then((m) => ({
-    default: m.FileHistoryView,
-  })),
-);
 const ProjectMapPanel = lazy(() =>
   import("../../project-map/components/ProjectMapPanel").then((m) => ({
     default: m.ProjectMapPanel,
@@ -2090,14 +2085,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
     />
   );
 
-  const fileViewPanelNode = options.centerMode === "fileHistory" && options.fileHistoryTarget ? (
-    <Suspense fallback={<HeavyPanelFallback />}>
-      <FileHistoryView
-        target={options.fileHistoryTarget}
-        onClose={options.onCloseFileHistory ?? (() => undefined)}
-      />
-    </Suspense>
-  ) : options.editorFilePath && options.activeWorkspace ? (
+  const fileViewPanelNode = options.editorFilePath && options.activeWorkspace ? (
       <Suspense fallback={<HeavyPanelFallback />}>
         <FileViewPanel
           workspaceId={options.activeWorkspace.id}

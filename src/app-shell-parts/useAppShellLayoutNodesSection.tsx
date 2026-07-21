@@ -5,6 +5,7 @@ import { useLayoutNodes } from "../features/layout/hooks/useLayoutNodes";
 import { useMainHeaderActionItems } from "../features/app/components/MainHeaderActions";
 import { useExitedSessionVisibility } from "../features/app/hooks/useExitedSessionVisibility";
 import { useModuleViewShortcuts } from "../features/app/hooks/useModuleViewShortcuts";
+import { GIT_GRAPH_TAB_ID } from "../features/git-history/types";
 import { WorkspaceAliasPrompt } from "../features/workspaces/components/WorkspaceAliasPrompt";
 import { useClientUiVisibility } from "../features/client-ui-visibility/hooks/useClientUiVisibility";
 import { useProjectMapDataset } from "../features/project-map/hooks/useProjectMapDataset";
@@ -181,7 +182,6 @@ export function useAppShellLayoutNodesSection(
     activeEngine,
     activeFusingMessageId,
     fileCompareSession,
-    fileHistoryTarget,
     activeGitRoot,
     activeImages,
     activeItems,
@@ -379,7 +379,7 @@ export function useAppShellLayoutNodesSection(
     handleOpenScratchFileCompare,
     handleCloseFileCompare,
     handleOpenFileHistory,
-    handleCloseFileHistory,
+    handleActivateGitHistoryTab,
     handleOpenHomeChat,
     handleOpenModelSettings,
     handleRefreshModelConfig,
@@ -1421,6 +1421,7 @@ export function useAppShellLayoutNodesSection(
     handleSelectDiffForPanel(null);
   });
   const handleOpenGitHistoryPanel = useEventCallback(() => {
+    handleActivateGitHistoryTab(GIT_GRAPH_TAB_ID);
     setAppMode((current: string) =>
       current === "gitHistory" ? "chat" : "gitHistory",
     );
@@ -1805,9 +1806,7 @@ export function useAppShellLayoutNodesSection(
       centerMode,
       setCenterMode,
       fileCompareSession,
-      fileHistoryTarget,
       onOpenFileHistory: handleOpenFileHistory,
-      onCloseFileHistory: handleCloseFileHistory,
       editorSplitCompanion,
       setEditorSplitCompanion,
       editorSplitLayout,

@@ -366,9 +366,7 @@ export type LayoutNodesFlatOptions = {
   centerMode: CenterMode;
   setCenterMode: (mode: CenterMode) => void;
   fileCompareSession: FileCompareSession | null;
-  fileHistoryTarget?: FileHistoryTarget | null;
   onOpenFileHistory?: (target: FileHistoryTarget) => void;
-  onCloseFileHistory?: () => void;
   editorSplitCompanion: EditorSplitCompanion;
   setEditorSplitCompanion: (companion: EditorSplitCompanion) => void;
   editorSplitLayout: "vertical" | "horizontal";
@@ -943,9 +941,7 @@ export type EditorLayoutNodesOptions = Pick<
   | "centerMode"
   | "setCenterMode"
   | "fileCompareSession"
-  | "fileHistoryTarget"
   | "onOpenFileHistory"
-  | "onCloseFileHistory"
   | "editorSplitCompanion"
   | "setEditorSplitCompanion"
   | "editorSplitLayout"

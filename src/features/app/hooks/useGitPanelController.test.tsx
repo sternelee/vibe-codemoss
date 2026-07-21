@@ -2,6 +2,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { WorkspaceInfo } from "../../../types";
+import { GIT_GRAPH_TAB_ID, getFileHistoryTabId } from "../../git-history/types";
 import { useGitPanelController } from "./useGitPanelController";
 
 const useGitDiffsMock = vi.fn();
@@ -989,8 +990,11 @@ describe("useGitPanelController file compare", () => {
 });
 
 describe("useGitPanelController file history", () => {
-  it("opens, switches, and closes the file history center surface", () => {
-    const { result } = renderHook(() => useGitPanelController(makeProps()));
+  it("opens, deduplicates, switches, and closes Git Graph file history tabs", () => {
+    const onOpenGitHistoryRequest = vi.fn();
+    const { result } = renderHook(() => useGitPanelController(makeProps({
+      onOpenGitHistoryRequest,
+    })));
     const firstTarget = {
       workspaceId: workspace.id,
       workspacePath: workspace.path,
@@ -1000,30 +1004,98 @@ describe("useGitPanelController file history", () => {
     };
 
     act(() => result.current.handleOpenFileHistory(firstTarget));
-    expect(result.current.centerMode).toBe("fileHistory");
-    expect(result.current.fileHistoryTarget).toEqual(firstTarget);
+    expect(result.current.fileHistoryTabs).toEqual([firstTarget]);
+    expect(result.current.activeGitHistoryTabId).toBe(getFileHistoryTabId(firstTarget));
+    expect(onOpenGitHistoryRequest).toHaveBeenCalledTimes(1);
+
+    act(() => result.current.handleOpenFileHistory(firstTarget));
+    expect(result.current.fileHistoryTabs).toEqual([firstTarget]);
 
     const secondTarget = { ...firstTarget, path: "src/b.ts", displayPath: "src/b.ts" };
     act(() => result.current.handleOpenFileHistory(secondTarget));
-    expect(result.current.fileHistoryTarget).toEqual(secondTarget);
+    expect(result.current.fileHistoryTabs).toEqual([firstTarget, secondTarget]);
+    expect(result.current.activeGitHistoryTabId).toBe(getFileHistoryTabId(secondTarget));
 
-    act(() => result.current.handleCloseFileHistory());
-    expect(result.current.centerMode).toBe("chat");
-    expect(result.current.fileHistoryTarget).toBeNull();
+    act(() => result.current.handleCloseFileHistory(getFileHistoryTabId(secondTarget)));
+    expect(result.current.fileHistoryTabs).toEqual([firstTarget]);
+    expect(result.current.activeGitHistoryTabId).toBe(getFileHistoryTabId(firstTarget));
+
+    act(() => result.current.handleCloseFileHistory(getFileHistoryTabId(firstTarget)));
+    expect(result.current.fileHistoryTabs).toEqual([]);
+    expect(result.current.activeGitHistoryTabId).toBe(GIT_GRAPH_TAB_ID);
   });
 
-  it("clears file history when another center surface opens", () => {
+  it("keeps tabs when another center surface opens and supports inactive close", () => {
     const { result } = renderHook(() => useGitPanelController(makeProps()));
-    act(() => result.current.handleOpenFileHistory({
+    const firstTarget = {
       workspaceId: workspace.id,
       workspacePath: workspace.path,
       repositoryRoot: "",
       path: "README.md",
       displayPath: "README.md",
-    }));
+    };
+    const secondTarget = {
+      ...firstTarget,
+      repositoryRoot: "nested",
+      path: "README.md",
+      displayPath: "nested/README.md",
+    };
+    act(() => result.current.handleOpenFileHistory(firstTarget));
+    act(() => result.current.handleOpenFileHistory(secondTarget));
     act(() => result.current.handleOpenFile("src/App.tsx"));
 
     expect(result.current.centerMode).toBe("editor");
-    expect(result.current.fileHistoryTarget).toBeNull();
+    expect(result.current.fileHistoryTabs).toEqual([firstTarget, secondTarget]);
+
+    act(() => result.current.handleCloseFileHistory(getFileHistoryTabId(firstTarget)));
+    expect(result.current.fileHistoryTabs).toEqual([secondTarget]);
+    expect(result.current.activeGitHistoryTabId).toBe(getFileHistoryTabId(secondTarget));
+  });
+
+  it("falls back to the right adjacent file tab when closing the first active tab", () => {
+    const { result } = renderHook(() => useGitPanelController(makeProps()));
+    const firstTarget = {
+      workspaceId: workspace.id,
+      workspacePath: workspace.path,
+      repositoryRoot: "",
+      path: "src/a.ts",
+      displayPath: "src/a.ts",
+    };
+    const secondTarget = { ...firstTarget, path: "src/b.ts", displayPath: "src/b.ts" };
+
+    act(() => result.current.handleOpenFileHistory(firstTarget));
+    act(() => result.current.handleOpenFileHistory(secondTarget));
+    act(() => result.current.handleActivateGitHistoryTab(getFileHistoryTabId(firstTarget)));
+    act(() => result.current.handleCloseFileHistory(getFileHistoryTabId(firstTarget)));
+
+    expect(result.current.fileHistoryTabs).toEqual([secondTarget]);
+    expect(result.current.activeGitHistoryTabId).toBe(getFileHistoryTabId(secondTarget));
+  });
+
+  it("closes other or all file history tabs atomically", () => {
+    const { result } = renderHook(() => useGitPanelController(makeProps()));
+    const firstTarget = {
+      workspaceId: workspace.id,
+      workspacePath: workspace.path,
+      repositoryRoot: "",
+      path: "src/a.ts",
+      displayPath: "src/a.ts",
+    };
+    const secondTarget = { ...firstTarget, path: "src/b.ts", displayPath: "src/b.ts" };
+    const thirdTarget = { ...firstTarget, path: "src/c.ts", displayPath: "src/c.ts" };
+
+    act(() => result.current.handleOpenFileHistory(firstTarget));
+    act(() => result.current.handleOpenFileHistory(secondTarget));
+    act(() => result.current.handleOpenFileHistory(thirdTarget));
+    act(() => result.current.handleCloseOtherFileHistories(getFileHistoryTabId(secondTarget)));
+
+    expect(result.current.fileHistoryTabs).toEqual([secondTarget]);
+    expect(result.current.activeGitHistoryTabId).toBe(getFileHistoryTabId(secondTarget));
+
+    act(() => result.current.handleOpenFileHistory(firstTarget));
+    act(() => result.current.handleCloseAllFileHistories());
+
+    expect(result.current.fileHistoryTabs).toEqual([]);
+    expect(result.current.activeGitHistoryTabId).toBe(GIT_GRAPH_TAB_ID);
   });
 });

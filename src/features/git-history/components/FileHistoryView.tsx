@@ -17,13 +17,14 @@ const HISTORY_PAGE_SIZE = 100;
 type FileHistoryViewProps = {
   target: FileHistoryTarget;
   onClose: () => void;
+  showHeader?: boolean;
 };
 
 function targetKey(target: FileHistoryTarget): string {
   return [target.workspaceId, target.repositoryRoot, target.path].join("\u001f");
 }
 
-export function FileHistoryView({ target, onClose }: FileHistoryViewProps) {
+export function FileHistoryView({ target, onClose, showHeader = true }: FileHistoryViewProps) {
   const { t } = useTranslation();
   const [commits, setCommits] = useState<GitHistoryCommit[]>([]);
   const [snapshotId, setSnapshotId] = useState<string | null>(null);
@@ -174,15 +175,17 @@ export function FileHistoryView({ target, onClose }: FileHistoryViewProps) {
 
   return (
     <section className="file-history-view" aria-label={t("git.fileHistoryTitle")}>
-      <header className="file-history-header">
-        <div className="file-history-heading">
-          <strong>{t("git.fileHistoryTitle")}</strong>
-          <span title={target.displayPath}>{target.displayPath}</span>
-        </div>
-        <button type="button" className="icon-button" onClick={onClose} aria-label={t("git.fileHistoryClose")}>
-          <X size={16} aria-hidden="true" />
-        </button>
-      </header>
+      {showHeader ? (
+        <header className="file-history-header">
+          <div className="file-history-heading">
+            <strong>{t("git.fileHistoryTitle")}</strong>
+            <span title={target.displayPath}>{target.displayPath}</span>
+          </div>
+          <button type="button" className="icon-button" onClick={onClose} aria-label={t("git.fileHistoryClose")}>
+            <X size={16} aria-hidden="true" />
+          </button>
+        </header>
+      ) : null}
       <div className="file-history-workbench">
         <aside className="file-history-commits" aria-label={t("git.historyCommits")}>
           <div className="file-history-list-summary">
