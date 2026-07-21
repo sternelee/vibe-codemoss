@@ -21,10 +21,10 @@ describe("ProviderDialog preset shortcuts", () => {
 
     const expectedBrandTitles = [
       "Zhipu",
-      "Moonshot",
+      "MoonshotAI",
       "DeepSeek",
-      "MiniMax",
-      "Xiaomi MiMo",
+      "Minimax",
+      "XiaomiMiMo",
       "Qwen",
       "OpenRouter",
     ];

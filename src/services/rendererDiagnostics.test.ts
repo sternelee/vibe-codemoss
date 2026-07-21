@@ -42,6 +42,7 @@ describe("rendererDiagnostics", () => {
   });
 
   afterEach(async () => {
+    await vi.dynamicImportSettled();
     const diagnostics = await import("./rendererDiagnostics");
     diagnostics.stopRendererBlankScreenWatchdog();
     diagnostics.stopRendererHeartbeat();
