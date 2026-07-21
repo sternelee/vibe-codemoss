@@ -366,9 +366,7 @@ export type LayoutNodesFlatOptions = {
   centerMode: CenterMode;
   setCenterMode: (mode: CenterMode) => void;
   fileCompareSession: FileCompareSession | null;
-  fileHistoryTarget?: FileHistoryTarget | null;
   onOpenFileHistory?: (target: FileHistoryTarget) => void;
-  onCloseFileHistory?: () => void;
   editorSplitCompanion: EditorSplitCompanion;
   setEditorSplitCompanion: (companion: EditorSplitCompanion) => void;
   editorSplitLayout: "vertical" | "horizontal";
@@ -381,6 +379,7 @@ export type LayoutNodesFlatOptions = {
   openEditorTabs: string[];
   onActivateEditorTab: (path: string) => void;
   onCloseEditorTab: (path: string) => void;
+  onCloseOtherEditorTabs: (path: string) => void;
   onCloseAllEditorTabs: () => void;
   onReorderEditorTabs: (nextOrder: string[]) => void;
   onActiveEditorLineRangeChange: (
@@ -942,9 +941,7 @@ export type EditorLayoutNodesOptions = Pick<
   | "centerMode"
   | "setCenterMode"
   | "fileCompareSession"
-  | "fileHistoryTarget"
   | "onOpenFileHistory"
-  | "onCloseFileHistory"
   | "editorSplitCompanion"
   | "setEditorSplitCompanion"
   | "editorSplitLayout"
@@ -957,6 +954,7 @@ export type EditorLayoutNodesOptions = Pick<
   | "openEditorTabs"
   | "onActivateEditorTab"
   | "onCloseEditorTab"
+  | "onCloseOtherEditorTabs"
   | "onCloseAllEditorTabs"
   | "onReorderEditorTabs"
   | "onActiveEditorLineRangeChange"

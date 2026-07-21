@@ -1059,3 +1059,201 @@ Review 并修复 Git History repository color collision、branch group 与 branc
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1057: Git Blame 按需加载 Git 行标记
+
+**Date**: 2026-07-22
+**Task**: Git Blame 按需加载 Git 行标记
+**Branch**: `feature/v-076`
+
+### Summary
+
+默认打开文件不再请求 Git full diff；点击 Git Blame 后独立加载 Blame 与 changed-line markers，并补齐关闭、dirty、失败隔离和 stale result 的增量测试。增量 77 tests、typecheck、lint、OpenSpec strict validation 均通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `591abfe17` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1058: 归档 Git 行标记 OpenSpec
+
+**Date**: 2026-07-22
+**Task**: 归档 Git 行标记 OpenSpec
+**Branch**: `feature/v-076`
+
+### Summary
+
+将 Git Blame 按需加载 changed-line markers 的 delta spec 同步到 file-open-rendering-scheduler 主 spec，并归档已完成的 OpenSpec change；change 与主 spec strict validation 均通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `604c39c95` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1059: 重构文件标签右键菜单
+
+**Date**: 2026-07-22
+**Task**: 重构文件标签右键菜单
+**Branch**: `feature/v-076`
+
+### Summary
+
+重构文件 tab 右键菜单样式，加入图标、文件级只读 Git 操作、关闭当前/其他/全部及新窗口打开；补齐主窗口与 detached explorer 原子状态动作、10 语言文案、增量测试，并完成 OpenSpec 同步归档。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1764941de` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1060: 归档文件内容右键菜单任务
+
+**Date**: 2026-07-22
+**Task**: 归档文件内容右键菜单任务
+**Branch**: `feature/v-076`
+
+### Summary
+
+归档 move-file-toolbar-actions-to-context-menu 的 Trellis task metadata；脚本同时纳入了并行 Git Graph task 的未跟踪 metadata。业务代码与并行实现均保持未提交。增量验证：FileViewPanel 相关 95 tests、targeted ESLint、typecheck、OpenSpec strict validation 通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `82494f630` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1061: 整合文件右键操作
+
+**Date**: 2026-07-22
+**Task**: 整合文件右键操作
+**Branch**: `feature/v-076`
+
+### Summary
+
+完成文件工具栏动作迁移、统一右键便签保存与 Git 操作分组；选区保存选中文本，无选区保存整个文件；增量测试与 OpenSpec 归档完成，用户验收通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a0b3600a2` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1062: Git Graph 文件历史多页签
+
+**Date**: 2026-07-22
+**Task**: Git Graph 文件历史多页签
+**Branch**: `feature/v-076`
+
+### Summary
+
+将文件历史整合进 Git Graph 标题栏，支持多文件页签、文件图标、紧凑布局及关闭/关闭其他/全部关闭右键菜单；完成增量测试与契约校验。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d368fc9c5` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

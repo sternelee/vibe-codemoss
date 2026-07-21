@@ -19,6 +19,9 @@ export function renderGitHistoryPanelView(scope: any) {
   const {ActionSurface,CREATE_PR_PREVIEW_COMMIT_LIMIT,ChevronDown,ChevronLeft,ChevronRight,ChevronsDownUp,ChevronsUpDown,CircleAlert,CircleCheck,Cloud,CloudDownload,Copy,DEFAULT_DETAILS_SPLIT,DISABLE_HISTORY_ACTION_BUTTONS,Download,FileIcon,FileText,Folder,FolderOpen,FolderTree,GitBranch,GitCommit,GitDiffViewer,GitHistoryInlinePicker,GitHistoryProjectPicker,GitHistoryWorktreePanel,GitMerge,GitPullRequestCreate,HardDrive,LayoutGrid,LoaderCircle,MessageSquareText,Pencil,Plus,RefreshCw,Repeat,Search,ShieldAlert,Trash2,Upload,X,branchContextActions,branchContextMenu,branchContextMenuRef,branchContextMenuStyle,branchContextTrackingSummary,branchDiffState,branchQuery,branchesWidth,buildFileKey,clearOperationNotice,closeBranchContextMenu,closeBranchDiff,closeCreatePrDialog,closeForceDeleteDialog,closeRenameBranchDialog,closeWorktreePreview,codeAnnotations,commitContextMenu,commitContextMoreOpen,commitListRef,commitRowVirtualizer,commits,commitsWidth,comparePreviewDetailFile,comparePreviewDetailFileDiff,comparePreviewDiffEntries,comparePreviewFileKey,contextMoreDisabledReason,contextPrimaryActionGroups,contextWriteActions,createBranchCanConfirm,createBranchDialogOpen,createBranchName,createBranchNameInputRef,createBranchSource,createBranchSourceOptions,createBranchSubmitting,createPortal,createPrBaseBranchOptions,createPrBaseRepoOptions,createPrCanConfirm,createPrCanOpen,createPrCompareBranchOptions,createPrCopiedPrUrl,createPrCopiedRetryCommand,createPrDefaultsError,createPrDefaultsLoading,createPrDialogOpen,createPrForm,createPrHeadRepoOptions,createPrHeadRepositoryValue,createPrPreviewBaseOnlyCount,createPrPreviewBaseRef,createPrPreviewCommits,createPrPreviewDetails,createPrPreviewDetailsError,createPrPreviewDetailsLoading,createPrPreviewError,createPrPreviewExpanded,createPrPreviewHasMore,createPrPreviewHeadRef,createPrPreviewLoading,createPrPreviewSelectedCommit,createPrPreviewSelectedSha,createPrResult,createPrResultHeadline,createPrStages,createPrSubmitting,createPrToolbarDisabledReason,createPrContentGenerating,createPrContentError,createPrContentSuccessAt,createPrContentSlow,createPrContentElapsedSec,createPrFormFlashAt,createPrContentEngine,openPrContentGenerationMenu,prContentMenu,setPrContentMenu,currentBranch,currentLocalBranchEntry,desktopSplitLayout,details,detailsBodyRef,detailsError,detailsLoading,detailsMessageContent,detailsSplitRatio,diffViewMode,emptyStateStatusText,expandedLocalScopes,expandedRemoteScopes,extractCommitBody,fallbackGitRoots,fallbackGitRootsError,fallbackGitRootsLoading,fallbackSelectingRoot,fetchDialogOpen,fetchSubmitting,fileTreeItems,forceDeleteCopiedPath,forceDeleteCountdown,forceDeleteDialogState,formatRelativeTime,getBranchLeafName,getBranchScope,getCommitActionIcon,getCurrentDefaultColumnWidths,getSpecialBranchBadges,getTreeLineOpacity,groupedLocalBranches,groupedRemoteBranches,handleBranchContextMenuKeyDown,handleBranchesSplitResizeStart,handleCommitsSplitResizeStart,handleConfirmCreatePr,handleConfirmFetch,handleConfirmPull,handleConfirmPush,handleConfirmRefresh,handleConfirmResetCommit,handleConfirmSync,handleCopyCreatePrRetryCommand,handleCopyCreatePrUrl,handleCopyForceDeleteWorktreePath,handleCreateBranch,handleCreateBranchConfirm,handleCreatePrHeadRepositoryChange,handleDeleteBranch,handleDetailsSplitResizeStart,handleFallbackGitRootSelect,handleFileTreeDirToggle,handleMergeBranch,handleOpenBranchContextMenu,handleOpenCommitContextMenu,handleOpenCreatePrDialog,handleOpenFetchDialog,handleOpenPullDialog,handleOpenPushDialog,handleOpenRefreshDialog,handleOpenRenameBranchDialog,handleOpenSyncDialog,handleOpenWorktreePreview,handleOverviewSplitResizeStart,handlePushPreviewDirToggle,handleRenameBranchConfirm,handleSelectBranchCompareCommit,handleSelectPullRemote,handleSelectPullTargetBranch,handleSelectPushRemote,handleSelectPushTargetBranch,handleSelectWorktreeDiffFile,handleToggleLocalScope,handleToggleRemoteScope,handleWorktreeSummaryChange,historyError,historyHasMore,historyLoading,historyLoadingMore,historyPreviewHeaderControlsTarget,historyTotal,isCreatePrDialogMaximized,isHistoryDiffModalMaximized,loadCreatePrCommitPreview,loadHistory,localSectionExpanded,localizeKnownGitError,localizedOperationName,mainGridRef,mainGridStyle,onCreateCodeAnnotation,onOpenDiffPath,onRemoveCodeAnnotation,onRequestClose,onSelectWorkspace,openPullTargetBranchMenu,openPushTargetBranchMenu,operationLoading,operationNotice,overviewCommitSectionCollapsed,overviewListView,overviewWidth,previewDetailFile,previewDetailFileDiff,previewDiffEntries,previewModalFullDiffLoader,projectOptions,projectSections,pullDialogOpen,pullNoCommit,pullNoVerify,pullOptionsMenuOpen,pullOptionsMenuRef,pullRemote,pullRemoteGroups,pullRemoteMenuOpen,pullRemoteMenuPlacement,pullRemotePickerRef,pullRemoteTrimmed,pullSelectedOptions,pullStrategy,pullSubmitting,pullTargetBranch,pullTargetBranchActiveScopeTab,pullTargetBranchFieldRef,pullTargetBranchGroups,pullTargetBranchMenuOpen,pullTargetBranchMenuPlacement,pullTargetBranchMenuRef,pullTargetBranchPickerRef,pullTargetBranchTrimmed,pushCanConfirm,pushCc,pushDialogOpen,pushForceWithLease,pushHasOutgoingCommits,pushIsNewBranchTarget,pushPreviewCommits,pushPreviewDetails,pushPreviewDetailsError,pushPreviewDetailsLoading,pushPreviewError,pushPreviewFileTreeItems,pushPreviewHasMore,pushPreviewLoading,pushPreviewModalDiffEntries,pushPreviewModalFile,pushPreviewModalFileDiff,pushPreviewModalFullDiffLoader,pushPreviewSelectedCommit,pushPreviewSelectedFileKey,pushPreviewSelectedSha,pushRemoteMenuOpen,pushRemoteMenuPlacement,pushRemoteOptions,pushRemotePickerRef,pushRemoteTrimmed,pushReviewers,pushRunHooks,pushSubmitting,pushTags,pushTargetBranch,pushTargetBranchActiveScopeTab,pushTargetBranchFieldRef,pushTargetBranchGroups,pushTargetBranchMenuOpen,pushTargetBranchMenuPlacement,pushTargetBranchMenuRef,pushTargetBranchPickerRef,pushTargetBranchTrimmed,pushTargetSummaryBranch,pushToGerrit,pushTopic,refreshAll,refreshDialogOpen,refreshSubmitting,remoteSectionExpanded,renameBranchCanConfirm,renameBranchDialogOpen,renameBranchName,renameBranchNameInputRef,renameBranchSource,renameBranchSubmitting,renameBranchToolbarDisabledReason,renderChangedFilesSummary,repositoryRootName,repositoryUnavailable,resetDialogOpen,resetMode,resetTargetCommit,resetTargetSha,runCommitAction,selectedBranch,selectedCommitSha,selectedFileKey,selectedLocalBranchForRename,setBranchQuery,setBranchesWidth,setCommitContextMenu,setCommitContextMoreOpen,setCommitsWidth,setComparePreviewFileKey,setCreateBranchDialogOpen,setCreateBranchName,setCreateBranchSource,setCreatePrForm,setCreatePrPreviewExpanded,setCreatePrPreviewSelectedSha,setDetailsSplitRatio,setDiffViewMode,setFallbackSelectingRoot,setFetchDialogOpen,setHistoryPreviewHeaderControlsTarget,setIsCreatePrDialogMaximized,setIsHistoryDiffModalMaximized,setLocalSectionExpanded,setOverviewCommitSectionCollapsed,setOverviewListView,setOverviewWidth,setPreviewFileKey,setPullDialogOpen,setPullNoCommit,setPullNoVerify,setPullOptionsMenuOpen,setPullRemoteMenuOpen,setPullStrategy,setPullTargetBranch,setPullTargetBranchActiveScopeTab,setPullTargetBranchMenuOpen,setPullTargetBranchQuery,setPushCc,setPushDialogOpen,setPushForceWithLease,setPushPreviewModalFileKey,setPushPreviewSelectedFileKey,setPushPreviewSelectedSha,setPushRemoteMenuOpen,setPushReviewers,setPushRunHooks,setPushTags,setPushTargetBranch,setPushTargetBranchActiveScopeTab,setPushTargetBranchMenuOpen,setPushTargetBranchQuery,setPushToGerrit,setPushTopic,setRefreshDialogOpen,setRemoteSectionExpanded,setRenameBranchName,setResetDialogOpen,setResetMode,setSelectedBranch,setSelectedCommitSha,setSelectedFileKey,setSyncDialogOpen,setWorkspaceSelectingId,shouldShowWorkspacePickerPage,statusLabel,strokeWidth,syncDialogOpen,syncPreviewCommits,syncPreviewError,syncPreviewLoading,syncPreviewTargetBranch,syncPreviewTargetFound,syncPreviewTargetRemote,syncSubmitting,t,trimRemotePrefix,updatePullRemoteMenuPlacement,updatePushRemoteMenuPlacement,virtualCommitRows,visiblePullTargetBranchGroups,visiblePushTargetBranchGroups,workbenchGridRef,workbenchGridStyle,workingTreeChangedFiles,workingTreeSummaryLabel,workingTreeTotalAdditions,workingTreeTotalDeletions,workspace,workspaceId,workspacePickerMessage,workspaceSelectingId,worktreePreviewDiffEntries,worktreePreviewDiffText,worktreePreviewError,worktreePreviewFile,worktreePreviewFullDiffLoader,worktreePreviewLoading} = scope;
   const {
     commitFilterSurface,
+    toolbarTabsNode = null,
+    documentContentNode = null,
+    activeDocumentTabId,
     repositories = [],
     repositoryBranchCatalogs = EMPTY_REPOSITORY_BRANCH_CATALOGS,
     selectedRepositoryRoot = null,
@@ -100,7 +103,12 @@ export function renderGitHistoryPanelView(scope: any) {
     const canPickFallbackGitRoot = repositoryUnavailable && Boolean(workspace) && !repositoryPicker;
     const isEmptyStateSelecting = Boolean(fallbackSelectingRoot || workspaceSelectingId);
     return (
-      <div className="git-history-workbench">
+      <div
+        className={`git-history-workbench${documentContentNode ? " has-document-content" : ""}`}
+        id={documentContentNode ? undefined : "git-history-panel-graph"}
+        role={documentContentNode ? undefined : "tabpanel"}
+        aria-labelledby={documentContentNode ? undefined : "git-history-tab-graph"}
+      >
         <div className="git-history-toolbar git-history-empty-toolbar">
           <div className="git-history-toolbar-left">
             <span className="git-history-empty-inline-text">{workspacePickerMessage}</span>
@@ -168,6 +176,7 @@ export function renderGitHistoryPanelView(scope: any) {
                 {localizeKnownGitError(fallbackGitRootsError) ?? fallbackGitRootsError}
               </span>
             ) : null}
+            {toolbarTabsNode}
           </div>
           {onRequestClose ? (
             <div className="git-history-toolbar-actions">
@@ -181,32 +190,46 @@ export function renderGitHistoryPanelView(scope: any) {
             </div>
           ) : null}
         </div>
-        <div className="git-history-empty git-history-empty-body">
-          <div className="git-history-empty-guide">
-            <div className="git-history-empty-guide-title">
-              {t("git.historyWorkspacePickerGuideTitle")}
+        {documentContentNode ? (
+          <div
+            id="git-history-panel-file"
+            className="git-history-document-panel"
+            role="tabpanel"
+            aria-labelledby={activeDocumentTabId}
+          >
+            {documentContentNode}
+          </div>
+        ) : (
+          <div className="git-history-empty git-history-empty-body">
+            <div className="git-history-empty-guide">
+              <div className="git-history-empty-guide-title">
+                {t("git.historyWorkspacePickerGuideTitle")}
+              </div>
+              <p className="git-history-empty-guide-line">
+                {t("git.historyWorkspacePickerGuideStepCheck")}
+              </p>
+              <p className="git-history-empty-guide-line">
+                {t("git.historyWorkspacePickerGuideStepScan")}
+              </p>
+              <p className="git-history-empty-guide-line">
+                {t("git.historyWorkspacePickerGuideStepSelect")}
+              </p>
             </div>
-            <p className="git-history-empty-guide-line">
-              {t("git.historyWorkspacePickerGuideStepCheck")}
-            </p>
-            <p className="git-history-empty-guide-line">
-              {t("git.historyWorkspacePickerGuideStepScan")}
-            </p>
-            <p className="git-history-empty-guide-line">
-              {t("git.historyWorkspacePickerGuideStepSelect")}
-            </p>
+            <div className={`git-history-empty-progress ${isEmptyStateSelecting ? "is-busy" : ""}`}>
+              {emptyStateStatusText}
+            </div>
           </div>
-          <div className={`git-history-empty-progress ${isEmptyStateSelecting ? "is-busy" : ""}`}>
-            {emptyStateStatusText}
-          </div>
-        </div>
+        )}
       </div>
     );
   }
 
   return (
     <div
-      className="git-history-workbench"
+      className={`git-history-workbench${documentContentNode ? " has-document-content" : ""}`}
+      id={documentContentNode ? undefined : "git-history-panel-graph"}
+      role={documentContentNode ? undefined : "tabpanel"}
+      aria-labelledby={documentContentNode ? undefined : "git-history-tab-graph"}
       tabIndex={0}
       onKeyDown={(event) => {
         if (branchDiffState && event.key === "Escape") {
@@ -371,6 +394,7 @@ export function renderGitHistoryPanelView(scope: any) {
               {t("git.historyCommitCount", { count: historyTotal })}
             </span>
           </div>
+          {toolbarTabsNode}
         </div>
         <div className="git-history-toolbar-actions">
           <div className="git-history-toolbar-action-group">
@@ -444,6 +468,17 @@ export function renderGitHistoryPanelView(scope: any) {
           </ActionSurface>
         </div>
       </div>
+
+      {documentContentNode ? (
+        <div
+          id="git-history-panel-file"
+          className="git-history-document-panel"
+          role="tabpanel"
+          aria-labelledby={activeDocumentTabId}
+        >
+          {documentContentNode}
+        </div>
+      ) : null}
 
       {operationNotice && (
         <div
@@ -1776,7 +1811,7 @@ export function renderGitHistoryPanelView(scope: any) {
         {prContentMenu ? (
           <RendererContextMenu menu={prContentMenu} onClose={() => setPrContentMenu(null)} />
         ) : null}
-        {createPrDialogOpen && typeof document !== "undefined"
+        {!documentContentNode && createPrDialogOpen && typeof document !== "undefined"
           ? createPortal(
               <div
                 className="git-history-create-branch-backdrop git-history-create-pr-backdrop"
@@ -2358,7 +2393,7 @@ export function renderGitHistoryPanelView(scope: any) {
               document.body,
             )
           : null}
-        {renderGitHistoryPanelDialogs({
+        {documentContentNode ? null : renderGitHistoryPanelDialogs({
           ...scope,
           pullExampleCommand,
           syncAheadCount,

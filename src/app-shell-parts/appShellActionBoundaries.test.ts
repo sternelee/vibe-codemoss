@@ -74,6 +74,7 @@ describe("appShellActionBoundaries", () => {
       handleOpenWorkspaceFile: openFile,
       handleActivateWorkspaceFileTab: openFile,
       handleCloseWorkspaceFileTab: openFile,
+      handleCloseOtherWorkspaceFileTabs: openFile,
       handleCloseAllWorkspaceFileTabs: openFile,
       handleExitWorkspaceEditor: openFile,
       handleSelectDiffForPanel: openFile,

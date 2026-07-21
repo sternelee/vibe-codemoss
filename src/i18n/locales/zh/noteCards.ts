@@ -29,6 +29,7 @@ const noteCards = {
     bodyPlaceholder: "写下你的灵感、命令片段或临时上下文…",
     captureMenu: "保存到便签",
     captureSelection: "将所选代码保存到便签…",
+    captureWholeFile: "将整个文件保存到便签…",
     captureConversationSelection: "将所选文本保存到便签…",
     captureConversationThread: "将语义对话正文保存到便签…",
     captureConversationSelectionTitle: "对话选段",

@@ -16,9 +16,7 @@ const diffViewerCss = readFileSync(
 );
 
 function getCssRuleBlock(css: string, selector: string): string {
-  const escapedSelector = selector
-    .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-    .replace(/\s+/g, "\\s+");
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
   const match = css.match(new RegExp(`(?:^|\\n)${escapedSelector}\\s*\\{([^}]*)\\}`));
   return match?.[1] ?? "";
 }
@@ -37,9 +35,9 @@ describe("file view visual contracts", () => {
     );
     expect(inlineDetailsRule).toContain("max-width: min(520px, 48vw);");
     expect(inlineDetailsRule).toContain("text-overflow: ellipsis;");
-    expect(
-      getCssRuleBlock(fileViewPanelCss, ".fvp-cm .cm-file-git-blame-marker.is-current"),
-    ).toBe("");
+    expect(getCssRuleBlock(fileViewPanelCss, ".fvp-cm .cm-file-git-blame-marker.is-current")).toBe(
+      "",
+    );
   });
 
   it("does not draw an accent underline under the active file tab", () => {
@@ -56,6 +54,28 @@ describe("file view visual contracts", () => {
     expect(tabsRule).toContain("overflow-x: auto;");
     expect(tabsRule).toContain("scrollbar-width: none;");
     expect(webkitScrollbarRule).toContain("display: none;");
+  });
+
+  it("keeps the file tab context menu rounded and theme-token based", () => {
+    const menuRule = getCssRuleBlock(fileViewPanelCss, ".fvp-tab-context-menu");
+    const itemRule = getCssRuleBlock(
+      fileViewPanelCss,
+      ".fvp-tab-context-menu .renderer-context-menu-item",
+    );
+
+    expect(menuRule).toContain("min-width: 238px;");
+    expect(menuRule).toContain("border-radius: 14px;");
+    expect(menuRule).toContain("var(--surface-popover)");
+    expect(itemRule).toContain("border-radius: 8px;");
+  });
+
+  it("keeps file navigation and tabs in one header row without legacy toolbar CSS", () => {
+    const headerRule = getCssRuleBlock(fileViewPanelCss, ".fvp-header-row");
+
+    expect(headerRule).toContain("display: flex;");
+    expect(headerRule).toContain("align-items: center;");
+    expect(getCssRuleBlock(fileViewPanelCss, ".fvp-topbar")).toBe("");
+    expect(getCssRuleBlock(fileViewPanelCss, ".fvp-action-group")).toBe("");
   });
 
   it("keeps the goto-line dialog compact", () => {
@@ -95,9 +115,9 @@ describe("file view visual contracts", () => {
     expect(getCssRuleBlock(diffViewerCss, ".diff-annotation-draft-actions button")).toContain(
       "border-radius: 8px;",
     );
-    expect(getCssRuleBlock(diffViewerCss, ".diff-annotation-draft-actions button:not(.ghost)")).toContain(
-      "background: color-mix(in srgb, var(--surface-panel) 96%, transparent);",
-    );
+    expect(
+      getCssRuleBlock(diffViewerCss, ".diff-annotation-draft-actions button:not(.ghost)"),
+    ).toContain("background: color-mix(in srgb, var(--surface-panel) 96%, transparent);");
   });
 
   it("keeps the markdown outline flyout subordinate to the document", () => {
