@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented and verified on 2026-07-21; commit and archive closure remains in progress.
+Implemented, verified, reviewed, committed, and archived on 2026-07-21.
 
 ## Baseline
 

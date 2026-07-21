@@ -29,4 +29,4 @@
 - [x] 5.1 Execute every roadmap Phase 8.6 command.
 - [x] 5.2 Reproduce and document any unrelated pre-existing failure on the implementation parent commit.
 - [x] 5.3 Run independent review and resolve all actionable findings.
-- [ ] 5.4 Commit、archive Trellis task、record session、archive OpenSpec and record the final session.
+- [x] 5.4 Commit、archive Trellis task、record session、archive OpenSpec and record the final session.
