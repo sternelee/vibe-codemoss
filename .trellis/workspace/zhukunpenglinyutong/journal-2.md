@@ -213,7 +213,7 @@
 
 ## Session 52: 对齐界面回归契约
 
-**Date**: 2026-07-22
+**Date**: 2026-07-21
 **Task**: 对齐界面回归契约
 **Branch**: `bump-version-0.7.6`
 
@@ -246,7 +246,7 @@
 
 ## Session 53: 区分 Kimi 提交信息引擎
 
-**Date**: 2026-07-22
+**Date**: 2026-07-21
 **Task**: 区分 Kimi 提交信息引擎
 **Branch**: `bump-version-0.7.6`
 
@@ -279,7 +279,7 @@
 
 ## Session 54: 隔离消息时间线控制器
 
-**Date**: 2026-07-22
+**Date**: 2026-07-21
 **Task**: 隔离消息时间线控制器
 **Branch**: `bump-version-0.7.6`
 
@@ -313,7 +313,7 @@
 
 ## Session 55: 固化消息时间线职责规格
 
-**Date**: 2026-07-22
+**Date**: 2026-07-21
 **Task**: 固化消息时间线职责规格
 **Branch**: `bump-version-0.7.6`
 
@@ -346,7 +346,7 @@
 
 ## Session 56: 隔离 messages 编排控制器职责
 
-**Date**: 2026-07-22
+**Date**: 2026-07-21
 **Task**: 隔离 messages 编排控制器职责
 **Branch**: `bump-version-0.7.6`
 
@@ -379,7 +379,7 @@
 
 ## Session 57: 归档 messages 编排控制器 OpenSpec
 
-**Date**: 2026-07-22
+**Date**: 2026-07-21
 **Task**: 归档 messages 编排控制器 OpenSpec
 **Branch**: `bump-version-0.7.6`
 
@@ -400,6 +400,48 @@
 ### Testing
 
 - [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 58: 统一 messages 对话展示上下文
+
+**Date**: 2026-07-21
+**Task**: 统一 messages 对话展示上下文
+**Branch**: `bump-version-0.7.6`
+
+### Summary
+
+完成 roadmap Phase 7：建立 producer-aware 的顶层 conversation presentation normalization contract，统一 realtime/history metadata，移除 messages row/presentation 对四个 producer parser 的直接依赖，并完成完整回归与独立 review。
+
+### Main Changes
+
+- 新增 `ConversationPresentationContext` 与 `MessagePresentationMetadata` contract，保留 raw transport 字段。
+- 新增 `src/conversation-presentation` normalization boundary，并让 realtime/history assembly 产出一致 metadata。
+- messages user/row presentation 与 memory/note suppression 改为 metadata-first；direct producer parser import 清零。
+- 修复 reducer 派生 metadata identity 对 fast path 和非 presentation 行为测试的影响。
+
+### Testing
+
+- Focused parity: 8 files, 130 tests passed.
+- Messages + threads + presentation: 421 files passed, 2067 tests passed, 7 skipped.
+- Passed lint, typecheck, build, runtime contracts, messages boundary, strict OpenSpec validation, diff check.
+- Independent `codex review --uncommitted`: no actionable correctness findings.
+- Large-file strict gate reproduced the known 51-file repository baseline; no new finding from this phase.
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `21bf0975` | (see git log) |
+| `6daca4aa` | (see git log) |
 
 ### Status
 

@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 57
-- **Last Active**: 2026-07-22
+- **Total Sessions**: 58
+- **Last Active**: 2026-07-21
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~410 | Active |
+| `journal-2.md` | ~458 | Active |
 | `journal-1.md` | ~1997 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,12 +30,13 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
-| 57 | 2026-07-22 | 归档 messages 编排控制器 OpenSpec | `00c762ab` | `bump-version-0.7.6` |
-| 56 | 2026-07-22 | 隔离 messages 编排控制器职责 | `90991c6a` | `bump-version-0.7.6` |
-| 55 | 2026-07-22 | 固化消息时间线职责规格 | `263c1808` | `bump-version-0.7.6` |
-| 54 | 2026-07-22 | 隔离消息时间线控制器 | `2c76b28c`, `b7b39746` | `bump-version-0.7.6` |
-| 53 | 2026-07-22 | 区分 Kimi 提交信息引擎 | `0ff12ea3` | `bump-version-0.7.6` |
-| 52 | 2026-07-22 | 对齐界面回归契约 | `badba108` | `bump-version-0.7.6` |
+| 58 | 2026-07-21 | 统一 messages 对话展示上下文 | `21bf0975`, `6daca4aa` | `bump-version-0.7.6` |
+| 57 | 2026-07-21 | 归档 messages 编排控制器 OpenSpec | `00c762ab` | `bump-version-0.7.6` |
+| 56 | 2026-07-21 | 隔离 messages 编排控制器职责 | `90991c6a` | `bump-version-0.7.6` |
+| 55 | 2026-07-21 | 固化消息时间线职责规格 | `263c1808` | `bump-version-0.7.6` |
+| 54 | 2026-07-21 | 隔离消息时间线控制器 | `2c76b28c`, `b7b39746` | `bump-version-0.7.6` |
+| 53 | 2026-07-21 | 区分 Kimi 提交信息引擎 | `0ff12ea3` | `bump-version-0.7.6` |
+| 52 | 2026-07-21 | 对齐界面回归契约 | `badba108` | `bump-version-0.7.6` |
 | 51 | 2026-07-21 | 归档 message row ownership 规范 | `fc948b1a` | `bump-version-0.7.6` |
 | 50 | 2026-07-21 | 隔离 messages row ownership | `2666d664`, `8d4581e1` | `bump-version-0.7.6` |
 | 49 | 2026-07-21 | 归档 Messages 公共输入契约 | `87bca291` | `bump-version-0.7.6` |
