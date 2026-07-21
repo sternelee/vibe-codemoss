@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConversationItem } from "../../../types";
 import type { ConversationState } from "../../threads/contracts/conversationCurtainContracts";
-import { MESSAGES_LIVE_CONTROLS_UPDATED_EVENT } from "../constants/liveCanvasControls";
+import { MESSAGES_LIVE_CONTROLS_UPDATED_EVENT } from "../../../live-canvas/liveCanvasControls";
 import { Messages } from "./Messages";
 
 vi.mock("./Markdown", () => ({

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CONVERSATION_ASSEMBLY_MIGRATION_GATES } from "../../threads/assembly/conversationMigrationGates";
+import { CONVERSATION_ASSEMBLY_MIGRATION_GATES } from "../features/threads/assembly/conversationMigrationGates";
 import { resolvePresentationProfile } from "./presentationProfile";
 
 describe("presentationProfile", () => {

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { ConversationItem, QueuedMessage } from "../../../../types";
-import type { PresentationProfile } from "../../presentation/presentationProfile";
-import type { RuntimeReconnectRecoveryCallbackResult } from "../../utils/recovery/runtimeReconnect";
+import type { PresentationProfile } from "../../../../conversation-presentation/presentationProfile";
+import type { RuntimeReconnectRecoveryCallbackResult } from "../../../../runtime-recovery/runtimeReconnect";
 import type { MessagesEngine } from "../../utils/messagesRenderUtils";
 import type { StreamMitigationProfile } from "./messagesStreamingComplexity";
 

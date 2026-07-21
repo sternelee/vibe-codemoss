@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import Brain from "lucide-react/dist/esm/icons/brain";
 import type { ConversationItem } from "../../../../types";
 import { useRenderHotspot } from "../../../../services/perfBaseline/useRenderHotspot";
-import type { PresentationProfile } from "../../presentation/presentationProfile";
+import type { PresentationProfile } from "../../../../conversation-presentation/presentationProfile";
 import { parseReasoning } from "../../presentation/messagesReasoning";
 import {
   resolveReasoningStreamingThrottleMs,

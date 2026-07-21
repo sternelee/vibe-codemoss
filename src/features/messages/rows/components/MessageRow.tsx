@@ -25,7 +25,7 @@ import {
   buildEngineTaskOutputSnapshot,
   buildTaskOutputSourceFromNotification,
 } from "../../../engine-task-output/utils/engineTaskOutputProjection";
-import type { PresentationProfile } from "../../presentation/presentationProfile";
+import type { PresentationProfile } from "../../../../conversation-presentation/presentationProfile";
 import {
   CollapsibleUserTextBlock,
   UserCodeAnnotationContextBlock,
@@ -50,7 +50,7 @@ import {
 import { RuntimeReconnectCard } from "../../components/recovery/RuntimeReconnectCard";
 import {
   resolveAssistantRuntimeReconnectHint,
-} from "../../utils/recovery/runtimeReconnect";
+} from "../../../../runtime-recovery/runtimeReconnect";
 import {
   basenameFromPath,
   MessagesEngine,

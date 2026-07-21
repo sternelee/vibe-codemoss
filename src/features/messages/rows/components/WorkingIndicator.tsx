@@ -2,7 +2,7 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ProxyStatusBadge } from "../../../../components/ProxyStatusBadge";
 import type { StreamActivityPhase } from "../../../threads/hooks/useStreamActivityPhase";
-import type { PresentationProfile } from "../../presentation/presentationProfile";
+import type { PresentationProfile } from "../../../../conversation-presentation/presentationProfile";
 import {
   formatDurationMs,
   type MessagesEngine,

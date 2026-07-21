@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { createHeavyHistoryFixture } from "../../components/messagesHeavyHistoryFixture.test-support";
+import { createHeavyHistoryFixture } from "../test-support/messagesHeavyHistoryFixture";
 import { useMessagesTimelineHydration } from "./useMessagesTimelineHydration";
 
 describe("useMessagesTimelineHydration", () => {

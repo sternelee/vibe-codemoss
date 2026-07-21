@@ -26,7 +26,7 @@ import {
   MESSAGES_LIVE_CONTROLS_UPDATED_EVENT,
   readLocalBooleanFlag,
   writeLocalBooleanFlag,
-} from "../constants/liveCanvasControls";
+} from "../../../live-canvas/liveCanvasControls";
 import {
   RendererContextMenu,
 } from "../../../components/ui/RendererContextMenu";

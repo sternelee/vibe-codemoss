@@ -126,7 +126,7 @@ import type {
   ConversationState,
 } from "../../threads/contracts/conversationCurtainContracts";
 import { resolveDiffPathFromWorkspacePath } from "../../../utils/workspacePaths";
-import { resolvePresentationProfile } from "../../messages/presentation/presentationProfile";
+import { resolvePresentationProfile } from "../../../conversation-presentation/presentationProfile";
 import { appendQueuedHandoffBubbleIfNeeded } from "../../threads/utils/queuedHandoffBubble";
 import { isBackgroundRenderGatingEnabled } from "../../threads/utils/realtimePerfFlags";
 import { useWorkspaceSessionActivity } from "../../session-activity/hooks/useWorkspaceSessionActivity";

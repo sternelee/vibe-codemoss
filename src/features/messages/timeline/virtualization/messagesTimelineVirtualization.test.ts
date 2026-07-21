@@ -29,7 +29,7 @@ import {
   TIMELINE_VIRTUALIZATION_MIN_ROWS,
   TIMELINE_VIRTUALIZATION_STREAMING_MIN_ROWS,
 } from "./messagesTimelineVirtualization";
-import { createHeavyHistoryFixture } from "../../components/messagesHeavyHistoryFixture.test-support";
+import { createHeavyHistoryFixture } from "../test-support/messagesHeavyHistoryFixture";
 import type { TimelineProjectionRow } from "../projection/messagesTimelineProjection";
 import type { ConversationItem } from "../../../../types";
 

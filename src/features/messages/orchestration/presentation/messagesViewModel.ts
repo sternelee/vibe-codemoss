@@ -1,5 +1,5 @@
 import type { ConversationItem, RequestUserInputRequest } from "../../../../types";
-import type { PresentationProfile } from "../../presentation/presentationProfile";
+import type { PresentationProfile } from "../../../../conversation-presentation/presentationProfile";
 import { shouldHideToolItemForRender } from "../../utils/groupToolItems";
 import type { MessagesEngine } from "../../utils/messagesRenderUtils";
 import {

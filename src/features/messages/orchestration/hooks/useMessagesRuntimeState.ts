@@ -18,7 +18,7 @@ import {
   TRANSIENT_RUNTIME_RECONNECT_AUTO_DISMISS_MS,
   resolveAssistantRuntimeReconnectHint,
   resolveRetryMessageForReconnectItem,
-} from "../../utils/recovery/runtimeReconnect";
+} from "../../../../runtime-recovery/runtimeReconnect";
 import type { TimelineLiveModel } from "../models/messagesTimelineModels";
 
 type RuntimeLabels = {

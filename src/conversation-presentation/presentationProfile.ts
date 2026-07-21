@@ -1,5 +1,5 @@
-import type { ConversationEngine } from "../../threads/contracts/conversationCurtainContracts";
-import { resolveConversationAssemblyMigrationGate } from "../../threads/assembly/conversationMigrationGates";
+import { resolveConversationAssemblyMigrationGate } from "../features/threads/assembly/conversationMigrationGates";
+import type { ConversationEngine } from "../features/threads/contracts/conversationCurtainContracts";
 
 export type PresentationProfile = {
   engine: ConversationEngine;

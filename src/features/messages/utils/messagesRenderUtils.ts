@@ -4,7 +4,7 @@ import type {
   ConversationEngine,
   ConversationState,
 } from "../../threads/contracts/conversationCurtainContracts";
-import type { PresentationProfile } from "../presentation/presentationProfile";
+import type { PresentationProfile } from "../../../conversation-presentation/presentationProfile";
 import { groupToolItems } from "./groupToolItems";
 import {
   isAssistantMessageConversationItem,

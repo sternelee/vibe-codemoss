@@ -1,6 +1,6 @@
 import type { ConversationItem } from "../../../../types";
 import type { StreamMitigationProfile } from "../../../threads/utils/streamLatencyDiagnostics";
-import type { PresentationProfile } from "../../presentation/presentationProfile";
+import type { PresentationProfile } from "../../../../conversation-presentation/presentationProfile";
 import type { MessagesEngine } from "../../utils/messagesRenderUtils";
 
 export type { StreamMitigationProfile };

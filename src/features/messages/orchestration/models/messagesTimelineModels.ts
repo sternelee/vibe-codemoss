@@ -10,9 +10,9 @@ import type {
 } from "../../../../types";
 import type { StreamMitigationProfile } from "../../../threads/utils/streamLatencyDiagnostics";
 import type { GroupedEntry } from "../../utils/groupToolItems";
-import type { PresentationProfile } from "../../presentation/presentationProfile";
+import type { PresentationProfile } from "../../../../conversation-presentation/presentationProfile";
 import type { TurnFileChangesSummary } from "../../utils/turnFileChanges";
-import type { RuntimeReconnectRecoveryCallbackResult } from "../../utils/recovery/runtimeReconnect";
+import type { RuntimeReconnectRecoveryCallbackResult } from "../../../../runtime-recovery/runtimeReconnect";
 import type { MessagesPresentationMode } from "../presentation/messagesLiveWindow";
 import type { MessagesEngine } from "../../utils/messagesRenderUtils";
 import type { parseReasoning } from "../../presentation/messagesReasoning";

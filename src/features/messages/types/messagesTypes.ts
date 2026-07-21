@@ -12,8 +12,8 @@ import type {
   WorkspaceInfo,
 } from "../../../types";
 import type { ConversationState } from "../../threads/contracts/conversationCurtainContracts";
-import type { PresentationProfile } from "../presentation/presentationProfile";
-import type { RuntimeReconnectRecoveryCallbackResult } from "../utils/recovery/runtimeReconnect";
+import type { PresentationProfile } from "../../../conversation-presentation/presentationProfile";
+import type { RuntimeReconnectRecoveryCallbackResult } from "../../../runtime-recovery/runtimeReconnect";
 import type { AgentTaskScrollRequest } from "../types";
 import type { TaskRunRecord } from "../../tasks/types";
 import type { NoteCaptureDraft } from "../../note-cards/types";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createHeavyHistoryFixture } from "../../components/messagesHeavyHistoryFixture.test-support";
+import { createHeavyHistoryFixture } from "../test-support/messagesHeavyHistoryFixture";
 import {
   countHydratedHeavyTimelineRows,
   deriveTimelineRowHydrationStates,

@@ -1,8 +1,8 @@
-import type { ConversationItem, QueuedMessage } from "../../../../types";
+import type { ConversationItem, QueuedMessage } from "../types";
 import {
   resolveThreadStabilityDiagnostic,
   type RuntimeRecoveryHintReason,
-} from "../../../threads/utils/stabilityDiagnostics";
+} from "../features/threads/utils/stabilityDiagnostics";
 
 export type RuntimeReconnectHint = {
   reason: RuntimeRecoveryHintReason;

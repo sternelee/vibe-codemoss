@@ -10,7 +10,7 @@ import {
   normalizeRuntimeReconnectErrorMessage,
   type RuntimeReconnectRecoveryCallbackResult,
   type RuntimeReconnectHint,
-} from "../../utils/recovery/runtimeReconnect";
+} from "../../../../runtime-recovery/runtimeReconnect";
 
 type RuntimeReconnectCardProps = {
   hint: RuntimeReconnectHint;
