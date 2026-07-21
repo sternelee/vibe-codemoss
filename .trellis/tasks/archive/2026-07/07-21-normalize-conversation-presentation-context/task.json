@@ -3,7 +3,7 @@
   "name": "normalize-conversation-presentation-context",
   "title": "Normalize conversation presentation context",
   "description": "OpenSpec: normalize-conversation-presentation-context; execute roadmap Phase 7 and normalize producer-specific context before messages rendering",
-  "status": "active",
+  "status": "completed",
   "dev_type": "frontend",
   "scope": "conversation-presentation",
   "package": null,
@@ -11,7 +11,7 @@
   "creator": "zhukunpenglinyutong",
   "assignee": "zhukunpenglinyutong",
   "createdAt": "2026-07-21",
-  "completedAt": null,
+  "completedAt": "2026-07-21",
   "branch": null,
   "base_branch": "bump-version-0.7.6",
   "worktree_path": null,
@@ -42,7 +42,7 @@
       "action": "record-session"
     }
   ],
-  "commit": null,
+  "commit": "21bf0975",
   "pr_url": null,
   "subtasks": [],
   "children": [],
@@ -56,6 +56,6 @@
     "src/features/messages/presentation/messagesUserPresentation.ts",
     "src/features/messages/rows/presentation/messageRowPresentation.ts"
   ],
-  "notes": "Implementation and automated verification completed on 2026-07-21. Pending implementation commit, Trellis session record, and OpenSpec archive.",
+  "notes": "Implementation committed as 21bf0975 and automated verification completed on 2026-07-21. Pending Trellis session record and OpenSpec archive.",
   "meta": {}
 }
