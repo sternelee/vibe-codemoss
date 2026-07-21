@@ -39,9 +39,9 @@ import type {
   GitRepositoryCommonBranchesResult,
 } from "../../git/types/gitRepositoryActions";
 import {
-  buildComposerRepositoryIconColorSlots,
-  COMPOSER_REPOSITORY_ICON_COLOR_CLASSES,
-} from "../utils/composerRepositoryIconColors";
+  buildGitRepositoryIconColorSlots,
+  GIT_REPOSITORY_ICON_COLOR_CLASSES,
+} from "../../git/utils/gitRepositoryIconColors";
 
 const EMPTY_BRANCHES: BranchInfo[] = [];
 const EMPTY_BRANCH_ITEMS: GitBranchListItem[] = [];
@@ -289,7 +289,7 @@ function ComposerBranchBadgeComponent({
     [repositories, selectedRepositoryRoot],
   );
   const repositoryIconColorSlots = useMemo(
-    () => buildComposerRepositoryIconColorSlots(repositories),
+    () => buildGitRepositoryIconColorSlots(repositories),
     [repositories],
   );
   const triggerBranchName =
@@ -658,7 +658,7 @@ function ComposerBranchBadgeComponent({
                         <LoaderCircle className="size-4 shrink-0 animate-spin" aria-hidden />
                       ) : (
                         <FolderGit2
-                          className={`size-4 shrink-0 ${COMPOSER_REPOSITORY_ICON_COLOR_CLASSES[repositoryIconColorSlots.get(repository.repositoryRoot) ?? 0]}`}
+                          className={`size-4 shrink-0 ${GIT_REPOSITORY_ICON_COLOR_CLASSES[repositoryIconColorSlots.get(repository.repositoryRoot) ?? 0]}`}
                           data-repository-color-slot={repositoryIconColorSlots.get(repository.repositoryRoot) ?? 0}
                           aria-hidden
                         />
