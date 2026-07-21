@@ -1731,3 +1731,36 @@ Rebased chore/bump-version-0.7.5 onto origin, semantically resolved Kimi integra
 ### Next Steps
 
 - None - task complete
+
+
+## Session 38: 建立 Messages 模块边界基线
+
+**Date**: 2026-07-21
+**Task**: 建立 Messages 模块边界基线
+**Branch**: `bump-version-0.7.6`
+
+### Summary
+
+归档第一阶段 messages presentation change，建立 38 条 inbound/70 条 outbound 精确 allowlist boundary gate，并通过正负 fixture 与 OpenSpec strict validation。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2bd4a398` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

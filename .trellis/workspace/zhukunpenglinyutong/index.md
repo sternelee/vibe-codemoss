@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 37
-- **Last Active**: 2026-07-19
+- **Total Sessions**: 38
+- **Last Active**: 2026-07-21
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1733 | Active |
+| `journal-1.md` | ~1766 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 38 | 2026-07-21 | 建立 Messages 模块边界基线 | `2bd4a398` | `bump-version-0.7.6` |
 | 37 | 2026-07-19 | 解决 Kimi 集成分支同步冲突 | `e33dcaa6` | `chore/bump-version-0.7.5` |
 | 36 | 2026-07-16 | 合并远端 0.7.4 分支并保留本地设置改动 | `eaae4011` | `chore/bump-version-0.7.4` |
 | 35 | 2026-07-16 | 合并 PR 752 到 0.7.3 分支 | `4b972f87` | `chore/bump-version-0.7.3` |
