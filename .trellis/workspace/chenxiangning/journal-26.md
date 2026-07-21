@@ -1224,3 +1224,36 @@ Review 并修复 Git History repository color collision、branch group 与 branc
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1062: Git Graph 文件历史多页签
+
+**Date**: 2026-07-22
+**Task**: Git Graph 文件历史多页签
+**Branch**: `feature/v-076`
+
+### Summary
+
+将文件历史整合进 Git Graph 标题栏，支持多文件页签、文件图标、紧凑布局及关闭/关闭其他/全部关闭右键菜单；完成增量测试与契约校验。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d368fc9c5` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
