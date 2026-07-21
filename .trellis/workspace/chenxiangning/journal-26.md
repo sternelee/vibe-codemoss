@@ -893,3 +893,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1052: 统一 Git History 单多仓分支树
+
+**Date**: 2026-07-22
+**Task**: 统一 Git History 单多仓分支树
+**Branch**: `feature/v-076`
+
+### Summary
+
+实现单仓与多仓共用的 Git History repository branch tree；支持稳定仓库配色、并行 branch catalogs、partial failure、分支分组折叠、跨仓搜索与 exact repository identity；review 修复搜索 section 展开、stale cleanup 与跨仓 context menu 时序。相关 78 个测试及局部门禁通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c54d6ac26` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
