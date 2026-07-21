@@ -1,24 +1,11 @@
 import { normalizeAgentIcon } from "../../../utils/agentIcons";
 import type { MessageConversationItem } from "../utils/messageItemPredicates";
+import type { MemoryContextSummary } from "../utils/context/messagesMemoryContext";
+import type { NoteCardContextSummary } from "../utils/context/messagesNoteCardContext";
 import {
-  parseInjectedMemoryPrefixFromUser,
-  type MemoryContextSummary,
-} from "../utils/context/messagesMemoryContext";
-import {
-  parseInjectedNoteCardContextFromUser,
-  type NoteCardContextSummary,
-} from "../utils/context/messagesNoteCardContext";
-import { extractCommandMessageDisplayText } from "../../../utils/commandMessageTags";
-import { stripBrowserContextPrompt } from "../../browser-agent/utils/attachment";
-import { stripIntentCanvasContextPrompt } from "../../intent-canvas/utils/messageContext";
-
-const MODE_FALLBACK_MARKER_REGEX = /User request\s*:\s*/i;
-const MODE_FALLBACK_PREFIX_REGEX =
-  /^(?:collaboration mode:\s*code\.|execution policy \(default mode\):|execution policy \(plan mode\):)/i;
-const SHARED_SESSION_SYNC_PREFIX_REGEX =
-  /^Shared session context sync\.\s*Continue from these recent turns before answering the new request:\s*/i;
-const SHARED_SESSION_CURRENT_REQUEST_MARKER_REGEX =
-  /(?:\r?\n){1,2}Current user request:\s*(?:\r?\n)?/i;
+  buildMessagePresentationMetadata,
+  getPresentationContext,
+} from "../../../conversation-presentation/normalizeConversationPresentation";
 const AGENT_PROMPT_BLOCK_AT_TAIL_REGEX =
   /(?:\r?\n){2}##\s*Agent Role and Instructions\s*(?:\r?\n){2}([\s\S]*)$/;
 const AGENT_PROMPT_NAME_LINE_REGEX =
@@ -52,61 +39,10 @@ export type UserConversationSummary = {
 
 type ResolveUserMessagePresentationParams = Pick<
   MessageConversationItem,
-  "text" | "selectedAgentName" | "selectedAgentIcon"
+  "text" | "selectedAgentName" | "selectedAgentIcon" | "presentationMetadata"
 > & {
   enableCollaborationBadge: boolean;
 };
-
-function extractModeFallbackUserInput(
-  text: string,
-): { text: string; mode: "code" | "plan" | null } {
-  const trimmed = text.trimStart();
-  if (!MODE_FALLBACK_PREFIX_REGEX.test(trimmed)) {
-    return { text, mode: null };
-  }
-  const mode: "code" | "plan" = /^execution policy \(plan mode\):/i.test(trimmed)
-    ? "plan"
-    : "code";
-  const markerMatch = MODE_FALLBACK_MARKER_REGEX.exec(text);
-  if (!markerMatch || markerMatch.index < 0) {
-    return { text, mode };
-  }
-  const extractedRaw = text.slice(markerMatch.index + markerMatch[0].length);
-  const extracted = extractedRaw.replace(/^\r?\n/, "").replace(/^ /, "");
-  return { text: extracted.trim().length > 0 ? extracted : text, mode };
-}
-
-function stripSharedSessionContextSyncWrapper(text: string): string {
-  if (!SHARED_SESSION_SYNC_PREFIX_REGEX.test(text.trimStart())) {
-    return text;
-  }
-  const markerMatch = SHARED_SESSION_CURRENT_REQUEST_MARKER_REGEX.exec(text);
-  if (!markerMatch || markerMatch.index < 0) {
-    return text;
-  }
-  const extractedRaw = text.slice(markerMatch.index + markerMatch[0].length);
-  const extracted = extractedRaw.replace(/^\r?\n/, "").replace(/^ /, "");
-  return extracted.trim().length > 0 ? extracted : text;
-}
-
-function extractLatestUserInputTextPreserveFormatting(text: string): string {
-  const userInputMatches = [...text.matchAll(/\[User Input\]\s*/g)];
-  if (userInputMatches.length === 0) {
-    return text;
-  }
-  const lastMatch = userInputMatches[userInputMatches.length - 1];
-  if (!lastMatch) {
-    return text;
-  }
-  const markerIndex = lastMatch.index ?? -1;
-  if (markerIndex < 0) {
-    return text;
-  }
-  const markerLength = lastMatch[0]?.length ?? 0;
-  const extractedRaw = text.slice(markerIndex + markerLength);
-  const extracted = extractedRaw.replace(/^\r?\n/, "").replace(/^ /, "");
-  return extracted.trim().length > 0 ? extracted : text;
-}
 
 function normalizeSelectedAgentName(value: string | null | undefined): string | null {
   const trimmed = (value ?? "").trim();
@@ -209,73 +145,58 @@ function stripAgentPromptBlockFromUserText(
   };
 }
 
-function resolvePreferredUserText(
-  text: string,
-  enableCollaborationBadge: boolean,
-): { displayText: string; stickyCandidateText: string } {
-  const safeText = enableCollaborationBadge
-    ? extractModeFallbackUserInput(text).text
-    : text;
-  const strippedSharedSync = stripSharedSessionContextSyncWrapper(safeText);
-  const filteredCommandText = extractCommandMessageDisplayText(strippedSharedSync);
-  const extractedUserInput =
-    extractLatestUserInputTextPreserveFormatting(filteredCommandText);
-  const stickyCandidateText =
-    extractedUserInput.trim().length > 0
-      ? extractedUserInput
-      : filteredCommandText.trim().length > 0
-        ? filteredCommandText
-        : safeText.trim().length > 0
-          ? safeText
-          : text.trim().length > 0
-            ? text
-            : "";
-  return {
-    displayText: stickyCandidateText.trim().length > 0 ? stickyCandidateText : "",
-    stickyCandidateText,
-  };
-}
-
 export function resolveUserMessagePresentation({
   text,
   selectedAgentName,
   selectedAgentIcon,
+  presentationMetadata,
   enableCollaborationBadge,
 }: ResolveUserMessagePresentationParams): UserMessagePresentation {
-  const textWithoutBrowserContext = stripBrowserContextPrompt(text);
-  const legacyUserMemory = parseInjectedMemoryPrefixFromUser(textWithoutBrowserContext);
-  const afterMemoryText = legacyUserMemory?.remainingText ?? textWithoutBrowserContext;
-  const legacyUserNoteCard = parseInjectedNoteCardContextFromUser(afterMemoryText);
-  const originalText = legacyUserNoteCard?.remainingText ?? afterMemoryText;
-  const textWithoutIntentCanvasContext = stripIntentCanvasContextPrompt(originalText);
-  const hasIntentCanvasContext = textWithoutIntentCanvasContext !== originalText;
+  const metadata = presentationMetadata ?? buildMessagePresentationMetadata(
+    {
+      id: "legacy-user-presentation",
+      kind: "message",
+      role: "user",
+      text,
+      selectedAgentName,
+      selectedAgentIcon,
+    },
+    { enableCollaborationBadge },
+  );
+  const memoryContext = getPresentationContext(metadata, "memory");
+  const noteCardContext = getPresentationContext(metadata, "note-card");
   const normalizedSelectedAgentName = normalizeSelectedAgentName(selectedAgentName);
   const normalizedSelectedAgentIcon = normalizeSelectedAgentIcon(selectedAgentIcon);
   const strippedAgentPrompt = stripAgentPromptBlockFromUserText(
-    textWithoutIntentCanvasContext,
+    text,
     normalizedSelectedAgentName,
     normalizedSelectedAgentIcon,
   );
-  const preferredText = resolvePreferredUserText(
-    strippedAgentPrompt.text,
-    enableCollaborationBadge,
-  );
-  const displayText =
-    preferredText.displayText.trim().length > 0
-      ? preferredText.displayText
-      : hasIntentCanvasContext
-        ? textWithoutIntentCanvasContext
-        : textWithoutBrowserContext || originalText;
   return {
-    displayText,
-    stickyCandidateText: preferredText.stickyCandidateText,
+    displayText: metadata.displayText,
+    stickyCandidateText: metadata.stickyCandidateText,
     selectedAgentName:
       strippedAgentPrompt.selectedAgentName ?? normalizedSelectedAgentName,
     selectedAgentIcon:
       strippedAgentPrompt.selectedAgentIcon ?? normalizedSelectedAgentIcon,
     hasInjectedAgentPromptBlock: strippedAgentPrompt.hasInjectedAgentPromptBlock,
-    memorySummary: legacyUserMemory?.memorySummary ?? null,
-    noteCardSummary: legacyUserNoteCard?.noteCardSummary ?? null,
+    memorySummary: memoryContext
+      ? {
+          preview: memoryContext.preview,
+          lines: memoryContext.lines,
+          markdown: memoryContext.markdown,
+          rawPayload: memoryContext.rawPayload,
+          memoryPacks: memoryContext.packs,
+          source: memoryContext.source,
+          records: memoryContext.records,
+        }
+      : null,
+    noteCardSummary: noteCardContext
+      ? {
+          notes: noteCardContext.notes,
+          imagePaths: noteCardContext.imagePaths,
+        }
+      : null,
   };
 }
 
@@ -285,13 +206,18 @@ export function resolveUserConversationSummary({
   selectedAgentName,
   selectedAgentIcon,
   enableCollaborationBadge,
-}: Pick<MessageConversationItem, "text" | "images" | "selectedAgentName" | "selectedAgentIcon"> & {
+  presentationMetadata,
+}: Pick<
+  MessageConversationItem,
+  "text" | "images" | "selectedAgentName" | "selectedAgentIcon" | "presentationMetadata"
+> & {
   enableCollaborationBadge: boolean;
 }): UserConversationSummary {
   const presentation = resolveUserMessagePresentation({
     text,
     selectedAgentName,
     selectedAgentIcon,
+    presentationMetadata,
     enableCollaborationBadge,
   });
   const previewText = presentation.stickyCandidateText.trim();

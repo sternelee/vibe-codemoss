@@ -34,6 +34,82 @@ export type ClaudeHydratedImage = {
   byteSize: number;
 };
 
+export type MemoryPresentationRecord = {
+  displayIndex: string;
+  index: string;
+  memoryId: string;
+  source: string;
+  title: string;
+};
+
+export type MemoryPresentationPack = {
+  source: string;
+  count: number;
+  cleanedContext: string;
+  rawPayload: string;
+};
+
+export type NoteCardPresentationAttachment = {
+  fileName: string;
+  absolutePath: string;
+};
+
+export type NoteCardPresentationNote = {
+  title: string;
+  archived: boolean;
+  bodyMarkdown: string;
+  attachments: NoteCardPresentationAttachment[];
+};
+
+export type BrowserPresentationContextView = Pick<
+  BrowserContextSendAttachment,
+  "title" | "url" | "capturedAt" | "stale" | "summary"
+> &
+  Partial<
+    Omit<
+      BrowserContextSendAttachment,
+      "kind" | "title" | "url" | "capturedAt" | "stale" | "summary"
+    >
+  >;
+
+export type ConversationPresentationContext =
+  | {
+      kind: "browser";
+      title: string;
+      summary: string;
+      evidenceCount: number;
+      view: BrowserPresentationContextView;
+    }
+  | {
+      kind: "intent-canvas";
+      title: string;
+      summary: string;
+      view: Omit<IntentCanvasContextSendAttachment, "kind">;
+    }
+  | {
+      kind: "memory";
+      preview: string;
+      lines: string[];
+      markdown?: string;
+      rawPayload?: string;
+      source?: string;
+      records: MemoryPresentationRecord[];
+      packs: MemoryPresentationPack[];
+    }
+  | {
+      kind: "note-card";
+      title: string;
+      summary: string;
+      notes: NoteCardPresentationNote[];
+      imagePaths: string[];
+    };
+
+export type MessagePresentationMetadata = {
+  displayText: string;
+  stickyCandidateText: string;
+  contexts: ConversationPresentationContext[];
+};
+
 export type ConversationItem =
   | {
       id: string;
@@ -55,6 +131,7 @@ export type ConversationItem =
       selectedAgentIcon?: string | null;
       browserContextAttachment?: BrowserContextSendAttachment | null;
       intentCanvasContextAttachments?: IntentCanvasContextSendAttachment[];
+      presentationMetadata?: MessagePresentationMetadata;
     }
   | {
       id: string;

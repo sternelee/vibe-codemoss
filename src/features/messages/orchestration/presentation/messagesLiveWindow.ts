@@ -24,6 +24,7 @@ function resolveOrdinaryUserQuestionText(
     text: item.text,
     selectedAgentName: item.selectedAgentName,
     selectedAgentIcon: item.selectedAgentIcon,
+    presentationMetadata: item.presentationMetadata,
     enableCollaborationBadge,
   }).stickyCandidateText.trim();
 }

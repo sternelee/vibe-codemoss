@@ -201,6 +201,7 @@ export const TimelineRowRenderer = memo(function TimelineRowRenderer({
               text: renderItem.text,
               selectedAgentName: renderItem.selectedAgentName,
               selectedAgentIcon: renderItem.selectedAgentIcon,
+              presentationMetadata: renderItem.presentationMetadata,
               enableCollaborationBadge: activeEngine === "codex",
             }).displayText
           : "";

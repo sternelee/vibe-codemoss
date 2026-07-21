@@ -71,6 +71,7 @@ export function useConversationNoteCaptureMenu({
             text: item.text,
             selectedAgentName: item.selectedAgentName,
             selectedAgentIcon: item.selectedAgentIcon,
+            presentationMetadata: item.presentationMetadata,
             enableCollaborationBadge: true,
           }).displayText,
       });

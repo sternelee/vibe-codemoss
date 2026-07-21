@@ -4,6 +4,7 @@ import {
   __getPrepareThreadItemsCallCountForTests,
   __resetPrepareThreadItemsCallCountForTests,
 } from "../../../utils/threadItems";
+import { withoutMessagePresentationMetadata } from "./threadReducerTestProjection";
 import { initialState, threadReducer } from "./useThreadsReducer";
 import type { ThreadState } from "./useThreadsReducer";
 
@@ -712,7 +713,7 @@ describe("threadReducer", () => {
       ],
     });
 
-    expect(next.itemsByThread["thread-1"]).toEqual([
+    expect(withoutMessagePresentationMetadata(next.itemsByThread["thread-1"])).toEqual([
       {
         id: "assistant-1",
         kind: "message",
@@ -773,7 +774,7 @@ describe("threadReducer", () => {
       ],
     });
 
-    expect(next.itemsByThread["thread-1"]).toEqual([
+    expect(withoutMessagePresentationMetadata(next.itemsByThread["thread-1"])).toEqual([
       {
         id: "assistant-1",
         kind: "message",
@@ -846,7 +847,7 @@ describe("threadReducer", () => {
       ],
     });
 
-    expect(next.itemsByThread["thread-1"]).toEqual([
+    expect(withoutMessagePresentationMetadata(next.itemsByThread["thread-1"])).toEqual([
       {
         id: "user-older-1",
         kind: "message",
@@ -913,7 +914,7 @@ describe("threadReducer", () => {
       ],
     });
 
-    expect(next.itemsByThread["thread-1"]).toEqual([
+    expect(withoutMessagePresentationMetadata(next.itemsByThread["thread-1"])).toEqual([
       {
         id: "optimistic-user-1",
         kind: "message",
@@ -968,7 +969,7 @@ describe("threadReducer", () => {
       ],
     });
 
-    expect(next.itemsByThread["thread-1"]).toEqual([
+    expect(withoutMessagePresentationMetadata(next.itemsByThread["thread-1"])).toEqual([
       {
         id: "user-1",
         kind: "message",
@@ -1020,7 +1021,7 @@ describe("threadReducer", () => {
       ],
     });
 
-    expect(next.itemsByThread["thread-1"]).toEqual([
+    expect(withoutMessagePresentationMetadata(next.itemsByThread["thread-1"])).toEqual([
       {
         id: "user-remote-1",
         kind: "message",
@@ -1063,7 +1064,7 @@ describe("threadReducer", () => {
       ],
     });
 
-    expect(next.itemsByThread["thread-1"]).toEqual([
+    expect(withoutMessagePresentationMetadata(next.itemsByThread["thread-1"])).toEqual([
       {
         id: "user-remote-1",
         kind: "message",
@@ -1119,7 +1120,7 @@ describe("threadReducer", () => {
       ],
     });
 
-    expect(next.itemsByThread["thread-1"]).toEqual([
+    expect(withoutMessagePresentationMetadata(next.itemsByThread["thread-1"])).toEqual([
       {
         id: "user-remote-1",
         kind: "message",
@@ -1195,7 +1196,7 @@ describe("threadReducer", () => {
       ],
     });
 
-    expect(next.itemsByThread["thread-1"]).toEqual([
+    expect(withoutMessagePresentationMetadata(next.itemsByThread["thread-1"])).toEqual([
       {
         id: "user-remote-1",
         kind: "message",

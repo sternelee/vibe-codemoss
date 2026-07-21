@@ -216,6 +216,17 @@ function conversationItemsShallowEqual(
   left: ConversationItem,
   right: ConversationItem,
 ) {
+  if (left.kind === "message" && right.kind === "message") {
+    const {
+      presentationMetadata: _leftPresentationMetadata,
+      ...leftSourceFields
+    } = left;
+    const {
+      presentationMetadata: _rightPresentationMetadata,
+      ...rightSourceFields
+    } = right;
+    return shallowRecordEqual(leftSourceFields, rightSourceFields);
+  }
   return shallowRecordEqual(
     left as unknown as Record<string, unknown>,
     right as unknown as Record<string, unknown>,

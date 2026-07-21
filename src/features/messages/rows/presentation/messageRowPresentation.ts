@@ -3,12 +3,10 @@ import {
   parseAgentTaskNotification,
 } from "../../../engine-task-output/contracts/agentTaskNotification";
 import {
-  parseBrowserContextPrompt,
-  stripBrowserContextPrompt,
-} from "../../../browser-agent/utils/attachment";
-import { parseIntentCanvasContextSummaries } from "../../../intent-canvas/utils/messageContext";
-import { parseMemoryContextSummary } from "../../utils/context/messagesMemoryContext";
-import { parseNoteCardContextSummary } from "../../utils/context/messagesNoteCardContext";
+  buildMessagePresentationMetadata,
+  getPresentationContext,
+  getPresentationContexts,
+} from "../../../../conversation-presentation/normalizeConversationPresentation";
 import { resolveUserMessagePresentation } from "../../presentation/messagesUserPresentation";
 import { parseUserTextContent } from "../../components/context/parseUserTextContent";
 import type { MessageImage } from "../../components/media/MessageMediaBlocks";
@@ -95,43 +93,55 @@ export function buildMessageRowPresentation(input: {
     suppressMemorySummaryCard,
     suppressNoteCardSummaryCard,
   } = input;
+  const presentationMetadata = buildMessagePresentationMetadata(item, {
+    enableCollaborationBadge,
+  });
   const userMessagePresentation = item.role === "user"
     ? resolveUserMessagePresentation({
       text: item.text,
       selectedAgentName: item.selectedAgentName,
       selectedAgentIcon: item.selectedAgentIcon,
+      presentationMetadata,
       enableCollaborationBadge,
     })
     : null;
-  const memorySummary = item.role === "assistant"
-    ? parseMemoryContextSummary(item.text)
-    : userMessagePresentation?.memorySummary ?? null;
-  const noteCardSummary = item.role === "assistant"
-    ? parseNoteCardContextSummary(item.text)
-    : userMessagePresentation?.noteCardSummary ?? null;
+  const memoryContext = getPresentationContext(presentationMetadata, "memory");
+  const noteCardContext = getPresentationContext(presentationMetadata, "note-card");
+  const memorySummary = userMessagePresentation?.memorySummary ?? (memoryContext
+    ? {
+        preview: memoryContext.preview,
+        lines: memoryContext.lines,
+        markdown: memoryContext.markdown,
+        rawPayload: memoryContext.rawPayload,
+        memoryPacks: memoryContext.packs,
+        source: memoryContext.source,
+        records: memoryContext.records,
+      }
+    : null);
+  const noteCardSummary = userMessagePresentation?.noteCardSummary ?? (noteCardContext
+    ? { notes: noteCardContext.notes, imagePaths: noteCardContext.imagePaths }
+    : null);
   const resolvedMemorySummary = suppressMemorySummaryCard ? null : memorySummary;
   const resolvedNoteCardSummary = suppressNoteCardSummaryCard ? null : noteCardSummary;
   const agentTaskNotification = parseAgentTaskNotification(item.text);
   const browserContextSummary = item.role === "user"
-    ? item.browserContextAttachment ?? parseBrowserContextPrompt(item.text)
+    ? getPresentationContext(presentationMetadata, "browser")
     : null;
   const intentCanvasContextSummary = item.role === "user"
-    ? (item.intentCanvasContextAttachments?.length
-      ? item.intentCanvasContextAttachments
-      : parseIntentCanvasContextSummaries(item.text))
-    : null;
+    ? getPresentationContexts(presentationMetadata, "intent-canvas")
+    : [];
   const shouldHideSuppressedInjectedContextText =
     item.role === "user" &&
     !agentTaskNotification &&
     (
       (
         suppressMemorySummaryCard &&
-        Boolean(userMessagePresentation?.memorySummary) &&
+        Boolean(memorySummary) &&
         (userMessagePresentation?.stickyCandidateText ?? "").trim().length === 0
       ) ||
       (
         suppressNoteCardSummaryCard &&
-        Boolean(userMessagePresentation?.noteCardSummary) &&
+        Boolean(noteCardSummary) &&
         (userMessagePresentation?.stickyCandidateText ?? "").trim().length === 0
       )
     );
@@ -140,7 +150,7 @@ export function buildMessageRowPresentation(input: {
     : item.role === "user"
       ? (shouldHideSuppressedInjectedContextText
         ? ""
-        : stripBrowserContextPrompt(userMessagePresentation?.displayText ?? item.text))
+        : userMessagePresentation?.displayText ?? presentationMetadata.displayText)
       : resolvedMemorySummary || resolvedNoteCardSummary
         ? ""
         : item.text;

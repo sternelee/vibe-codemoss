@@ -27,12 +27,10 @@ import {
 } from "../../../engine-task-output/utils/engineTaskOutputProjection";
 import type { PresentationProfile } from "../../presentation/presentationProfile";
 import {
-  BrowserContextSummaryCard,
-} from "../../../browser-agent";
-import {
   CollapsibleUserTextBlock,
   UserCodeAnnotationContextBlock,
 } from "../../components/context/CollapsibleUserTextBlock";
+import { ConversationBrowserContextSummaryCard } from "../../../../conversation-presentation/components/ConversationBrowserContextSummaryCard";
 import {
   ImageLightbox,
   MessageImageGrid,
@@ -753,15 +751,15 @@ export const MessageRow = memo(function MessageRow({
     />
   ) : null;
   const browserContextSummaryNode = browserContextSummary ? (
-    <BrowserContextSummaryCard attachment={browserContextSummary} />
+    <ConversationBrowserContextSummaryCard context={browserContextSummary} />
   ) : null;
   const intentCanvasContextSummaryNode =
     intentCanvasContextSummary && intentCanvasContextSummary.length > 0 ? (
       <>
         {intentCanvasContextSummary.map((summary) => (
           <IntentCanvasContextSummaryCard
-            key={summary.attachmentId}
-            summary={summary}
+            key={summary.view.attachmentId}
+            summary={summary.view}
           />
         ))}
       </>

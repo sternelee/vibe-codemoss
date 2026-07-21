@@ -1,4 +1,8 @@
 import type { ConversationItem } from "../../../../types";
+import {
+  buildMessagePresentationMetadata,
+  getPresentationContext,
+} from "../../../../conversation-presentation/normalizeConversationPresentation";
 import { MEMORY_CONTEXT_SUMMARY_PREFIX } from "../../../project-memory/utils/memoryMarkers";
 import { parseProjectMemoryRetrievalPackPrefix } from "../../../project-memory/utils/projectMemoryRetrievalPack";
 import { isEquivalentUserObservation } from "../../../threads/assembly/conversationNormalization";
@@ -59,6 +63,22 @@ function buildMemorySummary(preview: string): MemoryContextSummary | null {
     lines: lines.length > 0 ? lines : [normalizedPreview],
     markdown: normalizedPreview,
   };
+}
+
+function getMemoryContextSummary(item: Extract<ConversationItem, { kind: "message" }>) {
+  const context = getPresentationContext(buildMessagePresentationMetadata(item), "memory");
+  if (!context) {
+    return null;
+  }
+  return {
+    preview: context.preview,
+    lines: context.lines,
+    markdown: context.markdown,
+    rawPayload: context.rawPayload,
+    memoryPacks: context.packs,
+    source: context.source,
+    records: context.records,
+  } satisfies MemoryContextSummary;
 }
 
 export function parseMemoryContextSummary(text: string): MemoryContextSummary | null {
@@ -240,10 +260,7 @@ export function buildSuppressedUserMemoryContextMessageIdSet(items: Conversation
     if (!item || item.kind !== "message" || item.role !== "user") {
       continue;
     }
-    const legacyUserMemory = parseInjectedMemoryPrefixFromUser(item.text);
-    const userSummaryKey = buildMemoryContextSummaryKey(
-      legacyUserMemory?.memorySummary ?? null,
-    );
+    const userSummaryKey = buildMemoryContextSummaryKey(getMemoryContextSummary(item));
     if (!userSummaryKey) {
       continue;
     }
@@ -263,7 +280,7 @@ export function buildSuppressedUserMemoryContextMessageIdSet(items: Conversation
         break;
       }
       const assistantSummaryKey = buildMemoryContextSummaryKey(
-        parseMemoryContextSummary(previousItem.text),
+        getMemoryContextSummary(previousItem),
       );
       if (assistantSummaryKey && assistantSummaryKey === userSummaryKey) {
         suppressedMessageIds.add(item.id);

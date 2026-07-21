@@ -2,9 +2,14 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import type {
+  ConversationPresentationContext,
   IntentCanvasContextCount,
-  IntentCanvasContextSummary,
-} from "../../../intent-canvas/utils/messageContext";
+} from "../../../../types";
+
+type IntentCanvasContextSummary = Extract<
+  ConversationPresentationContext,
+  { kind: "intent-canvas" }
+>["view"];
 
 function IntentCanvasContextMetric({
   label,

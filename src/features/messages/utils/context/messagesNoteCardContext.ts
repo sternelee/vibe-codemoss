@@ -1,4 +1,8 @@
 import type { ConversationItem } from "../../../../types";
+import {
+  buildMessagePresentationMetadata,
+  getPresentationContext,
+} from "../../../../conversation-presentation/normalizeConversationPresentation";
 import { NOTE_CARD_CONTEXT_SUMMARY_PREFIX } from "../../../note-cards/utils/noteCardContextInjection";
 import { isEquivalentUserObservation } from "../../../threads/assembly/conversationNormalization";
 
@@ -103,6 +107,20 @@ function buildNoteCardSummary(notes: NoteCardContextNote[]): NoteCardContextSumm
   };
 }
 
+function getNoteCardContextSummary(item: Extract<ConversationItem, { kind: "message" }>) {
+  const context = getPresentationContext(
+    buildMessagePresentationMetadata(item),
+    "note-card",
+  );
+  if (!context) {
+    return null;
+  }
+  return {
+    notes: context.notes,
+    imagePaths: context.imagePaths,
+  } satisfies NoteCardContextSummary;
+}
+
 export function buildNoteCardContextSummaryKey(summary: NoteCardContextSummary | null) {
   if (!summary || summary.notes.length === 0) {
     return null;
@@ -182,9 +200,8 @@ export function buildSuppressedUserNoteCardContextMessageIdSet(items: Conversati
     if (!item || item.kind !== "message" || item.role !== "user") {
       continue;
     }
-    const legacyUserNoteCard = parseInjectedNoteCardContextFromUser(item.text);
     const userSummaryKey = buildNoteCardContextSummaryKey(
-      legacyUserNoteCard?.noteCardSummary ?? null,
+      getNoteCardContextSummary(item),
     );
     if (!userSummaryKey) {
       continue;
@@ -205,7 +222,7 @@ export function buildSuppressedUserNoteCardContextMessageIdSet(items: Conversati
         break;
       }
       const assistantSummaryKey = buildNoteCardContextSummaryKey(
-        parseNoteCardContextSummary(previousItem.text),
+        getNoteCardContextSummary(previousItem),
       );
       if (assistantSummaryKey && assistantSummaryKey === userSummaryKey) {
         suppressedMessageIds.add(item.id);
