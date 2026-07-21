@@ -37,8 +37,57 @@ const repositories = [
     error: null,
   },
 ];
+const repositoriesWithThird = [
+  ...repositories,
+  {
+    ...repositories[1],
+    repositoryRoot: "service-c",
+    displayName: "service-c",
+  },
+];
+
+function branchCoverage(name: string, repositoryIndexes = [0, 1]) {
+  return {
+    name,
+    repositories: repositoryIndexes.map((index) => ({
+      repositoryRoot: repositories[index]?.repositoryRoot ?? "",
+      displayName: repositories[index]?.displayName ?? "",
+    })),
+  };
+}
 
 describe("ComposerBranchBadge", () => {
+  it("assigns stable distinct colors to repository icons", () => {
+    const renderBadge = (repositoryItems: typeof repositories) => (
+      <ComposerBranchBadge
+        branchName="main"
+        branches={[]}
+        repositories={repositoryItems}
+        onCheckout={vi.fn()}
+        onCreate={vi.fn()}
+      />
+    );
+    const { rerender } = render(renderBadge(repositories));
+
+    fireEvent.click(screen.getByRole("button", { name: /main/i }));
+    const colorSlotFor = (repositoryName: string) => screen
+      .getByText(repositoryName)
+      .closest("[cmdk-item]")
+      ?.querySelector<SVGElement>(".lucide-folder-git-2")
+      ?.dataset.repositoryColorSlot;
+    const serviceAColorSlot = colorSlotFor("service-a");
+    const serviceBColorSlot = colorSlotFor("service-b");
+
+    expect(serviceAColorSlot).toBeDefined();
+    expect(serviceBColorSlot).toBeDefined();
+    expect(serviceAColorSlot).not.toBe(serviceBColorSlot);
+    expect(document.querySelector(".lucide-folder-git-2.text-emerald-500")).toBeNull();
+
+    rerender(renderBadge([...repositories].reverse()));
+    expect(colorSlotFor("service-a")).toBe(serviceAColorSlot);
+    expect(colorSlotFor("service-b")).toBe(serviceBColorSlot);
+  });
+
   it("shows distinct recent/local/remote sections and Update progress/result", async () => {
     let resolveUpdate: ((value: {
       branch: string;
@@ -214,6 +263,164 @@ describe("ComposerBranchBadge", () => {
     fireEvent.click(screen.getByRole("button", { name: "git.repositoryRecentBranches" }));
     await act(async () => fireEvent.click(screen.getAllByText("feature/test")[0]));
     expect(onCheckout).toHaveBeenCalledWith("feature/test");
+  });
+
+  it("runs workspace-scoped update and checkout actions from one global row", async () => {
+    let resolveUpdate: ((result: {
+      successCount: number;
+      failedRepositories: string[];
+      skippedRepositories: string[];
+    }) => void) | null = null;
+    const onUpdateAllRepositories = vi.fn(() => new Promise<{
+      successCount: number;
+      failedRepositories: string[];
+      skippedRepositories: string[];
+    }>((resolve) => {
+      resolveUpdate = resolve;
+    }));
+    const onCheckoutAllRepositories = vi.fn().mockResolvedValue({
+      successCount: 1,
+      failedRepositories: ["service-b"],
+      skippedRepositories: [],
+    });
+    const onLoadCommonRepositoryBranches = vi.fn().mockResolvedValue({
+      localBranches: [branchCoverage("main"), branchCoverage("release/1.0")],
+      remoteBranches: [branchCoverage("origin/main"), branchCoverage("origin/release")],
+      failedRepositories: [],
+      totalRepositoryCount: 2,
+    });
+    render(
+      <ComposerBranchBadge
+        branchName="main"
+        branches={[]}
+        repositories={repositories}
+        onCheckout={vi.fn()}
+        onCreate={vi.fn()}
+        onUpdateAllRepositories={onUpdateAllRepositories}
+        onCheckoutAllRepositories={onCheckoutAllRepositories}
+        onLoadCommonRepositoryBranches={onLoadCommonRepositoryBranches}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /main/i }));
+    const updateAll = screen.getByText("git.repositoryBatchUpdateAll").closest("[cmdk-item]") as HTMLElement;
+    const checkoutAll = screen.getByText("git.repositoryBatchCheckoutAll").closest("[cmdk-item]") as HTMLElement;
+    expect(updateAll.parentElement).toBe(checkoutAll.parentElement);
+
+    fireEvent.click(updateAll);
+    fireEvent.click(updateAll);
+    expect(onUpdateAllRepositories).toHaveBeenCalledTimes(1);
+    await act(async () => resolveUpdate?.({
+      successCount: 2,
+      failedRepositories: [],
+      skippedRepositories: [],
+    }));
+    expect((await screen.findByRole("status")).textContent).toContain("git.repositoryBatchSummary");
+
+    await act(async () => fireEvent.click(checkoutAll));
+    expect(onLoadCommonRepositoryBranches).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("git.repositoryBatchCommonLocalBranches")).toBeTruthy();
+    expect(screen.getByText("git.repositoryBatchCommonRemoteBranches")).toBeTruthy();
+    expect(screen.getAllByText("2/2").length).toBeGreaterThan(0);
+    expect(screen.getAllByTitle("service-a, service-b").length).toBeGreaterThan(0);
+    await act(async () => {
+      fireEvent.click(screen.getByText("release/1.0").closest("[cmdk-item]") as HTMLElement);
+    });
+    expect(onCheckoutAllRepositories).toHaveBeenCalledWith("release/1.0", ["service-a", "service-b"]);
+    expect((await screen.findByRole("alert")).textContent).toContain("git.repositoryBatchFailedRepositories");
+  });
+
+  it("shows repository names when common branch discovery fails", async () => {
+    render(
+      <ComposerBranchBadge
+        branchName="main"
+        branches={[]}
+        repositories={repositoriesWithThird}
+        onCheckout={vi.fn()}
+        onCreate={vi.fn()}
+        onCheckoutAllRepositories={vi.fn()}
+        onLoadCommonRepositoryBranches={vi.fn().mockResolvedValue({
+          localBranches: [branchCoverage("main")],
+          remoteBranches: [],
+          failedRepositories: ["service-c"],
+          totalRepositoryCount: 3,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /main/i }));
+    await act(async () => fireEvent.click(screen.getByText("git.repositoryBatchCheckoutAll")));
+    expect((await screen.findByRole("alert")).textContent).toContain("service-c");
+    expect(screen.getAllByText("main").length).toBeGreaterThan(1);
+    expect(screen.getByText("2/3")).toBeTruthy();
+  });
+
+  it("shows discovery progress and checks out an exact common remote ref", async () => {
+    let resolveBranches: ((result: {
+      localBranches: ReturnType<typeof branchCoverage>[];
+      remoteBranches: ReturnType<typeof branchCoverage>[];
+      failedRepositories: string[];
+      totalRepositoryCount: number;
+    }) => void) | null = null;
+    const onLoadCommonRepositoryBranches = vi.fn(() => new Promise<{
+      localBranches: ReturnType<typeof branchCoverage>[];
+      remoteBranches: ReturnType<typeof branchCoverage>[];
+      failedRepositories: string[];
+      totalRepositoryCount: number;
+    }>((resolve) => {
+      resolveBranches = resolve;
+    }));
+    const onCheckoutAllRepositories = vi.fn().mockResolvedValue({
+      successCount: 2,
+      failedRepositories: [],
+      skippedRepositories: [],
+    });
+    render(
+      <ComposerBranchBadge
+        branchName="main"
+        branches={[]}
+        repositories={repositories}
+        onCheckout={vi.fn()}
+        onCreate={vi.fn()}
+        onCheckoutAllRepositories={onCheckoutAllRepositories}
+        onLoadCommonRepositoryBranches={onLoadCommonRepositoryBranches}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /main/i }));
+    fireEvent.click(screen.getByText("git.repositoryBatchCheckoutAll"));
+    expect(screen.getByText("git.repositoryBatchLoadingBranches")).toBeTruthy();
+    await act(async () => resolveBranches?.({
+      localBranches: [],
+      remoteBranches: [branchCoverage("origin/release")],
+      failedRepositories: [],
+      totalRepositoryCount: 2,
+    }));
+    await act(async () => fireEvent.click(screen.getByText("release")));
+    expect(onCheckoutAllRepositories).toHaveBeenCalledWith("origin/release", ["service-a", "service-b"]);
+  });
+
+  it("shows an explicit empty state when repositories have no common branches", async () => {
+    render(
+      <ComposerBranchBadge
+        branchName="main"
+        branches={[]}
+        repositories={repositories}
+        onCheckout={vi.fn()}
+        onCreate={vi.fn()}
+        onCheckoutAllRepositories={vi.fn()}
+        onLoadCommonRepositoryBranches={vi.fn().mockResolvedValue({
+          localBranches: [],
+          remoteBranches: [],
+          failedRepositories: [],
+          totalRepositoryCount: 2,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /main/i }));
+    await act(async () => fireEvent.click(screen.getByText("git.repositoryBatchCheckoutAll")));
+    expect(screen.getByText("git.repositoryBatchNoCommonBranches")).toBeTruthy();
   });
 
   it("shows repository switch progress and ignores duplicate selection", async () => {

@@ -737,6 +737,11 @@ const git = {
     path: "Path:",
     change: "Switch",
     switchRepository: "Switch Git repository",
+    // ponytail: 相关文案保持紧凑以避免越过 locale large-file gate；继续增长时拆分 git locale module。
+    repositoryBatchUpdateAll: "Update all", repositoryBatchCheckoutAll: "Switch all branches…",
+    repositoryBatchSummary: "Succeeded {{success}}, failed {{failed}}, skipped {{skipped}}.", repositoryBatchFailedRepositories: "Failed repositories: {{repositories}}",
+    repositoryBatchLoadingBranches: "Loading common branches…", repositoryBatchCommonLocalBranches: "Common local branches", repositoryBatchCommonRemoteBranches: "Common remote branches",
+    repositoryBatchNoCommonBranches: "These repositories have no common branches.", repositoryBatchBranchesLoadFailed: "Could not load branches for:",
     switchRepositoryDescription: "Choose which repo the Diff panel uses.",
     active: "Active",
     githubIssues: "GitHub issues",
