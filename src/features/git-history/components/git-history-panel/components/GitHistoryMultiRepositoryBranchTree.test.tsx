@@ -245,4 +245,45 @@ describe("GitHistoryMultiRepositoryBranchTree", () => {
     );
     expect(screen.queryByRole("button", { name: /service-a:git.historyLocal/ })).toBeNull();
   });
+
+  it("uses locale-independent group ordering for cross-platform parity", () => {
+    const groupedCatalog: GitHistoryRepositoryBranchCatalog = {
+      ...catalog("services\\api", "main"),
+      localBranches: [
+        { name: "éclair/one", isCurrent: false, isRemote: false, lastCommit: 1, ahead: 0, behind: 0 },
+        { name: "zeta/one", isCurrent: false, isRemote: false, lastCommit: 1, ahead: 0, behind: 0 },
+        { name: "Alpha/two", isCurrent: false, isRemote: false, lastCommit: 1, ahead: 0, behind: 0 },
+        { name: "Alpha/one", isCurrent: false, isRemote: false, lastCommit: 1, ahead: 0, behind: 0 },
+        { name: "main", isCurrent: true, isRemote: false, lastCommit: 1, ahead: 0, behind: 0 },
+      ],
+    };
+    render(
+      <GitHistoryMultiRepositoryBranchTree
+        repositories={[repository("services\\api", "api")]}
+        catalogs={new Map([["services\\api", groupedCatalog]])}
+        selectedRepositoryRoot="services\\api"
+        selectedBranch="main"
+        query="api"
+        t={t}
+        onSelectBranch={vi.fn()}
+      />,
+    );
+
+    const localSection = document.querySelectorAll(".git-history-multi-repository-section")[0];
+    expect(Array.from(localSection?.querySelectorAll(".git-history-tree-scope-label") ?? [])
+      .map((element) => element.textContent)).toEqual([
+      "git.historyRootGroup",
+      "Alpha",
+      "zeta",
+      "éclair",
+    ]);
+    expect(Array.from(localSection?.querySelectorAll(".git-history-branch-name") ?? [])
+      .map((element) => element.textContent)).toEqual([
+      "main",
+      "one",
+      "two",
+      "one",
+      "one",
+    ]);
+  });
 });

@@ -20,6 +20,7 @@ import LoaderCircle from "lucide-react/dist/esm/icons/loader-circle";
 import type { GitBranchListItem, GitRepositorySummary } from "../../../../../types";
 import {
   buildGitRepositoryIconColorSlots,
+  compareGitIdentity,
   GIT_REPOSITORY_SWATCH_COLOR_CLASSES,
 } from "../../../../git/utils/gitRepositoryIconColors";
 import type { GitHistoryRepositoryBranchCatalog } from "../hooks/useGitHistoryRepositoryBranchCatalogs";
@@ -83,7 +84,7 @@ function buildBranchGroups(
     .sort(([left], [right]) => {
       if (left === "__root__") return -1;
       if (right === "__root__") return 1;
-      return left.localeCompare(right);
+      return compareGitIdentity(left, right);
     })
     .map(([key, groupedBranches]) => ({
       key,
@@ -92,7 +93,9 @@ function buildBranchGroups(
         : key === "__remote__"
           ? t("git.historyRemote")
           : key,
-      branches: groupedBranches.slice().sort((left, right) => left.name.localeCompare(right.name)),
+      branches: groupedBranches.slice().sort((left, right) => (
+        compareGitIdentity(left.name, right.name)
+      )),
     }));
 }
 
