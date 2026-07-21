@@ -175,3 +175,37 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 51: 归档 message row ownership 规范
+
+**Date**: 2026-07-21
+**Task**: 归档 message row ownership 规范
+**Branch**: `bump-version-0.7.6`
+
+### Summary
+
+将 Phase 5 ownership contract 固化到 OpenSpec 主规范
+
+### Main Changes
+
+归档 isolate-message-row-owners OpenSpec change，生成长期 message-row-ownership behavior spec，并完成 strict validation。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `fc948b1a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
