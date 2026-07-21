@@ -72,3 +72,37 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 48: 稳定 Messages 公共输入边界
+
+**Date**: 2026-07-21
+**Task**: 稳定 Messages 公共输入边界
+**Branch**: `bump-version-0.7.6`
+
+### Summary
+
+完成 canonical grouped input、legacy façade、minimal public index 与 scope-safe precedence
+
+### Main Changes
+
+完成 roadmap Phase 2：新增 grouped MessagesCoreProps 与 pure legacy adapter；Messages.tsx 收敛为 8 行 façade；新增 minimal public index 并迁移 layout/app-shell callers；matching canonical、scope mismatch、engine derivation、legacy-only 行为均有回归覆盖。验证：61 messages files / 587 tests passed（7 skipped），typecheck、full lint、production build、messages boundary、large-file gate、git diff check 与独立 codex review 均通过。large-file gate 保持仓库既有 51 findings，Messages baseline 仅做 rename identity transfer。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1af4995e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
