@@ -30,7 +30,9 @@
 
 ### Testing
 
-- [OK] (Add test results)
+- `openspec validate messages-final-boundary-enforcement --strict --no-interactive` passed.
+- Archive path and versioned metadata contain no future `2026-07-22` date.
+- `git diff --check` passed.
 
 ### Status
 
@@ -519,6 +521,42 @@
 |------|---------|
 | `ecf1e80f` | (see git log) |
 | `bcd2970c` | (see git log) |
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 61: 归档 messages 最终模块边界契约
+
+**Date**: 2026-07-21
+**Task**: 归档 messages 最终模块边界契约
+**Branch**: `bump-version-0.7.6`
+
+### Summary
+
+归档 enforce-messages-final-boundaries change，并发布 messages-final-boundary-enforcement 主 spec；严格主 spec validation 与 diff check 通过。
+
+### Main Changes
+
+- Archived change: `openspec/changes/archive/2026-07-21-enforce-messages-final-boundaries/`.
+- Published main spec: `openspec/specs/messages-final-boundary-enforcement/spec.md`.
+- Final change tasks are complete and the archive date is explicitly 2026-07-21.
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `26e2e84b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
 
 ### Status
 
