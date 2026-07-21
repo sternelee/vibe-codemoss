@@ -163,8 +163,11 @@ vi.mock("../../app/components/Sidebar", () => ({
   ),
 }));
 
-vi.mock("../../messages/components/Messages", () => ({
-  Messages: ({
+vi.mock("../../messages", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../messages")>();
+  return {
+    ...actual,
+    Messages: ({
     showMessageAnchors,
     conversationState,
     activeEngine,
@@ -206,8 +209,9 @@ vi.mock("../../messages/components/Messages", () => ({
       ) : null}
       </section>
     );
-  },
-}));
+    },
+  };
+});
 
 vi.mock("../../composer/components/Composer", async () => {
   // 真实 Composer 已改为从 composerDraftStore 订阅草稿(不再有 draftText prop),

@@ -6,7 +6,7 @@ import type {
   IntentCanvasOpenRequest,
 } from "../../intent-canvas/types";
 import type { OrchestrationDispatchConfirmation } from "../../agent-orchestration";
-import type { AgentTaskScrollRequest } from "../../messages/types";
+import type { AgentTaskScrollRequest } from "../../messages";
 import type { SubagentInfo } from "../../status-panel/types";
 import type {
   EditorHighlightTarget,

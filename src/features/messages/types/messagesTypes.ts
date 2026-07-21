@@ -34,6 +34,7 @@ export type LastRenderSnapshot = {
   threadId: string | null;
 };
 
+/** Legacy public façade input. MessagesCore consumes the grouped canonical contract. */
 export type MessagesProps = {
   items: ConversationItem[];
   threadId: string | null;

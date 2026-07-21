@@ -68,7 +68,7 @@ import { usePlanApplyHandlers } from "./app-shell-parts/usePlanApplyHandlers";
 import { useThreadScopedCollaborationMode } from "./app-shell-parts/useThreadScopedCollaborationMode";
 import { GitHubPanelData, SettingsView } from "./app-shell-parts/lazyViews";
 import { useCreateSessionLoading } from "./app-shell-parts/useCreateSessionLoading";
-import type { AgentTaskScrollRequest } from "./features/messages/types";
+import type { AgentTaskScrollRequest } from "./features/messages";
 import { useAppShellWorkspaceFlowsSection } from "./app-shell-parts/useAppShellWorkspaceFlowsSection";
 import { defineRuntimeThreadShellBoundary } from "./app-shell-parts/runtimeThreadBoundary";
 import { useAppShellWorkspaceHomeState } from "./app-shell-parts/useAppShellWorkspaceHomeState";

@@ -7,16 +7,8 @@ import ts from "typescript";
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts"]);
 const BASELINE = {
   inbound: [
-  "src/app-shell-parts/useAppShellWorkspaceFlowsSection.ts|import|../features/messages/types",
-  "src/app-shell.tsx|import|./features/messages/types",
   "src/features/composer/components/ChatInputBox/ContextBar.tsx|import|../../../messages/constants/liveCanvasControls",
-  "src/features/layout/hooks/activeCanvasStore.ts|import|../../messages/types/messagesTypes",
-  "src/features/layout/hooks/conversationCanvasNode.tsx|import|../../messages/components/conversation/MessageForkConfirmDialog",
-  "src/features/layout/hooks/conversationCanvasNode.tsx|import|../../messages/components/Messages",
-  "src/features/layout/hooks/conversationCanvasNode.tsx|import|../../messages/types/messagesTypes",
-  "src/features/layout/hooks/layoutNodesTypes.ts|import|../../messages/types",
   "src/features/layout/hooks/layoutNodesTypes.ts|import|../../messages/utils/recovery/runtimeReconnect",
-  "src/features/layout/hooks/useLayoutNodes.client-ui-visibility.test.tsx|mock|../../messages/components/Messages",
   "src/features/layout/hooks/useLayoutNodes.tsx|import|../../messages/presentation/presentationProfile",
 ],
   outbound: [
@@ -33,10 +25,10 @@ const BASELINE = {
   "src/features/messages/components/Messages.live-markdown-streaming.test.tsx|import|../../threads/contracts/conversationCurtainContracts",
   "src/features/messages/components/Messages.test.tsx|import|../../agent-orchestration/utils/navigationEvents",
   "src/features/messages/components/Messages.test.tsx|import|../../tasks/types",
-  "src/features/messages/components/Messages.tsx|import|../../engine-task-output/contracts/agentTaskNotification",
-  "src/features/messages/components/Messages.tsx|import|../../threads/contracts/conversationCurtainContracts",
-  "src/features/messages/components/Messages.tsx|import|../../threads/hooks/useStreamActivityPhase",
-  "src/features/messages/components/Messages.tsx|import|../../threads/utils/streamLatencyDiagnostics",
+  "src/features/messages/components/MessagesCore.tsx|import|../../engine-task-output/contracts/agentTaskNotification",
+  "src/features/messages/contracts/messagesInput.ts|import|../../threads/contracts/conversationCurtainContracts",
+  "src/features/messages/components/MessagesCore.tsx|import|../../threads/hooks/useStreamActivityPhase",
+  "src/features/messages/components/MessagesCore.tsx|import|../../threads/utils/streamLatencyDiagnostics",
   "src/features/messages/components/Messages.windows-render-mitigation.test.tsx|import|../../threads/contracts/conversationCurtainContracts",
   "src/features/messages/components/Messages.windows-render-mitigation.test.tsx|mock|../../threads/utils/streamLatencyDiagnostics",
   "src/features/messages/components/MessagesRows.tsx|import|../../browser-agent",
