@@ -209,3 +209,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 52: 对齐界面回归契约
+
+**Date**: 2026-07-22
+**Task**: 对齐界面回归契约
+**Branch**: `bump-version-0.7.6`
+
+### Summary
+
+修正隐藏设置断言、异步保存等待、taskRunStorage partial mock、renderer diagnostics dynamic import 清理、品牌 SVG 标题与 Git 滚动 owner 的测试契约；全仓 874 个测试文件通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `badba108` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
