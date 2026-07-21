@@ -10,12 +10,12 @@ import {
   isThemeMutationAttribute,
   mapAppearanceToMermaidTheme,
   readDocumentThemeAppearance,
-} from "../../../theme/utils/themeAppearance";
+} from "../../features/theme/utils/themeAppearance";
 import {
   MermaidFullscreenViewer,
   preloadViewerjs,
-} from "../../../markdown/mermaidFullscreen";
-import { CodeBlockLanguageBadge } from "./codeBlockLanguageIcon";
+} from "../../features/markdown/mermaidFullscreen";
+import { CodeBlockLanguageBadge } from "../presentation/codeBlockLanguageIcon";
 
 type MermaidBlockProps = {
   value: string;

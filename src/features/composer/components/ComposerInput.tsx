@@ -39,7 +39,7 @@ import FileIcon from "../../../components/FileIcon";
 import { Select, SelectItem, SelectPopup, SelectTrigger } from "../../../components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { EngineSelector } from "../../engine/components/EngineSelector";
-import { Markdown } from "../../messages/components/Markdown";
+import { Markdown } from "../../../markdown/components/Markdown";
 import { useComposerImageDrop } from "../hooks/useComposerImageDrop";
 import { ComposerAttachments } from "./ComposerAttachments";
 import { ComposerGhostText } from "./ComposerGhostText";

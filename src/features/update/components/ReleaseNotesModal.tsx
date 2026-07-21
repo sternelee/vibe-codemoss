@@ -5,7 +5,7 @@ import ChevronLeft from "lucide-react/dist/esm/icons/chevron-left";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Markdown } from "../../messages/components/Markdown";
+import { Markdown } from "../../../markdown/components/Markdown";
 import { loadReleaseNotesStyles } from "../../../styles/featureStyleLoaders";
 import type { ReleaseNotesEntry } from "../hooks/useReleaseNotes";
 

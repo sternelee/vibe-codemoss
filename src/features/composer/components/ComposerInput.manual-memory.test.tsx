@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { AutocompleteItem } from "../hooks/useComposerAutocomplete";
 import { ComposerInput } from "./ComposerInput";
 
-vi.mock("../../messages/components/Markdown", () => ({
+vi.mock("../../../markdown/components/Markdown", () => ({
   Markdown: ({ value, className }: { value: string; className?: string }) => (
     <div className={className}>
       {value.split(/\r?\n/).map((line, index) => {

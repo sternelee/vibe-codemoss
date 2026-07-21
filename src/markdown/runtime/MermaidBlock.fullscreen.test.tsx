@@ -60,7 +60,7 @@ import {
   MermaidFullscreenViewer,
   destroyActiveViewer,
   getActiveViewer,
-} from "../../../markdown/mermaidFullscreen";
+} from "../../features/markdown/mermaidFullscreen";
 
 afterEach(() => {
   destroyActiveViewer();

@@ -8,7 +8,7 @@ import X from "lucide-react/dist/esm/icons/x";
 import type { GitHubPullRequest, GitHubPullRequestComment } from "../../../types";
 import { getGitFileFullDiff } from "../../../services/tauri";
 import { formatRelativeTime } from "../../../utils/time";
-import { Markdown } from "../../messages/components/Markdown";
+import { Markdown } from "../../../markdown/components/Markdown";
 import { ImageDiffCard } from "./ImageDiffCard";
 import {
   DiffBlock,

@@ -5,8 +5,8 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
-import { remarkFileLinks } from "../../../../utils/remarkFileLinks";
-import { getCachedRehypeKatex } from "../../../markdown/markdownMath";
+import { remarkFileLinks } from "../../utils/remarkFileLinks";
+import { getCachedRehypeKatex } from "../../features/markdown/markdownMath";
 
 export type FullMarkdownComponentProps = Record<string, unknown> & {
   alt?: string;

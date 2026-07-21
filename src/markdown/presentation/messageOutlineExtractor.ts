@@ -1,4 +1,4 @@
-import type { MarkdownOutlineEntry } from "../../markdown/fastMarkdownRenderer";
+import type { MarkdownOutlineEntry } from "../../features/markdown/fastMarkdownRenderer";
 
 const HEADING_LINE_REGEX = /^(#{1,6})\s+(.+?)\s*#*\s*$/;
 

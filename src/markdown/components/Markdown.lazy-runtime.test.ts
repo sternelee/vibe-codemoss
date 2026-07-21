@@ -9,19 +9,17 @@ function readComponentSource(fileName: string): string {
   return readFileSync(join(currentDir, fileName), "utf8");
 }
 
-describe("Markdown lazy runtime boundary", () => {
-  it("keeps full parser imports out of the Markdown shell", () => {
+describe("shared Markdown lazy runtime boundary", () => {
+  it("keeps full parser imports out of the canonical Markdown shell", () => {
     const shellSource = readComponentSource("Markdown.tsx");
 
     expect(shellSource).not.toMatch(/^import .*["']react-markdown["'];?$/m);
     expect(shellSource).not.toMatch(/^import .*["']remark-[^"']+["'];?$/m);
     expect(shellSource).not.toMatch(/^import .*["']rehype-[^"']+["'];?$/m);
-    expect(shellSource).toContain(
-      'import("../rendering/markdown/FullMarkdownRuntime")',
-    );
+    expect(shellSource).toContain('import("../runtime/FullMarkdownRuntime")');
   });
 
-  it("keeps file-preview fast HTML body renderer out of live message Markdown", () => {
+  it("keeps file-preview fast HTML body renderer out of canonical Markdown", () => {
     const shellSource = readComponentSource("Markdown.tsx");
 
     expect(shellSource).not.toContain("FileMarkdownFastPreview");
@@ -29,10 +27,8 @@ describe("Markdown lazy runtime boundary", () => {
     expect(shellSource).not.toContain("dangerouslySetInnerHTML={{ __html: result.html }}");
   });
 
-  it("keeps the full parser stack isolated in FullMarkdownRuntime", () => {
-    const runtimeSource = readComponentSource(
-      "../rendering/markdown/FullMarkdownRuntime.tsx",
-    );
+  it("keeps the full parser stack isolated in the shared runtime", () => {
+    const runtimeSource = readComponentSource("../runtime/FullMarkdownRuntime.tsx");
 
     expect(runtimeSource).toContain('from "react-markdown"');
     expect(runtimeSource).toContain('from "remark-gfm"');

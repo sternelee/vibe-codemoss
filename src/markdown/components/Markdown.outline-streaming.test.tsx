@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { MarkdownOutlineEntry } from "../../markdown/fastMarkdownRenderer";
+import type { MarkdownOutlineEntry } from "../../features/markdown/fastMarkdownRenderer";
 import { Markdown } from "./Markdown";
 
 const extractOutlineFromMarkdownMock = vi.hoisted(() => vi.fn());
 
-vi.mock("../utils/messageOutlineExtractor", () => ({
+vi.mock("../presentation/messageOutlineExtractor", () => ({
   extractOutlineFromMarkdown: extractOutlineFromMarkdownMock,
 }));
 

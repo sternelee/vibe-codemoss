@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { Markdown } from "./Markdown";
 
-vi.mock("../rendering/markdown/FullMarkdownRuntime", () => ({
+vi.mock("../runtime/FullMarkdownRuntime", () => ({
   FullMarkdownRuntime: ({
     value,
     components,
@@ -22,7 +22,7 @@ vi.mock("../rendering/markdown/FullMarkdownRuntime", () => ({
   },
 }));
 
-vi.mock("../../markdown/imageFullscreen", () => ({
+vi.mock("../../features/markdown/imageFullscreen", () => ({
   ImageFullscreenViewer: ({
     open,
     src,

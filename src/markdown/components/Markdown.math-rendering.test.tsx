@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { normalizeMarkdownMathForMessage } from "../../markdown/markdownMath";
+import { normalizeMarkdownMathForMessage } from "../../features/markdown/markdownMath";
 import { Markdown, prewarmKatexAssets } from "./Markdown";
 
 describe("Markdown math rendering", () => {

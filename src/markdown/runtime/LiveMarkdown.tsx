@@ -1,5 +1,5 @@
 import { Fragment, memo, useMemo, useRef, type ReactNode } from "react";
-import { trackHotspot } from "../../../../services/perfBaseline/hotspotTracker";
+import { trackHotspot } from "../../services/perfBaseline/hotspotTracker";
 
 export const PROGRESSIVE_REVEAL_STEP_MS = 28;
 export const PROGRESSIVE_REVEAL_CHUNK_CHARS = 360;

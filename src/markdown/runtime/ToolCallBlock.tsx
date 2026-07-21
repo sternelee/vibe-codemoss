@@ -1,11 +1,11 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import Wrench from "lucide-react/dist/esm/icons/wrench";
 import { useTranslation } from "react-i18next";
-import type { ToolCallParam } from "../../utils/toolCallBlocks";
+import type { ToolCallParam } from "../presentation/toolCallBlocks";
 import {
   ToolMarkerShell,
   TOOL_MARKER_BODY_CLASS,
-} from "../../components/toolBlocks/ToolMarkerShell";
+} from "../../components/common/ToolMarkerShell";
 
 type ToolCallBlockProps = {
   raw: string;
