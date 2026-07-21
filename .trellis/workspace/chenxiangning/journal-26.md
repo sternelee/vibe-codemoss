@@ -926,3 +926,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1053: 稳定 Git History 跨平台排序
+
+**Date**: 2026-07-22
+**Task**: 稳定 Git History 跨平台排序
+**Branch**: `feature/v-076`
+
+### Summary
+
+Review 并修复 Git History repository color collision、branch group 与 branch leaf 使用 localeCompare 导致的 Windows/macOS/Linux 排序漂移；补充跨平台 focused tests，同步并归档 OpenSpec change。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `effde1683` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
