@@ -21,4 +21,4 @@
 - [x] 4.1 Run focused parity/history/messages suites and `check:runtime-contracts`.
 - [x] 4.2 Run lint、typecheck、build、messages boundary、large-file evidence and diff check.
 - [x] 4.3 Run independent review, resolve findings and record import-count evidence.
-- [ ] 4.4 Archive Trellis task and OpenSpec change after commit/session recording.
+- [x] 4.4 Archive Trellis task and OpenSpec change after commit/session recording.

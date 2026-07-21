@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation and automated verification completed on 2026-07-21. Pending implementation commit、Trellis session record and OpenSpec archive.
+Completed on 2026-07-21.
 
 ## Baseline
 
