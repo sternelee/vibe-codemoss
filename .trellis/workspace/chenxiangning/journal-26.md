@@ -959,3 +959,37 @@ Review 并修复 Git History repository color collision、branch group 与 branc
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1054: 修复快捷键持久化并增加常用模块
+
+**Date**: 2026-07-22
+**Task**: 修复快捷键持久化并增加常用模块
+**Branch**: `feature/v-076`
+
+### Summary
+
+补齐 frontend 与 Rust AppSettings shortcut round-trip，新增置顶常用模块分组和七个可配置模块快捷键，复用 AppShell 现有 view handlers；完成 focused tests、Rust test、typecheck、lint、runtime contracts，并归档 OpenSpec 与 Trellis task。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d498bf187` | (see git log) |
+| `365b1e2af` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
