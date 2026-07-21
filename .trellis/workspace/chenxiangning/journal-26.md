@@ -1026,3 +1026,36 @@ Review 并修复 Git History repository color collision、branch group 与 branc
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1056: 恢复 Git History 分支树细节功能
+
+**Date**: 2026-07-22
+**Task**: 恢复 Git History 分支树细节功能
+**Branch**: `feature/v-076`
+
+### Summary
+
+恢复全部分支入口、根分组默认展开、HEAD/主干/ahead/behind 状态标签，并补充单仓与多仓回归测试及 OpenSpec 变更记录。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2965cf065` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
