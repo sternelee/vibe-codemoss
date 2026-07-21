@@ -793,3 +793,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1049: 合并 bump-version-0.7.6
+
+**Date**: 2026-07-21
+**Task**: 合并 bump-version-0.7.6
+**Branch**: `feature/v-076`
+
+### Summary
+
+将 upstream/bump-version-0.7.6 合入 feature/v-076；保留 Mermaid PNG 原生下载、Messages presentation architecture 重构与 Sidebar pinned row 修复，并完成冲突、symbol、目标测试、lint、typecheck、large-file 与 OpenSpec 验证。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f03c644a9` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
