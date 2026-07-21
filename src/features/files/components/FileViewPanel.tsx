@@ -20,7 +20,10 @@ import FileSearch from "lucide-react/dist/esm/icons/file-search";
 import GitCommitHorizontal from "lucide-react/dist/esm/icons/git-commit-horizontal";
 import GitBranch from "lucide-react/dist/esm/icons/git-branch";
 import History from "lucide-react/dist/esm/icons/history";
+import Copy from "lucide-react/dist/esm/icons/copy";
 import CopyX from "lucide-react/dist/esm/icons/copy-x";
+import ClipboardPaste from "lucide-react/dist/esm/icons/clipboard-paste";
+import Scissors from "lucide-react/dist/esm/icons/scissors";
 import PanelTopClose from "lucide-react/dist/esm/icons/panel-top-close";
 import ExternalLink from "lucide-react/dist/esm/icons/external-link";
 import Maximize2 from "lucide-react/dist/esm/icons/maximize-2";
@@ -28,6 +31,7 @@ import Minimize2 from "lucide-react/dist/esm/icons/minimize-2";
 import Rows2 from "lucide-react/dist/esm/icons/rows-2";
 import Save from "lucide-react/dist/esm/icons/save";
 import Search from "lucide-react/dist/esm/icons/search";
+import NotebookPen from "lucide-react/dist/esm/icons/notebook-pen";
 import X from "lucide-react/dist/esm/icons/x";
 import type { ReactCodeMirrorProps } from "@uiw/react-codemirror";
 import { convertFileSrc } from "@tauri-apps/api/core";
@@ -52,7 +56,11 @@ import {
   type RendererContextMenuLeafItem,
   type RendererContextMenuState,
 } from "../../../components/ui/RendererContextMenu";
-import type { GitFileStatus, GitRepositorySummary, OpenAppTarget } from "../../../types";
+import type {
+  GitFileStatus,
+  GitRepositorySummary,
+  OpenAppTarget,
+} from "../../../types";
 import type {
   CodeAnnotationDraftInput,
   CodeAnnotationLineRange,
@@ -76,9 +84,7 @@ import {
 import { reorderTabPathsAtTarget } from "../utils/fileTabOrder";
 import { getFileTreeIconSvg } from "../utils/fileTreeIcons";
 import { reduceExternalChangeSyncState } from "../externalChangeStateMachine";
-import {
-  resolveFileRenderProfile,
-} from "../utils/fileRenderProfile";
+import { resolveFileRenderProfile } from "../utils/fileRenderProfile";
 import { getFileDocumentSnapshotMetrics } from "../utils/fileDocumentSnapshot";
 import {
   createFileEditorTypingDiagnosticsSession,
@@ -92,6 +98,7 @@ import {
 import { FileViewBody } from "./FileViewBody";
 import type { FileCodeMirrorEditorHandle } from "./FileCodeMirrorEditor";
 import type { NoteCaptureDraft } from "../../note-cards/types";
+import { buildCodeSelectionNoteDraft } from "../../note-cards/utils/noteCapture";
 import type { FileHistoryTarget } from "../../git-history/types";
 import { FileViewNavigationPanel } from "./FileViewNavigationPanel";
 import { useFileDocumentState } from "../hooks/useFileDocumentState";
@@ -99,9 +106,7 @@ import { useFileExternalSync } from "../hooks/useFileExternalSync";
 import { useFileGitBlame } from "../hooks/useFileGitBlame";
 import { useFileNavigation } from "../hooks/useFileNavigation";
 import { useFilePreviewPayload } from "../hooks/useFilePreviewPayload";
-import {
-  isThemeMutationAttribute,
-} from "../../theme/utils/themeAppearance";
+import { isThemeMutationAttribute } from "../../theme/utils/themeAppearance";
 import {
   DEFAULT_FILE_RENDER_PRESSURE,
   type FileRenderPressure,
@@ -164,9 +169,15 @@ type FileViewPanelProps = {
   fileReferenceMode?: "path" | "none";
   onFileReferenceModeChange?: (mode: "path" | "none") => void;
   activeFileLineRange?: { startLine: number; endLine: number } | null;
-  onActiveFileLineRangeChange?: (range: { startLine: number; endLine: number } | null) => void;
-  onActiveCodeAnchorChange?: (anchor: IntentCanvasCodeSelectionAnchor | null) => void;
-  onAssociateIntentCanvasCodeAnchor?: (anchor: IntentCanvasCodeSelectionAnchor) => Promise<void> | void;
+  onActiveFileLineRangeChange?: (
+    range: { startLine: number; endLine: number } | null,
+  ) => void;
+  onActiveCodeAnchorChange?: (
+    anchor: IntentCanvasCodeSelectionAnchor | null,
+  ) => void;
+  onAssociateIntentCanvasCodeAnchor?: (
+    anchor: IntentCanvasCodeSelectionAnchor,
+  ) => Promise<void> | void;
   initialMode?: "edit" | "preview";
   openTargets: OpenAppTarget[];
   openAppIconById: Record<string, string>;
@@ -200,13 +211,13 @@ type FileViewPanelProps = {
   onSingleRowLeadingAction?: () => void;
   singleRowLeadingDirection?: "left" | "right";
   singleRowLeadingLabel?: string;
-    externalChangeMonitoringEnabled?: boolean;
-    externalChangeTransportMode?: "watcher" | "polling";
-    externalChangePollIntervalMs?: number;
-    externalChangeApplyMode?: "auto" | "manual";
-    externalChangeAutoApplyDebounceMs?: number;
-    markdownPreviewSnapshotMode?: "stable" | "live";
-    fileRenderPressure?: FileRenderPressure;
+  externalChangeMonitoringEnabled?: boolean;
+  externalChangeTransportMode?: "watcher" | "polling";
+  externalChangePollIntervalMs?: number;
+  externalChangeApplyMode?: "auto" | "manual";
+  externalChangeAutoApplyDebounceMs?: number;
+  markdownPreviewSnapshotMode?: "stable" | "live";
+  fileRenderPressure?: FileRenderPressure;
   saveFileShortcut?: string | null;
   findInFileShortcut?: string | null;
   onSaveSuccess?: () => void;
@@ -256,13 +267,13 @@ export function FileViewPanel({
   onSingleRowLeadingAction,
   singleRowLeadingDirection = "left",
   singleRowLeadingLabel,
-    externalChangeMonitoringEnabled = false,
-    externalChangeTransportMode = "polling",
-    externalChangePollIntervalMs = EXTERNAL_CHANGE_POLL_INTERVAL_MS,
-    externalChangeApplyMode = "auto",
-    externalChangeAutoApplyDebounceMs = 0,
-    markdownPreviewSnapshotMode = "stable",
-    fileRenderPressure = DEFAULT_FILE_RENDER_PRESSURE,
+  externalChangeMonitoringEnabled = false,
+  externalChangeTransportMode = "polling",
+  externalChangePollIntervalMs = EXTERNAL_CHANGE_POLL_INTERVAL_MS,
+  externalChangeApplyMode = "auto",
+  externalChangeAutoApplyDebounceMs = 0,
+  markdownPreviewSnapshotMode = "stable",
+  fileRenderPressure = DEFAULT_FILE_RENDER_PRESSURE,
   saveFileShortcut = "cmd+s",
   findInFileShortcut = "cmd+f",
   onSaveSuccess,
@@ -272,7 +283,10 @@ export function FileViewPanel({
   useEffect(() => {
     void loadFileViewStyles();
   }, []);
-  const renderProfile = useMemo(() => resolveFileRenderProfile(filePath), [filePath]);
+  const renderProfile = useMemo(
+    () => resolveFileRenderProfile(filePath),
+    [filePath],
+  );
   const defaultMode = useMemo(
     () => resolveDefaultFileViewMode(renderProfile, initialMode),
     [initialMode, renderProfile],
@@ -280,10 +294,10 @@ export function FileViewPanel({
   const isImage = renderProfile.kind === "image";
   const skipTextRead = renderProfile.previewSourceKind !== "inline-bytes";
   const canEditDocument = renderProfile.editCapability !== "read-only";
-  const [mode, setMode] = useState<"preview" | "edit">(
-    () => defaultMode,
+  const [mode, setMode] = useState<"preview" | "edit">(() => defaultMode);
+  const [editorTheme, setEditorTheme] = useState<EditorTheme>(() =>
+    resolveEditorTheme(),
   );
-  const [editorTheme, setEditorTheme] = useState<EditorTheme>(() => resolveEditorTheme());
   const [gitLineMarkers, setGitLineMarkers] = useState<GitLineMarkers>({
     added: [],
     modified: [],
@@ -322,17 +336,15 @@ export function FileViewPanel({
   const panelRootRef = useRef<HTMLDivElement | null>(null);
   const [tabContextMenu, setTabContextMenu] =
     useState<RendererContextMenuState | null>(null);
+  const [fileContextMenu, setFileContextMenu] =
+    useState<RendererContextMenuState | null>(null);
   const pendingGitBlamePathRef = useRef<string | null>(null);
   const [draggingTabPath, setDraggingTabPath] = useState<string | null>(null);
   const [dragOverTabPath, setDragOverTabPath] = useState<string | null>(null);
-  const [gitBlameContextMenu, setGitBlameContextMenu] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
   const activeAnnotationLineRange =
     annotationDraft?.source === "file-edit-mode"
       ? annotationDraft.lineRange
-      : editorLocalLineRange ?? activeFileLineRange;
+      : (editorLocalLineRange ?? activeFileLineRange);
   const effectiveAnnotationDraftBody = annotationDraft
     ? annotationDraftBodyRef.current || annotationDraft.body
     : "";
@@ -367,29 +379,36 @@ export function FileViewPanel({
     const lineRange =
       annotationDraft?.source === "file-edit-mode"
         ? annotationDraft.lineRange
-        : editorLocalLineRangeRef.current ?? activeAnnotationLineRange;
+        : (editorLocalLineRangeRef.current ?? activeAnnotationLineRange);
     if (!lineRange) {
       return;
     }
     beginAnnotationDraft(lineRange, "file-edit-mode");
   }, [activeAnnotationLineRange, annotationDraft, beginAnnotationDraft]);
-  const handleConfirmAnnotationDraft = useCallback((bodyOverride?: string) => {
-    if (!annotationDraft) {
-      return;
-    }
-    const body = (bodyOverride ?? annotationDraftBodyRef.current ?? annotationDraft.body).trim();
-    if (!body) {
-      return;
-    }
-    onCreateCodeAnnotation?.({
-      path: filePath,
-      lineRange: annotationDraft.lineRange,
-      body,
-      source: annotationDraft.source,
-    });
-    annotationDraftBodyRef.current = "";
-    setAnnotationDraft(null);
-  }, [annotationDraft, filePath, onCreateCodeAnnotation]);
+  const handleConfirmAnnotationDraft = useCallback(
+    (bodyOverride?: string) => {
+      if (!annotationDraft) {
+        return;
+      }
+      const body = (
+        bodyOverride ??
+        annotationDraftBodyRef.current ??
+        annotationDraft.body
+      ).trim();
+      if (!body) {
+        return;
+      }
+      onCreateCodeAnnotation?.({
+        path: filePath,
+        lineRange: annotationDraft.lineRange,
+        body,
+        source: annotationDraft.source,
+      });
+      annotationDraftBodyRef.current = "";
+      setAnnotationDraft(null);
+    },
+    [annotationDraft, filePath, onCreateCodeAnnotation],
+  );
   const clearPendingEditorLineRangeSync = useCallback(() => {
     if (editorLineRangeSyncTimerRef.current !== null) {
       window.clearTimeout(editorLineRangeSyncTimerRef.current);
@@ -416,7 +435,9 @@ export function FileViewPanel({
         lastPublishedEditorLineRangeKeyRef.current = pendingKey;
         startTransition(() => {
           setEditorLocalLineRange((current) =>
-            isSameEditorLineRange(current, pendingLineRange) ? current : pendingLineRange,
+            isSameEditorLineRange(current, pendingLineRange)
+              ? current
+              : pendingLineRange,
           );
           onActiveFileLineRangeChange?.(pendingLineRange);
         });
@@ -434,7 +455,8 @@ export function FileViewPanel({
     },
     [scheduleEditorLineRangePublish],
   );
-  const [fileReferenceShouldRender, setFileReferenceShouldRender] = useState(false);
+  const [fileReferenceShouldRender, setFileReferenceShouldRender] =
+    useState(false);
   const [fileReferenceVisible, setFileReferenceVisible] = useState(false);
   const usesSingleRowHeader = headerLayout === "single-row";
   const splitResizeCleanupRef = useRef<(() => void) | null>(null);
@@ -477,12 +499,20 @@ export function FileViewPanel({
     if (explicitName) {
       return explicitName;
     }
-    const pathSegments = normalizeFsPath(workspacePath).split("/").filter(Boolean);
-    return pathSegments[pathSegments.length - 1] ?? (workspacePath.trim() || workspaceId);
+    const pathSegments = normalizeFsPath(workspacePath)
+      .split("/")
+      .filter(Boolean);
+    return (
+      pathSegments[pathSegments.length - 1] ??
+      (workspacePath.trim() || workspaceId)
+    );
   }, [workspaceId, workspaceName, workspacePath]);
   const matchedGitStatus = useMemo(() => {
     const fileCandidates = new Set<string>([
-      ...resolveWorkspacePathCandidates(workspacePath, workspaceRelativeFilePath),
+      ...resolveWorkspacePathCandidates(
+        workspacePath,
+        workspaceRelativeFilePath,
+      ),
       ...resolveWorkspacePathCandidates(workspacePath, filePath),
     ]);
     for (const candidate of fileCandidates) {
@@ -492,17 +522,15 @@ export function FileViewPanel({
       }
     }
     return null;
-  }, [
-    filePath,
-    gitStatusMap,
-    workspacePath,
-    workspaceRelativeFilePath,
-  ]);
+  }, [filePath, gitStatusMap, workspacePath, workspaceRelativeFilePath]);
   const fileGitStatus = matchedGitStatus?.status ?? null;
   const gitDiffTargetPath = matchedGitStatus?.path ?? workspaceRelativeFilePath;
   const resolveMatchedGitStatusByPath = useCallback(
     (path: string) => {
-      for (const candidate of resolveWorkspacePathCandidates(workspacePath, path)) {
+      for (const candidate of resolveWorkspacePathCandidates(
+        workspacePath,
+        path,
+      )) {
         const matched = gitStatusMap.get(candidate);
         if (matched) {
           return matched;
@@ -512,7 +540,6 @@ export function FileViewPanel({
     },
     [gitStatusMap, workspacePath],
   );
-  const fileGitStatusClass = fileGitStatus ? `git-${fileGitStatus.toLowerCase()}` : "";
   const absolutePath = useMemo(
     () =>
       fileReadTarget.domain === "workspace"
@@ -570,9 +597,10 @@ export function FileViewPanel({
   latestIsDirtyRef.current = effectiveIsDirty;
   const hasGitRepositoryInventory = Boolean(gitRepositories?.length);
   const aggregateGitScope = useMemo(
-    () => gitRepositories?.length
-      ? resolveFileGitScope(workspaceRelativeFilePath, gitRepositories)
-      : null,
+    () =>
+      gitRepositories?.length
+        ? resolveFileGitScope(workspaceRelativeFilePath, gitRepositories)
+        : null,
     [gitRepositories, workspaceRelativeFilePath],
   );
   const configuredGitBlameRepositoryRoot = gitRootWorkspacePrefix || null;
@@ -580,12 +608,13 @@ export function FileViewPanel({
     ? aggregateGitScope?.repositoryRoot || null
     : configuredGitBlameRepositoryRoot;
   const gitBlamePath = useMemo(
-    () => hasGitRepositoryInventory
-      ? aggregateGitScope?.path ?? workspaceRelativeFilePath
-      : resolveGitBlameRepositoryPath(
-          workspaceRelativeFilePath,
-          configuredGitBlameRepositoryRoot,
-        ),
+    () =>
+      hasGitRepositoryInventory
+        ? (aggregateGitScope?.path ?? workspaceRelativeFilePath)
+        : resolveGitBlameRepositoryPath(
+            workspaceRelativeFilePath,
+            configuredGitBlameRepositoryRoot,
+          ),
     [
       aggregateGitScope,
       configuredGitBlameRepositoryRoot,
@@ -597,7 +626,24 @@ export function FileViewPanel({
     ? aggregateGitScope !== null
     : !configuredGitBlameRepositoryRoot ||
       workspaceRelativeFilePath === configuredGitBlameRepositoryRoot ||
-      workspaceRelativeFilePath.startsWith(`${configuredGitBlameRepositoryRoot}/`);
+      workspaceRelativeFilePath.startsWith(
+        `${configuredGitBlameRepositoryRoot}/`,
+      );
+  const activeFileGitScope = useMemo(
+    () =>
+      fileReadTarget.domain === "workspace" && fileBelongsToGitRepository
+        ? {
+            repositoryRoot: gitBlameRepositoryRoot ?? "",
+            path: gitBlamePath,
+          }
+        : null,
+    [
+      fileBelongsToGitRepository,
+      fileReadTarget.domain,
+      gitBlamePath,
+      gitBlameRepositoryRoot,
+    ],
+  );
   const gitBlameEligible =
     canEditDocument &&
     !skipTextRead &&
@@ -648,7 +694,9 @@ export function FileViewPanel({
       }
       const nextIsDirty = nextContent !== savedContentRef.current;
       latestIsDirtyRef.current = nextIsDirty;
-      setEditorDraftDirty((current) => (current === nextIsDirty ? current : nextIsDirty));
+      setEditorDraftDirty((current) =>
+        current === nextIsDirty ? current : nextIsDirty,
+      );
     },
     [cacheDraftContent, isLoading, latestIsDirtyRef, savedContentRef],
   );
@@ -665,7 +713,8 @@ export function FileViewPanel({
     typingDiagnosticsRef.current.recordInput(durationMs);
   }, []);
 
-  const activeDeclarationLineRange = editorLocalLineRange ?? activeFileLineRange;
+  const activeDeclarationLineRange =
+    editorLocalLineRange ?? activeFileLineRange;
 
   useEffect(() => {
     const resolveEpoch = activeCodeAnchorResolveEpochRef.current + 1;
@@ -703,10 +752,7 @@ export function FileViewPanel({
 
   useEffect(() => {
     onActiveCodeAnchorChange?.(activeDeclarationCodeAnchor);
-  }, [
-    activeDeclarationCodeAnchor,
-    onActiveCodeAnchorChange,
-  ]);
+  }, [activeDeclarationCodeAnchor, onActiveCodeAnchorChange]);
 
   const handleAssociateIntentCanvasCodeAnchor = useCallback(() => {
     if (!activeDeclarationCodeAnchor) {
@@ -789,15 +835,6 @@ export function FileViewPanel({
     setExternalAutoSyncAt,
   ]);
 
-  const handleGitBlameContextMenu = useCallback(
-    (position: { x: number; y: number }) => {
-      if (!gitBlameEligible && !gitBlame.enabled) {
-        return;
-      }
-      setGitBlameContextMenu(position);
-    },
-    [gitBlame.enabled, gitBlameEligible],
-  );
   const {
     isDefinitionLoading,
     isReferencesLoading,
@@ -907,21 +944,20 @@ export function FileViewPanel({
           setImageInfo(null);
         }
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [imageSrc]);
 
-  const handleImageLoad = useCallback(
-    (e: SyntheticEvent<HTMLImageElement>) => {
-      const img = e.currentTarget;
-      setImageLoadError(null);
-      setImageInfo((prev) => ({
-        width: img.naturalWidth,
-        height: img.naturalHeight,
-        sizeBytes: prev?.sizeBytes ?? null,
-      }));
-    },
-    [],
-  );
+  const handleImageLoad = useCallback((e: SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    setImageLoadError(null);
+    setImageInfo((prev) => ({
+      width: img.naturalWidth,
+      height: img.naturalHeight,
+      sizeBytes: prev?.sizeBytes ?? null,
+    }));
+  }, []);
   const handleImageError = useCallback(() => {
     setImageInfo(null);
     setImageLoadError(t("files.imagePreviewLoadFailed"));
@@ -954,13 +990,19 @@ export function FileViewPanel({
     const requestRenderToken = currentFileRenderToken;
     getGitFileFullDiff(workspaceId, gitDiffTargetPath)
       .then((diff) => {
-        if (cancelled || latestFileRenderTokenRef.current !== requestRenderToken) {
+        if (
+          cancelled ||
+          latestFileRenderTokenRef.current !== requestRenderToken
+        ) {
           return;
         }
         setGitLineMarkers(parseLineMarkersFromDiff(diff));
       })
       .catch(() => {
-        if (!cancelled && latestFileRenderTokenRef.current === requestRenderToken) {
+        if (
+          !cancelled &&
+          latestFileRenderTokenRef.current === requestRenderToken
+        ) {
           setGitLineMarkers(resetGitLineMarkersIfNeeded);
         }
       });
@@ -981,15 +1023,20 @@ export function FileViewPanel({
     skipTextRead,
   ]);
 
-  useEffect(() => () => clearPendingEditorLineRangeSync(), [
-    clearPendingEditorLineRangeSync,
-  ]);
-  useEffect(() => () => clearPendingActiveCodeAnchorResolve(), [
-    clearPendingActiveCodeAnchorResolve,
-  ]);
+  useEffect(
+    () => () => clearPendingEditorLineRangeSync(),
+    [clearPendingEditorLineRangeSync],
+  );
+  useEffect(
+    () => () => clearPendingActiveCodeAnchorResolve(),
+    [clearPendingActiveCodeAnchorResolve],
+  );
 
   useEffect(() => {
-    if (editorLocalLineRangeRef.current !== null || activeFileLineRange === null) {
+    if (
+      editorLocalLineRangeRef.current !== null ||
+      activeFileLineRange === null
+    ) {
       return;
     }
     editorLocalLineRangeRef.current = activeFileLineRange;
@@ -1022,7 +1069,10 @@ export function FileViewPanel({
   ]);
 
   useEffect(() => {
-    if (typeof document === "undefined" || typeof MutationObserver === "undefined") {
+    if (
+      typeof document === "undefined" ||
+      typeof MutationObserver === "undefined"
+    ) {
       return;
     }
     const updateTheme = () => {
@@ -1074,8 +1124,9 @@ export function FileViewPanel({
   }, [mode, isLoading, truncated]);
 
   const languageExtensionRequestRef = useRef(0);
-  const [languageExtensions, setLanguageExtensions] =
-    useState<ReactCodeMirrorProps["extensions"]>([]);
+  const [languageExtensions, setLanguageExtensions] = useState<
+    ReactCodeMirrorProps["extensions"]
+  >([]);
 
   useEffect(() => {
     const requestId = languageExtensionRequestRef.current + 1;
@@ -1091,7 +1142,10 @@ export function FileViewPanel({
         }
       })
       .catch((error) => {
-        console.error("[file-view] failed to load CodeMirror language extension:", error);
+        console.error(
+          "[file-view] failed to load CodeMirror language extension:",
+          error,
+        );
         if (languageExtensionRequestRef.current === requestId) {
           setLanguageExtensions([]);
         }
@@ -1148,6 +1202,328 @@ export function FileViewPanel({
     onActiveFileLineRangeChange,
   ]);
 
+  const showClipboardError = useCallback(
+    (action: string, error: unknown) => {
+      pushErrorToast({
+        title: t("files.clipboardActionFailedTitle"),
+        message: t("files.clipboardActionFailed", {
+          action,
+          message: error instanceof Error ? error.message : String(error),
+        }),
+      });
+    },
+    [t],
+  );
+
+  const openFileContextMenu = useCallback(
+    (
+      event: ReactMouseEvent<HTMLDivElement>,
+      selectionNoteDraft?: NoteCaptureDraft,
+    ) => {
+      const target = event.target instanceof Element ? event.target : null;
+      const isCodeMirrorTarget = Boolean(target?.closest(".cm-editor"));
+      const isIndependentEditableTarget = Boolean(
+        target?.closest('input, textarea, [contenteditable="true"]'),
+      );
+      if (!isCodeMirrorTarget && isIndependentEditableTarget) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const editorView = mode === "edit" ? (cmRef.current?.view ?? null) : null;
+      const editorSelectionText = editorView
+        ? editorView.state.selection.ranges
+            .filter((range) => !range.empty)
+            .map((range) => editorView.state.sliceDoc(range.from, range.to))
+            .join(editorView.state.lineBreak)
+        : "";
+      const selectedText = editorView
+        ? editorSelectionText
+        : (window.getSelection()?.toString() ?? "");
+      const canMutateEditor = Boolean(
+        editorView && canEditDocument && mode === "edit" && !truncated,
+      );
+      const wholeFileNoteDraft =
+        !selectionNoteDraft && onCaptureNote && !skipTextRead && !truncated
+          ? buildCodeSelectionNoteDraft({
+              path: filePath,
+              content: editorView
+                ? editorView.state.doc.sliceString(
+                    0,
+                    editorView.state.doc.length,
+                  )
+                : content,
+              startLine: 1,
+              endLine: editorView
+                ? editorView.state.doc.lines
+                : documentSnapshot.lineCount,
+              language: renderProfile.previewLanguage,
+            })
+          : null;
+      const noteCaptureDraft = selectionNoteDraft ?? wholeFileNoteDraft;
+
+      const writeClipboardText = async (action: string, text: string) => {
+        try {
+          if (!navigator.clipboard?.writeText) {
+            throw new Error(t("files.clipboardUnavailable"));
+          }
+          await navigator.clipboard.writeText(text);
+          return true;
+        } catch (error) {
+          showClipboardError(action, error);
+          return false;
+        }
+      };
+
+      const clipboardItems: RendererContextMenuItem[] = [
+        {
+          type: "item",
+          id: "cut-selection",
+          label: t("files.cutItem"),
+          icon: <Scissors size={15} />,
+          disabled: !canMutateEditor || !selectedText,
+          onSelect: async () => {
+            if (
+              !editorView ||
+              !(await writeClipboardText(t("files.cutItem"), selectedText))
+            ) {
+              return;
+            }
+            editorView.dispatch(editorView.state.replaceSelection(""));
+            editorView.focus();
+          },
+        },
+        {
+          type: "item",
+          id: "copy-selection",
+          label: t("files.copyItem"),
+          icon: <Copy size={15} />,
+          disabled: !selectedText,
+          onSelect: async () => {
+            await writeClipboardText(t("files.copyItem"), selectedText);
+          },
+        },
+        {
+          type: "item",
+          id: "paste-selection",
+          label: t("files.pasteItem"),
+          icon: <ClipboardPaste size={15} />,
+          disabled: !canMutateEditor,
+          onSelect: async () => {
+            try {
+              if (!editorView || !navigator.clipboard?.readText) {
+                throw new Error(t("files.clipboardUnavailable"));
+              }
+              const clipboardText = await navigator.clipboard.readText();
+              editorView.dispatch(
+                editorView.state.replaceSelection(clipboardText),
+              );
+              editorView.focus();
+            } catch (error) {
+              showClipboardError(t("files.pasteItem"), error);
+            }
+          },
+        },
+      ];
+
+      const gitItems: RendererContextMenuLeafItem[] = [
+        ...(activeFileGitScope && onOpenFileHistory
+          ? [
+              {
+                type: "item" as const,
+                id: "show-file-history",
+                label: t("files.tabShowFileHistory"),
+                icon: <History size={15} />,
+                onSelect: () =>
+                  onOpenFileHistory({
+                    workspaceId,
+                    workspacePath,
+                    repositoryRoot: activeFileGitScope.repositoryRoot,
+                    path: activeFileGitScope.path,
+                    displayPath: filePath,
+                  }),
+              },
+            ]
+          : []),
+        ...(mode === "edit" && (gitBlameEligible || gitBlame.enabled)
+          ? [
+              {
+                type: "item" as const,
+                id: "toggle-file-git-blame",
+                label:
+                  gitBlame.status === "loading"
+                    ? t("files.gitBlameLoading")
+                    : gitBlame.status === "stale"
+                      ? t("files.gitBlameStale")
+                      : gitBlame.status === "error"
+                        ? t("files.gitBlameError")
+                        : gitBlame.enabled
+                          ? t("files.gitBlameDisable")
+                          : t("files.gitBlameEnable"),
+                icon: <GitCommitHorizontal size={15} />,
+                disabled: !gitBlameEligible && !gitBlame.enabled,
+                onSelect: gitBlame.toggle,
+              },
+            ]
+          : []),
+      ];
+
+      const commandItems: RendererContextMenuItem[] = !canEditDocument
+        ? []
+        : mode === "preview"
+          ? [
+              {
+                type: "item",
+                id: "enter-edit-mode",
+                label: t("files.edit"),
+                icon: <Pencil size={15} />,
+                disabled: truncated,
+                onSelect: handleEnterEdit,
+              },
+            ]
+          : [
+              ...(onAssociateIntentCanvasCodeAnchor
+                ? [
+                    {
+                      type: "item" as const,
+                      id: "associate-intent-canvas",
+                      label: t("files.associateIntentCanvas"),
+                      icon: <ExternalLink size={15} />,
+                      onSelect: handleAssociateIntentCanvasCodeAnchor,
+                    },
+                  ]
+                : []),
+              {
+                type: "item",
+                id: "goto-definition",
+                label: isDefinitionLoading
+                  ? t("files.navigating")
+                  : t("files.gotoDefinition"),
+                icon: <Code size={15} />,
+                onSelect: runDefinitionFromCursor,
+              },
+              {
+                type: "item",
+                id: "find-references",
+                label: isReferencesLoading
+                  ? t("files.searchingReferences")
+                  : t("files.findReferences"),
+                icon: <Search size={15} />,
+                onSelect: runReferencesFromCursor,
+              },
+              {
+                type: "item",
+                id: "enter-preview-mode",
+                label: t("files.preview"),
+                icon: <Eye size={15} />,
+                onSelect: handleEnterPreview,
+              },
+              {
+                type: "item",
+                id: "save-file",
+                label: isSaving
+                  ? t("files.saving")
+                  : effectiveIsDirty
+                    ? t("files.save")
+                    : t("files.saved"),
+                icon: <Save size={15} />,
+                disabled: !effectiveIsDirty || isSaving,
+                onSelect: handleSave,
+              },
+            ];
+
+      const itemGroups: RendererContextMenuItem[][] = [
+        ...(noteCaptureDraft && onCaptureNote
+          ? [
+              [
+                {
+                  type: "item" as const,
+                  id: "capture-file-note",
+                  label: selectionNoteDraft
+                    ? t("noteCards.captureSelection")
+                    : t("noteCards.captureWholeFile"),
+                  icon: <NotebookPen size={15} />,
+                  onSelect: () => onCaptureNote(noteCaptureDraft),
+                },
+              ],
+            ]
+          : []),
+        clipboardItems,
+        ...(gitItems.length > 0
+          ? [
+              [
+                {
+                  type: "submenu" as const,
+                  id: "git-actions",
+                  label: t("files.tabGitActions"),
+                  icon: <GitBranch size={15} />,
+                  items: gitItems,
+                },
+              ],
+            ]
+          : []),
+        ...(commandItems.length > 0 ? [commandItems] : []),
+      ];
+      const items = itemGroups.flatMap((group, groupIndex) =>
+        groupIndex === 0
+          ? group
+          : [
+              {
+                type: "separator" as const,
+                id: `file-command-separator-${groupIndex}`,
+              },
+              ...group,
+            ],
+      );
+      const position = clampRendererContextMenuPosition(
+        event.clientX,
+        event.clientY,
+        {
+          width: 248,
+          height: estimateRendererContextMenuHeight(items),
+          padding: 10,
+        },
+      );
+      setFileContextMenu({
+        ...position,
+        label: t("files.fileContextMenu"),
+        items,
+      });
+    },
+    [
+      activeFileGitScope,
+      canEditDocument,
+      content,
+      documentSnapshot.lineCount,
+      effectiveIsDirty,
+      filePath,
+      gitBlame,
+      gitBlameEligible,
+      handleAssociateIntentCanvasCodeAnchor,
+      handleEnterEdit,
+      handleEnterPreview,
+      handleSave,
+      isDefinitionLoading,
+      isReferencesLoading,
+      isSaving,
+      mode,
+      onAssociateIntentCanvasCodeAnchor,
+      onCaptureNote,
+      onOpenFileHistory,
+      renderProfile.previewLanguage,
+      runDefinitionFromCursor,
+      runReferencesFromCursor,
+      showClipboardError,
+      skipTextRead,
+      t,
+      truncated,
+      workspaceId,
+      workspacePath,
+    ],
+  );
+
   const handleOpenFindPanel = useCallback(() => {
     if (skipTextRead || truncated) {
       return;
@@ -1169,7 +1545,11 @@ export function FileViewPanel({
       }
       const panelRoot = panelRootRef.current;
       const target = event.target;
-      if (!panelRoot || !(target instanceof Node) || !panelRoot.contains(target)) {
+      if (
+        !panelRoot ||
+        !(target instanceof Node) ||
+        !panelRoot.contains(target)
+      ) {
         return;
       }
       if (isEditableShortcutTarget(target)) {
@@ -1263,7 +1643,8 @@ export function FileViewPanel({
     workspaceRelativeFilePath,
   ]);
 
-  const effectiveMarkdownPreviewContent = markdownPreviewOverride?.content ?? content;
+  const effectiveMarkdownPreviewContent =
+    markdownPreviewOverride?.content ?? content;
 
   // Syntax highlighted lines for code preview
   const previewMetrics = useMemo(() => {
@@ -1284,8 +1665,13 @@ export function FileViewPanel({
     () => resolveFileViewSurface(renderProfile, mode, previewMetrics),
     [mode, previewMetrics, renderProfile],
   );
-  const markdownFastFeatureFlags = useMemo(resolveFileMarkdownFastFeatureFlags, []);
-  const markdownRendererProfile = useMemo<FastMarkdownRendererProfileId | undefined>(() => {
+  const markdownFastFeatureFlags = useMemo(
+    resolveFileMarkdownFastFeatureFlags,
+    [],
+  );
+  const markdownRendererProfile = useMemo<
+    FastMarkdownRendererProfileId | undefined
+  >(() => {
     if (viewSurface.kind !== "markdown-preview") {
       return undefined;
     }
@@ -1295,7 +1681,11 @@ export function FileViewPanel({
         featureFlags: markdownFastFeatureFlags,
       }),
     );
-  }, [effectiveMarkdownPreviewContent, markdownFastFeatureFlags, viewSurface.kind]);
+  }, [
+    effectiveMarkdownPreviewContent,
+    markdownFastFeatureFlags,
+    viewSurface.kind,
+  ]);
   const previewPayloadEnabled =
     mode === "preview" &&
     (viewSurface.kind === "pdf-preview" ||
@@ -1315,22 +1705,27 @@ export function FileViewPanel({
     truncated,
     enabled: previewPayloadEnabled,
   });
-    const previewLanguage = renderProfile.previewLanguage;
-    const shouldBuildCodePreviewLines =
-      viewSurface.kind === "code-preview" && documentSnapshot.lineCount <= 1_000;
-    const highlightedPreviewLanguage = useMemo(
-      () => (shouldBuildCodePreviewLines && !viewSurface.useLowCostPreview
+  const previewLanguage = renderProfile.previewLanguage;
+  const shouldBuildCodePreviewLines =
+    viewSurface.kind === "code-preview" && documentSnapshot.lineCount <= 1_000;
+  const highlightedPreviewLanguage = useMemo(
+    () =>
+      shouldBuildCodePreviewLines && !viewSurface.useLowCostPreview
         ? previewLanguage
-        : null),
-      [previewLanguage, shouldBuildCodePreviewLines, viewSurface.useLowCostPreview],
-    );
-    const lines = useMemo(
-      () =>
-        shouldBuildCodePreviewLines
-          ? documentSnapshot.getLines(0, documentSnapshot.lineCount)
-          : [],
-      [documentSnapshot, shouldBuildCodePreviewLines],
-    );
+        : null,
+    [
+      previewLanguage,
+      shouldBuildCodePreviewLines,
+      viewSurface.useLowCostPreview,
+    ],
+  );
+  const lines = useMemo(
+    () =>
+      shouldBuildCodePreviewLines
+        ? documentSnapshot.getLines(0, documentSnapshot.lineCount)
+        : [],
+    [documentSnapshot, shouldBuildCodePreviewLines],
+  );
   const visibleCodeAnnotations = useMemo(
     () =>
       codeAnnotations.filter((annotation) =>
@@ -1385,9 +1780,11 @@ export function FileViewPanel({
   );
   const canCloseAllTabs = Boolean(onCloseAllTabs && visibleTabs.length > 0);
   const canReorderTabs = Boolean(onReorderTabs) && visibleTabs.length > 1;
-  const visibleActiveFileLineRange = editorLocalLineRange ?? activeFileLineRange;
+  const visibleActiveFileLineRange =
+    editorLocalLineRange ?? activeFileLineRange;
   const activeFileLineLabel = visibleActiveFileLineRange
-    ? visibleActiveFileLineRange.startLine === visibleActiveFileLineRange.endLine
+    ? visibleActiveFileLineRange.startLine ===
+      visibleActiveFileLineRange.endLine
       ? `L${visibleActiveFileLineRange.startLine}`
       : `L${visibleActiveFileLineRange.startLine}-L${visibleActiveFileLineRange.endLine}`
     : null;
@@ -1445,7 +1842,9 @@ export function FileViewPanel({
         return;
       }
       // Let the close/detach buttons own their own gestures.
-      if ((event.target as HTMLElement).closest(".fvp-tab-close, .fvp-tab-detach")) {
+      if (
+        (event.target as HTMLElement).closest(".fvp-tab-close, .fvp-tab-detach")
+      ) {
         return;
       }
       tabDragOriginRef.current = {
@@ -1477,7 +1876,9 @@ export function FileViewPanel({
         }
       }
       const overPath = resolveTabPathAtPoint(event.clientX, event.clientY);
-      setDragOverTabPath((current) => (current === overPath ? current : overPath));
+      setDragOverTabPath((current) =>
+        current === overPath ? current : overPath,
+      );
     },
     [resolveTabPathAtPoint],
   );
@@ -1495,7 +1896,11 @@ export function FileViewPanel({
         const source = origin.tabPath;
         const targetPath = resolveTabPathAtPoint(event.clientX, event.clientY);
         if (targetPath && targetPath !== source) {
-          const nextOrder = reorderTabPathsAtTarget(visibleTabs, source, targetPath);
+          const nextOrder = reorderTabPathsAtTarget(
+            visibleTabs,
+            source,
+            targetPath,
+          );
           if (nextOrder.some((path, index) => path !== visibleTabs[index])) {
             onReorderTabs?.(nextOrder);
           }
@@ -1588,9 +1993,9 @@ export function FileViewPanel({
       const canOpenHistory = Boolean(gitScope && onOpenFileHistory);
       const canToggleBlame = Boolean(
         gitScope &&
-          (tabPath === filePath
-            ? gitBlameEligible || gitBlame.enabled
-            : onActivateTab),
+        (tabPath === filePath
+          ? gitBlameEligible || gitBlame.enabled
+          : onActivateTab),
       );
       const gitItems: RendererContextMenuLeafItem[] = [
         ...(canOpenHistory
@@ -1732,7 +2137,9 @@ export function FileViewPanel({
         return;
       }
       const footer = event.currentTarget;
-      const splitRoot = footer.closest(".content.is-editor-split-vertical") as HTMLElement | null;
+      const splitRoot = footer.closest(
+        ".content.is-editor-split-vertical",
+      ) as HTMLElement | null;
       if (!splitRoot) {
         return;
       }
@@ -1779,7 +2186,10 @@ export function FileViewPanel({
           Math.max(minEditorHeight, startEditorHeight + deltaY),
         );
         const nextRatio = (nextHeight / totalHeight) * 100;
-        splitRoot.style.setProperty("--editor-split-ratio", nextRatio.toFixed(2));
+        splitRoot.style.setProperty(
+          "--editor-split-ratio",
+          nextRatio.toFixed(2),
+        );
       };
 
       const handlePointerUp = () => {
@@ -1795,203 +2205,73 @@ export function FileViewPanel({
     [],
   );
 
-  // ── Topbar ──
-  const renderTopbarActions = (className = "fvp-topbar-right") => (
-    <div className={className}>
-      {canEditDocument && (
-        <>
-          {mode === "preview" ? (
-            <div className="fvp-action-group fvp-preview-tools" role="group">
-              <button
-                type="button"
-                className="fvp-action-btn"
-                onClick={handleEnterEdit}
-                disabled={truncated || !canEditDocument}
-                title={truncated ? t("files.fileTooLarge") : t("files.edit")}
-              >
-                <Pencil size={14} aria-hidden />
-                <span>{t("files.edit")}</span>
-              </button>
-            </div>
-          ) : (
-            <div className="fvp-action-group" role="group">
-              <button
-                type="button"
-                className={`ghost fvp-action-btn fvp-git-blame-toggle${
-                  gitBlame.enabled ? " is-active" : ""
-                }${gitBlame.status === "stale" ? " is-stale" : ""}${
-                  gitBlame.status === "error" ? " is-error" : ""
-                }`}
-                onClick={gitBlame.toggle}
-                disabled={!gitBlameEligible && !gitBlame.enabled}
-                aria-pressed={gitBlame.enabled}
-                aria-busy={gitBlame.status === "loading"}
-                title={
-                  gitBlame.error ??
-                  (!gitBlameEligible
-                    ? t("files.gitBlameUnavailable")
-                    : gitBlame.enabled
-                      ? t("files.gitBlameDisable")
-                      : t("files.gitBlameEnable"))
-                }
-              >
-                <GitCommitHorizontal size={14} aria-hidden />
-                <span>
-                  {gitBlame.status === "loading"
-                    ? t("files.gitBlameLoading")
-                    : gitBlame.status === "stale"
-                      ? t("files.gitBlameStale")
-                      : gitBlame.status === "error"
-                        ? t("files.gitBlameError")
-                        : t("files.gitBlame")}
-                </span>
-              </button>
-              {onAssociateIntentCanvasCodeAnchor ? (
-                <button
-                  type="button"
-                  className={`ghost fvp-action-btn fvp-intent-canvas-anchor-btn ${
-                    activeDeclarationCodeAnchor ? "is-active" : "is-empty"
-                  }`}
-                  onClick={handleAssociateIntentCanvasCodeAnchor}
-                  title={
-                    activeDeclarationCodeAnchor
-                      ? t("files.associateIntentCanvasTitle", {
-                          symbol: activeDeclarationCodeAnchor.symbolName,
-                        })
-                      : t("files.associateIntentCanvasUnavailable")
-                  }
-                >
-                  <ExternalLink size={14} aria-hidden />
-                  <span>{t("files.associateIntentCanvas")}</span>
-                </button>
-              ) : null}
-              <button
-                type="button"
-                className="ghost fvp-action-btn"
-                onClick={runDefinitionFromCursor}
-                aria-busy={isDefinitionLoading}
-                title={t("files.gotoDefinition")}
-              >
-                <Code size={14} aria-hidden />
-                <span>
-                  {isDefinitionLoading
-                    ? t("files.navigating")
-                    : t("files.gotoDefinition")}
-                </span>
-              </button>
-              <button
-                type="button"
-                className="ghost fvp-action-btn"
-                onClick={runReferencesFromCursor}
-                aria-busy={isReferencesLoading}
-                title={t("files.findReferences")}
-              >
-                <Search size={14} aria-hidden />
-                <span>
-                  {isReferencesLoading
-                    ? t("files.searchingReferences")
-                    : t("files.findReferences")}
-                </span>
-              </button>
-              <button
-                type="button"
-                className="ghost fvp-action-btn"
-                onClick={handleEnterPreview}
-              >
-                <Eye size={14} aria-hidden />
-                <span>{t("files.preview")}</span>
-              </button>
-              <button
-                type="button"
-                className={`primary fvp-action-btn fvp-save-btn ${effectiveIsDirty ? "" : "is-saved"}`}
-                onClick={handleSave}
-                disabled={!effectiveIsDirty || isSaving}
-              >
-                <Save size={14} aria-hidden />
-                <span>{isSaving ? t("files.saving") : effectiveIsDirty ? t("files.save") : t("files.saved")}</span>
-              </button>
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-
-  const renderTopbar = () => (
-    <div className="fvp-topbar">
-      <div className="fvp-topbar-left">
-        <button
-          type="button"
-          className="icon-button fvp-back"
-          onClick={handleClose}
-          aria-label={t("files.backToChat")}
-          title={t("files.backToChat")}
+  const renderExternalChangeNotice = () => {
+    if (externalChangeSyncState === "in-sync") {
+      return null;
+    }
+    if (externalPendingRefresh) {
+      return (
+        <div
+          className="fvp-external-change-banner is-pending"
+          role="status"
+          aria-live="polite"
         >
-          <ArrowLeft size={16} aria-hidden />
-        </button>
-        <span
-          className={`fvp-filepath ${fileGitStatusClass}`.trim()}
-          title={filePath}
-        >
-          {filePath}
-        </span>
-        {effectiveIsDirty && <span className="fvp-dirty-dot" aria-label={t("files.unsavedChanges")} />}
-        {truncated && <span className="fvp-truncated">{t("files.truncated")}</span>}
-      </div>
-      {renderTopbarActions()}
-    </div>
-  );
-
-    const renderExternalChangeNotice = () => {
-      if (externalChangeSyncState === "in-sync") {
-        return null;
-      }
-      if (externalPendingRefresh) {
-        return (
-          <div className="fvp-external-change-banner is-pending" role="status" aria-live="polite">
-            <div className="fvp-external-change-banner-copy">
-              <strong>{t("files.externalChangePendingTitle")}</strong>
-              <span>
-                {t("files.externalChangePendingBody", {
-                  count: externalPendingRefresh.updateCount,
-                })}
-              </span>
-            </div>
-            <div className="fvp-external-change-banner-actions">
-              <button
-                type="button"
-                className="ghost fvp-action-btn"
-                onClick={handleExternalToggleCompare}
-              >
-                {externalCompareOpen ? t("files.externalChangeHideCompare") : t("files.externalChangeCompare")}
-              </button>
-              <button
-                type="button"
-                className="ghost fvp-action-btn"
-                onClick={handleExternalKeepLocal}
-              >
-                {t("files.externalChangeKeepCurrent")}
-              </button>
-              <button
-                type="button"
-                className="primary fvp-action-btn"
-                onClick={handleExternalApplyPendingRefresh}
-              >
-                {t("files.externalChangeRefreshPreview")}
-              </button>
-            </div>
+          <div className="fvp-external-change-banner-copy">
+            <strong>{t("files.externalChangePendingTitle")}</strong>
+            <span>
+              {t("files.externalChangePendingBody", {
+                count: externalPendingRefresh.updateCount,
+              })}
+            </span>
           </div>
-        );
-      }
-      if (externalChangeSyncState !== "external-changed-dirty" || !externalChangeConflict) {
-        return (
-        <div className="fvp-external-change-banner is-auto-sync" role="status" aria-live="polite">
+          <div className="fvp-external-change-banner-actions">
+            <button
+              type="button"
+              className="ghost fvp-action-btn"
+              onClick={handleExternalToggleCompare}
+            >
+              {externalCompareOpen
+                ? t("files.externalChangeHideCompare")
+                : t("files.externalChangeCompare")}
+            </button>
+            <button
+              type="button"
+              className="ghost fvp-action-btn"
+              onClick={handleExternalKeepLocal}
+            >
+              {t("files.externalChangeKeepCurrent")}
+            </button>
+            <button
+              type="button"
+              className="primary fvp-action-btn"
+              onClick={handleExternalApplyPendingRefresh}
+            >
+              {t("files.externalChangeRefreshPreview")}
+            </button>
+          </div>
+        </div>
+      );
+    }
+    if (
+      externalChangeSyncState !== "external-changed-dirty" ||
+      !externalChangeConflict
+    ) {
+      return (
+        <div
+          className="fvp-external-change-banner is-auto-sync"
+          role="status"
+          aria-live="polite"
+        >
           {t("files.externalChangeAutoSynced")}
         </div>
       );
     }
     return (
-      <div className="fvp-external-change-banner is-conflict" role="status" aria-live="polite">
+      <div
+        className="fvp-external-change-banner is-conflict"
+        role="status"
+        aria-live="polite"
+      >
         <div className="fvp-external-change-banner-copy">
           <strong>{t("files.externalChangeConflictTitle")}</strong>
           <span>
@@ -2006,7 +2286,9 @@ export function FileViewPanel({
             className="ghost fvp-action-btn"
             onClick={handleExternalToggleCompare}
           >
-            {externalCompareOpen ? t("files.externalChangeHideCompare") : t("files.externalChangeCompare")}
+            {externalCompareOpen
+              ? t("files.externalChangeHideCompare")
+              : t("files.externalChangeCompare")}
           </button>
           <button
             type="button"
@@ -2025,7 +2307,7 @@ export function FileViewPanel({
         </div>
       </div>
     );
-    };
+  };
 
   const renderExternalComparePanel = () => {
     const diskSnapshot = externalChangeConflict ?? externalPendingRefresh;
@@ -2066,8 +2348,11 @@ export function FileViewPanel({
         {visibleTabs.map((tabPath) => {
           const isActive = (activeTabPath ?? filePath) === tabPath;
           const tabName = tabPath.split("/").pop() || tabPath;
-          const tabGitStatus = resolveMatchedGitStatusByPath(tabPath)?.status ?? null;
-          const tabGitStatusClass = tabGitStatus ? `git-${tabGitStatus.toLowerCase()}` : "";
+          const tabGitStatus =
+            resolveMatchedGitStatusByPath(tabPath)?.status ?? null;
+          const tabGitStatusClass = tabGitStatus
+            ? `git-${tabGitStatus.toLowerCase()}`
+            : "";
           const isDragging = draggingTabPath === tabPath;
           const isDragOver =
             Boolean(draggingTabPath) &&
@@ -2155,7 +2440,7 @@ export function FileViewPanel({
     </div>
   );
 
-  const renderSingleRowHeader = () => (
+  const renderHeader = () => (
     <div className="fvp-header-row">
       <button
         type="button"
@@ -2171,13 +2456,17 @@ export function FileViewPanel({
           <ArrowLeft size={16} aria-hidden />
         )}
       </button>
-      <div className="fvp-header-row-tabs">
-        {renderTabs("fvp-tabs-inline")}
-      </div>
+      <div className="fvp-header-row-tabs">{renderTabs("fvp-tabs-inline")}</div>
       <div className="fvp-header-row-right">
-        {effectiveIsDirty ? <span className="fvp-dirty-dot" aria-label={t("files.unsavedChanges")} /> : null}
-        {truncated ? <span className="fvp-truncated">{t("files.truncated")}</span> : null}
-        {renderTopbarActions("fvp-header-actions")}
+        {effectiveIsDirty ? (
+          <span
+            className="fvp-dirty-dot"
+            aria-label={t("files.unsavedChanges")}
+          />
+        ) : null}
+        {truncated ? (
+          <span className="fvp-truncated">{t("files.truncated")}</span>
+        ) : null}
       </div>
     </div>
   );
@@ -2200,29 +2489,26 @@ export function FileViewPanel({
       previewPayloadLoading={previewPayloadLoading}
       previewPayloadError={previewPayloadError}
       viewSurface={viewSurface}
-        documentSnapshot={documentSnapshot}
-        content={content}
-        setContent={setContent}
-        onEditorContentDraftChange={handleEditorContentDraftChange}
-        onEditorContentPublished={handleEditorContentPublished}
-        onEditorTypingInput={handleEditorTypingInput}
-        fileRenderPressure={fileRenderPressure}
-        markdownPreviewSnapshotMode={markdownPreviewSnapshotMode}
-        markdownPreviewRefreshKey={externalAutoSyncAt}
-        markdownPreviewContentOverride={markdownPreviewOverride?.content ?? null}
-        markdownRendererProfile={markdownRendererProfile}
-        markdownFastFeatureFlags={markdownFastFeatureFlags}
-        cmRef={cmRef}
+      documentSnapshot={documentSnapshot}
+      content={content}
+      setContent={setContent}
+      onEditorContentDraftChange={handleEditorContentDraftChange}
+      onEditorContentPublished={handleEditorContentPublished}
+      onEditorTypingInput={handleEditorTypingInput}
+      fileRenderPressure={fileRenderPressure}
+      markdownPreviewSnapshotMode={markdownPreviewSnapshotMode}
+      markdownPreviewRefreshKey={externalAutoSyncAt}
+      markdownPreviewContentOverride={markdownPreviewOverride?.content ?? null}
+      markdownRendererProfile={markdownRendererProfile}
+      markdownFastFeatureFlags={markdownFastFeatureFlags}
+      cmRef={cmRef}
       onActiveFileLineRangeChange={handleEditorLineRangeChange}
       languageExtensions={languageExtensions}
       gitLineMarkers={effectiveGitLineMarkers}
       gitBlameEnabled={gitBlame.enabled}
       gitBlameStatus={gitBlame.status}
       gitBlameResponse={gitBlame.response}
-      onGitBlameContextMenu={
-        gitBlameEligible || gitBlame.enabled ? handleGitBlameContextMenu : undefined
-      }
-      onCaptureNote={onCaptureNote}
+      onFileContextMenu={openFileContextMenu}
       editorCodeAnnotations={editorCodeAnnotations}
       editorAnnotationDraft={editorAnnotationDraft}
       annotationWidgetLabels={annotationWidgetLabels}
@@ -2270,13 +2556,17 @@ export function FileViewPanel({
           <span className="fvp-footer-hint">
             <span className="fvp-dirty-dot" />
             {t("files.unsavedChanges")}
-            <span className="fvp-footer-shortcut">{t("files.saveShortcut")}</span>
+            <span className="fvp-footer-shortcut">
+              {t("files.saveShortcut")}
+            </span>
           </span>
         )}
         {canEditDocument && mode === "edit" && !effectiveIsDirty && (
-          <span className="fvp-footer-hint fvp-footer-saved">{t("files.saved")}</span>
+          <span className="fvp-footer-hint fvp-footer-saved">
+            {t("files.saved")}
+          </span>
         )}
-        {(mode === "preview" && (truncated || !canEditDocument)) && (
+        {mode === "preview" && (truncated || !canEditDocument) && (
           <span className="fvp-footer-hint">{t("files.readOnly")}</span>
         )}
       </div>
@@ -2287,12 +2577,16 @@ export function FileViewPanel({
             role="group"
             aria-label={t("composer.fileReference")}
           >
-            <span className="fvp-file-reference-label">{t("composer.activeFile")}:</span>
+            <span className="fvp-file-reference-label">
+              {t("composer.activeFile")}:
+            </span>
             <code className="fvp-file-reference-path" title={filePath}>
               {filePath.split("/").pop() || filePath}
             </code>
             {activeFileLineLabel ? (
-              <span className="fvp-file-reference-lines">{activeFileLineLabel}</span>
+              <span className="fvp-file-reference-lines">
+                {activeFileLineLabel}
+              </span>
             ) : null}
             {viewSurface.kind === "editor" && activeAnnotationLineRange ? (
               <button
@@ -2310,7 +2604,9 @@ export function FileViewPanel({
             type="button"
             className="ghost fvp-action-btn"
             onClick={() => {
-              const fence = previewLanguage ? `\`\`\`${previewLanguage}` : "```";
+              const fence = previewLanguage
+                ? `\`\`\`${previewLanguage}`
+                : "```";
               const snippet = `${filePath}\n${fence}\n${content}\n\`\`\``;
               onInsertText(snippet);
             }}
@@ -2333,8 +2629,12 @@ export function FileViewPanel({
           <button
             type="button"
             className="ghost fvp-action-btn fvp-maximize-toggle"
-            aria-label={isEditorFileMaximized ? t("common.restore") : t("menu.maximize")}
-            title={isEditorFileMaximized ? t("common.restore") : t("menu.maximize")}
+            aria-label={
+              isEditorFileMaximized ? t("common.restore") : t("menu.maximize")
+            }
+            title={
+              isEditorFileMaximized ? t("common.restore") : t("menu.maximize")
+            }
             onClick={onToggleEditorFileMaximized}
           >
             {isEditorFileMaximized ? (
@@ -2380,30 +2680,6 @@ export function FileViewPanel({
     </div>
   );
 
-  const renderGitBlameContextMenu = () =>
-    gitBlameContextMenu ? (
-      <RendererContextMenu
-        menu={{
-          ...gitBlameContextMenu,
-          label: t("files.gitBlameMenu"),
-          items: [
-            {
-              type: "item",
-              id: "toggle-git-blame",
-              label: gitBlame.enabled
-                ? t("files.gitBlameDisable")
-                : t("files.gitBlameEnable"),
-              disabled: !gitBlameEligible && !gitBlame.enabled,
-              onSelect: () => {
-                gitBlame.toggle();
-              },
-            },
-          ],
-        }}
-        onClose={() => setGitBlameContextMenu(null)}
-      />
-    ) : null;
-
   const renderNavigationPanel = () => (
     <FileViewNavigationPanel
       workspacePath={workspacePath}
@@ -2418,8 +2694,11 @@ export function FileViewPanel({
   );
 
   return (
-    <div className={`fvp${usesSingleRowHeader ? " fvp-single-row-header" : ""}`} ref={panelRootRef}>
-      {usesSingleRowHeader ? renderSingleRowHeader() : renderTabs()}
+    <div
+      className={`fvp${usesSingleRowHeader ? " fvp-single-row-header" : ""}`}
+      ref={panelRootRef}
+    >
+      {renderHeader()}
       {tabContextMenu ? (
         <RendererContextMenu
           menu={tabContextMenu}
@@ -2427,13 +2706,20 @@ export function FileViewPanel({
           className="renderer-context-menu fvp-tab-context-menu"
         />
       ) : null}
-      {!usesSingleRowHeader ? renderTopbar() : null}
+      {fileContextMenu ? (
+        <RendererContextMenu
+          menu={fileContextMenu}
+          onClose={() => setFileContextMenu(null)}
+          className="renderer-context-menu fvp-tab-context-menu"
+        />
+      ) : null}
       {renderExternalChangeNotice()}
       {renderExternalComparePanel()}
-      <div className="fvp-body">{renderContent()}</div>
+      <div className="fvp-body" onContextMenu={openFileContextMenu}>
+        {renderContent()}
+      </div>
       {renderNavigationPanel()}
       {renderFooter()}
-      {renderGitBlameContextMenu()}
     </div>
   );
 }

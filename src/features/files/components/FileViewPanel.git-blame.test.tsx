@@ -1,6 +1,14 @@
 /** @vitest-environment jsdom */
 import { useState } from "react";
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mockCodeMirrorDispatch } from "./FileViewPanel.test-utils";
 import { FileViewPanel } from "./FileViewPanel";
@@ -49,6 +57,33 @@ function repository(repositoryRoot: string): GitRepositorySummary {
   };
 }
 
+function openFileContentContextMenu() {
+  fireEvent.contextMenu(screen.getByTestId("mock-codemirror"));
+  return within(screen.getByRole("menu", { name: "files.fileContextMenu" }));
+}
+
+function getGitBlameMenuItem() {
+  const menu = openFileContentContextMenu();
+  const gitTrigger = menu.getByRole("menuitem", {
+    name: "files.tabGitActions",
+  });
+  fireEvent.mouseEnter(gitTrigger);
+  const gitMenu = within(
+    screen.getByRole("menu", { name: "files.tabGitActions" }),
+  );
+  return (
+    gitMenu.queryByRole("menuitem", { name: "files.gitBlameEnable" }) ??
+    gitMenu.queryByRole("menuitem", { name: "files.gitBlameDisable" }) ??
+    gitMenu.queryByRole("menuitem", { name: "files.gitBlameLoading" }) ??
+    gitMenu.queryByRole("menuitem", { name: "files.gitBlameStale" }) ??
+    gitMenu.getByRole("menuitem", { name: "files.gitBlameError" })
+  );
+}
+
+function toggleFileGitBlame() {
+  fireEvent.click(getGitBlameMenuItem());
+}
+
 describe("FileViewPanel Git Blame", () => {
   afterEach(() => {
     cleanup();
@@ -92,17 +127,26 @@ describe("FileViewPanel Git Blame", () => {
     await screen.findByTestId("mock-codemirror");
     expect(getGitFileBlame).not.toHaveBeenCalled();
     expect(getGitFileFullDiff).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "files.gitBlame" }));
+    toggleFileGitBlame();
 
     await waitFor(() => {
-      expect(getGitFileBlame).toHaveBeenCalledWith("ws-1", "src/value.ts", null);
+      expect(getGitFileBlame).toHaveBeenCalledWith(
+        "ws-1",
+        "src/value.ts",
+        null,
+      );
       expect(getGitFileFullDiff).toHaveBeenCalledWith("ws-1", "src/value.ts");
     });
   });
 
   it("keeps diff markers independent when blame fails", async () => {
-    vi.mocked(readWorkspaceFile).mockResolvedValue({ content: "one", truncated: false });
-    vi.mocked(getGitFileBlame).mockRejectedValue(new Error("blame unavailable"));
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "one",
+      truncated: false,
+    });
+    vi.mocked(getGitFileBlame).mockRejectedValue(
+      new Error("blame unavailable"),
+    );
     vi.mocked(getGitFileFullDiff).mockResolvedValue("@@ -0,0 +1 @@\n+one");
 
     render(
@@ -122,19 +166,22 @@ describe("FileViewPanel Git Blame", () => {
     );
 
     await screen.findByTestId("mock-codemirror");
-    fireEvent.click(screen.getByRole("button", { name: "files.gitBlame" }));
+    toggleFileGitBlame();
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "files.gitBlameError" })).toBeTruthy();
       expect(getGitFileFullDiff).toHaveBeenCalledWith(
         "ws-independent-markers",
         "src/value.ts",
       );
     });
+    expect(getGitBlameMenuItem().textContent).toContain("files.gitBlameError");
   });
 
   it("does not refetch git diff while an enabled blame view becomes dirty", async () => {
-    vi.mocked(readWorkspaceFile).mockResolvedValue({ content: "one", truncated: false });
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "one",
+      truncated: false,
+    });
     vi.mocked(getGitFileBlame).mockResolvedValue(blameResponse);
     vi.mocked(getGitFileFullDiff).mockResolvedValue("@@ -0,0 +1 @@\n+one");
 
@@ -155,7 +202,7 @@ describe("FileViewPanel Git Blame", () => {
     );
 
     const editor = await screen.findByTestId("mock-codemirror");
-    fireEvent.click(screen.getByRole("button", { name: "files.gitBlame" }));
+    toggleFileGitBlame();
     await waitFor(() => expect(getGitFileFullDiff).toHaveBeenCalledTimes(1));
 
     fireEvent.change(editor, { target: { value: "two" } });
@@ -164,7 +211,10 @@ describe("FileViewPanel Git Blame", () => {
 
   it("ignores an in-flight git marker result when blame is disabled", async () => {
     const pendingDiff = createDeferred<string>();
-    vi.mocked(readWorkspaceFile).mockResolvedValue({ content: "one", truncated: false });
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "one",
+      truncated: false,
+    });
     vi.mocked(getGitFileBlame).mockResolvedValue(blameResponse);
     vi.mocked(getGitFileFullDiff).mockReturnValue(pendingDiff.promise);
 
@@ -185,19 +235,19 @@ describe("FileViewPanel Git Blame", () => {
     );
 
     await screen.findByTestId("mock-codemirror");
-    fireEvent.click(screen.getByRole("button", { name: "files.gitBlame" }));
+    toggleFileGitBlame();
     await waitFor(() => {
       expect(getGitFileFullDiff).toHaveBeenCalledTimes(1);
-      expect(
-        screen.getByRole("button", { name: "files.gitBlame" }).getAttribute("aria-pressed"),
-      ).toBe("true");
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "files.gitBlame" }));
+    expect(getGitBlameMenuItem().textContent).toContain(
+      "files.gitBlameDisable",
+    );
+    fireEvent.click(getGitBlameMenuItem());
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "files.gitBlame" }).getAttribute("aria-pressed"),
-      ).toBe("false");
+      expect(getGitBlameMenuItem().textContent).toContain(
+        "files.gitBlameEnable",
+      );
     });
     mockCodeMirrorDispatch.mockClear();
 
@@ -230,27 +280,37 @@ describe("FileViewPanel Git Blame", () => {
     );
 
     const editor = await screen.findByTestId("mock-codemirror");
-    fireEvent.click(screen.getByRole("button", { name: "files.gitBlame" }));
+    toggleFileGitBlame();
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "files.gitBlameLoading" })).toBeTruthy();
+      expect(getGitFileBlame).toHaveBeenCalledTimes(1);
     });
-    expect((editor as HTMLTextAreaElement).value).toBe("export const value = 1;");
-    fireEvent.select(editor, { target: { selectionStart: 7, selectionEnd: 7 } });
+    expect(getGitBlameMenuItem().textContent).toContain(
+      "files.gitBlameLoading",
+    );
+    expect((editor as HTMLTextAreaElement).value).toBe(
+      "export const value = 1;",
+    );
+    fireEvent.select(editor, {
+      target: { selectionStart: 7, selectionEnd: 7 },
+    });
     expect(getGitFileBlame).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       slowBlame.resolve(blameResponse);
       await slowBlame.promise;
     });
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "files.gitBlame" })).toBeTruthy();
-    });
+    expect(getGitBlameMenuItem().textContent).toContain(
+      "files.gitBlameDisable",
+    );
   });
 
   it("keeps the editor usable and exposes a blame error inline", async () => {
     const failedBlame = createDeferred<typeof blameResponse>();
-    vi.mocked(readWorkspaceFile).mockResolvedValue({ content: "one", truncated: false });
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "one",
+      truncated: false,
+    });
     vi.mocked(getGitFileBlame).mockReturnValue(failedBlame.promise);
 
     render(
@@ -267,14 +327,13 @@ describe("FileViewPanel Git Blame", () => {
     );
 
     const editor = await screen.findByTestId("mock-codemirror");
-    fireEvent.click(screen.getByRole("button", { name: "files.gitBlame" }));
+    toggleFileGitBlame();
     await act(async () => {
       failedBlame.reject(new Error("blame backend unavailable"));
       await failedBlame.promise.catch(() => undefined);
     });
 
-    const errorButton = await screen.findByRole("button", { name: "files.gitBlameError" });
-    expect(errorButton.getAttribute("title")).toBe("blame backend unavailable");
+    expect(getGitBlameMenuItem().textContent).toContain("files.gitBlameError");
     expect((editor as HTMLTextAreaElement).disabled).toBe(false);
   });
 
@@ -298,9 +357,10 @@ describe("FileViewPanel Git Blame", () => {
     );
 
     await screen.findByTestId("mock-codemirror");
-    const blameButton = screen.getByRole("button", { name: "files.gitBlame" });
-    expect((blameButton as HTMLButtonElement).disabled).toBe(true);
-    expect(blameButton.getAttribute("title")).toBe("files.gitBlameUnavailable");
+    const menu = openFileContentContextMenu();
+    expect(
+      menu.queryByRole("menuitem", { name: "files.tabGitActions" }),
+    ).toBeNull();
     expect(getGitFileBlame).not.toHaveBeenCalled();
   });
 
@@ -330,7 +390,7 @@ describe("FileViewPanel Git Blame", () => {
     );
 
     const editor = await screen.findByTestId("mock-codemirror");
-    fireEvent.click(screen.getByRole("button", { name: "files.gitBlame" }));
+    toggleFileGitBlame();
     await waitFor(() => expect(getGitFileBlame).toHaveBeenCalledTimes(1));
     await waitFor(() => {
       expect((editor as HTMLTextAreaElement).value).toBe("const value = 2;");
@@ -342,7 +402,9 @@ describe("FileViewPanel Git Blame", () => {
       obsoleteBlame.resolve(blameResponse);
       await obsoleteBlame.promise;
     });
-    expect(screen.getByRole("button", { name: "files.gitBlameLoading" })).toBeTruthy();
+    expect(getGitBlameMenuItem().textContent).toContain(
+      "files.gitBlameLoading",
+    );
 
     await act(async () => {
       refreshedBlame.resolve({ ...blameResponse, headSha: "def456" });
@@ -351,7 +413,10 @@ describe("FileViewPanel Git Blame", () => {
   });
 
   it("preserves nested repository scope and does not refetch while typing", async () => {
-    vi.mocked(readWorkspaceFile).mockResolvedValue({ content: "one", truncated: false });
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "one",
+      truncated: false,
+    });
     vi.mocked(getGitFileBlame).mockResolvedValue({
       path: "src/value.ts",
       headSha: "abc123",
@@ -374,7 +439,7 @@ describe("FileViewPanel Git Blame", () => {
     );
 
     const editor = await screen.findByTestId("mock-codemirror");
-    fireEvent.click(screen.getByRole("button", { name: "files.gitBlame" }));
+    toggleFileGitBlame();
     await waitFor(() => expect(getGitFileBlame).toHaveBeenCalledTimes(1));
     expect(getGitFileBlame).toHaveBeenCalledWith(
       "ws-1",
@@ -383,15 +448,18 @@ describe("FileViewPanel Git Blame", () => {
     );
 
     fireEvent.change(editor, { target: { value: "two" } });
-    fireEvent.select(editor, { target: { selectionStart: 1, selectionEnd: 1 } });
+    fireEvent.select(editor, {
+      target: { selectionStart: 1, selectionEnd: 1 },
+    });
     expect(getGitFileBlame).toHaveBeenCalledTimes(1);
-    expect(
-      screen.getByRole("button", { name: "files.gitBlameStale" }).getAttribute("aria-pressed"),
-    ).toBe("true");
+    expect(getGitBlameMenuItem().textContent).toContain("files.gitBlameStale");
   });
 
   it("uses the longest owning repository instead of the configured git root", async () => {
-    vi.mocked(readWorkspaceFile).mockResolvedValue({ content: "one", truncated: false });
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "one",
+      truncated: false,
+    });
     vi.mocked(getGitFileBlame).mockResolvedValue({
       ...blameResponse,
       path: "src/value.ts",
@@ -417,7 +485,7 @@ describe("FileViewPanel Git Blame", () => {
     );
 
     await screen.findByTestId("mock-codemirror");
-    fireEvent.click(screen.getByRole("button", { name: "files.gitBlame" }));
+    toggleFileGitBlame();
 
     await waitFor(() => {
       expect(getGitFileBlame).toHaveBeenCalledWith(
@@ -429,7 +497,10 @@ describe("FileViewPanel Git Blame", () => {
   });
 
   it("does not blame through another repository when the known inventory has no owner", async () => {
-    vi.mocked(readWorkspaceFile).mockResolvedValue({ content: "one", truncated: false });
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "one",
+      truncated: false,
+    });
 
     render(
       <FileViewPanel
@@ -447,13 +518,61 @@ describe("FileViewPanel Git Blame", () => {
     );
 
     await screen.findByTestId("mock-codemirror");
-    const blameButton = screen.getByRole("button", { name: "files.gitBlame" });
-    expect((blameButton as HTMLButtonElement).disabled).toBe(true);
+    const menu = openFileContentContextMenu();
+    expect(
+      menu.queryByRole("menuitem", { name: "files.tabGitActions" }),
+    ).toBeNull();
     expect(getGitFileBlame).not.toHaveBeenCalled();
   });
 
+  it("opens active file history from the content Git submenu using nested repository scope", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "const value = 1;",
+      truncated: false,
+    });
+    const onOpenFileHistory = vi.fn();
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-content-history"
+        workspacePath="/repo"
+        gitRepositories={[repository(""), repository("packages/app")]}
+        filePath="packages/app/src/value.ts"
+        onOpenFileHistory={onOpenFileHistory}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByTestId("mock-codemirror");
+    const menu = openFileContentContextMenu();
+    fireEvent.mouseEnter(
+      menu.getByRole("menuitem", { name: "files.tabGitActions" }),
+    );
+    const gitMenu = within(
+      screen.getByRole("menu", { name: "files.tabGitActions" }),
+    );
+    fireEvent.click(
+      gitMenu.getByRole("menuitem", { name: "files.tabShowFileHistory" }),
+    );
+
+    expect(onOpenFileHistory).toHaveBeenCalledWith({
+      workspaceId: "ws-content-history",
+      workspacePath: "/repo",
+      repositoryRoot: "packages/app",
+      path: "src/value.ts",
+      displayPath: "packages/app/src/value.ts",
+    });
+  });
+
   it("opens file history for the invoked tab using its nested repository scope", async () => {
-    vi.mocked(readWorkspaceFile).mockResolvedValue({ content: "one", truncated: false });
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "one",
+      truncated: false,
+    });
     const onOpenFileHistory = vi.fn();
 
     render(
@@ -476,11 +595,15 @@ describe("FileViewPanel Git Blame", () => {
 
     await screen.findByTestId("file-markdown-preview");
     fireEvent.contextMenu(screen.getByRole("tab", { name: "value.ts" }));
-    const gitTrigger = screen.getByRole("menuitem", { name: "files.tabGitActions" });
+    const gitTrigger = screen.getByRole("menuitem", {
+      name: "files.tabGitActions",
+    });
     fireEvent.mouseEnter(gitTrigger);
     const gitMenu = screen.getByRole("menu", { name: "files.tabGitActions" });
     fireEvent.click(
-      within(gitMenu).getByRole("menuitem", { name: "files.tabShowFileHistory" }),
+      within(gitMenu).getByRole("menuitem", {
+        name: "files.tabShowFileHistory",
+      }),
     );
 
     expect(onOpenFileHistory).toHaveBeenCalledWith({
@@ -493,14 +616,18 @@ describe("FileViewPanel Git Blame", () => {
   });
 
   it("activates a background tab before enabling Git Blame", async () => {
-    vi.mocked(readWorkspaceFile).mockImplementation(async (_workspaceId, path) => ({
-      content: `content:${path}`,
-      truncated: false,
-    }));
-    vi.mocked(getGitFileBlame).mockImplementation(async (_workspaceId, path) => ({
-      ...blameResponse,
-      path,
-    }));
+    vi.mocked(readWorkspaceFile).mockImplementation(
+      async (_workspaceId, path) => ({
+        content: `content:${path}`,
+        truncated: false,
+      }),
+    );
+    vi.mocked(getGitFileBlame).mockImplementation(
+      async (_workspaceId, path) => ({
+        ...blameResponse,
+        path,
+      }),
+    );
 
     function Harness() {
       const [activePath, setActivePath] = useState("src/first.ts");
@@ -526,7 +653,9 @@ describe("FileViewPanel Git Blame", () => {
     render(<Harness />);
     await screen.findByTestId("mock-codemirror");
     fireEvent.contextMenu(screen.getByRole("tab", { name: "second.ts" }));
-    const gitTrigger = screen.getByRole("menuitem", { name: "files.tabGitActions" });
+    const gitTrigger = screen.getByRole("menuitem", {
+      name: "files.tabGitActions",
+    });
     fireEvent.mouseEnter(gitTrigger);
     const gitMenu = screen.getByRole("menu", { name: "files.tabGitActions" });
     fireEvent.click(

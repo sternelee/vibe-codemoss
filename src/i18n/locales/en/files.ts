@@ -11,6 +11,7 @@ const files = {
     deleteFolderConfirm:
       'Are you sure you want to move the folder "{{name}}" and all its contents to the trash?',
     copyItem: "Copy",
+    cutItem: "Cut",
     pasteItem: "Paste",
     duplicateItem: "Duplicate",
     renameItem: "Rename",
@@ -287,6 +288,10 @@ const files = {
     noReferencesFound: "No references found",
     openFind: "Find in file (⌘/Ctrl+F)",
     tabContextMenu: "File tab actions",
+    fileContextMenu: "File actions",
+    clipboardActionFailedTitle: "Clipboard action failed",
+    clipboardActionFailed: "{{action}} failed: {{message}}",
+    clipboardUnavailable: "Clipboard access is unavailable.",
     tabGitActions: "Git operations",
     tabShowFileHistory: "Show file history",
     closeCurrentTab: "Close tab",
