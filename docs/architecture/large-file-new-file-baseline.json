@@ -814,7 +814,7 @@
       "thresholdSource": "new-file-ratchet"
     },
     {
-      "path": "src/features/messages/components/MessagesRows.tsx",
+      "path": "src/features/messages/rows/components/MessageRow.tsx",
       "lines": 2000,
       "type": "ts/tsx",
       "policyId": "feature-hotpath",

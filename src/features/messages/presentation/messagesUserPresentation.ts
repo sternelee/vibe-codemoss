@@ -9,7 +9,7 @@ import {
   type NoteCardContextSummary,
 } from "../utils/context/messagesNoteCardContext";
 import { extractCommandMessageDisplayText } from "../../../utils/commandMessageTags";
-import { stripBrowserContextPrompt } from "../../browser-agent";
+import { stripBrowserContextPrompt } from "../../browser-agent/utils/attachment";
 import { stripIntentCanvasContextPrompt } from "../../intent-canvas/utils/messageContext";
 
 const MODE_FALLBACK_MARKER_REGEX = /User request\s*:\s*/i;

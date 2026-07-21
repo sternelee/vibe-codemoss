@@ -3,6 +3,8 @@ import type { StreamMitigationProfile } from "../../../threads/utils/streamLaten
 import type { PresentationProfile } from "../../presentation/presentationProfile";
 import type { MessagesEngine } from "../../utils/messagesRenderUtils";
 
+export type { StreamMitigationProfile };
+
 export const LIVE_ASSISTANT_MARKDOWN_THROTTLE_MS = 48;
 const CODEX_TINY_STREAMING_THROTTLE_MS = 72;
 
