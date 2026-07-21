@@ -1842,7 +1842,7 @@
 }
 
 .pinned-thread-list {
-  padding: 0 4px;
+  padding: 0;
 }
 
 .pinned-section {
@@ -1853,7 +1853,7 @@
 }
 
 .sidebar-pinned-section {
-  padding: 0 4px 0 12px;
+  padding: 0 2px;
 }
 
 .thread-list-nested {
