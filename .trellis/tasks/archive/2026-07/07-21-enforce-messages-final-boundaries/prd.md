@@ -23,4 +23,4 @@
 - 不新增 dependency。
 - 不改变 messages runtime、rendering、streaming、history 或 recovery behavior。
 - 现有 outbound debt 只能 exact freeze，不得增加 wildcard exception。
-- 当前日期固定为 2026-07-21，禁止生成 2026-07-22 metadata。
+- 当前日期固定为 2026-07-21，禁止生成未来日期 metadata。
