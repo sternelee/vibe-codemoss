@@ -1797,3 +1797,36 @@ Rebased chore/bump-version-0.7.5 onto origin, semantically resolved Kimi integra
 ### Next Steps
 
 - None - task complete
+
+
+## Session 40: 修复 MessageRow context 与 media scope
+
+**Date**: 2026-07-21
+**Task**: 修复 MessageRow context 与 media scope
+**Branch**: `bump-version-0.7.6`
+
+### Summary
+
+补齐 browser/intent-canvas memo equality，并以 committed scope + request generation 阻止 deferred image stale completion；messages suite 77 files/702 pass/7 skip。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `fac1ccc5` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

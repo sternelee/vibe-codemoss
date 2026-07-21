@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 39
+- **Total Sessions**: 40
 - **Last Active**: 2026-07-21
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1799 | Active |
+| `journal-1.md` | ~1832 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 40 | 2026-07-21 | 修复 MessageRow context 与 media scope | `fac1ccc5` | `bump-version-0.7.6` |
 | 39 | 2026-07-21 | 归档 Messages 模块边界 change | `05baf51a` | `bump-version-0.7.6` |
 | 38 | 2026-07-21 | 建立 Messages 模块边界基线 | `2bd4a398` | `bump-version-0.7.6` |
 | 37 | 2026-07-19 | 解决 Kimi 集成分支同步冲突 | `e33dcaa6` | `chore/bump-version-0.7.5` |
