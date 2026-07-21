@@ -3,7 +3,7 @@
   "name": "enforce-messages-final-boundaries",
   "title": "Enforce messages final boundaries",
   "description": "OpenSpec: enforce-messages-final-boundaries; execute roadmap Phase 8.4-8.6 and lock the final messages dependency graph",
-  "status": "active",
+  "status": "completed",
   "dev_type": "frontend",
   "scope": "messages-boundaries",
   "package": null,
@@ -11,11 +11,11 @@
   "creator": "zhukunpenglinyutong",
   "assignee": "zhukunpenglinyutong",
   "createdAt": "2026-07-21",
-  "completedAt": null,
+  "completedAt": "2026-07-21",
   "branch": null,
   "base_branch": "bump-version-0.7.6",
   "worktree_path": null,
-  "current_phase": 4,
+  "current_phase": 5,
   "next_action": [
     {
       "phase": 1,
@@ -42,7 +42,7 @@
       "action": "record-session"
     }
   ],
-  "commit": null,
+  "commit": "ecf1e80f",
   "pr_url": null,
   "subtasks": [],
   "children": [],
@@ -55,6 +55,6 @@
     "src/features/messages/",
     "src/features/threads/"
   ],
-  "notes": "Implemented and fully verified on 2026-07-21. Boundary state is inbound 0/0, outbound 50/50, new 0. Known unrelated baselines: large-files 51; heavy-test-noise two act warnings plus two stdout lines; OpenSpec fix-claude-cli-native-installer invalid on parent commit.",
+  "notes": "Implementation committed as ecf1e80f and fully verified on 2026-07-21. Boundary state is inbound 0/0, outbound 50/50, new 0. Known unrelated baselines: large-files 51; heavy-test-noise two act warnings plus two stdout lines; OpenSpec fix-claude-cli-native-installer invalid on parent commit. Pending Trellis session record and OpenSpec archive.",
   "meta": {}
 }
