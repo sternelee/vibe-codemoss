@@ -1125,3 +1125,36 @@ Review 并修复 Git History repository color collision、branch group 与 branc
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1059: 重构文件标签右键菜单
+
+**Date**: 2026-07-22
+**Task**: 重构文件标签右键菜单
+**Branch**: `feature/v-076`
+
+### Summary
+
+重构文件 tab 右键菜单样式，加入图标、文件级只读 Git 操作、关闭当前/其他/全部及新窗口打开；补齐主窗口与 detached explorer 原子状态动作、10 语言文案、增量测试，并完成 OpenSpec 同步归档。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1764941de` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
