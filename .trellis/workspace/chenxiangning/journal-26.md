@@ -860,3 +860,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1051: 压缩多仓操作菜单
+
+**Date**: 2026-07-21
+**Task**: 压缩多仓操作菜单
+**Branch**: `feature/v-076`
+
+### Summary
+
+删除多仓菜单中的切换 Git 仓库分组标题，压缩更新全部与切换全部分支操作栏高度；保持 Git 逻辑不变。focused test 11/11、lint、typecheck、git diff check 均通过；用户已完成 UI 验收。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c0c7be65e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

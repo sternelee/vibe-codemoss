@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-26.md`
-- **Total Sessions**: 1050
+- **Total Sessions**: 1051
 - **Last Active**: 2026-07-21
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-26.md` | ~862 | Active |
+| `journal-26.md` | ~895 | Active |
 | `journal-25.md` | ~1976 | Archived |
 | `journal-24.md` | ~1994 | Archived |
 | `journal-23.md` | ~1965 | Archived |
@@ -54,6 +54,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 1051 | 2026-07-21 | 压缩多仓操作菜单 | `c0c7be65e` | `feature/v-076` |
 | 1050 | 2026-07-21 | 多仓全局 Git 操作闭环 | `bf44df641293a6a06e82cf5cbf7744f6455bd0e2`, `6ef31cc93021c684d40c3843074aa219e9bc84f8` | `feature/v-076` |
 | 1049 | 2026-07-21 | 合并 bump-version-0.7.6 | `f03c644a9` | `feature/v-076` |
 | 1048 | 2026-07-21 | Mermaid 全屏 PNG 下载 | `9eeb82a1e` | `feature/v-076` |
