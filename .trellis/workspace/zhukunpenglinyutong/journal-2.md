@@ -342,3 +342,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 56: 隔离 messages 编排控制器职责
+
+**Date**: 2026-07-22
+**Task**: 隔离 messages 编排控制器职责
+**Branch**: `bump-version-0.7.6`
+
+### Summary
+
+拆分 runtime、presentation、history、scroll 与 interactions 状态 owner；补齐 workspace + thread scope 回归测试；完成 messages 全量、仓库 876 test files、lint、typecheck、build、boundary 与 OpenSpec strict 验证。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `90991c6a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
