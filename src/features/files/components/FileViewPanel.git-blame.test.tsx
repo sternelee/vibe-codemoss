@@ -1,9 +1,13 @@
 /** @vitest-environment jsdom */
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import "./FileViewPanel.test-utils";
+import { mockCodeMirrorDispatch } from "./FileViewPanel.test-utils";
 import { FileViewPanel } from "./FileViewPanel";
-import { getGitFileBlame, readWorkspaceFile } from "../../../services/tauri";
+import {
+  getGitFileBlame,
+  getGitFileFullDiff,
+  readWorkspaceFile,
+} from "../../../services/tauri";
 import { clearFileDocumentSessionCacheForTests } from "../hooks/useFileDocumentState";
 import { clearFileGitBlameCacheForTests } from "../hooks/useFileGitBlame";
 import type { GitRepositorySummary } from "../../../types";
@@ -50,9 +54,10 @@ describe("FileViewPanel Git Blame", () => {
     clearFileDocumentSessionCacheForTests();
     clearFileGitBlameCacheForTests();
     vi.clearAllMocks();
+    mockCodeMirrorDispatch.mockReset();
   });
 
-  it("keeps file open blame-free until the user enables it", async () => {
+  it("keeps file open free of blame and git diff work until the user enables it", async () => {
     vi.mocked(readWorkspaceFile).mockResolvedValue({
       content: "export const value = 1;",
       truncated: false,
@@ -63,12 +68,18 @@ describe("FileViewPanel Git Blame", () => {
       lineCount: 1,
       hunks: [],
     });
+    vi.mocked(getGitFileFullDiff).mockResolvedValue(
+      "@@ -1 +1 @@\n-export const value = 0;\n+export const value = 1;",
+    );
 
     render(
       <FileViewPanel
         workspaceId="ws-1"
         workspacePath="/repo"
         filePath="src/value.ts"
+        gitStatusFiles={[
+          { path: "src/value.ts", status: "M", additions: 1, deletions: 1 },
+        ]}
         openTargets={[]}
         openAppIconById={{}}
         selectedOpenAppId=""
@@ -79,11 +90,121 @@ describe("FileViewPanel Git Blame", () => {
 
     await screen.findByTestId("mock-codemirror");
     expect(getGitFileBlame).not.toHaveBeenCalled();
+    expect(getGitFileFullDiff).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "files.gitBlame" }));
 
     await waitFor(() => {
       expect(getGitFileBlame).toHaveBeenCalledWith("ws-1", "src/value.ts", null);
+      expect(getGitFileFullDiff).toHaveBeenCalledWith("ws-1", "src/value.ts");
     });
+  });
+
+  it("keeps diff markers independent when blame fails", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({ content: "one", truncated: false });
+    vi.mocked(getGitFileBlame).mockRejectedValue(new Error("blame unavailable"));
+    vi.mocked(getGitFileFullDiff).mockResolvedValue("@@ -0,0 +1 @@\n+one");
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-independent-markers"
+        workspacePath="/repo"
+        filePath="src/value.ts"
+        gitStatusFiles={[
+          { path: "src/value.ts", status: "A", additions: 1, deletions: 0 },
+        ]}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByTestId("mock-codemirror");
+    fireEvent.click(screen.getByRole("button", { name: "files.gitBlame" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "files.gitBlameError" })).toBeTruthy();
+      expect(getGitFileFullDiff).toHaveBeenCalledWith(
+        "ws-independent-markers",
+        "src/value.ts",
+      );
+    });
+  });
+
+  it("does not refetch git diff while an enabled blame view becomes dirty", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({ content: "one", truncated: false });
+    vi.mocked(getGitFileBlame).mockResolvedValue(blameResponse);
+    vi.mocked(getGitFileFullDiff).mockResolvedValue("@@ -0,0 +1 @@\n+one");
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-marker-dirty"
+        workspacePath="/repo"
+        filePath="src/value.ts"
+        gitStatusFiles={[
+          { path: "src/value.ts", status: "M", additions: 1, deletions: 0 },
+        ]}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const editor = await screen.findByTestId("mock-codemirror");
+    fireEvent.click(screen.getByRole("button", { name: "files.gitBlame" }));
+    await waitFor(() => expect(getGitFileFullDiff).toHaveBeenCalledTimes(1));
+
+    fireEvent.change(editor, { target: { value: "two" } });
+    expect(getGitFileFullDiff).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores an in-flight git marker result when blame is disabled", async () => {
+    const pendingDiff = createDeferred<string>();
+    vi.mocked(readWorkspaceFile).mockResolvedValue({ content: "one", truncated: false });
+    vi.mocked(getGitFileBlame).mockResolvedValue(blameResponse);
+    vi.mocked(getGitFileFullDiff).mockReturnValue(pendingDiff.promise);
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-marker-toggle"
+        workspacePath="/repo"
+        filePath="src/value.ts"
+        gitStatusFiles={[
+          { path: "src/value.ts", status: "A", additions: 1, deletions: 0 },
+        ]}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByTestId("mock-codemirror");
+    fireEvent.click(screen.getByRole("button", { name: "files.gitBlame" }));
+    await waitFor(() => {
+      expect(getGitFileFullDiff).toHaveBeenCalledTimes(1);
+      expect(
+        screen.getByRole("button", { name: "files.gitBlame" }).getAttribute("aria-pressed"),
+      ).toBe("true");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "files.gitBlame" }));
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "files.gitBlame" }).getAttribute("aria-pressed"),
+      ).toBe("false");
+    });
+    mockCodeMirrorDispatch.mockClear();
+
+    await act(async () => {
+      pendingDiff.resolve("@@ -0,0 +1 @@\n+one");
+      await pendingDiff.promise;
+    });
+    expect(mockCodeMirrorDispatch).not.toHaveBeenCalled();
   });
 
   it("keeps the first useful editor viewport usable while blame is slow", async () => {

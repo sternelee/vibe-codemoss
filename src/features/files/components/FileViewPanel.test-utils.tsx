@@ -239,8 +239,13 @@ vi.mock("../../../services/tauri", () => ({
   readLocalImageDataUrl: vi.fn(),
   writeWorkspaceFile: vi.fn(),
   writeExternalSpecFile: vi.fn(),
-  getGitFileFullDiff: vi.fn(),
-  getGitFileBlame: vi.fn(),
+  getGitFileFullDiff: vi.fn(async () => ""),
+  getGitFileBlame: vi.fn(async () => ({
+    path: "",
+    headSha: "",
+    lineCount: 0,
+    hunks: [],
+  })),
   getCodeIntelDefinition: vi.fn(),
   getCodeIntelReferences: vi.fn(),
 }));

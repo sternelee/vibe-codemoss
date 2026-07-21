@@ -423,7 +423,7 @@ describe("FileViewPanel navigation", () => {
     });
   });
 
-  it("falls back to workspace git diff fetch when provided highlight markers are empty", async () => {
+  it("loads workspace git diff after blame is enabled when provided highlight markers are empty", async () => {
     vi.mocked(readWorkspaceFile).mockResolvedValue({
       content: "line 1\nline 2\nline 3",
       truncated: false,
@@ -448,7 +448,11 @@ describe("FileViewPanel navigation", () => {
     );
 
     await screen.findByTestId("mock-codemirror");
-    expect(getGitFileFullDiff).toHaveBeenCalledWith("ws-highlight-empty", "src/Main.java");
+    expect(getGitFileFullDiff).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "files.gitBlame" }));
+    await waitFor(() => {
+      expect(getGitFileFullDiff).toHaveBeenCalledWith("ws-highlight-empty", "src/Main.java");
+    });
   });
 
   it("mounts the editor before slow git markers resolve", async () => {
@@ -480,10 +484,15 @@ describe("FileViewPanel navigation", () => {
         (screen.getByTestId("mock-codemirror") as HTMLTextAreaElement).value,
       ).toBe("const value = 1;");
     });
-    expect(getGitFileFullDiff).toHaveBeenCalledWith(
-      "ws-slow-git-marker",
-      "src/value.ts",
-    );
+    expect(getGitFileFullDiff).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "files.gitBlame" }));
+    await waitFor(() => {
+      expect(getGitFileFullDiff).toHaveBeenCalledWith(
+        "ws-slow-git-marker",
+        "src/value.ts",
+      );
+      expect(screen.getByRole("button", { name: "files.gitBlame" })).toBeTruthy();
+    });
   });
 
   it("drops stale git marker results after switching files", async () => {
@@ -513,6 +522,8 @@ describe("FileViewPanel navigation", () => {
     );
 
     await screen.findByTestId("mock-codemirror");
+    fireEvent.click(screen.getByRole("button", { name: "files.gitBlame" }));
+    await waitFor(() => expect(getGitFileFullDiff).toHaveBeenCalledTimes(1));
     mockCodeMirrorDispatch.mockClear();
 
     rerender(
@@ -571,8 +582,11 @@ describe("FileViewPanel navigation", () => {
     );
 
     await screen.findByTestId("mock-codemirror");
+    fireEvent.click(screen.getByRole("button", { name: "files.gitBlame" }));
     expect(readWorkspaceFile).toHaveBeenCalledWith("ws-absolute-path", "src/Main.java");
-    expect(getGitFileFullDiff).toHaveBeenCalledWith("ws-absolute-path", "src/Main.java");
+    await waitFor(() => {
+      expect(getGitFileFullDiff).toHaveBeenCalledWith("ws-absolute-path", "src/Main.java");
+    });
   });
 
   it("normalizes Windows absolute file paths case-insensitively before reading and fetching git diff", async () => {
@@ -600,14 +614,17 @@ describe("FileViewPanel navigation", () => {
     );
 
     await screen.findByTestId("mock-codemirror");
+    fireEvent.click(screen.getByRole("button", { name: "files.gitBlame" }));
     expect(readWorkspaceFile).toHaveBeenCalledWith(
       "ws-windows-absolute-path",
       "src/Main.java",
     );
-    expect(getGitFileFullDiff).toHaveBeenCalledWith(
-      "ws-windows-absolute-path",
-      "src/Main.java",
-    );
+    await waitFor(() => {
+      expect(getGitFileFullDiff).toHaveBeenCalledWith(
+        "ws-windows-absolute-path",
+        "src/Main.java",
+      );
+    });
   });
 
   it("uses repo-relative git path for diff when git root is a workspace subdirectory", async () => {
@@ -636,7 +653,10 @@ describe("FileViewPanel navigation", () => {
     );
 
     await screen.findByTestId("mock-codemirror");
-    expect(getGitFileFullDiff).toHaveBeenCalledWith("ws-subrepo", ".env.example");
+    fireEvent.click(screen.getByRole("button", { name: "files.gitBlame" }));
+    await waitFor(() => {
+      expect(getGitFileFullDiff).toHaveBeenCalledWith("ws-subrepo", ".env.example");
+    });
     expect(container.querySelector(".fvp-filepath")?.className).toContain("git-m");
   });
 

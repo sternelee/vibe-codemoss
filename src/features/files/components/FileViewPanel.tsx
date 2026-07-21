@@ -924,17 +924,25 @@ export function FileViewPanel({
       setGitLineMarkers(resetGitLineMarkersIfNeeded);
       return;
     }
-    if (fileReadTarget.domain !== "workspace") {
+    if (!gitBlame.enabled || fileReadTarget.domain !== "workspace") {
       setGitLineMarkers(resetGitLineMarkersIfNeeded);
       return;
     }
-    if (!normalizedStatus || normalizedStatus === "D" || skipTextRead) {
+    if (
+      isLoading ||
+      !normalizedStatus ||
+      normalizedStatus === "D" ||
+      skipTextRead
+    ) {
       setGitLineMarkers(resetGitLineMarkersIfNeeded);
+      return;
+    }
+    if (effectiveIsDirty) {
       return;
     }
 
     let cancelled = false;
-    const requestRenderToken = latestFileRenderTokenRef.current;
+    const requestRenderToken = currentFileRenderToken;
     getGitFileFullDiff(workspaceId, gitDiffTargetPath)
       .then((diff) => {
         if (cancelled || latestFileRenderTokenRef.current !== requestRenderToken) {
@@ -952,11 +960,15 @@ export function FileViewPanel({
       cancelled = true;
     };
   }, [
+    currentFileRenderToken,
+    effectiveIsDirty,
     workspaceId,
     gitDiffTargetPath,
     fileGitStatus,
     fileReadTarget.domain,
+    gitBlame.enabled,
     hasExplicitHighlightMarkers,
+    isLoading,
     skipTextRead,
   ]);
 
