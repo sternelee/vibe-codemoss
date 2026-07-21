@@ -1,4 +1,4 @@
-import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
@@ -152,21 +152,42 @@ type DeferredImageState = {
   error?: string;
 };
 
+type MessageItem = Extract<ConversationItem, { kind: "message" }>;
+type DeferredImage = NonNullable<MessageItem["deferredImages"]>[number];
+type DeferredImageRequestIdentity = {
+  key: string;
+  scopeKey: string;
+  requestId: number;
+};
+
 const EMPTY_DEFERRED_IMAGE_ITEMS: NonNullable<
-  Extract<ConversationItem, { kind: "message" }>["deferredImages"]
+  MessageItem["deferredImages"]
 > = [];
 
+function deferredImageScopeKey(
+  threadId: string | null | undefined,
+  messageId: string,
+  image: DeferredImage,
+) {
+  return JSON.stringify([image.workspacePath ?? "", threadId ?? "", messageId]);
+}
+
 function deferredImageKey(
-  image: NonNullable<Extract<ConversationItem, { kind: "message" }>["deferredImages"]>[number],
+  threadId: string | null | undefined,
+  messageId: string,
+  image: DeferredImage,
 ) {
   const locator = image.locator;
-  return [
+  return JSON.stringify([
+    image.workspacePath ?? "",
+    threadId ?? "",
+    messageId,
     locator.sessionId,
     locator.lineIndex,
     locator.blockIndex,
     locator.messageId ?? "",
     locator.mediaType,
-  ].join(":");
+  ]);
 }
 
 function formatDeferredImageSize(byteSize: number) {
@@ -251,8 +272,8 @@ function areMessageImagesEqual(
 }
 
 function areDeferredMessageImagesEqual(
-  previous: Extract<ConversationItem, { kind: "message" }>["deferredImages"],
-  next: Extract<ConversationItem, { kind: "message" }>["deferredImages"],
+  previous: MessageItem["deferredImages"],
+  next: MessageItem["deferredImages"],
 ) {
   if (previous === next) {
     return true;
@@ -279,9 +300,29 @@ function areDeferredMessageImagesEqual(
   });
 }
 
+function areBrowserContextAttachmentsEqual(
+  previous: MessageItem["browserContextAttachment"],
+  next: MessageItem["browserContextAttachment"],
+) {
+  return previous === next;
+}
+
+function areIntentCanvasAttachmentsEqual(
+  previous: MessageItem["intentCanvasContextAttachments"],
+  next: MessageItem["intentCanvasContextAttachments"],
+) {
+  if (previous === next) {
+    return true;
+  }
+  if (!previous || !next || previous.length !== next.length) {
+    return false;
+  }
+  return previous.every((attachment, index) => attachment === next[index]);
+}
+
 function areMessageItemsEqual(
-  previous: Extract<ConversationItem, { kind: "message" }>,
-  next: Extract<ConversationItem, { kind: "message" }>,
+  previous: MessageItem,
+  next: MessageItem,
 ) {
   return (
     previous === next ||
@@ -295,6 +336,14 @@ function areMessageItemsEqual(
       previous.finalDurationMs === next.finalDurationMs &&
       previous.selectedAgentName === next.selectedAgentName &&
       previous.selectedAgentIcon === next.selectedAgentIcon &&
+      areBrowserContextAttachmentsEqual(
+        previous.browserContextAttachment,
+        next.browserContextAttachment,
+      ) &&
+      areIntentCanvasAttachmentsEqual(
+        previous.intentCanvasContextAttachments,
+        next.intentCanvasContextAttachments,
+      ) &&
       areMessageImagesEqual(previous.images, next.images) &&
       areDeferredMessageImagesEqual(previous.deferredImages, next.deferredImages)
     )
@@ -680,6 +729,9 @@ export const MessageRow = memo(function MessageRow({
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [deferredImageStates, setDeferredImageStates] = useState<Record<string, DeferredImageState>>({});
   const deferredImageObjectUrlsRef = useRef(new Set<string>());
+  const deferredImageRequestSequenceRef = useRef(0);
+  const latestDeferredImageRequestsRef = useRef(new Map<string, DeferredImageRequestIdentity>());
+  const currentDeferredImageKeysRef = useRef(new Set<string>());
   const isMountedRef = useRef(true);
   const [memorySummaryExpanded, setMemorySummaryExpanded] = useState(false);
   const [memoryPayloadDialogOpen, setMemoryPayloadDialogOpen] = useState(false);
@@ -906,18 +958,24 @@ export const MessageRow = memo(function MessageRow({
       .filter(Boolean) as MessageImage[];
   }, [item.images, noteCardImagePathSet]);
   const deferredImageItems = item.deferredImages ?? EMPTY_DEFERRED_IMAGE_ITEMS;
+  const currentDeferredImageKeys = useMemo(
+    () => new Set(
+      deferredImageItems.map((image) => deferredImageKey(threadId, item.id, image)),
+    ),
+    [deferredImageItems, item.id, threadId],
+  );
   const loadedDeferredImages = useMemo(
     () =>
       deferredImageItems
         .map((image, index) => {
-          const state = deferredImageStates[deferredImageKey(image)];
+          const state = deferredImageStates[deferredImageKey(threadId, item.id, image)];
           if (state?.status !== "loaded" || !state.src) {
             return null;
           }
           return { src: state.src, label: `Deferred Claude image ${index + 1}` };
         })
         .filter(Boolean) as MessageImage[],
-    [deferredImageItems, deferredImageStates],
+    [deferredImageItems, deferredImageStates, item.id, threadId],
   );
   const lightboxImages = useMemo(
     () => [...imageItems, ...loadedDeferredImages],
@@ -932,13 +990,33 @@ export const MessageRow = memo(function MessageRow({
       deferredImageObjectUrlsRef.current.delete(objectUrl);
     }
   }, []);
+  const isDeferredImageRequestCurrent = useCallback(
+    (identity: DeferredImageRequestIdentity) => {
+      const latestIdentity = latestDeferredImageRequestsRef.current.get(identity.key);
+      return (
+        isMountedRef.current &&
+        currentDeferredImageKeysRef.current.has(identity.key) &&
+        latestIdentity?.scopeKey === identity.scopeKey &&
+        latestIdentity.requestId === identity.requestId
+      );
+    },
+    [],
+  );
   const handleLoadDeferredImage = useCallback(
-    async (
-      image: NonNullable<Extract<ConversationItem, { kind: "message" }>["deferredImages"]>[number],
-    ) => {
-      const key = deferredImageKey(image);
+    async (image: DeferredImage) => {
+      const key = deferredImageKey(threadId, item.id, image);
+      const identity: DeferredImageRequestIdentity = {
+        key,
+        scopeKey: deferredImageScopeKey(threadId, item.id, image),
+        requestId: deferredImageRequestSequenceRef.current + 1,
+      };
+      deferredImageRequestSequenceRef.current = identity.requestId;
+      latestDeferredImageRequestsRef.current.set(key, identity);
       if (!image.workspacePath) {
         setDeferredImageStates((current) => {
+          if (!isDeferredImageRequestCurrent(identity)) {
+            return current;
+          }
           revokeTrackedDeferredImageState(current[key]);
           return {
             ...current,
@@ -951,6 +1029,9 @@ export const MessageRow = memo(function MessageRow({
         return;
       }
       setDeferredImageStates((current) => {
+        if (!isDeferredImageRequestCurrent(identity)) {
+          return current;
+        }
         revokeTrackedDeferredImageState(current[key]);
         return {
           ...current,
@@ -974,17 +1055,21 @@ export const MessageRow = memo(function MessageRow({
         )
           ? loadedState.src
           : null;
+        if (!isDeferredImageRequestCurrent(identity)) {
+          revokeDeferredImageState(loadedState);
+          return;
+        }
         if (loadedObjectUrl) {
           deferredImageObjectUrlsRef.current.add(loadedObjectUrl);
         }
-        if (!isMountedRef.current) {
-          revokeDeferredImageState(loadedState);
-          if (loadedObjectUrl) {
-            deferredImageObjectUrlsRef.current.delete(loadedObjectUrl);
-          }
-          return;
-        }
         setDeferredImageStates((current) => {
+          if (!isDeferredImageRequestCurrent(identity)) {
+            revokeDeferredImageState(loadedState);
+            if (loadedObjectUrl) {
+              deferredImageObjectUrlsRef.current.delete(loadedObjectUrl);
+            }
+            return current;
+          }
           revokeTrackedDeferredImageState(current[key]);
           return {
             ...current,
@@ -992,10 +1077,13 @@ export const MessageRow = memo(function MessageRow({
           };
         });
       } catch (error) {
-        if (!isMountedRef.current) {
+        if (!isDeferredImageRequestCurrent(identity)) {
           return;
         }
         setDeferredImageStates((current) => {
+          if (!isDeferredImageRequestCurrent(identity)) {
+            return current;
+          }
           revokeTrackedDeferredImageState(current[key]);
           return {
             ...current,
@@ -1007,19 +1095,49 @@ export const MessageRow = memo(function MessageRow({
         });
       }
     },
-    [revokeTrackedDeferredImageState],
+    [isDeferredImageRequestCurrent, item.id, revokeTrackedDeferredImageState, threadId],
   );
   const deferredImageStatesRef = useRef(deferredImageStates);
   useEffect(() => {
     deferredImageStatesRef.current = deferredImageStates;
   }, [deferredImageStates]);
-  useEffect(() => () => {
-    isMountedRef.current = false;
-    Object.values(deferredImageStatesRef.current).forEach(revokeTrackedDeferredImageState);
-    deferredImageObjectUrlsRef.current.forEach((objectUrl) => {
-      revokeOwnedObjectUrl(objectUrl);
+  useLayoutEffect(() => {
+    currentDeferredImageKeysRef.current = currentDeferredImageKeys;
+  }, [currentDeferredImageKeys]);
+  useEffect(() => {
+    const currentKeys = currentDeferredImageKeys;
+    latestDeferredImageRequestsRef.current.forEach((_identity, key) => {
+      if (!currentKeys.has(key)) {
+        latestDeferredImageRequestsRef.current.delete(key);
+      }
     });
-    deferredImageObjectUrlsRef.current.clear();
+    setDeferredImageStates((current) => {
+      let changed = false;
+      const next: Record<string, DeferredImageState> = {};
+      Object.entries(current).forEach(([key, state]) => {
+        if (currentKeys.has(key)) {
+          next[key] = state;
+          return;
+        }
+        changed = true;
+        revokeTrackedDeferredImageState(state);
+      });
+      return changed ? next : current;
+    });
+  }, [currentDeferredImageKeys, revokeTrackedDeferredImageState]);
+  useEffect(() => {
+    const latestRequests = latestDeferredImageRequestsRef.current;
+    const objectUrls = deferredImageObjectUrlsRef.current;
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      latestRequests.clear();
+      Object.values(deferredImageStatesRef.current).forEach(revokeTrackedDeferredImageState);
+      objectUrls.forEach((objectUrl) => {
+        revokeOwnedObjectUrl(objectUrl);
+      });
+      objectUrls.clear();
+    };
   }, [revokeTrackedDeferredImageState]);
   const useStagedMarkdownThrottle = shouldUseStagedStreamingMarkdown(
     activeEngine,
@@ -1300,7 +1418,7 @@ export const MessageRow = memo(function MessageRow({
       {deferredImageItems.length > 0 ? (
         <div className="message-deferred-image-list" role="list">
           {deferredImageItems.map((image, index) => {
-            const key = deferredImageKey(image);
+            const key = deferredImageKey(threadId, item.id, image);
             const state = deferredImageStates[key] ?? { status: "idle" };
             return (
               <div
