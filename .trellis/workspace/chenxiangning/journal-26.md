@@ -826,3 +826,103 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1050: 多仓全局 Git 操作闭环
+
+**Date**: 2026-07-21
+**Task**: 多仓全局 Git 操作闭环
+**Branch**: `feature/v-076`
+
+### Summary
+
+实现多仓更新全部、公共分支覆盖发现与 eligible-only 串行切换、partial failure 汇总和稳定差异化仓库图标；完成 review 修复、OpenSpec 同步归档、20/20 focused tests、lint、typecheck、runtime contracts 与用户验收。完整测试仍有既有 SettingsView Client UI visibility baseline failure。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `bf44df641293a6a06e82cf5cbf7744f6455bd0e2` | (see git log) |
+| `6ef31cc93021c684d40c3843074aa219e9bc84f8` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1051: 压缩多仓操作菜单
+
+**Date**: 2026-07-21
+**Task**: 压缩多仓操作菜单
+**Branch**: `feature/v-076`
+
+### Summary
+
+删除多仓菜单中的切换 Git 仓库分组标题，压缩更新全部与切换全部分支操作栏高度；保持 Git 逻辑不变。focused test 11/11、lint、typecheck、git diff check 均通过；用户已完成 UI 验收。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c0c7be65e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1052: 统一 Git History 单多仓分支树
+
+**Date**: 2026-07-22
+**Task**: 统一 Git History 单多仓分支树
+**Branch**: `feature/v-076`
+
+### Summary
+
+实现单仓与多仓共用的 Git History repository branch tree；支持稳定仓库配色、并行 branch catalogs、partial failure、分支分组折叠、跨仓搜索与 exact repository identity；review 修复搜索 section 展开、stale cleanup 与跨仓 context menu 时序。相关 78 个测试及局部门禁通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c54d6ac26` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
