@@ -1830,3 +1830,36 @@ Rebased chore/bump-version-0.7.5 onto origin, semantically resolved Kimi integra
 ### Next Steps
 
 - None - task complete
+
+
+## Session 41: 归档 MessageRow correctness change
+
+**Date**: 2026-07-21
+**Task**: 归档 MessageRow correctness change
+**Branch**: `bump-version-0.7.6`
+
+### Summary
+
+同步 messages-row-correctness main spec 并归档 Phase 1 change，为后续 row ownership 抽取锁定 memo 与 deferred media contract。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `824b4c58` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
