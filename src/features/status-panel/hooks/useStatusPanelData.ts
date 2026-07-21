@@ -11,7 +11,7 @@ import {
   extractToolName,
   parseToolArgs,
   resolveToolStatus,
-} from "../../messages/components/toolBlocks/toolConstants";
+} from "../../../utils/toolSemantics";
 import {
   extractCommandSummaries,
   extractFileChangeSummaries,

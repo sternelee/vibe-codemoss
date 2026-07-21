@@ -34,8 +34,8 @@ import {
   buildEngineTaskOutputSnapshot,
   buildTaskOutputSourceFromNotification,
 } from "../../engine-task-output/utils/engineTaskOutputProjection";
+import { parseAgentTaskNotification } from "../../engine-task-output/contracts/agentTaskNotification";
 import type { PresentationProfile } from "../presentation/presentationProfile";
-import { parseAgentTaskNotification } from "../utils/agentTaskNotification";
 import {
   BrowserContextSummaryCard,
   parseBrowserContextPrompt,

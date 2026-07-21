@@ -72,7 +72,7 @@ import {
   isReasoningConversationItem,
   isUserMessageConversationItem,
 } from "../utils/messageItemPredicates";
-import { parseAgentTaskNotification } from "../utils/agentTaskNotification";
+import { parseAgentTaskNotification } from "../../engine-task-output/contracts/agentTaskNotification";
 import { dedupeExitPlanItemsKeepFirst } from "../utils/messagesExitPlan";
 import { buildSuppressedUserMemoryContextMessageIdSet } from "../utils/context/messagesMemoryContext";
 import { buildSuppressedUserNoteCardContextMessageIdSet } from "../utils/context/messagesNoteCardContext";

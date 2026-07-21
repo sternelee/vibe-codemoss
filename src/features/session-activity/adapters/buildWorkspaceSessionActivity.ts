@@ -8,7 +8,7 @@ import {
   isWebTool,
   parseToolArgs,
   resolveToolStatus,
-} from "../../messages/components/toolBlocks/toolConstants";
+} from "../../../utils/toolSemantics";
 import {
   extractFileChangeEventDetails,
   extractCommandSummaries,

@@ -8,7 +8,11 @@ import {
   writeClientStoreValue,
 } from "../../../services/clientStorage";
 import type { ThreadMoveFolderTarget } from "../hooks/useSidebarMenus";
-import { parseToolArgs } from "../../messages/components/toolBlocks/toolConstants";
+import {
+  extractToolName,
+  getFirstStringField,
+  parseToolArgs,
+} from "../../../utils/toolSemantics";
 import type { WorkspaceSessionFolder } from "../../../services/tauri";
 
 export type WorkspaceGroupSection = {
@@ -195,31 +199,11 @@ export function collectThreadSubtreeIds(
   return subtreeIds;
 }
 
-function normalizeRuntimeString(value: unknown) {
-  return typeof value === "string" ? value : "";
-}
-
-function extractToolName(title: unknown) {
-  return normalizeRuntimeString(title).replace(/^Tool:\s*/i, "").trim();
-}
-
 function isClaudeAgentTool(item: ToolConversationItem) {
-  const normalizedToolType = normalizeRuntimeString(item.toolType).trim().toLowerCase();
+  const normalizedToolType =
+    (typeof item.toolType === "string" ? item.toolType : "").trim().toLowerCase();
   const normalizedToolName = extractToolName(item.title).trim().toLowerCase();
   return normalizedToolType === "agent" || normalizedToolName === "agent";
-}
-
-function getFirstStringField(source: Record<string, unknown> | null, keys: string[]) {
-  if (!source) {
-    return "";
-  }
-  for (const key of keys) {
-    const value = source[key];
-    if (typeof value === "string" && value.trim()) {
-      return value.trim();
-    }
-  }
-  return "";
 }
 
 function isCompletedToolStatus(status: string | undefined, output: string | undefined) {
@@ -268,7 +252,7 @@ export function buildClaudeLiveSubagentRows(
     if (item.kind !== "tool" || !isClaudeAgentTool(item)) {
       return;
     }
-    const args = parseToolArgs(normalizeRuntimeString(item.detail));
+    const args = parseToolArgs(item.detail);
     const taskId = getFirstStringField(args, ["task_id", "taskId"]);
     const stableAgentId = getFirstStringField(args, ["agent_id", "agentId"]);
     const childSessionId = stableAgentId
@@ -277,7 +261,7 @@ export function buildClaudeLiveSubagentRows(
     if (childSessionId && threadIds.has(childSessionId)) {
       return;
     }
-    const output = normalizeRuntimeString(item.output);
+    const output = typeof item.output === "string" ? item.output : "";
     if (!stableAgentId && isCompletedToolStatus(item.status, output) && unmatchedRealChildCount > 0) {
       unmatchedRealChildCount -= 1;
       return;

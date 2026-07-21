@@ -1,0 +1,75 @@
+import { describe, expect, it } from "vitest";
+import {
+  buildCommandSummary,
+  extractToolName,
+  getFirstStringField,
+  isBashTool,
+  parseToolArgs,
+  resolveToolStatus,
+} from "./toolSemantics";
+
+describe("toolSemantics", () => {
+  it("parses JSON object arguments and rejects invalid payloads", () => {
+    expect(parseToolArgs('{"path":"src/app.tsx"}')).toEqual({
+      path: "src/app.tsx",
+    });
+    expect(parseToolArgs("not json")).toBeNull();
+    expect(parseToolArgs("")).toBeNull();
+  });
+
+  it("extracts normalized tool names from runtime titles", () => {
+    expect(extractToolName("Tool: mcp__ace-tool__search_context")).toBe(
+      "search_context",
+    );
+    expect(extractToolName("Command: exec_command")).toBe("exec_command");
+    expect(extractToolName("claude / TodoWrite")).toBe("TodoWrite");
+  });
+
+  it("resolves command statuses with explicit failure and completion precedence", () => {
+    expect(resolveToolStatus("timed_out", true)).toBe("failed");
+    expect(resolveToolStatus("success", false)).toBe("completed");
+    expect(resolveToolStatus("running", false)).toBe("processing");
+    expect(resolveToolStatus(undefined, true)).toBe("completed");
+  });
+
+  it("reads the first non-empty string field from a record", () => {
+    expect(
+      getFirstStringField(
+        {
+          prompt: "   ",
+          description: "  inspect logs  ",
+          query: "fallback",
+        },
+        ["prompt", "description", "query"],
+      ),
+    ).toBe("inspect logs");
+  });
+
+  it("treats shared command tools as bash-like", () => {
+    expect(isBashTool("exec_command")).toBe(true);
+    expect(isBashTool("write_stdin")).toBe(true);
+    expect(isBashTool("search")).toBe(false);
+  });
+
+  it("builds command summaries from structured arguments while ignoring path-only detail", () => {
+    expect(
+      buildCommandSummary(
+        {
+          toolType: "commandExecution",
+          detail: JSON.stringify({
+            argv: ["npm", "run", "typecheck"],
+          }),
+        },
+        { includeDetail: false },
+      ),
+    ).toBe("npm run typecheck");
+
+    expect(
+      buildCommandSummary({
+        title: "Command: git status",
+        toolType: "commandExecution",
+        detail: "/tmp/worktree",
+      }),
+    ).toBe("git status");
+  });
+});

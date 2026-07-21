@@ -7,7 +7,7 @@ import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import type { ConversationItem } from '../../../../types';
-import { computeDiff } from '../../utils/diffUtils';
+import { computeDiff } from '../../../../utils/diff';
 import { LocalImage } from '../media/LocalImage';
 import { Markdown } from '../Markdown';
 import {

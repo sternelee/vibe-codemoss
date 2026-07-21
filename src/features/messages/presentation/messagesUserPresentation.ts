@@ -8,7 +8,7 @@ import {
   parseInjectedNoteCardContextFromUser,
   type NoteCardContextSummary,
 } from "../utils/context/messagesNoteCardContext";
-import { extractCommandMessageDisplayText } from "../utils/commandMessageTags";
+import { extractCommandMessageDisplayText } from "../../../utils/commandMessageTags";
 import { stripBrowserContextPrompt } from "../../browser-agent";
 import { stripIntentCanvasContextPrompt } from "../../intent-canvas/utils/messageContext";
 

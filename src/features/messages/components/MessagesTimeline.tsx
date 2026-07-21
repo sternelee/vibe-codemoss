@@ -17,8 +17,8 @@ import Copy from "lucide-react/dist/esm/icons/copy";
 import NotebookPen from "lucide-react/dist/esm/icons/notebook-pen";
 import Terminal from "lucide-react/dist/esm/icons/terminal";
 import type { ConversationItem } from "../../../types";
+import { parseAgentTaskNotification } from "../../engine-task-output/contracts/agentTaskNotification";
 import type { GroupedEntry } from "../utils/groupToolItems";
-import { parseAgentTaskNotification } from "../utils/agentTaskNotification";
 import { Marker } from "../../../components/ui/marker";
 import { Button } from "../../../components/ui/button";
 import {
