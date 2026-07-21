@@ -58,6 +58,19 @@ describe("file view visual contracts", () => {
     expect(webkitScrollbarRule).toContain("display: none;");
   });
 
+  it("keeps the file tab context menu rounded and theme-token based", () => {
+    const menuRule = getCssRuleBlock(fileViewPanelCss, ".fvp-tab-context-menu");
+    const itemRule = getCssRuleBlock(
+      fileViewPanelCss,
+      ".fvp-tab-context-menu .renderer-context-menu-item",
+    );
+
+    expect(menuRule).toContain("min-width: 238px;");
+    expect(menuRule).toContain("border-radius: 14px;");
+    expect(menuRule).toContain("var(--surface-popover)");
+    expect(itemRule).toContain("border-radius: 8px;");
+  });
+
   it("keeps the goto-line dialog compact", () => {
     const dialogRule = getCssRuleBlock(fileViewPanelCss, ".fvp-goto-line-dialog");
     const inputRule = getCssRuleBlock(fileViewPanelCss, ".fvp-goto-line-dialog input");

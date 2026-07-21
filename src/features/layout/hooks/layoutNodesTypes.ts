@@ -381,6 +381,7 @@ export type LayoutNodesFlatOptions = {
   openEditorTabs: string[];
   onActivateEditorTab: (path: string) => void;
   onCloseEditorTab: (path: string) => void;
+  onCloseOtherEditorTabs: (path: string) => void;
   onCloseAllEditorTabs: () => void;
   onReorderEditorTabs: (nextOrder: string[]) => void;
   onActiveEditorLineRangeChange: (
@@ -957,6 +958,7 @@ export type EditorLayoutNodesOptions = Pick<
   | "openEditorTabs"
   | "onActivateEditorTab"
   | "onCloseEditorTab"
+  | "onCloseOtherEditorTabs"
   | "onCloseAllEditorTabs"
   | "onReorderEditorTabs"
   | "onActiveEditorLineRangeChange"

@@ -18,6 +18,10 @@ import Eye from "lucide-react/dist/esm/icons/eye";
 import Code from "lucide-react/dist/esm/icons/code";
 import FileSearch from "lucide-react/dist/esm/icons/file-search";
 import GitCommitHorizontal from "lucide-react/dist/esm/icons/git-commit-horizontal";
+import GitBranch from "lucide-react/dist/esm/icons/git-branch";
+import History from "lucide-react/dist/esm/icons/history";
+import CopyX from "lucide-react/dist/esm/icons/copy-x";
+import PanelTopClose from "lucide-react/dist/esm/icons/panel-top-close";
 import ExternalLink from "lucide-react/dist/esm/icons/external-link";
 import Maximize2 from "lucide-react/dist/esm/icons/maximize-2";
 import Minimize2 from "lucide-react/dist/esm/icons/minimize-2";
@@ -40,7 +44,14 @@ import {
 } from "../../../utils/shortcuts";
 import { highlightLine } from "../../../utils/syntax";
 import { OpenAppMenu } from "../../app/components/OpenAppMenu";
-import { RendererContextMenu } from "../../../components/ui/RendererContextMenu";
+import {
+  clampRendererContextMenuPosition,
+  estimateRendererContextMenuHeight,
+  RendererContextMenu,
+  type RendererContextMenuItem,
+  type RendererContextMenuLeafItem,
+  type RendererContextMenuState,
+} from "../../../components/ui/RendererContextMenu";
 import type { GitFileStatus, GitRepositorySummary, OpenAppTarget } from "../../../types";
 import type {
   CodeAnnotationDraftInput,
@@ -81,6 +92,7 @@ import {
 import { FileViewBody } from "./FileViewBody";
 import type { FileCodeMirrorEditorHandle } from "./FileCodeMirrorEditor";
 import type { NoteCaptureDraft } from "../../note-cards/types";
+import type { FileHistoryTarget } from "../../git-history/types";
 import { FileViewNavigationPanel } from "./FileViewNavigationPanel";
 import { useFileDocumentState } from "../hooks/useFileDocumentState";
 import { useFileExternalSync } from "../hooks/useFileExternalSync";
@@ -146,6 +158,7 @@ type FileViewPanelProps = {
   activeTabPath?: string | null;
   onActivateTab?: (path: string) => void;
   onCloseTab?: (path: string) => void;
+  onCloseOtherTabs?: (path: string) => void;
   onCloseAllTabs?: () => void;
   onReorderTabs?: (nextOrder: string[]) => void;
   fileReferenceMode?: "path" | "none";
@@ -176,6 +189,7 @@ type FileViewPanelProps = {
     path: string,
     location: { line: number; column: number },
   ) => void;
+  onOpenFileHistory?: (target: FileHistoryTarget) => void;
   onClose: () => void;
   onInsertText?: (text: string) => void;
   onCreateCodeAnnotation?: (annotation: CodeAnnotationDraftInput) => void;
@@ -212,6 +226,7 @@ export function FileViewPanel({
   activeTabPath,
   onActivateTab,
   onCloseTab,
+  onCloseOtherTabs,
   onCloseAllTabs,
   onReorderTabs,
   activeFileLineRange = null,
@@ -230,6 +245,7 @@ export function FileViewPanel({
   navigationTarget = null,
   highlightMarkers = null,
   onNavigateToLocation,
+  onOpenFileHistory,
   onClose,
   onInsertText,
   onCreateCodeAnnotation,
@@ -304,16 +320,9 @@ export function FileViewPanel({
   const lastReportedLineRangeRef = useRef<string>("");
   const tabsContainerRef = useRef<HTMLDivElement | null>(null);
   const panelRootRef = useRef<HTMLDivElement | null>(null);
-  const tabContextMenuRef = useRef<HTMLDivElement | null>(null);
-  const [tabContextMenu, setTabContextMenu] = useState<{
-    visible: boolean;
-    x: number;
-    y: number;
-  }>({
-    visible: false,
-    x: 0,
-    y: 0,
-  });
+  const [tabContextMenu, setTabContextMenu] =
+    useState<RendererContextMenuState | null>(null);
+  const pendingGitBlamePathRef = useRef<string | null>(null);
   const [draggingTabPath, setDraggingTabPath] = useState<string | null>(null);
   const [dragOverTabPath, setDragOverTabPath] = useState<string | null>(null);
   const [gitBlameContextMenu, setGitBlameContextMenu] = useState<{
@@ -1400,48 +1409,8 @@ export function FileViewPanel({
   }, [activeFileLineLabel, fileReferenceShouldRender]);
 
   const closeTabContextMenu = useCallback(() => {
-    setTabContextMenu((prev) => (prev.visible ? { ...prev, visible: false } : prev));
+    setTabContextMenu(null);
   }, []);
-
-  const openTabContextMenu = useCallback(
-    (event: ReactMouseEvent) => {
-      if (!canCloseAllTabs) {
-        return;
-      }
-      event.preventDefault();
-      const container = tabsContainerRef.current;
-      const containerRect = container?.getBoundingClientRect();
-      const panelRoot = panelRootRef.current;
-      const panelRootRect = panelRoot?.getBoundingClientRect();
-      if (!container || !containerRect || !panelRoot || !panelRootRect) {
-        return;
-      }
-      const menuWidth = 156;
-      const menuHeight = 44;
-      const relativeX = event.clientX - panelRootRect.left + 8;
-      const minX = 8;
-      const maxX = Math.max(minX, panelRoot.clientWidth - menuWidth - 8);
-      const clampedX = Math.min(
-        Math.max(minX, relativeX),
-        maxX,
-      );
-      const baseY = containerRect.bottom - panelRootRect.top + 6;
-      const minY = 8;
-      const maxY = Math.max(minY, panelRoot.clientHeight - menuHeight - 8);
-      const clampedY = Math.min(Math.max(minY, baseY), maxY);
-      setTabContextMenu({
-        visible: true,
-        x: clampedX,
-        y: clampedY,
-      });
-    },
-    [canCloseAllTabs],
-  );
-
-  const handleCloseAllTabs = useCallback(() => {
-    onCloseAllTabs?.();
-    closeTabContextMenu();
-  }, [closeTabContextMenu, onCloseAllTabs]);
 
   // Tab reordering uses pointer events rather than native HTML5 drag-and-drop:
   // the macOS Tauri webview (WKWebView) does not reliably start an HTML5 drag
@@ -1538,9 +1507,7 @@ export function FileViewPanel({
   );
 
   const handleOpenDetachedTab = useCallback(
-    (event: ReactMouseEvent<HTMLButtonElement>, tabPath: string) => {
-      event.preventDefault();
-      event.stopPropagation();
+    (tabPath: string) => {
       void openNewDetachedFileExplorerWindow(
         buildDetachedFileExplorerSession({
           workspaceId,
@@ -1560,33 +1527,189 @@ export function FileViewPanel({
     [gitRoot, resolvedWorkspaceName, t, workspaceId, workspacePath],
   );
 
+  const resolveTabGitScope = useCallback(
+    (tabPath: string) => {
+      if (gitRepositories?.length) {
+        return resolveFileGitScope(tabPath, gitRepositories);
+      }
+      const normalizedPath = normalizeFsPath(tabPath)
+        .replace(/^\.\//, "")
+        .replace(/^\/+/, "");
+      if (
+        !normalizedPath ||
+        normalizedPath.split("/").some((segment) => segment === "..") ||
+        (configuredGitBlameRepositoryRoot &&
+          normalizedPath !== configuredGitBlameRepositoryRoot &&
+          !normalizedPath.startsWith(`${configuredGitBlameRepositoryRoot}/`))
+      ) {
+        return null;
+      }
+      return {
+        repositoryRoot: configuredGitBlameRepositoryRoot ?? "",
+        path: resolveGitBlameRepositoryPath(
+          normalizedPath,
+          configuredGitBlameRepositoryRoot,
+        ),
+      };
+    },
+    [configuredGitBlameRepositoryRoot, gitRepositories],
+  );
+
+  const handleTabGitBlame = useCallback(
+    (tabPath: string) => {
+      if (tabPath === filePath) {
+        gitBlame.toggle();
+        return;
+      }
+      if (!onActivateTab) {
+        return;
+      }
+      pendingGitBlamePathRef.current = tabPath;
+      onActivateTab(tabPath);
+    },
+    [filePath, gitBlame, onActivateTab],
+  );
+
   useEffect(() => {
-    if (!tabContextMenu.visible) {
+    if (pendingGitBlamePathRef.current !== filePath || isLoading) {
       return;
     }
-    const handlePointerDown = (event: MouseEvent) => {
-      const target = event.target;
-      if (!(target instanceof Node)) {
-        closeTabContextMenu();
-        return;
-      }
-      if (tabContextMenuRef.current?.contains(target)) {
-        return;
-      }
-      closeTabContextMenu();
-    };
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        closeTabContextMenu();
-      }
-    };
-    window.addEventListener("mousedown", handlePointerDown);
-    window.addEventListener("keydown", handleEscape);
-    return () => {
-      window.removeEventListener("mousedown", handlePointerDown);
-      window.removeEventListener("keydown", handleEscape);
-    };
-  }, [closeTabContextMenu, tabContextMenu.visible]);
+    pendingGitBlamePathRef.current = null;
+    if (gitBlameEligible && !gitBlame.enabled) {
+      gitBlame.toggle();
+    }
+  }, [filePath, gitBlame, gitBlameEligible, isLoading]);
+
+  const openTabContextMenu = useCallback(
+    (event: ReactMouseEvent, tabPath: string) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const gitScope = resolveTabGitScope(tabPath);
+      const canOpenHistory = Boolean(gitScope && onOpenFileHistory);
+      const canToggleBlame = Boolean(
+        gitScope &&
+          (tabPath === filePath
+            ? gitBlameEligible || gitBlame.enabled
+            : onActivateTab),
+      );
+      const gitItems: RendererContextMenuLeafItem[] = [
+        ...(canOpenHistory
+          ? [
+              {
+                type: "item" as const,
+                id: "show-file-history",
+                label: t("files.tabShowFileHistory"),
+                icon: <History size={15} />,
+                onSelect: () => {
+                  if (!gitScope || !onOpenFileHistory) {
+                    return;
+                  }
+                  onOpenFileHistory({
+                    workspaceId,
+                    workspacePath,
+                    repositoryRoot: gitScope.repositoryRoot,
+                    path: gitScope.path,
+                    displayPath: tabPath,
+                  });
+                },
+              },
+            ]
+          : []),
+        ...(canToggleBlame
+          ? [
+              {
+                type: "item" as const,
+                id: "toggle-git-blame",
+                label:
+                  tabPath === filePath && gitBlame.enabled
+                    ? t("files.gitBlameDisable")
+                    : t("files.gitBlameEnable"),
+                icon: <GitCommitHorizontal size={15} />,
+                onSelect: () => handleTabGitBlame(tabPath),
+              },
+            ]
+          : []),
+      ];
+      const items: RendererContextMenuItem[] = [
+        ...(gitItems.length > 0
+          ? [
+              {
+                type: "submenu" as const,
+                id: "git-actions",
+                label: t("files.tabGitActions"),
+                icon: <GitBranch size={15} />,
+                items: gitItems,
+              },
+              { type: "separator" as const, id: "tab-close-separator" },
+            ]
+          : []),
+        {
+          type: "item",
+          id: "close-current-tab",
+          label: t("files.closeCurrentTab"),
+          icon: <X size={15} />,
+          disabled: !onCloseTab,
+          onSelect: () => onCloseTab?.(tabPath),
+        },
+        {
+          type: "item",
+          id: "close-other-tabs",
+          label: t("files.closeOtherTabs"),
+          icon: <CopyX size={15} />,
+          disabled: !onCloseOtherTabs || visibleTabs.length <= 1,
+          onSelect: () => onCloseOtherTabs?.(tabPath),
+        },
+        {
+          type: "item",
+          id: "close-all-tabs",
+          label: t("files.closeAllTabs"),
+          icon: <PanelTopClose size={15} />,
+          disabled: !canCloseAllTabs,
+          onSelect: () => onCloseAllTabs?.(),
+        },
+        { type: "separator", id: "tab-detach-separator" },
+        {
+          type: "item",
+          id: "open-detached-tab",
+          label: t("files.openDetachedTab"),
+          icon: <ExternalLink size={15} />,
+          onSelect: () => handleOpenDetachedTab(tabPath),
+        },
+      ];
+      const position = clampRendererContextMenuPosition(
+        event.clientX,
+        event.clientY,
+        {
+          width: 248,
+          height: estimateRendererContextMenuHeight(items),
+          padding: 10,
+        },
+      );
+      setTabContextMenu({
+        ...position,
+        label: t("files.tabContextMenu"),
+        items,
+      });
+    },
+    [
+      canCloseAllTabs,
+      filePath,
+      gitBlame.enabled,
+      gitBlameEligible,
+      handleOpenDetachedTab,
+      handleTabGitBlame,
+      onActivateTab,
+      onCloseAllTabs,
+      onCloseOtherTabs,
+      onCloseTab,
+      onOpenFileHistory,
+      resolveTabGitScope,
+      t,
+      visibleTabs.length,
+      workspaceId,
+      workspacePath,
+    ],
+  );
 
   useEffect(() => {
     return () => {
@@ -1938,7 +2061,6 @@ export function FileViewPanel({
       className={`fvp-tabs${className ? ` ${className}` : ""}`}
       role="tablist"
       aria-label="Open files"
-      onContextMenu={openTabContextMenu}
     >
       <div className="fvp-tabs-track">
         {visibleTabs.map((tabPath) => {
@@ -1984,7 +2106,7 @@ export function FileViewPanel({
                   onActivateTab?.(tabPath);
                 }}
                 onDoubleClick={() => onToggleEditorFileMaximized?.()}
-                onContextMenu={openTabContextMenu}
+                onContextMenu={(event) => openTabContextMenu(event, tabPath)}
                 title={tabPath}
                 data-tauri-drag-region="false"
               >
@@ -2004,8 +2126,12 @@ export function FileViewPanel({
                 className="fvp-tab-detach"
                 aria-label={t("files.openDetachedTabFor", { name: tabName })}
                 title={t("files.openDetachedTab")}
-                onClick={(event) => handleOpenDetachedTab(event, tabPath)}
-                onContextMenu={openTabContextMenu}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleOpenDetachedTab(tabPath);
+                }}
+                onContextMenu={(event) => openTabContextMenu(event, tabPath)}
                 data-tauri-drag-region="false"
               >
                 <ExternalLink size={11} aria-hidden />
@@ -2016,7 +2142,7 @@ export function FileViewPanel({
                   className="fvp-tab-close"
                   aria-label={`Close ${tabName}`}
                   onClick={() => onCloseTab(tabPath)}
-                  onContextMenu={openTabContextMenu}
+                  onContextMenu={(event) => openTabContextMenu(event, tabPath)}
                   data-tauri-drag-region="false"
                 >
                   <X size={11} aria-hidden />
@@ -2294,22 +2420,12 @@ export function FileViewPanel({
   return (
     <div className={`fvp${usesSingleRowHeader ? " fvp-single-row-header" : ""}`} ref={panelRootRef}>
       {usesSingleRowHeader ? renderSingleRowHeader() : renderTabs()}
-      {tabContextMenu.visible && canCloseAllTabs ? (
-        <div
-          ref={tabContextMenuRef}
-          className="fvp-tab-context-menu"
-          role="menu"
-          style={{ left: `${tabContextMenu.x}px`, top: `${tabContextMenu.y}px` }}
-        >
-          <button
-            type="button"
-            className="fvp-tab-context-menu-item"
-            role="menuitem"
-            onClick={handleCloseAllTabs}
-          >
-            {t("files.closeAllTabs")}
-          </button>
-        </div>
+      {tabContextMenu ? (
+        <RendererContextMenu
+          menu={tabContextMenu}
+          onClose={closeTabContextMenu}
+          className="renderer-context-menu fvp-tab-context-menu"
+        />
       ) : null}
       {!usesSingleRowHeader ? renderTopbar() : null}
       {renderExternalChangeNotice()}

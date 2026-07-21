@@ -155,30 +155,26 @@
 }
 
 .fvp-tab-context-menu {
-  position: absolute;
-  z-index: 1000;
-  display: flex;
-  min-width: 148px;
-  flex-direction: column;
-  border: 1px solid var(--border-subtle);
+  min-width: 238px;
+  padding: 7px;
+  border-radius: 14px;
+  border-color: color-mix(in srgb, var(--border-subtle) 86%, transparent);
+  background: color-mix(in srgb, var(--surface-popover) 96%, transparent);
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.24),
+    0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.fvp-tab-context-menu .renderer-context-menu-item {
+  min-height: 34px;
   border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-card) 92%, transparent);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24);
-  padding: 4px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 500;
 }
 
-.fvp-tab-context-menu-item {
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-strong);
-  font-size: 12px;
-  text-align: left;
-  padding: 7px 9px;
-}
-
-.fvp-tab-context-menu-item:hover {
-  background: color-mix(in srgb, var(--surface-hover) 74%, transparent);
+.fvp-tab-context-menu .renderer-context-menu-separator {
+  margin: 6px 5px;
 }
 
 /* ── Topbar ── */

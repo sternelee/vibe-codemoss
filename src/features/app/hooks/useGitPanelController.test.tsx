@@ -345,6 +345,40 @@ describe("useGitPanelController editor tabs", () => {
     expect(result.current.activeEditorFilePath).toBe("src/types.ts");
   });
 
+  it("closes other tabs atomically and activates the retained target", () => {
+    const { result } = renderHook(() => useGitPanelController(makeProps()));
+
+    act(() => {
+      result.current.handleOpenFile("src/App.tsx");
+      result.current.handleOpenFile("src/main.tsx");
+      result.current.handleOpenFile("src/types.ts");
+    });
+
+    act(() => {
+      result.current.handleCloseOtherFileTabs("src/main.tsx");
+    });
+
+    expect(result.current.openFileTabs).toEqual(["src/main.tsx"]);
+    expect(result.current.activeEditorFilePath).toBe("src/main.tsx");
+    expect(result.current.centerMode).toBe("editor");
+  });
+
+  it("ignores close-other for an unknown tab", () => {
+    const { result } = renderHook(() => useGitPanelController(makeProps()));
+
+    act(() => {
+      result.current.handleOpenFile("src/App.tsx");
+      result.current.handleOpenFile("src/main.tsx");
+    });
+
+    act(() => {
+      result.current.handleCloseOtherFileTabs("src/unknown.tsx");
+    });
+
+    expect(result.current.openFileTabs).toEqual(["src/App.tsx", "src/main.tsx"]);
+    expect(result.current.activeEditorFilePath).toBe("src/main.tsx");
+  });
+
   it("reorders tabs without changing the active file", () => {
     const { result } = renderHook(() => useGitPanelController(makeProps()));
 

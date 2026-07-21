@@ -137,6 +137,7 @@ export function useAppShellSections(input: UseAppShellSectionsInput) {
     handleOpenFile,
     handleActivateFileTab,
     handleCloseFileTab,
+    handleCloseOtherFileTabs,
     handleCloseAllFileTabs,
     handleReorderFileTabs,
     handleExitEditor,
@@ -739,6 +740,14 @@ export function useAppShellSections(input: UseAppShellSectionsInput) {
     handleCloseAllFileTabs();
   }, [handleCloseAllFileTabs, markLiveEditPreviewManualNavigation]);
 
+  const handleCloseOtherWorkspaceFileTabs = useCallback(
+    (path: string) => {
+      markLiveEditPreviewManualNavigation();
+      handleCloseOtherFileTabs(path);
+    },
+    [handleCloseOtherFileTabs, markLiveEditPreviewManualNavigation],
+  );
+
   const handleExitWorkspaceEditor = useCallback(() => {
     markLiveEditPreviewManualNavigation();
     handleExitEditor();
@@ -1126,6 +1135,7 @@ export function useAppShellSections(input: UseAppShellSectionsInput) {
     handleOpenWorkspaceFile,
     handleActivateWorkspaceFileTab,
     handleCloseWorkspaceFileTab,
+    handleCloseOtherWorkspaceFileTabs,
     handleCloseAllWorkspaceFileTabs,
     handleExitWorkspaceEditor,
     handleSelectDiffForPanel,

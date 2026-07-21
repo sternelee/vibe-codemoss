@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildLocation,
@@ -387,6 +387,113 @@ describe("FileViewPanel navigation", () => {
     });
     expect(onActivateTab).not.toHaveBeenCalled();
     expect(onCloseTab).not.toHaveBeenCalled();
+  });
+
+  it("targets the invoked background tab and renders icons for root actions", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "class Main {}",
+      truncated: false,
+    });
+    const onCloseTab = vi.fn();
+    const onActivateTab = vi.fn();
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-tab-menu"
+        workspacePath="/repo"
+        filePath="src/Main.java"
+        openTabs={["src/Main.java", "src/Foo.java"]}
+        activeTabPath="src/Main.java"
+        onActivateTab={onActivateTab}
+        onCloseTab={onCloseTab}
+        onCloseOtherTabs={vi.fn()}
+        onCloseAllTabs={vi.fn()}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByTestId("mock-codemirror");
+    fireEvent.contextMenu(screen.getByRole("tab", { name: "Foo.java" }), {
+      clientX: 120,
+      clientY: 80,
+    });
+
+    const menu = screen.getByRole("menu", { name: "files.tabContextMenu" });
+    expect(
+      menu.querySelectorAll(":scope > .renderer-context-menu-item .renderer-context-menu-item-icon"),
+    ).toHaveLength(5);
+    fireEvent.click(within(menu).getByRole("menuitem", { name: "files.closeCurrentTab" }));
+    expect(onCloseTab).toHaveBeenCalledWith("src/Foo.java");
+  });
+
+  it("disables close-other for a single file tab", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "class Main {}",
+      truncated: false,
+    });
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-single-tab-menu"
+        workspacePath="/repo"
+        filePath="src/Main.java"
+        openTabs={["src/Main.java"]}
+        activeTabPath="src/Main.java"
+        onCloseTab={vi.fn()}
+        onCloseOtherTabs={vi.fn()}
+        onCloseAllTabs={vi.fn()}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByTestId("mock-codemirror");
+    fireEvent.contextMenu(screen.getByRole("tab", { name: "Main.java" }));
+    expect(
+      (screen.getByRole("menuitem", { name: "files.closeOtherTabs" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+  });
+
+  it("opens the invoked background tab from the context menu in a detached window", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "class Main {}",
+      truncated: false,
+    });
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-context-detached"
+        workspaceName="mossx"
+        workspacePath="/repo"
+        filePath="src/Main.java"
+        openTabs={["src/Main.java", "src/Foo.java"]}
+        activeTabPath="src/Main.java"
+        onCloseAllTabs={vi.fn()}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByTestId("mock-codemirror");
+    fireEvent.contextMenu(screen.getByRole("tab", { name: "Foo.java" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "files.openDetachedTab" }));
+
+    await waitFor(() => {
+      expect(mockOpenNewDetachedFileExplorerWindow).toHaveBeenCalledWith(
+        expect.objectContaining({ initialFilePath: "src/Foo.java" }),
+      );
+    });
   });
 
   it("prefers provided highlight markers over workspace git diff fetch", async () => {

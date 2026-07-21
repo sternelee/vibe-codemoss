@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { useState } from "react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mockCodeMirrorDispatch } from "./FileViewPanel.test-utils";
 import { FileViewPanel } from "./FileViewPanel";
@@ -449,5 +450,100 @@ describe("FileViewPanel Git Blame", () => {
     const blameButton = screen.getByRole("button", { name: "files.gitBlame" });
     expect((blameButton as HTMLButtonElement).disabled).toBe(true);
     expect(getGitFileBlame).not.toHaveBeenCalled();
+  });
+
+  it("opens file history for the invoked tab using its nested repository scope", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({ content: "one", truncated: false });
+    const onOpenFileHistory = vi.fn();
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-tab-history"
+        workspacePath="/repo"
+        gitRepositories={[repository(""), repository("packages/app")]}
+        filePath="README.md"
+        openTabs={["README.md", "packages/app/src/value.ts"]}
+        activeTabPath="README.md"
+        onOpenFileHistory={onOpenFileHistory}
+        onCloseAllTabs={vi.fn()}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByTestId("file-markdown-preview");
+    fireEvent.contextMenu(screen.getByRole("tab", { name: "value.ts" }));
+    const gitTrigger = screen.getByRole("menuitem", { name: "files.tabGitActions" });
+    fireEvent.mouseEnter(gitTrigger);
+    const gitMenu = screen.getByRole("menu", { name: "files.tabGitActions" });
+    fireEvent.click(
+      within(gitMenu).getByRole("menuitem", { name: "files.tabShowFileHistory" }),
+    );
+
+    expect(onOpenFileHistory).toHaveBeenCalledWith({
+      workspaceId: "ws-tab-history",
+      workspacePath: "/repo",
+      repositoryRoot: "packages/app",
+      path: "src/value.ts",
+      displayPath: "packages/app/src/value.ts",
+    });
+  });
+
+  it("activates a background tab before enabling Git Blame", async () => {
+    vi.mocked(readWorkspaceFile).mockImplementation(async (_workspaceId, path) => ({
+      content: `content:${path}`,
+      truncated: false,
+    }));
+    vi.mocked(getGitFileBlame).mockImplementation(async (_workspaceId, path) => ({
+      ...blameResponse,
+      path,
+    }));
+
+    function Harness() {
+      const [activePath, setActivePath] = useState("src/first.ts");
+      return (
+        <FileViewPanel
+          workspaceId="ws-tab-blame"
+          workspacePath="/repo"
+          gitRepositories={[repository("")]}
+          filePath={activePath}
+          openTabs={["src/first.ts", "src/second.ts"]}
+          activeTabPath={activePath}
+          onActivateTab={setActivePath}
+          onCloseAllTabs={vi.fn()}
+          openTargets={[]}
+          openAppIconById={{}}
+          selectedOpenAppId=""
+          onSelectOpenAppId={vi.fn()}
+          onClose={vi.fn()}
+        />
+      );
+    }
+
+    render(<Harness />);
+    await screen.findByTestId("mock-codemirror");
+    fireEvent.contextMenu(screen.getByRole("tab", { name: "second.ts" }));
+    const gitTrigger = screen.getByRole("menuitem", { name: "files.tabGitActions" });
+    fireEvent.mouseEnter(gitTrigger);
+    const gitMenu = screen.getByRole("menu", { name: "files.tabGitActions" });
+    fireEvent.click(
+      within(gitMenu).getByRole("menuitem", { name: "files.gitBlameEnable" }),
+    );
+
+    await waitFor(() => {
+      expect(getGitFileBlame).toHaveBeenCalledWith(
+        "ws-tab-blame",
+        "src/second.ts",
+        null,
+      );
+    });
+    expect(getGitFileBlame).not.toHaveBeenCalledWith(
+      "ws-tab-blame",
+      "src/first.ts",
+      null,
+    );
   });
 });

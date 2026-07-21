@@ -2118,6 +2118,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
           activeTabPath={options.editorFilePath}
           onActivateTab={options.onActivateEditorTab}
           onCloseTab={options.onCloseEditorTab}
+          onCloseOtherTabs={options.onCloseOtherEditorTabs}
           onCloseAllTabs={options.onCloseAllEditorTabs}
           onReorderTabs={options.onReorderEditorTabs}
           fileReferenceMode={options.fileReferenceMode}
@@ -2137,6 +2138,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
           isEditorFileMaximized={options.isEditorFileMaximized}
           onToggleEditorFileMaximized={options.onToggleEditorFileMaximized}
           onNavigateToLocation={options.onOpenFile}
+          onOpenFileHistory={options.onOpenFileHistory}
           onClose={options.onExitEditor}
           onInsertText={options.onInsertComposerText}
           onCreateCodeAnnotation={handleCreateCodeAnnotation}

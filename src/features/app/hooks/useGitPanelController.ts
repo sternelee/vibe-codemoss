@@ -721,6 +721,26 @@ export function useGitPanelController({
     setEditorSplitCompanion("chat");
     setCenterMode(editorSplitCompanion);
   }, [editorSplitCompanion, fileTabWorkspaceKey]);
+  const handleCloseOtherFileTabs = useCallback(
+    (path: string) => {
+      setFileTabsByWorkspace((states) =>
+        updateWorkspaceFileTabs(states, fileTabWorkspaceKey, (current) => {
+          if (!current.openTabs.includes(path) || current.openTabs.length <= 1) {
+            return current;
+          }
+          setEditorNavigationTarget((currentTarget) =>
+            currentTarget?.path === path ? currentTarget : null,
+          );
+          setEditorHighlightTarget((currentTarget) =>
+            currentTarget?.path === path ? currentTarget : null,
+          );
+          setCenterMode("editor");
+          return { openTabs: [path], activeFilePath: path };
+        }),
+      );
+    },
+    [fileTabWorkspaceKey],
+  );
   const handleReorderFileTabs = useCallback(
     (nextOrder: string[]) => {
       setFileTabsByWorkspace((states) =>
@@ -832,6 +852,7 @@ export function useGitPanelController({
     handleCloseFileHistory,
     handleActivateFileTab,
     handleCloseFileTab,
+    handleCloseOtherFileTabs,
     handleCloseAllFileTabs,
     handleReorderFileTabs,
     handleExitEditor,

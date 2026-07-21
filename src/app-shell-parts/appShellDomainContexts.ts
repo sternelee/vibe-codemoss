@@ -277,6 +277,7 @@ export const APP_SHELL_DOMAIN_CONTEXT_OWNED_KEYS: Record<
     "handleCheckoutBranch",
     "handleCloseAllFileTabs",
     "handleCloseFileTab",
+    "handleCloseOtherFileTabs",
     "handleCommit",
     "handleCommitAndPush",
     "handleCommitAndSync",
