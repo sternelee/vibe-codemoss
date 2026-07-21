@@ -1092,3 +1092,36 @@ Review 并修复 Git History repository color collision、branch group 与 branc
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1058: 归档 Git 行标记 OpenSpec
+
+**Date**: 2026-07-22
+**Task**: 归档 Git 行标记 OpenSpec
+**Branch**: `feature/v-076`
+
+### Summary
+
+将 Git Blame 按需加载 changed-line markers 的 delta spec 同步到 file-open-rendering-scheduler 主 spec，并归档已完成的 OpenSpec change；change 与主 spec strict validation 均通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `604c39c95` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
