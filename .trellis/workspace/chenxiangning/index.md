@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-26.md`
-- **Total Sessions**: 1060
+- **Total Sessions**: 1061
 - **Last Active**: 2026-07-22
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-26.md` | ~1193 | Active |
+| `journal-26.md` | ~1226 | Active |
 | `journal-25.md` | ~1976 | Archived |
 | `journal-24.md` | ~1994 | Archived |
 | `journal-23.md` | ~1965 | Archived |
@@ -54,6 +54,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 1061 | 2026-07-22 | 整合文件右键操作 | `a0b3600a2` | `feature/v-076` |
 | 1060 | 2026-07-22 | 归档文件内容右键菜单任务 | `82494f630` | `feature/v-076` |
 | 1059 | 2026-07-22 | 重构文件标签右键菜单 | `1764941de` | `feature/v-076` |
 | 1058 | 2026-07-22 | 归档 Git 行标记 OpenSpec | `604c39c95` | `feature/v-076` |

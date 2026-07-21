@@ -1191,3 +1191,36 @@ Review 并修复 Git History repository color collision、branch group 与 branc
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1061: 整合文件右键操作
+
+**Date**: 2026-07-22
+**Task**: 整合文件右键操作
+**Branch**: `feature/v-076`
+
+### Summary
+
+完成文件工具栏动作迁移、统一右键便签保存与 Git 操作分组；选区保存选中文本，无选区保存整个文件；增量测试与 OpenSpec 归档完成，用户验收通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a0b3600a2` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
