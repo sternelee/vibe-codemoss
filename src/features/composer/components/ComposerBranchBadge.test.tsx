@@ -306,6 +306,8 @@ describe("ComposerBranchBadge", () => {
     const updateAll = screen.getByText("git.repositoryBatchUpdateAll").closest("[cmdk-item]") as HTMLElement;
     const checkoutAll = screen.getByText("git.repositoryBatchCheckoutAll").closest("[cmdk-item]") as HTMLElement;
     expect(updateAll.parentElement).toBe(checkoutAll.parentElement);
+    expect(updateAll.classList.contains("h-7")).toBe(true);
+    expect(document.querySelector("[cmdk-group-heading]")).toBeNull();
 
     fireEvent.click(updateAll);
     fireEvent.click(updateAll);

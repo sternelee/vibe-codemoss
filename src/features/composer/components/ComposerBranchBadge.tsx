@@ -629,9 +629,9 @@ function ComposerBranchBadgeComponent({
                 </>
               ) : showRepositoryList ? (
                 <>
-                  <CommandGroup>
+                  <CommandGroup className="p-0.5">
                     <div className="grid grid-cols-2 gap-1">
-                      <CommandItem className="justify-center" value="__global_update_all" disabled={!onUpdateAllRepositories || globalActionPending !== null} onSelect={() => void handleUpdateAll()}>
+                      <CommandItem className="h-7 justify-center py-0" value="__global_update_all" disabled={!onUpdateAllRepositories || globalActionPending !== null} onSelect={() => void handleUpdateAll()}>
                         {globalActionPending === "update" ? (
                           <LoaderCircle className="size-4 animate-spin" aria-hidden />
                         ) : (
@@ -639,14 +639,14 @@ function ComposerBranchBadgeComponent({
                         )}
                         <span>{t("git.repositoryBatchUpdateAll")}</span>
                       </CommandItem>
-                      <CommandItem className="justify-center" value="__global_checkout_all" disabled={!onCheckoutAllRepositories || !onLoadCommonRepositoryBranches || globalActionPending !== null} onSelect={() => void handleOpenGlobalCheckout()}>
+                      <CommandItem className="h-7 justify-center py-0" value="__global_checkout_all" disabled={!onCheckoutAllRepositories || !onLoadCommonRepositoryBranches || globalActionPending !== null} onSelect={() => void handleOpenGlobalCheckout()}>
                         <GitBranch className="size-4" aria-hidden />
                         <span>{t("git.repositoryBatchCheckoutAll")}</span>
                       </CommandItem>
                     </div>
                   </CommandGroup>
                   <CommandSeparator />
-                  <CommandGroup heading={t("git.switchRepository")}>
+                  <CommandGroup>
                     {repositories.map((repository) => (
                     <CommandItem
                       key={repository.repositoryRoot || "__root__"}
