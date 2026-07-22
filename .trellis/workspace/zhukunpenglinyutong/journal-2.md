@@ -565,3 +565,37 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 62: 合并远端 bump-version-0.7.6 并修复 Git history 测试契约
+
+**Date**: 2026-07-22
+**Task**: 合并远端 bump-version-0.7.6 并修复 Git history 测试契约
+**Branch**: `bump-version-0.7.6`
+
+### Summary
+
+合并远端 46 个提交与本地 62 个提交，保留双方逻辑；补齐 GitHistoryPanel 测试中的 react-i18next initReactI18next mock。验证通过 typecheck、runtime contracts 和 npm test（889 test files）。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0a5a68d1` | (see git log) |
+| `8ff3834c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
