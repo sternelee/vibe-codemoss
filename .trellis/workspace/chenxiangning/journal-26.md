@@ -1436,3 +1436,69 @@ Review 并修复 Git History repository color collision、branch group 与 branc
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1068: 修复智能体 completion 选择错位
+
+**Date**: 2026-07-22
+**Task**: 修复智能体 completion 选择错位
+**Branch**: `feature/v-076`
+
+### Summary
+
+修复 shared completion 中 presentation-only header/separator 与 raw item 的索引错位；补齐 mouse、Enter、Tab 回归测试，同步并归档 OpenSpec。focused 9/9、typecheck、lint 通过；按用户要求未重跑全量测试。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `853090af7` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1069: 完善 Composer 提示词增强入口
+
+**Date**: 2026-07-23
+**Task**: 完善 Composer 提示词增强入口
+**Branch**: `feature/v-0.7.7`
+
+### Summary
+
+在 Composer 工具面板增加提示词增强入口，复用 Cmd+/ 能力；移除 OpenCode enhancer option，优化浅色主题按钮、icon-only quick actions 与紧凑面板间距，并补齐 focused tests 与 OpenSpec artifacts。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1618ee32e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
