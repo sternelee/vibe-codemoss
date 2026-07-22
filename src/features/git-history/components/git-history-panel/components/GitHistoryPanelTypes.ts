@@ -28,6 +28,9 @@ export type GitHistoryPanelProps = CodeAnnotationBridgeProps & {
   onSelectWorkspacePath?: (path: string) => Promise<void> | void;
   onOpenDiffPath?: (path: string) => void;
   onRequestClose?: () => void;
+  toolbarTabsNode?: ReactNode;
+  documentContentNode?: ReactNode;
+  activeDocumentTabId?: string;
 };
 
 export type BranchGroup = {

@@ -137,6 +137,8 @@ export function renderAppShell(ctx: RenderAppShellContext) {
     fileViewPanelNode,
     noteCardsPanelNode,
     fileComparePanelNode,
+    fileHistoryTabs,
+    activeGitHistoryTabId,
     projectMapPanelNode,
     intentCanvasPanelNode,
     browserDockNode,
@@ -153,6 +155,10 @@ export function renderAppShell(ctx: RenderAppShellContext) {
     handleAddWorkspace,
     handleAppModeChange,
     handleCloseGitHistoryPanel,
+    handleActivateGitHistoryTab,
+    handleCloseFileHistory,
+    handleCloseOtherFileHistories,
+    handleCloseAllFileHistories,
     handleCloseTaskConversation,
     handleContinueLatestConversation,
     handleDeleteWorkspaceConversations,
@@ -387,6 +393,12 @@ export function renderAppShell(ctx: RenderAppShellContext) {
         onSelectWorkspacePath={handleSelectWorkspacePathForGitHistory}
         onOpenDiffPath={handleSelectDiffForPanel}
         onRequestClose={handleCloseGitHistoryPanel}
+        fileHistoryTabs={fileHistoryTabs}
+        activeTabId={activeGitHistoryTabId}
+        onActivateTab={handleActivateGitHistoryTab}
+        onCloseFileHistoryTab={handleCloseFileHistory}
+        onCloseOtherFileHistoryTabs={handleCloseOtherFileHistories}
+        onCloseAllFileHistoryTabs={handleCloseAllFileHistories}
         {...codeAnnotationBridgeProps}
       />
     </Suspense>

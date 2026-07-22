@@ -49,6 +49,7 @@ type FileExplorerWorkspaceProps = {
   onOpenFile: (path: string, location?: { line: number; column: number }) => void;
   onActivateTab: (path: string) => void;
   onCloseTab: (path: string) => void;
+  onCloseOtherTabs: (path: string) => void;
   onCloseAllTabs: () => void;
   onReorderTabs?: (nextOrder: string[]) => void;
   onRefreshFiles?: () => void;
@@ -82,6 +83,7 @@ export function FileExplorerWorkspace({
   onOpenFile,
   onActivateTab,
   onCloseTab,
+  onCloseOtherTabs,
   onCloseAllTabs,
   onReorderTabs,
   onRefreshFiles,
@@ -263,6 +265,7 @@ export function FileExplorerWorkspace({
             activeTabPath={activeFilePath}
             onActivateTab={onActivateTab}
             onCloseTab={onCloseTab}
+            onCloseOtherTabs={onCloseOtherTabs}
             onCloseAllTabs={onCloseAllTabs}
             onReorderTabs={onReorderTabs}
             openTargets={openTargets}

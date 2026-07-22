@@ -649,6 +649,7 @@ function createLayoutOptions(
     openEditorTabs: [],
     onActivateEditorTab: noop,
     onCloseEditorTab: noop,
+    onCloseOtherEditorTabs: noop,
     onCloseAllEditorTabs: noop,
     onReorderEditorTabs: noop,
     onActiveEditorLineRangeChange: noop,

@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left";
 import CheckIcon from "lucide-react/dist/esm/icons/check";
@@ -33,6 +33,15 @@ import type {
 } from "../../../types";
 import { gitRepositoryStatusItems } from "../../git/utils/gitRepositorySummary";
 import { getGitBranchUpdateFeedback } from "../../git/utils/gitBranchUpdateFeedback";
+import type {
+  GitRepositoryBatchResult,
+  GitRepositoryBranchCoverage,
+  GitRepositoryCommonBranchesResult,
+} from "../../git/types/gitRepositoryActions";
+import {
+  buildGitRepositoryIconColorSlots,
+  GIT_REPOSITORY_ICON_COLOR_CLASSES,
+} from "../../git/utils/gitRepositoryIconColors";
 
 const EMPTY_BRANCHES: BranchInfo[] = [];
 const EMPTY_BRANCH_ITEMS: GitBranchListItem[] = [];
@@ -56,6 +65,12 @@ export type ComposerBranchControl = {
   onCheckout: (name: string) => Promise<void> | void;
   onCreate: (name: string) => Promise<void> | void;
   onUpdate?: (name: string) => Promise<GitBranchUpdateResult | null> | GitBranchUpdateResult | null;
+  onUpdateAllRepositories?: () => Promise<GitRepositoryBatchResult | null>;
+  onCheckoutAllRepositories?: (
+    branchName: string,
+    eligibleRepositoryRoots?: readonly string[],
+  ) => Promise<GitRepositoryBatchResult | null>;
+  onLoadCommonRepositoryBranches?: () => Promise<GitRepositoryCommonBranchesResult | null>;
   onCommit?: (repositoryRoot: string) => Promise<void> | void;
   onPush?: (repositoryRoot: string) => Promise<void> | void;
   /** worktree 工作区下禁用切换，仅展示当前分支 */
@@ -113,6 +128,34 @@ function BranchRow({
       {branch.isCurrent || branch.name === currentBranch ? (
         <CheckIcon className="size-4 shrink-0" aria-hidden />
       ) : null}
+    </CommandItem>
+  );
+}
+
+function GlobalBranchRow({
+  branch,
+  displayName = branch.name,
+  totalRepositoryCount,
+  disabled,
+  onSelect,
+}: {
+  branch: GitRepositoryBranchCoverage;
+  displayName?: string;
+  totalRepositoryCount: number;
+  disabled: boolean;
+  onSelect: (branchName: string) => void;
+}) {
+  return (
+    <CommandItem value={`${branch.name} ${branch.repositories.map(({ displayName: name }) => name).join(" ")}`} disabled={disabled} onSelect={() => onSelect(branch.name)}>
+      <GitBranch className="size-4 shrink-0 opacity-60" aria-hidden />
+      <span className="min-w-0 flex-1 truncate">{displayName}</span>
+      <span className="composer-git-upstream" title={branch.repositories.map(({ displayName: name }) => name).join(", ")}>
+        {branch.repositories.map(({ displayName: name }) => name).join(", ")}
+      </span>
+      <span className="shrink-0 text-xs text-muted-foreground">
+        {branch.repositories.length}/{totalRepositoryCount}
+      </span>
+      <ChevronRight className="size-4 shrink-0 opacity-60" aria-hidden />
     </CommandItem>
   );
 }
@@ -196,6 +239,9 @@ function ComposerBranchBadgeComponent({
   onCheckout,
   onCreate,
   onUpdate,
+  onUpdateAllRepositories,
+  onCheckoutAllRepositories,
+  onLoadCommonRepositoryBranches,
   onCommit,
   onPush,
   disabled = false,
@@ -213,7 +259,16 @@ function ComposerBranchBadgeComponent({
   });
   const [expandedScopes, setExpandedScopes] = useState<Set<string>>(() => new Set());
   const [updatePending, setUpdatePending] = useState(false);
+  const [globalCheckoutMode, setGlobalCheckoutMode] = useState(false);
+  const [commonBranchesLoading, setCommonBranchesLoading] = useState(false);
+  const [commonBranches, setCommonBranches] = useState<GitRepositoryCommonBranchesResult | null>(null);
+  const [globalActionPending, setGlobalActionPending] = useState<"update" | "checkout" | null>(null);
+  const commonBranchesRequestRef = useRef(0);
   const [updateFeedback, setUpdateFeedback] = useState<{
+    tone: "success" | "error";
+    message: string;
+  } | null>(null);
+  const [globalActionFeedback, setGlobalActionFeedback] = useState<{
     tone: "success" | "error";
     message: string;
   } | null>(null);
@@ -233,11 +288,16 @@ function ComposerBranchBadgeComponent({
       ) ?? null,
     [repositories, selectedRepositoryRoot],
   );
+  const repositoryIconColorSlots = useMemo(
+    () => buildGitRepositoryIconColorSlots(repositories),
+    [repositories],
+  );
   const triggerBranchName =
     selectedRepository?.currentBranch ??
     (selectedRepository?.headState === "detached" ? "HEAD" : branchName);
   const effectiveCurrentBranch = currentBranch || triggerBranchName || null;
-  const showRepositoryList = repositories.length > 1 && activeRepositoryRoot === null;
+  const showRepositoryList = repositories.length > 1 && activeRepositoryRoot === null && !globalCheckoutMode;
+  const showGlobalCheckout = repositories.length > 1 && activeRepositoryRoot === null && globalCheckoutMode;
   const effectiveRepositoryRoot =
     activeRepositoryRoot ?? selectedRepositoryRoot ?? repositories[0]?.repositoryRoot ?? "";
   const exactMatch = useMemo(
@@ -279,6 +339,17 @@ function ComposerBranchBadgeComponent({
     });
     return Array.from(groups.values());
   }, [remoteBranches]);
+  const commonRemoteGroups = useMemo(() => {
+    const groups = new Map<string, GitRepositoryBranchCoverage[]>();
+    commonBranches?.remoteBranches.forEach((branch) => {
+      const separatorIndex = branch.name.indexOf("/");
+      const remote = separatorIndex > 0 ? branch.name.slice(0, separatorIndex) : "remote";
+      const group = groups.get(remote) ?? [];
+      group.push(branch);
+      groups.set(remote, group);
+    });
+    return Array.from(groups.entries());
+  }, [commonBranches]);
 
   const branchValidationMessage = useMemo(() => {
     if (!trimmedQuery) return null;
@@ -295,14 +366,55 @@ function ComposerBranchBadgeComponent({
   }, [trimmedQuery, t]);
 
   const closeMenu = useCallback(() => {
+    commonBranchesRequestRef.current += 1;
     setMenuOpen(false);
     setActiveRepositoryRoot(null);
     setQuery("");
     setError(null);
     setUpdateFeedback(null);
+    setGlobalCheckoutMode(false);
+    setCommonBranchesLoading(false);
+    setCommonBranches(null);
+    setGlobalActionPending(null);
+    setGlobalActionFeedback(null);
     setSwitchingRepositoryRoot(null);
     setExpandedSections({ recent: false, local: false, remote: false });
     setExpandedScopes(new Set());
+  }, []);
+
+  const handleOpenGlobalCheckout = useCallback(async () => {
+    if (!onLoadCommonRepositoryBranches || commonBranchesLoading || globalActionPending) return;
+    const requestId = commonBranchesRequestRef.current + 1;
+    commonBranchesRequestRef.current = requestId;
+    setGlobalCheckoutMode(true);
+    setCommonBranchesLoading(true);
+    setCommonBranches(null);
+    setQuery("");
+    setGlobalActionFeedback(null);
+    setExpandedSections((current) => ({ ...current, local: true, remote: true }));
+    try {
+      const result = await onLoadCommonRepositoryBranches();
+      if (commonBranchesRequestRef.current !== requestId) return;
+      setCommonBranches(result);
+      setExpandedScopes(new Set(result?.remoteBranches.map((branch) => `global-remote:${branch.name.split("/")[0] ?? "remote"}`)));
+    } catch (caughtError) {
+      if (commonBranchesRequestRef.current !== requestId) return;
+      setGlobalActionFeedback({
+        tone: "error",
+        message: caughtError instanceof Error ? caughtError.message : String(caughtError),
+      });
+    } finally {
+      if (commonBranchesRequestRef.current === requestId) setCommonBranchesLoading(false);
+    }
+  }, [commonBranchesLoading, globalActionPending, onLoadCommonRepositoryBranches]);
+
+  const handleBackFromGlobalCheckout = useCallback(() => {
+    commonBranchesRequestRef.current += 1;
+    setGlobalCheckoutMode(false);
+    setCommonBranchesLoading(false);
+    setCommonBranches(null);
+    setQuery("");
+    setGlobalActionFeedback(null);
   }, []);
 
   const handleSelectRepository = useCallback(
@@ -389,6 +501,61 @@ function ComposerBranchBadgeComponent({
     }
   }, [effectiveCurrentBranch, onUpdate, t, updatePending]);
 
+  const applyGlobalActionResult = useCallback((result: GitRepositoryBatchResult | null) => {
+    if (!result) return;
+    const failedCount = result.failedRepositories.length;
+    const skippedCount = result.skippedRepositories.length;
+    const summary = t("git.repositoryBatchSummary", {
+      success: result.successCount,
+      failed: failedCount,
+      skipped: skippedCount,
+    });
+    const failedDetails = failedCount > 0
+      ? ` ${t("git.repositoryBatchFailedRepositories", {
+          repositories: result.failedRepositories.join(", "),
+        })}`
+      : "";
+    setGlobalActionFeedback({
+      tone: failedCount > 0 ? "error" : "success",
+      message: `${summary}${failedDetails}`,
+    });
+  }, [t]);
+
+  const handleUpdateAll = useCallback(async () => {
+    if (!onUpdateAllRepositories || globalActionPending) return;
+    setGlobalActionFeedback(null);
+    setGlobalActionPending("update");
+    try {
+      applyGlobalActionResult(await onUpdateAllRepositories());
+    } catch (caughtError) {
+      setGlobalActionFeedback({
+        tone: "error",
+        message: caughtError instanceof Error ? caughtError.message : String(caughtError),
+      });
+    } finally {
+      setGlobalActionPending(null);
+    }
+  }, [applyGlobalActionResult, globalActionPending, onUpdateAllRepositories]);
+
+  const handleCheckoutAll = useCallback(async (
+    branchName: string,
+    eligibleRepositoryRoots: readonly string[],
+  ) => {
+    if (!onCheckoutAllRepositories || !branchName || globalActionPending) return;
+    setGlobalActionFeedback(null);
+    setGlobalActionPending("checkout");
+    try {
+      applyGlobalActionResult(await onCheckoutAllRepositories(branchName, eligibleRepositoryRoots));
+    } catch (caughtError) {
+      setGlobalActionFeedback({
+        tone: "error",
+        message: caughtError instanceof Error ? caughtError.message : String(caughtError),
+      });
+    } finally {
+      setGlobalActionPending(null);
+    }
+  }, [applyGlobalActionResult, globalActionPending, onCheckoutAllRepositories]);
+
   if (disabled) {
     return (
       <div className="composer-branch-badge">
@@ -412,22 +579,89 @@ function ComposerBranchBadgeComponent({
         </PopoverTrigger>
         <PopoverContent align="start" side="top" sideOffset={6} className="composer-git-command-center w-[32rem] max-w-[calc(100vw-2rem)] p-0">
           <Command>
-            <CommandInput value={query} onValueChange={(value) => { setQuery(value); setError(null); }} placeholder={showRepositoryList ? t("git.switchRepository") : t("workspace.searchOrCreateBranch")} autoFocus aria-label={showRepositoryList ? t("git.switchRepository") : t("workspace.searchBranches")} />
+            <CommandInput value={query} onValueChange={(value) => { setQuery(value); setError(null); setGlobalActionFeedback(null); }} placeholder={showGlobalCheckout ? t("workspace.searchBranches") : showRepositoryList ? t("git.switchRepository") : t("workspace.searchOrCreateBranch")} autoFocus aria-label={showGlobalCheckout ? t("workspace.searchBranches") : showRepositoryList ? t("git.switchRepository") : t("workspace.searchBranches")} />
             <CommandList>
               <CommandEmpty>{repositoriesLoading ? t("git.scanningRepositories") : t("workspace.noBranchesFound")}</CommandEmpty>
-              {showRepositoryList ? (
-                <CommandGroup heading={t("git.switchRepository")}>
-                  {repositories.map((repository) => (
+              {showGlobalCheckout ? (
+                <>
+                  <CommandGroup>
+                    <CommandItem value="__back_global_actions" disabled={globalActionPending !== null} onSelect={handleBackFromGlobalCheckout}>
+                      <ArrowLeft className="size-4" aria-hidden />
+                      <span>{t("workspace.back")}</span>
+                    </CommandItem>
+                  </CommandGroup>
+                  {commonBranchesLoading ? (
+                    <div className="flex items-center gap-2 px-4 py-3 text-sm text-muted-foreground" role="status">
+                      <LoaderCircle className="size-4 animate-spin" aria-hidden />
+                      <span>{t("git.repositoryBatchLoadingBranches")}</span>
+                    </div>
+                  ) : (
+                    <>
+                      {commonBranches?.failedRepositories.length ? (
+                        <div className="px-4 py-3 text-sm text-destructive" role="alert">
+                          <span>{t("git.repositoryBatchBranchesLoadFailed")}</span>{" "}
+                          <span>{commonBranches.failedRepositories.join(", ")}</span>
+                        </div>
+                      ) : null}
+                      {commonBranches?.localBranches.length ? (
+                        <BranchSection id="local" label={t("git.repositoryBatchCommonLocalBranches")} expanded={revealBranchSections || expandedSections.local} onToggle={() => toggleSection("local")}>
+                          {commonBranches.localBranches.map((branch) => (
+                            <GlobalBranchRow key={`global-local:${branch.name}`} branch={branch} totalRepositoryCount={commonBranches.totalRepositoryCount} disabled={globalActionPending !== null} onSelect={(name) => void handleCheckoutAll(name, branch.repositories.map(({ repositoryRoot }) => repositoryRoot))} />
+                          ))}
+                        </BranchSection>
+                      ) : null}
+                      {commonRemoteGroups.length ? (
+                        <BranchSection id="remote" label={t("git.repositoryBatchCommonRemoteBranches")} expanded={revealBranchSections || expandedSections.remote} onToggle={() => toggleSection("remote")}>
+                          {commonRemoteGroups.map(([remote, branches]) => (
+                            <BranchScope key={`global-remote:${remote}`} id={`composer-global-remote-${remote}`} label={remote} expanded={revealBranchSections || expandedScopes.has(`global-remote:${remote}`)} onToggle={() => toggleScope(`global-remote:${remote}`)}>
+                              {branches.map((branch) => (
+                                <GlobalBranchRow key={`global-remote:${branch.name}`} branch={branch} displayName={branch.name.startsWith(`${remote}/`) ? branch.name.slice(remote.length + 1) : branch.name} totalRepositoryCount={commonBranches?.totalRepositoryCount ?? repositories.length} disabled={globalActionPending !== null} onSelect={(name) => void handleCheckoutAll(name, branch.repositories.map(({ repositoryRoot }) => repositoryRoot))} />
+                              ))}
+                            </BranchScope>
+                          ))}
+                        </BranchSection>
+                      ) : null}
+                      {commonBranches && commonBranches.localBranches.length === 0 && commonBranches.remoteBranches.length === 0 ? (
+                        <div className="px-4 py-3 text-sm text-muted-foreground" role="status">{t("git.repositoryBatchNoCommonBranches")}</div>
+                      ) : null}
+                    </>
+                  )}
+                </>
+              ) : showRepositoryList ? (
+                <>
+                  <CommandGroup className="p-0.5">
+                    <div className="grid grid-cols-2 gap-1">
+                      <CommandItem className="h-7 justify-center py-0" value="__global_update_all" disabled={!onUpdateAllRepositories || globalActionPending !== null} onSelect={() => void handleUpdateAll()}>
+                        {globalActionPending === "update" ? (
+                          <LoaderCircle className="size-4 animate-spin" aria-hidden />
+                        ) : (
+                          <RefreshCw className="size-4" aria-hidden />
+                        )}
+                        <span>{t("git.repositoryBatchUpdateAll")}</span>
+                      </CommandItem>
+                      <CommandItem className="h-7 justify-center py-0" value="__global_checkout_all" disabled={!onCheckoutAllRepositories || !onLoadCommonRepositoryBranches || globalActionPending !== null} onSelect={() => void handleOpenGlobalCheckout()}>
+                        <GitBranch className="size-4" aria-hidden />
+                        <span>{t("git.repositoryBatchCheckoutAll")}</span>
+                      </CommandItem>
+                    </div>
+                  </CommandGroup>
+                  <CommandSeparator />
+                  <CommandGroup>
+                    {repositories.map((repository) => (
                     <CommandItem
                       key={repository.repositoryRoot || "__root__"}
                       value={`${repository.displayName} ${repository.repositoryRoot}`}
-                      disabled={switchingRepositoryRoot !== null}
+                      disabled={switchingRepositoryRoot !== null || globalActionPending !== null}
                       onSelect={() => void handleSelectRepository(repository.repositoryRoot)}
                     >
                       {switchingRepositoryRoot === repository.repositoryRoot ? (
                         <LoaderCircle className="size-4 shrink-0 animate-spin" aria-hidden />
                       ) : (
-                        <FolderGit2 className="size-4 shrink-0 text-emerald-500" aria-hidden />
+                        <FolderGit2
+                          className={`size-4 shrink-0 ${GIT_REPOSITORY_ICON_COLOR_CLASSES[repositoryIconColorSlots.get(repository.repositoryRoot) ?? 0]}`}
+                          data-repository-color-slot={repositoryIconColorSlots.get(repository.repositoryRoot) ?? 0}
+                          aria-hidden
+                        />
                       )}
                       <span className="min-w-0 flex-1 truncate">{repository.displayName}</span>
                       <RepositoryStatus repository={repository} />
@@ -435,8 +669,9 @@ function ComposerBranchBadgeComponent({
                         <ChevronRight className="size-4 shrink-0 opacity-60" aria-hidden />
                       ) : null}
                     </CommandItem>
-                  ))}
-                </CommandGroup>
+                    ))}
+                  </CommandGroup>
+                </>
               ) : (
                 <>
                   {repositories.length > 1 ? (
@@ -538,12 +773,12 @@ function ComposerBranchBadgeComponent({
                 </>
               )}
             </CommandList>
-            {updateFeedback || branchValidationMessage || error || branchError || repositoriesError ? (
+            {globalActionFeedback || updateFeedback || branchValidationMessage || error || branchError || repositoriesError ? (
               <div
-                className={`px-3 py-2 text-xs ${updateFeedback?.tone === "success" ? "text-emerald-600" : "text-destructive"}`}
-                role={updateFeedback?.tone === "error" || branchValidationMessage || error || branchError || repositoriesError ? "alert" : "status"}
+                className={`px-3 py-2 text-xs ${(globalActionFeedback ?? updateFeedback)?.tone === "success" ? "text-emerald-600" : "text-destructive"}`}
+                role={(globalActionFeedback ?? updateFeedback)?.tone === "error" || branchValidationMessage || error || branchError || repositoriesError ? "alert" : "status"}
               >
-                {updateFeedback?.message || branchValidationMessage || error || branchError || repositoriesError}
+                {globalActionFeedback?.message || updateFeedback?.message || branchValidationMessage || error || branchError || repositoriesError}
               </div>
             ) : null}
           </Command>

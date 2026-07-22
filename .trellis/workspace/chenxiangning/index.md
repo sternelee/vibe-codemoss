@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-26.md`
-- **Total Sessions**: 1047
-- **Last Active**: 2026-07-21
+- **Total Sessions**: 1062
+- **Last Active**: 2026-07-22
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-26.md` | ~762 | Active |
+| `journal-26.md` | ~1259 | Active |
 | `journal-25.md` | ~1976 | Archived |
 | `journal-24.md` | ~1994 | Archived |
 | `journal-23.md` | ~1965 | Archived |
@@ -54,6 +54,21 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 1062 | 2026-07-22 | Git Graph 文件历史多页签 | `d368fc9c5` | `feature/v-076` |
+| 1061 | 2026-07-22 | 整合文件右键操作 | `a0b3600a2` | `feature/v-076` |
+| 1060 | 2026-07-22 | 归档文件内容右键菜单任务 | `82494f630` | `feature/v-076` |
+| 1059 | 2026-07-22 | 重构文件标签右键菜单 | `1764941de` | `feature/v-076` |
+| 1058 | 2026-07-22 | 归档 Git 行标记 OpenSpec | `604c39c95` | `feature/v-076` |
+| 1057 | 2026-07-22 | Git Blame 按需加载 Git 行标记 | `591abfe17` | `feature/v-076` |
+| 1056 | 2026-07-22 | 恢复 Git History 分支树细节功能 | `2965cf065` | `feature/v-076` |
+| 1055 | 2026-07-22 | 文件编辑器行列跳转与标签页视觉统一 | `636e4f4a2` | `feature/v-076` |
+| 1054 | 2026-07-22 | 修复快捷键持久化并增加常用模块 | `d498bf187`, `365b1e2af` | `feature/v-076` |
+| 1053 | 2026-07-22 | 稳定 Git History 跨平台排序 | `effde1683` | `feature/v-076` |
+| 1052 | 2026-07-22 | 统一 Git History 单多仓分支树 | `c54d6ac26` | `feature/v-076` |
+| 1051 | 2026-07-21 | 压缩多仓操作菜单 | `c0c7be65e` | `feature/v-076` |
+| 1050 | 2026-07-21 | 多仓全局 Git 操作闭环 | `bf44df641293a6a06e82cf5cbf7744f6455bd0e2`, `6ef31cc93021c684d40c3843074aa219e9bc84f8` | `feature/v-076` |
+| 1049 | 2026-07-21 | 合并 bump-version-0.7.6 | `f03c644a9` | `feature/v-076` |
+| 1048 | 2026-07-21 | Mermaid 全屏 PNG 下载 | `9eeb82a1e` | `feature/v-076` |
 | 1047 | 2026-07-21 | 内置 Caveman 精选技能 | `f3c8f8f9` | `feature/v-076` |
 | 1046 | 2026-07-20 | commit:feat(git)-增加PR标题与正文AI生成功能 | HEAD | `feature/v-0.7.4` |
 | 1045 | 2026-07-20 | 统一并收紧 Composer 发送按钮尺寸 | `ed921d22` | `feature/v-0.7.4` |

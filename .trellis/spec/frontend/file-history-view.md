@@ -162,7 +162,7 @@ Daemon method 使用同字段顺序与语义，其中 pagination 的 `offset/lim
 - `WorkspaceFileComparePanel.compare-editor.test.tsx`：assert normal read-only draft renders CodeMirror with `editable=false`、semantic tone/markers、navigation dispatch；explicit unsupported reason retains plain-text fallback。
 - `file-history-layout.test.ts`：assert named container、bounded wide grid、narrow stacked rows、fluid two-pane column override。
 - `file-history-layout.test.ts`：assert deletion/addition scoped selectors 与 red/green theme colors 存在。
-- `useGitPanelController.test.tsx`：assert open/switch/close 与切换其他 center surface 后 target 清空。
+- `useGitPanelController.test.tsx`：assert multi-tab open/deduplicate/activate/close，active close 按右邻、左邻、Git Graph 顺序 fallback；切换其他 center surface 不得清空 Git Graph session tabs。
 - `GitDiffPanelFileContextMenu.test.ts`：assert History ordering、History-only 与 empty action set。
 - `GitDiffPanel.test.tsx`：assert root/nested/Windows/invalid target mapping、single clicked-only bulk selection、multi same-path/empty-root、mutation-disabled History-only 与 stale callback close。
 - `useLayoutNodes.client-ui-visibility.test.tsx`：assert existing `onOpenFileHistory` capability 透传到 Git Diff。
@@ -258,6 +258,112 @@ const selectedDiff = diffs.find((entry) => entry.path === target.path) ?? diffs[
 const selectedFilePath = selectedCommit.filePath ?? target.path;
 const selectedDiff = diffs.find((entry) => entry.path === selectedFilePath) ?? null;
 ```
+
+## Scenario: Git Graph Multi-Tab File History Host
+
+### 1. Scope / Trigger
+
+- Trigger：修改 `useGitPanelController.handleOpenFileHistory`、`GitHistoryPanel` title tabs、AppShell File History routing 或 `FileHistoryView` host header。
+- 目标：File History 只作为 Git Graph domain workspace 的 document tab；禁止恢复独立 `centerMode="fileHistory"`，也禁止把 history fetch/diff data logic 塞进 `GitHistoryPanelImpl`。
+
+### 2. Signatures
+
+```ts
+export const GIT_GRAPH_TAB_ID = "git-graph";
+
+export function getFileHistoryTabId(target: FileHistoryTarget): string;
+
+type GitHistoryTabsState = {
+  activeTabId: string;
+  fileHistoryTabs: FileHistoryTarget[];
+};
+
+type GitHistoryPanelProps = {
+  fileHistoryTabs?: readonly FileHistoryTarget[];
+  activeTabId?: string;
+  onActivateTab?: (tabId: string) => void;
+  onCloseFileHistoryTab?: (tabId: string) => void;
+  onCloseOtherFileHistoryTabs?: (tabId: string) => void;
+  onCloseAllFileHistoryTabs?: () => void;
+};
+```
+
+### 3. Contracts
+
+- tab identity MUST 使用 `workspaceId + repositoryRoot + path`；`displayPath` 只用于 label，禁止 path-only 或 label-only identity。
+- `Git Graph` MUST 是 pinned first tab，不暴露 close action。
+- `handleOpenFileHistory(target)` MUST 原子执行 deduplicate + activate，并请求打开 `appMode="gitHistory"`；MUST NOT 改写 editor `centerMode` 或关闭 file compare session。
+- 关闭 inactive file tab MUST 保持 active tab；关闭 active tab MUST 依次选择右邻、左邻、`GIT_GRAPH_TAB_ID`。
+- `GitHistoryPanel` wrapper owns document tab/content composition；`GitHistoryPanelImpl` 只提供既有 toolbar/body 的 opaque slot host，继续负责 repository-wide Git Graph，`FileHistoryView` 继续独立负责 path-scoped query/diff。
+- document tabs MUST 插入既有 `.git-history-toolbar`，与 project/repository/HEAD/branch/status/actions 共用一行；禁止在 toolbar 上方新增第二条 titlebar/tab row。
+- pinned Git Graph tab MUST icon-only，并保留 `aria-label/title`；File History tab MUST 复用 shared `FileIcon/getFileName`，可见 label 只显示 basename，完整路径保留在 `aria-label/title`，close action MUST 清除继承 padding/line-height 并保持几何居中。
+- File History tab context menu MUST 复用 `RendererContextMenu` 与 `files.closeCurrentTab/closeOtherTabs/closeAllTabs`；关闭其他 MUST 只保留并激活 invoked tab，全部关闭 MUST 清空 File History tabs 并回到 `GIT_GRAPH_TAB_ID`；Graph pinned tab 不暴露 close menu。
+- active File History MUST 只 mount 一个 `FileHistoryView`，并用 `showHeader=false` 避免 title strip 与 standalone header 双重 close authority。
+- tab strip MUST expose `tablist/tab/tabpanel` semantics；所有 tabs 与 file-specific close action MUST keyboard reachable and have accessible names。
+- tab strip MUST use horizontal overflow inside the Git History title width；不得撑宽 dock 或裁掉 panel close action。
+
+### 4. Validation & Error Matrix
+
+| 输入/事件 | 必须行为 | 禁止行为 |
+|---|---|---|
+| 首次打开 file A | 打开 Git Graph + append/activate A tab | 切 `centerMode=fileHistory` |
+| 再次打开 file A | 更新 label payload并聚焦已有 A | append duplicate |
+| 不同 workspace/repository 的同 path | 分别保留 tabs | path-only collision |
+| active A，右侧有 B，关闭 A | activate B | 无条件回 Git Graph |
+| active last tab，左侧有 A | activate A | active id 指向已删除 tab |
+| 关闭 inactive tab | active view 不变 | 意外切换 body |
+| File History active | mount exact target view + embedded body | background mount 所有 file views |
+| tabs 超出宽度 | title strip 内横向滚动 | dock width overflow |
+
+### 5. Good / Base / Bad Cases
+
+- Good：`workspace-a + "" + src/App.tsx` 与 `workspace-b + packages/web + src/App.tsx` 同时打开且 identity 不冲突。
+- Good：File Tree、File View、Git Diff 都复用同一个 `handleOpenFileHistory(FileHistoryTarget)` owner。
+- Base：没有 file tabs 时只显示 pinned Git Graph，现有 branch/commit/worktree behavior 不变。
+- Bad：在 `GitHistoryPanelImpl` 中复制 `getGitCommitHistory/getGitCommitDiff` state，形成第二套 async owner。
+- Bad：继续用 `fileHistoryTarget: FileHistoryTarget | null`，新文件覆盖旧文件并让 tab UI 伪多开。
+
+### 6. Tests Required
+
+- `useGitPanelController.test.tsx` MUST cover duplicate open、same-path cross-repository identity、inactive close、right/left/graph fallback 与 `onOpenGitHistoryRequest`。
+- `useGitPanelController.test.tsx` MUST cover atomic close-others/close-all state transitions。
+- `GitHistoryPanel.tabs.test.tsx` MUST assert pinned Graph tab、multiple file tabs、active body、close/context-menu callbacks、`tablist/tab/tabpanel` roles 与 embedded `showHeader=false`。
+- `FileHistoryView.test.tsx` MUST retain stale history/diff、rename、text/image/binary/retry coverage after host migration。
+- `git-history-tabs-layout.test.ts` MUST assert title tabs `min-width:0`、`overflow-x:auto`、tabpanel bounded height 与 focus-visible styling。
+- `npm run check:app-shell:runtime-contract`、`npm run check:git-history:runtime-contract`、`npm run typecheck`、`npm run lint` MUST pass。
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```ts
+setFileHistoryTarget(target);
+setCenterMode("fileHistory");
+```
+
+这把 Git domain navigation 塞回 editor center surface，且只能保留一个 target。
+
+#### Correct
+
+```ts
+const tabId = getFileHistoryTabId(target);
+setGitHistoryTabsState((current) => {
+  const existingIndex = current.fileHistoryTabs.findIndex(
+    (entry) => getFileHistoryTabId(entry) === tabId,
+  );
+  return {
+    activeTabId: tabId,
+    fileHistoryTabs: existingIndex < 0
+      ? [...current.fileHistoryTabs, target]
+      : current.fileHistoryTabs.map((entry, index) =>
+          index === existingIndex ? target : entry,
+        ),
+  };
+});
+onOpenGitHistoryRequest?.();
+```
+
+identity、atomic state 与 Git Graph open request 三项 contract 不得拆散。
 
 ## 8. Scenario: Repository-wide Git History Filter Stability
 

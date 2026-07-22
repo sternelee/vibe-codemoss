@@ -171,11 +171,6 @@ const FileViewPanel = lazy(() =>
     default: m.FileViewPanel,
   })),
 );
-const FileHistoryView = lazy(() =>
-  import("../../git-history/components/FileHistoryView").then((m) => ({
-    default: m.FileHistoryView,
-  })),
-);
 const ProjectMapPanel = lazy(() =>
   import("../../project-map/components/ProjectMapPanel").then((m) => ({
     default: m.ProjectMapPanel,
@@ -1337,6 +1332,9 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
             onCheckout: options.onCheckoutBranch,
             onCreate: options.onCreateBranch,
             onUpdate: options.onUpdateBranch,
+            onUpdateAllRepositories: options.onUpdateAllRepositories,
+            onCheckoutAllRepositories: options.onCheckoutAllRepositories,
+            onLoadCommonRepositoryBranches: options.onLoadCommonRepositoryBranches,
             onCommit: handleComposerGitCommit,
             onPush: handleComposerGitPush,
             disabled: options.isWorktreeWorkspace,
@@ -1358,6 +1356,9 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
       options.onCheckoutBranch,
       options.onCreateBranch,
       options.onUpdateBranch,
+      options.onUpdateAllRepositories,
+      options.onCheckoutAllRepositories,
+      options.onLoadCommonRepositoryBranches,
       handleComposerGitCommit,
       handleComposerGitPush,
       options.isWorktreeWorkspace,
@@ -2084,14 +2085,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
     />
   );
 
-  const fileViewPanelNode = options.centerMode === "fileHistory" && options.fileHistoryTarget ? (
-    <Suspense fallback={<HeavyPanelFallback />}>
-      <FileHistoryView
-        target={options.fileHistoryTarget}
-        onClose={options.onCloseFileHistory ?? (() => undefined)}
-      />
-    </Suspense>
-  ) : options.editorFilePath && options.activeWorkspace ? (
+  const fileViewPanelNode = options.editorFilePath && options.activeWorkspace ? (
       <Suspense fallback={<HeavyPanelFallback />}>
         <FileViewPanel
           workspaceId={options.activeWorkspace.id}
@@ -2112,6 +2106,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
           activeTabPath={options.editorFilePath}
           onActivateTab={options.onActivateEditorTab}
           onCloseTab={options.onCloseEditorTab}
+          onCloseOtherTabs={options.onCloseOtherEditorTabs}
           onCloseAllTabs={options.onCloseAllEditorTabs}
           onReorderTabs={options.onReorderEditorTabs}
           fileReferenceMode={options.fileReferenceMode}
@@ -2131,6 +2126,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
           isEditorFileMaximized={options.isEditorFileMaximized}
           onToggleEditorFileMaximized={options.onToggleEditorFileMaximized}
           onNavigateToLocation={options.onOpenFile}
+          onOpenFileHistory={options.onOpenFileHistory}
           onClose={options.onExitEditor}
           onInsertText={options.onInsertComposerText}
           onCreateCodeAnnotation={handleCreateCodeAnnotation}

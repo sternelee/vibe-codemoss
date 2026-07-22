@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 
 export type RendererContextMenuLeafItem =
@@ -6,6 +13,7 @@ export type RendererContextMenuLeafItem =
       type: "item";
       id: string;
       label: string;
+      icon?: ReactNode;
       disabled?: boolean;
       tone?: "default" | "danger";
       onSelect: () => void | Promise<void>;
@@ -26,6 +34,7 @@ export type RendererContextMenuItem =
       type: "submenu";
       id: string;
       label: string;
+      icon?: ReactNode;
       disabled?: boolean;
       items: RendererContextMenuLeafItem[];
     };
@@ -239,6 +248,11 @@ export function RendererContextMenu({
           void item.onSelect();
         }}
       >
+        {item.icon ? (
+          <span className="renderer-context-menu-item-icon" aria-hidden>
+            {item.icon}
+          </span>
+        ) : null}
         <span className="renderer-context-menu-item-label">
           {item.label}
         </span>
@@ -299,8 +313,15 @@ export function RendererContextMenu({
           }
         }}
       >
-        <span className="renderer-context-menu-item-label">
-          {item.label}
+        <span className="renderer-context-menu-item-content">
+          {item.icon ? (
+            <span className="renderer-context-menu-item-icon" aria-hidden>
+              {item.icon}
+            </span>
+          ) : null}
+          <span className="renderer-context-menu-item-label">
+            {item.label}
+          </span>
         </span>
         <span className="renderer-context-menu-submenu-chevron" aria-hidden>
           ›

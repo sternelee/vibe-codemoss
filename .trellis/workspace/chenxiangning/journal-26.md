@@ -760,3 +760,500 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1048: Mermaid 全屏 PNG 下载
+
+**Date**: 2026-07-21
+**Task**: Mermaid 全屏 PNG 下载
+**Branch**: `feature/v-076`
+
+### Summary
+
+新增 Mermaid 全屏 PNG 下载；Tauri 使用原生 Save Dialog 与受限 PNG 写盘 command，Web 保留下载 fallback；补齐跨层测试、规范与归档。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9eeb82a1e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1049: 合并 bump-version-0.7.6
+
+**Date**: 2026-07-21
+**Task**: 合并 bump-version-0.7.6
+**Branch**: `feature/v-076`
+
+### Summary
+
+将 upstream/bump-version-0.7.6 合入 feature/v-076；保留 Mermaid PNG 原生下载、Messages presentation architecture 重构与 Sidebar pinned row 修复，并完成冲突、symbol、目标测试、lint、typecheck、large-file 与 OpenSpec 验证。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f03c644a9` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1050: 多仓全局 Git 操作闭环
+
+**Date**: 2026-07-21
+**Task**: 多仓全局 Git 操作闭环
+**Branch**: `feature/v-076`
+
+### Summary
+
+实现多仓更新全部、公共分支覆盖发现与 eligible-only 串行切换、partial failure 汇总和稳定差异化仓库图标；完成 review 修复、OpenSpec 同步归档、20/20 focused tests、lint、typecheck、runtime contracts 与用户验收。完整测试仍有既有 SettingsView Client UI visibility baseline failure。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `bf44df641293a6a06e82cf5cbf7744f6455bd0e2` | (see git log) |
+| `6ef31cc93021c684d40c3843074aa219e9bc84f8` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1051: 压缩多仓操作菜单
+
+**Date**: 2026-07-21
+**Task**: 压缩多仓操作菜单
+**Branch**: `feature/v-076`
+
+### Summary
+
+删除多仓菜单中的切换 Git 仓库分组标题，压缩更新全部与切换全部分支操作栏高度；保持 Git 逻辑不变。focused test 11/11、lint、typecheck、git diff check 均通过；用户已完成 UI 验收。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c0c7be65e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1052: 统一 Git History 单多仓分支树
+
+**Date**: 2026-07-22
+**Task**: 统一 Git History 单多仓分支树
+**Branch**: `feature/v-076`
+
+### Summary
+
+实现单仓与多仓共用的 Git History repository branch tree；支持稳定仓库配色、并行 branch catalogs、partial failure、分支分组折叠、跨仓搜索与 exact repository identity；review 修复搜索 section 展开、stale cleanup 与跨仓 context menu 时序。相关 78 个测试及局部门禁通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c54d6ac26` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1053: 稳定 Git History 跨平台排序
+
+**Date**: 2026-07-22
+**Task**: 稳定 Git History 跨平台排序
+**Branch**: `feature/v-076`
+
+### Summary
+
+Review 并修复 Git History repository color collision、branch group 与 branch leaf 使用 localeCompare 导致的 Windows/macOS/Linux 排序漂移；补充跨平台 focused tests，同步并归档 OpenSpec change。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `effde1683` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1054: 修复快捷键持久化并增加常用模块
+
+**Date**: 2026-07-22
+**Task**: 修复快捷键持久化并增加常用模块
+**Branch**: `feature/v-076`
+
+### Summary
+
+补齐 frontend 与 Rust AppSettings shortcut round-trip，新增置顶常用模块分组和七个可配置模块快捷键，复用 AppShell 现有 view handlers；完成 focused tests、Rust test、typecheck、lint、runtime contracts，并归档 OpenSpec 与 Trellis task。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d498bf187` | (see git log) |
+| `365b1e2af` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1055: 文件编辑器行列跳转与标签页视觉统一
+
+**Date**: 2026-07-22
+**Task**: 文件编辑器行列跳转与标签页视觉统一
+**Branch**: `feature/v-076`
+
+### Summary
+
+新增 Cmd+G/Ctrl+G 行列跳转弹窗，完善输入边界、i18n 与 accessibility；压缩弹窗布局，隐藏 tab scrollbar，并统一 tab 与文件树图标 resolver。增量测试 92/92、targeted ESLint、typecheck、OpenSpec strict validation 均通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `636e4f4a2` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1056: 恢复 Git History 分支树细节功能
+
+**Date**: 2026-07-22
+**Task**: 恢复 Git History 分支树细节功能
+**Branch**: `feature/v-076`
+
+### Summary
+
+恢复全部分支入口、根分组默认展开、HEAD/主干/ahead/behind 状态标签，并补充单仓与多仓回归测试及 OpenSpec 变更记录。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2965cf065` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1057: Git Blame 按需加载 Git 行标记
+
+**Date**: 2026-07-22
+**Task**: Git Blame 按需加载 Git 行标记
+**Branch**: `feature/v-076`
+
+### Summary
+
+默认打开文件不再请求 Git full diff；点击 Git Blame 后独立加载 Blame 与 changed-line markers，并补齐关闭、dirty、失败隔离和 stale result 的增量测试。增量 77 tests、typecheck、lint、OpenSpec strict validation 均通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `591abfe17` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1058: 归档 Git 行标记 OpenSpec
+
+**Date**: 2026-07-22
+**Task**: 归档 Git 行标记 OpenSpec
+**Branch**: `feature/v-076`
+
+### Summary
+
+将 Git Blame 按需加载 changed-line markers 的 delta spec 同步到 file-open-rendering-scheduler 主 spec，并归档已完成的 OpenSpec change；change 与主 spec strict validation 均通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `604c39c95` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1059: 重构文件标签右键菜单
+
+**Date**: 2026-07-22
+**Task**: 重构文件标签右键菜单
+**Branch**: `feature/v-076`
+
+### Summary
+
+重构文件 tab 右键菜单样式，加入图标、文件级只读 Git 操作、关闭当前/其他/全部及新窗口打开；补齐主窗口与 detached explorer 原子状态动作、10 语言文案、增量测试，并完成 OpenSpec 同步归档。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1764941de` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1060: 归档文件内容右键菜单任务
+
+**Date**: 2026-07-22
+**Task**: 归档文件内容右键菜单任务
+**Branch**: `feature/v-076`
+
+### Summary
+
+归档 move-file-toolbar-actions-to-context-menu 的 Trellis task metadata；脚本同时纳入了并行 Git Graph task 的未跟踪 metadata。业务代码与并行实现均保持未提交。增量验证：FileViewPanel 相关 95 tests、targeted ESLint、typecheck、OpenSpec strict validation 通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `82494f630` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1061: 整合文件右键操作
+
+**Date**: 2026-07-22
+**Task**: 整合文件右键操作
+**Branch**: `feature/v-076`
+
+### Summary
+
+完成文件工具栏动作迁移、统一右键便签保存与 Git 操作分组；选区保存选中文本，无选区保存整个文件；增量测试与 OpenSpec 归档完成，用户验收通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a0b3600a2` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1062: Git Graph 文件历史多页签
+
+**Date**: 2026-07-22
+**Task**: Git Graph 文件历史多页签
+**Branch**: `feature/v-076`
+
+### Summary
+
+将文件历史整合进 Git Graph 标题栏，支持多文件页签、文件图标、紧凑布局及关闭/关闭其他/全部关闭右键菜单；完成增量测试与契约校验。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d368fc9c5` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

@@ -99,6 +99,10 @@ import {
 
 export function AppShell() {
   const { t } = useTranslation();
+  const handleOpenGitHistoryFromFileHistory = useCallback(() => {
+    setAppMode("gitHistory");
+  }, []);
+
   const {
     claudeThinkingVisible,
     handleResolvedClaudeThinkingVisibleChange,
@@ -412,16 +416,21 @@ export function AppShell() {
     editorNavigationTarget,
     editorHighlightTarget,
     fileCompareSession,
-    fileHistoryTarget,
+    fileHistoryTabs,
+    activeGitHistoryTabId,
     openFileTabs,
     handleOpenFile,
     handleOpenWorkspaceFileCompare,
     handleOpenScratchFileCompare,
     handleCloseFileCompare,
     handleOpenFileHistory,
+    handleActivateGitHistoryTab,
     handleCloseFileHistory,
+    handleCloseOtherFileHistories,
+    handleCloseAllFileHistories,
     handleActivateFileTab,
     handleCloseFileTab,
+    handleCloseOtherFileTabs,
     handleCloseAllFileTabs,
     handleReorderFileTabs,
     handleExitEditor,
@@ -440,6 +449,7 @@ export function AppShell() {
     prDiffsLoading: gitPullRequestDiffsLoading,
     prDiffsError: gitPullRequestDiffsError,
     onOpenEditorLayoutRequest: requestEditorOpenLayout,
+    onOpenGitHistoryRequest: handleOpenGitHistoryFromFileHistory,
   });
 
   useEffect(() => {
@@ -649,6 +659,9 @@ export function AppShell() {
     handleCheckoutBranch,
     handleCreateBranch,
     handleUpdateBranch,
+    handleUpdateAllRepositories,
+    handleCheckoutAllRepositories,
+    handleLoadCommonRepositoryBranches,
     handleOpenDetachedFileExplorer,
     handlePickGitRoot,
     handleRevertAllGitChanges,
@@ -1638,7 +1651,8 @@ export function AppShell() {
       activeImages,
       activeFusingMessageId,
       fileCompareSession,
-      fileHistoryTarget,
+      fileHistoryTabs,
+      activeGitHistoryTabId,
       activeItems,
       activeParentWorkspace,
       activePath,
@@ -1857,6 +1871,7 @@ export function AppShell() {
       handleCheckoutBranch,
       handleCloseAllFileTabs,
       handleCloseFileTab,
+      handleCloseOtherFileTabs,
       handleCommit,
       handleCommitAndPush,
       handleCommitAndSync,
@@ -1865,6 +1880,9 @@ export function AppShell() {
       handleCopyThread,
       handleCreateBranch,
       handleUpdateBranch,
+      handleUpdateAllRepositories,
+      handleCheckoutAllRepositories,
+      handleLoadCommonRepositoryBranches,
       handleCreatePrompt,
       handleDebugClick,
       handleDeletePrompt,
@@ -1891,7 +1909,10 @@ export function AppShell() {
       handleOpenScratchFileCompare,
       handleCloseFileCompare,
       handleOpenFileHistory,
+      handleActivateGitHistoryTab,
       handleCloseFileHistory,
+      handleCloseOtherFileHistories,
+      handleCloseAllFileHistories,
       handleOpenMailSession,
       handleOpenModelSettings,
       handleRefreshModelConfig,

@@ -928,6 +928,29 @@
   white-space: nowrap;
 }
 
+.renderer-context-menu-item-content {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 9px;
+}
+
+.renderer-context-menu-item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  color: var(--text-muted);
+}
+
+.renderer-context-menu-item-icon svg {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+}
+
 .renderer-context-menu-submenu-trigger {
   justify-content: space-between;
 }
