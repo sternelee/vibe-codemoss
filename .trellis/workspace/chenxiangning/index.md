@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-26.md`
-- **Total Sessions**: 1069
+- **Total Sessions**: 1070
 - **Last Active**: 2026-07-23
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-26.md` | ~1504 | Active |
+| `journal-26.md` | ~1537 | Active |
 | `journal-25.md` | ~1976 | Archived |
 | `journal-24.md` | ~1994 | Archived |
 | `journal-23.md` | ~1965 | Archived |
@@ -54,6 +54,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 1070 | 2026-07-23 | 修复深色侧栏折叠配色 | `88a501df0` | `feature/v-0.7.7` |
 | 1069 | 2026-07-23 | 完善 Composer 提示词增强入口 | `1618ee32e` | `feature/v-0.7.7` |
 | 1068 | 2026-07-22 | 修复智能体 completion 选择错位 | `853090af7` | `feature/v-076` |
 | 1067 | 2026-07-22 | 完善语言服务安装引导与语义导航 | `c75fee5b6`, `ce695e500` | `feature/v-076` |

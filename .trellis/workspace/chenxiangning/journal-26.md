@@ -1502,3 +1502,36 @@ Review 并修复 Git History repository color collision、branch group 与 branc
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1070: 修复深色侧栏折叠配色
+
+**Date**: 2026-07-23
+**Task**: 修复深色侧栏折叠配色
+**Branch**: `feature/v-0.7.7`
+
+### Summary
+
+补齐 dark/system-dark desktop shell theme tokens，将 collapsed sidebar 的白色硬编码 fallback 改为 theme-aware surface，新增 CSS contract test，并同步归档 OpenSpec fix-dark-collapsed-sidebar-theme。用户视觉验收通过；focused Vitest 3/3、lint、typecheck、large-file、当前 OpenSpec strict validation 通过。full suite 的既存 AppShell startup 8 项因 collectAiFileMutations 收到 undefined timeline 失败，与本次 CSS/spec 变更无调用链。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `88a501df0` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
