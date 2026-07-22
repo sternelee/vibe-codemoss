@@ -32,6 +32,7 @@ import { resolveThreadStabilityDiagnostic } from "../utils/stabilityDiagnostics"
 import { hasCodexBackgroundHelperPreview } from "../utils/codexBackgroundHelpers";
 import { isCodexPrewarmThreadStart } from "../utils/codexPendingPrewarm";
 import { renameLiveAssistantTextThread } from "../utils/liveAssistantTextChannel";
+import { resolveCodexSubagentIdentity } from "../utils/codexSubagentIdentity";
 import type { ThreadAction } from "./useThreadsReducer";
 
 /**
@@ -376,11 +377,21 @@ export function useThreadTurnEvents({
       if (isThreadHidden(workspaceId, threadId)) {
         return;
       }
+      const customName = getCustomName(workspaceId, threadId);
+      const canApplyLiveName =
+        !customName && !isAutoTitlePending(workspaceId, threadId);
+      const liveIdentity = resolveCodexSubagentIdentity(threadId, thread);
       dispatch({
         type: "ensureThread",
         workspaceId,
         threadId,
         engine: inferEngineFromThreadId(threadId),
+        ...(liveIdentity.parentThreadId
+          ? { parentThreadId: liveIdentity.parentThreadId }
+          : {}),
+        ...(canApplyLiveName && liveIdentity.name
+          ? { name: liveIdentity.name }
+          : {}),
         ...extractThreadProviderMetadata(thread),
       });
       if (inferEngineFromThreadId(threadId) === "codex") {
@@ -402,8 +413,7 @@ export function useThreadTurnEvents({
         timestamp: activityTimestamp,
       });
 
-      const customName = getCustomName(workspaceId, threadId);
-      if (!customName && !isAutoTitlePending(workspaceId, threadId)) {
+      if (canApplyLiveName && !liveIdentity.name) {
         const preview = asString(thread.preview).trim();
         if (preview) {
           const name = previewThreadName(preview, `Agent ${threadId.slice(0, 4)}`);

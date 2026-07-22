@@ -21,6 +21,7 @@ import {
 } from "../../shared-session/runtime/sharedSessionSummaries";
 import { asString } from "../utils/threadNormalize";
 import { clearLiveAssistantText } from "../utils/liveAssistantTextChannel";
+import { resolveCodexSubagentIdentity } from "../utils/codexSubagentIdentity";
 import { saveThreadActivity } from "../utils/threadStorage";
 import {
   collectKnownCodexThreadIds,
@@ -701,12 +702,14 @@ export function useThreadActions({
             const preview = asString(thread?.preview ?? "").trim();
             const mappedTitle = mappedTitles[id];
             const customName = getCustomName(workspace.id, id) || mappedTitle;
+            const liveIdentity = resolveCodexSubagentIdentity(id, thread);
             const fallbackName = `Agent ${index + 1}`;
             const name = customName
               ? customName
-              : preview.length > 0
-                ? previewThreadName(preview, fallbackName)
-                : fallbackName;
+              : liveIdentity.name ??
+                (preview.length > 0
+                  ? previewThreadName(preview, fallbackName)
+                  : fallbackName);
             const engineSource = engineById.get(id) ?? ("codex" as const);
             const sourceMeta = resolveThreadSourceMeta(thread);
             return {
@@ -722,6 +725,9 @@ export function useThreadActions({
                   ? thread.folderId.trim()
                   : null,
               ...sourceMeta,
+              ...(liveIdentity.parentThreadId
+                ? { parentThreadId: liveIdentity.parentThreadId }
+                : {}),
             };
           })
           .filter((entry) => entry.id && !hiddenSharedBindingIds.has(entry.id));

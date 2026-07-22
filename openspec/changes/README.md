@@ -2,8 +2,8 @@
 
 本页是 `mossx` OpenSpec proposal 的当前入口。它只维护 active change 的执行状态，并把 archived change 路由到完整历史索引；详细治理快照仍以 [`../project.md`](../project.md) 为准。
 
-- Updated At: `2026-07-20`
-- Active proposals: `4`
+- Updated At: `2026-07-22`
+- Active proposals: `5`
 - Archived proposals: `641`
 - Main capability specs: `406`
 
@@ -15,6 +15,7 @@
 | [`derive-rate-limit-label-from-window-duration`](derive-rate-limit-label-from-window-duration/proposal.md) | 5/5 | Completed; pending sync/archive | [design](derive-rate-limit-label-from-window-duration/design.md) · [tasks](derive-rate-limit-label-from-window-duration/tasks.md) · [specs](derive-rate-limit-label-from-window-duration/specs/) |
 | [`enable-claude-lightweight-streaming-and-frame-attribution`](enable-claude-lightweight-streaming-and-frame-attribution/proposal.md) | 15/18 | Claude-stream trace、final fidelity 与 archive gate | [design](enable-claude-lightweight-streaming-and-frame-attribution/design.md) · [tasks](enable-claude-lightweight-streaming-and-frame-attribution/tasks.md) · [specs](enable-claude-lightweight-streaming-and-frame-attribution/specs/) · [verification](enable-claude-lightweight-streaming-and-frame-attribution/verification.md) |
 | [`stabilize-client-runtime-and-diagnostics`](stabilize-client-runtime-and-diagnostics/proposal.md) | 21/22 | Quantified frame / first-delta trace retention | [design](stabilize-client-runtime-and-diagnostics/design.md) · [tasks](stabilize-client-runtime-and-diagnostics/tasks.md) · [specs](stabilize-client-runtime-and-diagnostics/specs/) · [verification](stabilize-client-runtime-and-diagnostics/verification.md) |
+| [`fix-codex-subagent-live-sidebar-convergence`](fix-codex-subagent-live-sidebar-convergence/proposal.md) | 6/6 | Completed; pending sync/archive | [design](fix-codex-subagent-live-sidebar-convergence/design.md) · [tasks](fix-codex-subagent-live-sidebar-convergence/tasks.md) · [specs](fix-codex-subagent-live-sidebar-convergence/specs/) · [verification](fix-codex-subagent-live-sidebar-convergence/verification.md) |
 
 ## Archived Proposals
 
