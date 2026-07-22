@@ -9,6 +9,8 @@
 
 `useAppServerEvents` 已把 `params.thread` 原样交给 `useThreadTurnEvents.onThreadStarted`。当前缺口是后者没有消费 relationship/agent identity，且 `ThreadAction.ensureThread` 无对应字段。
 
+真实 multi-agent v2 时序还会在 parent thread 上发送 `ThreadItem.type = subAgentActivity`：notification 的 `threadId` 是 parent，item 的 `agentThreadId` 是 child，`agentPath` 提供稳定的 provisional display name。child 的 `turn/started` 可能紧随其后；若 frontend 忽略该 item，child 会先被 `ensureThread` 建成顶层 `Agent N`，再被首段 assistant text 改成“我/先”，直到 catalog hydration 才收敛。
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -30,6 +32,8 @@
 ### Decision 1: consume existing protocol fields at the frontend trust boundary
 
 `onThreadStarted` 对 camelCase authoritative fields 与已有 snake_case compatibility aliases 做 trim + non-empty validation。self-parent relationship fail open 为无 parent，避免污染 tree。
+
+`useThreadLinking` 同时消费 parent-side `subAgentActivity`。live camelCase shape 与 persisted snake_case shape 都在 boundary normalize；`kind = started` 时用现有 `ensureThread` 一次写入 child、parent 与 `agentPath` basename，随后 catalog nickname 可继续覆盖 provisional name。普通 `collabToolCall` / `collabAgentToolCall` 路径保持不变。
 
 Rejected: 等待下一次 catalog refresh。该路径正是 root-to-child flash 的来源，并引入不确定 latency。
 

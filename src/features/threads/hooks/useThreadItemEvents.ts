@@ -2,6 +2,7 @@ import { startTransition, useCallback, useEffect, useMemo, useRef } from "react"
 import { workspaceScopedHas, type WorkspaceScopedMap } from "./workspaceScopedMap";
 import type { Dispatch, MutableRefObject } from "react";
 import { buildConversationItem } from "../../../utils/threadItems";
+import { isCodexSubagentActivityItem } from "../utils/codexSubagentIdentity";
 import type { NormalizedThreadEvent } from "../contracts/conversationCurtainContracts";
 import {
   createRealtimeEventBatcher,
@@ -177,6 +178,7 @@ type UseThreadItemEventsOptions = {
   applyCollabThreadLinks: (
     threadId: string,
     item: Record<string, unknown>,
+    workspaceId?: string,
   ) => void;
   interruptedThreadsRef: MutableRefObject<WorkspaceScopedMap<true>>;
   onDebug?: (entry: DebugEntry) => void;
@@ -814,7 +816,15 @@ export function useThreadItemEvents({
       } = {},
     ) => {
       if (normalizedEvent.rawItem) {
-        applyCollabThreadLinks(normalizedEvent.threadId, normalizedEvent.rawItem);
+        if (isCodexSubagentActivityItem(normalizedEvent.rawItem)) {
+          applyCollabThreadLinks(
+            normalizedEvent.threadId,
+            normalizedEvent.rawItem,
+            normalizedEvent.workspaceId,
+          );
+        } else {
+          applyCollabThreadLinks(normalizedEvent.threadId, normalizedEvent.rawItem);
+        }
       }
       if (
         normalizedEvent.operation === "completeAgentMessage" &&
@@ -1186,7 +1196,11 @@ export function useThreadItemEvents({
       ) {
         markProcessing(threadId, true);
       }
-      applyCollabThreadLinks(threadId, item);
+      if (isCodexSubagentActivityItem(item)) {
+        applyCollabThreadLinks(threadId, item, workspaceId);
+      } else {
+        applyCollabThreadLinks(threadId, item);
+      }
       const agentMessageSnapshotText = asString(
         item?.text ?? item?.content ?? item?.output_text ?? item?.outputText ?? "",
       );

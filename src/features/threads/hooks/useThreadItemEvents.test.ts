@@ -154,6 +154,28 @@ describe("useThreadItemEvents", () => {
     expect(safeMessageActivity).toHaveBeenCalled();
   });
 
+  it("passes workspace context when a Codex subagent activity completes", () => {
+    vi.mocked(buildConversationItem).mockReturnValue(null);
+    const { result, applyCollabThreadLinks } = makeOptions();
+    const item: ItemPayload = {
+      type: "subAgentActivity",
+      id: "activity-1",
+      kind: "started",
+      agentThreadId: "child-thread",
+      agentPath: "/root/review_webview_lifecycle",
+    };
+
+    act(() => {
+      result.current.onItemCompleted("ws-1", "parent-thread", item);
+    });
+
+    expect(applyCollabThreadLinks).toHaveBeenCalledWith(
+      "parent-thread",
+      item,
+      "ws-1",
+    );
+  });
+
   it("handles item updates without incrementing agent segment repeatedly", () => {
     const { result, dispatch, markProcessing } = makeOptions();
     const item: ItemPayload = { type: "commandExecution", id: "cmd-1" };

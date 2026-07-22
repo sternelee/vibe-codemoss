@@ -12,9 +12,16 @@ function asMetadataRecord(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function portableAgentPathBasename(value: unknown) {
+export function codexAgentPathBasename(value: unknown) {
   const path = normalizeMetadataString(value)?.replace(/[\\/]+$/, "");
   return path?.split(/[\\/]/).filter(Boolean).at(-1) ?? null;
+}
+
+export function isCodexSubagentActivityItem(
+  item: Record<string, unknown>,
+): boolean {
+  const type = normalizeMetadataString(item.type);
+  return type === "subAgentActivity" || type === "sub_agent_activity";
 }
 
 export function resolveCodexSubagentIdentity(
@@ -38,7 +45,7 @@ export function resolveCodexSubagentIdentity(
     normalizeMetadataString(
       threadSpawn?.agent_nickname ?? threadSpawn?.agentNickname,
     ) ??
-    portableAgentPathBasename(
+    codexAgentPathBasename(
       threadSpawn?.agent_path ?? threadSpawn?.agentPath,
     );
 

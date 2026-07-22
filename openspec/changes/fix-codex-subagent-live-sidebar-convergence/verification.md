@@ -4,6 +4,11 @@ Implementation complete; pending sync/archive.
 
 ## Evidence
 
+- Follow-up protocol evidence: current generated `ThreadItem` union contains `{ type: "subAgentActivity", kind, agentThreadId, agentPath }`; parent `threadId` comes from the enclosing `item/started` / `item/completed` notification。
+- Follow-up RED: linking tests initially received zero dispatches，item event test showed `workspaceId` was dropped。
+- Follow-up GREEN: `useThreadLinking.test.tsx` + `useThreadItemEvents.test.ts` passed 46/46 tests；file-scoped ESLint 与 `git diff --check` passed。
+- Follow-up scope: 按用户要求未运行 repository-wide tests、global typecheck 或 production build。
+
 - Protocol evidence: local `codex-cli 0.144.6 app-server generate-ts --experimental` generated `ThreadStartedNotification = { thread: Thread }`; `Thread` includes `parentThreadId` and `agentNickname`, while nested `SessionSource.subagent.thread_spawn` carries `agent_path` compatibility evidence.
 - RED: initial hook/reducer run failed 3 tests with 131 passing because `ensureThread` omitted parent/name and preview renamed the child to `我`.
 - RED: refresh/path coverage failed when nested source metadata was ignored and `setThreads` dropped the live relationship.
