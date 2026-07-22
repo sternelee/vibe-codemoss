@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-26.md`
-- **Total Sessions**: 1062
+- **Total Sessions**: 1063
 - **Last Active**: 2026-07-22
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-26.md` | ~1259 | Active |
+| `journal-26.md` | ~1305 | Active |
 | `journal-25.md` | ~1976 | Archived |
 | `journal-24.md` | ~1994 | Archived |
 | `journal-23.md` | ~1965 | Archived |
@@ -54,6 +54,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 1063 | 2026-07-22 | 打开文件定位到文件树 | `24bdf7388` | `feature/v-076` |
 | 1062 | 2026-07-22 | Git Graph 文件历史多页签 | `d368fc9c5` | `feature/v-076` |
 | 1061 | 2026-07-22 | 整合文件右键操作 | `a0b3600a2` | `feature/v-076` |
 | 1060 | 2026-07-22 | 归档文件内容右键菜单任务 | `82494f630` | `feature/v-076` |
