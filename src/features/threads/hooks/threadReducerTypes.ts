@@ -77,6 +77,8 @@ export type ThreadAction =
       workspaceId: string;
       threadId: string;
       engine?: "codex" | "claude" | "gemini" | "kimi" | "opencode";
+      name?: string | null;
+      parentThreadId?: string | null;
       folderId?: string | null;
       autoSession?: AutoSessionMetadata | null;
       sourceLabel?: string | null;

@@ -1305,6 +1305,8 @@ const settings = {
     shortcutsTitle: "Shortcuts",
     shortcutsDescription:
       "Customize keyboard shortcuts for file actions, composer, panels, and navigation.",
+    commonModulesSubtitle: "Common modules",
+    commonModulesSubDescription: "Quick access to frequently used views and tools.",
     appSubtitle: "App",
     appSubDescription: "Open app-level destinations and switch primary modes.",
     openSettings: "Open settings",
@@ -1345,6 +1347,7 @@ const settings = {
     editorSubDescription: "Control file editing actions from the keyboard.",
     saveFile: "Save file",
     findInFile: "Find in file",
+    expandSelection: "Expand selection",
     gitSubtitle: "Git",
     gitSubDescription: "Control Git diff navigation and presentation.",
     toggleGitDiffListView: "Toggle Git diff list view",

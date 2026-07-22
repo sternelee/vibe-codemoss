@@ -36,6 +36,7 @@ export {
   connectOpenCodeProvider,
   exportOpenCodeSession,
   getCodeIntelDefinition,
+  getCodeIntelImplementations,
   getCodeIntelReferences,
   getOpenCodeLspDefinition,
   getOpenCodeLspDiagnostics,
@@ -115,6 +116,7 @@ export {
 } from "./tauri/threadTitles";
 export { getPendingOpenPaths } from "./tauri/openPaths";
 export { setMainWindowOpacity } from "./tauri/window";
+export { saveMermaidPngFile } from "./tauri/mermaidExport";
 export type { WindowOpacityApplyResult } from "./tauri/window";
 export type {
   WorkspaceSessionCatalogEntry,

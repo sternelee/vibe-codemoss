@@ -385,6 +385,8 @@ mod tests {
             renderer_heartbeats: tokio::sync::Mutex::new(
                 crate::renderer_stability::RendererHeartbeatStore::default(),
             ),
+            semantic_navigation_runtime: crate::code_intel_lsp::SemanticNavigationRuntime::default(
+            ),
             engine_manager: crate::engine::EngineManager::new(),
         }
     }

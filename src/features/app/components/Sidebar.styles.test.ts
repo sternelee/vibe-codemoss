@@ -47,4 +47,16 @@ describe("Sidebar styles", () => {
       /\.sidebar-primary-nav-mode-item\.is-active\s*\{[\s\S]*?font-weight:\s*400;/,
     );
   });
+
+  it("keeps pinned thread rows aligned with workspace rows", () => {
+    const css = readFileSync(
+      resolve(process.cwd(), "src/styles/sidebar.css"),
+      "utf8",
+    );
+
+    expect(ruleBody(css, ".pinned-thread-list")).toMatch(/padding:\s*0;/);
+    expect(ruleBody(css, ".sidebar-pinned-section")).toMatch(
+      /padding:\s*0\s+2px;/,
+    );
+  });
 });

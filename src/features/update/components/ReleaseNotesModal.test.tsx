@@ -29,7 +29,7 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-vi.mock("../../messages/components/Markdown", () => ({
+vi.mock("../../../markdown/components/Markdown", () => ({
   Markdown: ({ value }: { value: string }) => <div data-testid="release-markdown">{value}</div>,
 }));
 

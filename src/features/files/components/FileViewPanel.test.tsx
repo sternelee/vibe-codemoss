@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildLocation,
@@ -8,11 +8,13 @@ import {
   mermaidRender,
   mockCodeMirrorDispatch,
   mockOpenNewDetachedFileExplorerWindow,
+  mockPushErrorToast,
 } from "./FileViewPanel.test-utils";
 import { FileViewPanel, resolveEditorAnnotationWidgetOrder } from "./FileViewPanel";
 import { clearFileDocumentSessionCacheForTests } from "../hooks/useFileDocumentState";
 import {
   getCodeIntelDefinition,
+  getCodeIntelImplementations,
   getCodeIntelReferences,
   getGitFileFullDiff,
   readLocalImageDataUrl,
@@ -24,6 +26,34 @@ import {
 } from "../../../services/tauri";
 import { loadKatexAssets } from "../../markdown/markdownMath";
 import { useFilePreviewPayload } from "../hooks/useFilePreviewPayload";
+import { getFileTreeIconSvg } from "../utils/fileTreeIcons";
+
+function openFileContentContextMenu() {
+  const contextTarget =
+    screen.queryByTestId("mock-codemirror") ?? document.querySelector(".fvp-body");
+  if (!contextTarget) {
+    throw new Error("File content surface is unavailable");
+  }
+  fireEvent.contextMenu(contextTarget, {
+    clientX: 120,
+    clientY: 80,
+  });
+  return screen.getByRole("menu", { name: "files.fileContextMenu" });
+}
+
+function clickFileContextMenuItem(name: string | RegExp) {
+  fireEvent.click(within(openFileContentContextMenu()).getByRole("menuitem", { name }));
+}
+
+function toggleFileGitBlame() {
+  const menu = within(openFileContentContextMenu());
+  fireEvent.mouseEnter(menu.getByRole("menuitem", { name: "files.tabGitActions" }));
+  const gitMenu = within(screen.getByRole("menu", { name: "files.tabGitActions" }));
+  const item =
+    gitMenu.queryByRole("menuitem", { name: "files.gitBlameEnable" }) ??
+    gitMenu.getByRole("menuitem", { name: "files.gitBlameDisable" });
+  fireEvent.click(item);
+}
 
 describe("editor annotation widget ordering", () => {
   it("keeps draft and existing markers sorted for CodeMirror ranges", () => {
@@ -58,11 +88,7 @@ describe("editor annotation widget ordering", () => {
           ? `${target.kind}:${target.annotation.id}:${target.targetLine}:${target.side}`
           : `${target.kind}:draft:${target.targetLine}:${target.side}`,
       ),
-    ).toEqual([
-      "marker:same-line-marker:12:1",
-      "draft:draft:12:2",
-      "marker:later-marker:38:1",
-    ]);
+    ).toEqual(["marker:same-line-marker:12:1", "draft:draft:12:2", "marker:later-marker:38:1"]);
   });
 });
 
@@ -100,7 +126,11 @@ describe("FileViewPanel navigation", () => {
     );
 
     await screen.findByTestId("mock-codemirror");
-    fireEvent.click(screen.getByTitle(/gotoDefinition/i));
+    fireEvent.click(
+      within(openFileContentContextMenu()).getByRole("menuitem", {
+        name: "files.gotoDefinition",
+      }),
+    );
 
     await waitFor(() => {
       expect(getCodeIntelDefinition).toHaveBeenCalled();
@@ -117,10 +147,7 @@ describe("FileViewPanel navigation", () => {
       truncated: false,
     });
     vi.mocked(getCodeIntelDefinition).mockResolvedValue({
-      result: [
-        buildLocation("src/Foo.java", 3, 1),
-        buildLocation("src/Bar.java", 12, 6),
-      ],
+      result: [buildLocation("src/Foo.java", 3, 1), buildLocation("src/Bar.java", 12, 6)],
     } as any);
     const onNavigateToLocation = vi.fn();
 
@@ -139,7 +166,11 @@ describe("FileViewPanel navigation", () => {
     );
 
     await screen.findByTestId("mock-codemirror");
-    fireEvent.click(screen.getByTitle(/gotoDefinition/i));
+    fireEvent.click(
+      within(openFileContentContextMenu()).getByRole("menuitem", {
+        name: "files.gotoDefinition",
+      }),
+    );
 
     await waitFor(() => {
       expect(screen.getByText("src/Foo.java")).toBeTruthy();
@@ -152,6 +183,89 @@ describe("FileViewPanel navigation", () => {
       line: 13,
       column: 7,
     });
+  });
+
+  it("navigates to an implementation and forwards current document text", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "interface Renderer {}",
+      truncated: false,
+    });
+    vi.mocked(getCodeIntelImplementations).mockResolvedValue({
+      result: [buildLocation("src/Html.ts", 7, 0)],
+    } as any);
+    const onNavigateToLocation = vi.fn();
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-rust"
+        workspacePath="/repo"
+        filePath="src/types.ts"
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onNavigateToLocation={onNavigateToLocation}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByTestId("mock-codemirror");
+    fireEvent.click(
+      within(openFileContentContextMenu()).getByRole("menuitem", {
+        name: "files.gotoImplementations",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(getCodeIntelImplementations).toHaveBeenCalledWith("ws-rust", {
+        filePath: "src/types.ts",
+        line: 0,
+        character: 0,
+        documentText: "interface Renderer {}",
+      });
+      expect(onNavigateToLocation).toHaveBeenCalledWith("src/Html.ts", {
+        line: 8,
+        column: 1,
+      });
+    }, { timeout: 500 });
+  });
+
+  it("shows localized action guidance instead of raw no-symbol backend errors", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "class Main {}",
+      truncated: false,
+    });
+    vi.mocked(getCodeIntelDefinition).mockRejectedValue(new Error("No symbol under cursor"));
+    vi.mocked(getCodeIntelImplementations).mockRejectedValue(
+      new Error("No symbol under cursor"),
+    );
+    vi.mocked(getCodeIntelReferences).mockRejectedValue(new Error("No symbol under cursor"));
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-guidance"
+        workspacePath="/repo"
+        filePath="src/Main.java"
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByTestId("mock-codemirror");
+    clickFileContextMenuItem("files.gotoDefinition");
+    await screen.findByText("files.navigationDefinitionSymbolRequired");
+
+    clickFileContextMenuItem("files.gotoImplementations");
+    await screen.findByText("files.navigationImplementationSymbolRequired");
+
+    clickFileContextMenuItem("files.findReferences");
+    await screen.findByText("files.navigationReferencesSymbolRequired");
+    expect(screen.queryByText("No symbol under cursor")).toBeNull();
+    consoleErrorSpy.mockRestore();
   });
 
   it("normalizes Windows absolute code-intel paths back to workspace-relative navigation targets", async () => {
@@ -179,7 +293,11 @@ describe("FileViewPanel navigation", () => {
     );
 
     await screen.findByTestId("mock-codemirror");
-    fireEvent.click(screen.getByTitle(/gotoDefinition/i));
+    fireEvent.click(
+      within(openFileContentContextMenu()).getByRole("menuitem", {
+        name: "files.gotoDefinition",
+      }),
+    );
 
     await waitFor(() => {
       expect(onNavigateToLocation).toHaveBeenCalledWith("src/Foo.ts", {
@@ -195,10 +313,7 @@ describe("FileViewPanel navigation", () => {
       truncated: false,
     });
     vi.mocked(getCodeIntelReferences).mockResolvedValue({
-      result: [
-        buildLocation("src/Foo.java", 5, 4),
-        buildLocation("src/Baz.java", 17, 8),
-      ],
+      result: [buildLocation("src/Foo.java", 5, 4), buildLocation("src/Baz.java", 17, 8)],
     } as any);
     const onNavigateToLocation = vi.fn();
 
@@ -217,7 +332,11 @@ describe("FileViewPanel navigation", () => {
     );
 
     await screen.findByTestId("mock-codemirror");
-    fireEvent.click(screen.getByTitle(/findReferences/i));
+    fireEvent.click(
+      within(openFileContentContextMenu()).getByRole("menuitem", {
+        name: "files.findReferences",
+      }),
+    );
 
     await waitFor(() => {
       expect(getCodeIntelReferences).toHaveBeenCalled();
@@ -231,6 +350,312 @@ describe("FileViewPanel navigation", () => {
       line: 18,
       column: 9,
     });
+  });
+
+  it("shows semantic mode and fast-search fallback without blocking navigation", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "class Main {}",
+      truncated: false,
+    });
+    vi.mocked(getCodeIntelReferences).mockResolvedValue({
+      filePath: "src/Main.java",
+      line: 0,
+      character: 0,
+      language: "java",
+      mode: "fast-search",
+      provider: "heuristic",
+      fallbackReasonCode: "provider-unavailable",
+      result: [buildLocation("src/Foo.java", 5, 4)],
+    });
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-navigation-mode"
+        workspacePath="/repo"
+        filePath="src/Main.java"
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByTestId("mock-codemirror");
+    clickFileContextMenuItem("files.findReferences");
+
+    await screen.findByText(/files\.navigationLanguageServerMissing · Java/);
+    expect(screen.queryByText("files.navigationFallbackNotice")).toBeNull();
+    expect(screen.getAllByText(/files\.navigationModeFastSearchFallback/).length).toBeGreaterThan(0);
+    expect(screen.getByText("src/Foo.java")).toBeTruthy();
+    expect(screen.getByText(
+      "xdg-open \"https://download.eclipse.org/jdtls/milestones/\"",
+    )).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", {
+      name: "files.navigationCopyInstallCommand",
+    }));
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith(
+        "xdg-open \"https://download.eclipse.org/jdtls/milestones/\"",
+      );
+      expect(screen.getByText("files.navigationInstallCommandCopied")).toBeTruthy();
+    });
+    fireEvent.click(screen.getByRole("button", {
+      name: "files.navigationRetryAfterInstall",
+    }));
+    await waitFor(() => {
+      expect(getCodeIntelReferences).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it.each([
+    [
+      "definition",
+      "files.gotoDefinition",
+      () => vi.mocked(getCodeIntelDefinition).mockResolvedValue({
+        filePath: "src/Main.java",
+        line: 0,
+        character: 0,
+        language: "java",
+        mode: "fast-search",
+        provider: "heuristic",
+        fallbackReasonCode: "provider-unavailable",
+        result: [buildLocation("src/Foo.java", 9, 2)],
+      }),
+    ],
+    [
+      "implementation",
+      "files.gotoImplementations",
+      () => vi.mocked(getCodeIntelImplementations).mockResolvedValue({
+        filePath: "src/Main.java",
+        line: 0,
+        character: 0,
+        language: "java",
+        mode: "fast-search",
+        provider: "heuristic",
+        fallbackReasonCode: "provider-unavailable",
+        result: [buildLocation("src/Foo.java", 9, 2)],
+      }),
+    ],
+  ] as const)(
+    "keeps single-target %s fallback visible until the user chooses the result",
+    async (_action, menuItem, arrangeResponse) => {
+      vi.mocked(readWorkspaceFile).mockResolvedValue({
+        content: "class Main {}",
+        truncated: false,
+      });
+      arrangeResponse();
+      const onNavigateToLocation = vi.fn();
+
+      render(
+        <FileViewPanel
+          workspaceId="ws-single-provider-fallback"
+          workspacePath="/repo"
+          filePath="src/Main.java"
+          openTargets={[]}
+          openAppIconById={{}}
+          selectedOpenAppId=""
+          onSelectOpenAppId={vi.fn()}
+          onNavigateToLocation={onNavigateToLocation}
+          onClose={vi.fn()}
+        />,
+      );
+
+      await screen.findByTestId("mock-codemirror");
+      clickFileContextMenuItem(menuItem);
+
+      await screen.findByText(/files\.navigationLanguageServerMissing · Java/);
+      expect(onNavigateToLocation).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByText("src/Foo.java"));
+      expect(onNavigateToLocation).toHaveBeenCalledWith("src/Foo.java", {
+        line: 10,
+        column: 3,
+      });
+    },
+  );
+
+  it("keeps an unavailable-provider command selectable without clipboard access", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "const value = 1;",
+      truncated: false,
+    });
+    vi.mocked(getCodeIntelReferences).mockResolvedValue({
+      filePath: "src/value.ts",
+      line: 0,
+      character: 0,
+      language: "TS/JS",
+      mode: "fast-search",
+      provider: "heuristic",
+      fallbackReasonCode: "provider-unavailable",
+      result: [],
+    });
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: undefined,
+    });
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-navigation-no-clipboard"
+        workspacePath="/repo"
+        filePath="src/value.ts"
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByTestId("mock-codemirror");
+    clickFileContextMenuItem("files.findReferences");
+    expect(await screen.findByText(
+      "npm install -g typescript-language-server typescript",
+    )).toBeTruthy();
+    expect(screen.queryByRole("button", {
+      name: "files.navigationCopyInstallCommand",
+    })).toBeNull();
+    expect(screen.getByRole("button", {
+      name: "files.navigationRetryAfterInstall",
+    })).toBeTruthy();
+  });
+
+  it("does not suggest installation for provider timeouts", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "class Main {}",
+      truncated: false,
+    });
+    vi.mocked(getCodeIntelReferences).mockResolvedValue({
+      filePath: "src/Main.java",
+      line: 0,
+      character: 0,
+      language: "Java",
+      mode: "fast-search",
+      provider: "heuristic",
+      fallbackReasonCode: "request-timeout",
+      result: [],
+    });
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-navigation-timeout-fallback"
+        workspacePath="/repo"
+        filePath="src/Main.java"
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByTestId("mock-codemirror");
+    clickFileContextMenuItem("files.findReferences");
+    await screen.findByText("files.navigationFallbackNotice");
+    expect(screen.queryByText(/download\.eclipse\.org\/jdtls/)).toBeNull();
+    expect(screen.queryByRole("button", {
+      name: "files.navigationCopyInstallCommand",
+    })).toBeNull();
+  });
+
+  it("shows the target language while a semantic provider is preparing", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "class Main {}",
+      truncated: false,
+    });
+    let resolveDefinition!: (
+      value: Awaited<ReturnType<typeof getCodeIntelDefinition>>,
+    ) => void;
+    vi.mocked(getCodeIntelDefinition).mockImplementationOnce(() => new Promise((resolve) => {
+      resolveDefinition = resolve;
+    }));
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-navigation-loading"
+        workspacePath="/repo"
+        filePath="src/Main.java"
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByTestId("mock-codemirror");
+    clickFileContextMenuItem("files.gotoDefinition");
+    await waitFor(() => {
+      const mode = document.querySelector(".fvp-navigation-mode");
+      expect(mode?.textContent).toContain("files.navigationPreparing");
+      expect(mode?.textContent).toContain("Java");
+    });
+
+    resolveDefinition({
+      filePath: "src/Main.java",
+      line: 0,
+      character: 0,
+      language: "java",
+      mode: "semantic",
+      provider: "eclipse-jdt-ls",
+      fallbackReasonCode: null,
+      result: [],
+    });
+    await screen.findByText("files.navigationNoDefinition");
+  });
+
+  it("retries a failed navigation request immediately", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "class Main {}",
+      truncated: false,
+    });
+    vi.mocked(getCodeIntelDefinition)
+      .mockRejectedValueOnce(new Error("No symbol under cursor"))
+      .mockResolvedValueOnce({
+        filePath: "src/Main.java",
+        line: 0,
+        character: 0,
+        language: "java",
+        mode: "semantic",
+        provider: "eclipse-jdt-ls",
+        fallbackReasonCode: null,
+        result: [buildLocation("src/Foo.java", 9, 2)],
+      });
+    const onNavigateToLocation = vi.fn();
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-navigation-retry"
+        workspacePath="/repo"
+        filePath="src/Main.java"
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onNavigateToLocation={onNavigateToLocation}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByTestId("mock-codemirror");
+    clickFileContextMenuItem("files.gotoDefinition");
+    await screen.findByText("files.navigationDefinitionSymbolRequired");
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    await waitFor(() => {
+      expect(getCodeIntelDefinition).toHaveBeenCalledTimes(2);
+      expect(onNavigateToLocation).toHaveBeenCalledWith("src/Foo.java", {
+        line: 10,
+        column: 3,
+      });
+    });
+    consoleErrorSpy.mockRestore();
   });
 
   it("renders maximize toggle and triggers callback", async () => {
@@ -287,11 +712,14 @@ describe("FileViewPanel navigation", () => {
 
     await screen.findByTestId("mock-codemirror");
     const fileTab = screen.getByRole("tab", { name: "Main.java" });
+    const expectedIcon = document.createElement("span");
+    expectedIcon.innerHTML = getFileTreeIconSvg("Main.java", false);
+    expect(fileTab.querySelector(".fvp-tab-icon")?.innerHTML).toBe(expectedIcon.innerHTML);
     fireEvent.doubleClick(fileTab);
     expect(onToggleEditorFileMaximized).toHaveBeenCalledTimes(1);
   });
 
-  it("renders tabs and action buttons in a single header row when requested", async () => {
+  it("renders tabs and the leading action in one header row", async () => {
     vi.mocked(readWorkspaceFile).mockResolvedValue({
       content: "class Main {}",
       truncated: false,
@@ -325,13 +753,248 @@ describe("FileViewPanel navigation", () => {
       container.querySelector(".fvp-tabs-inline")?.hasAttribute("data-tauri-drag-region"),
     ).toBe(false);
     expect(
-      container.querySelector(".fvp-tabs-inline .fvp-tabs-track")?.hasAttribute(
-        "data-tauri-drag-region",
-      ),
+      container
+        .querySelector(".fvp-tabs-inline .fvp-tabs-track")
+        ?.hasAttribute("data-tauri-drag-region"),
     ).toBe(false);
     expect(container.querySelector(".fvp-topbar")).toBeNull();
     expect(screen.getByRole("tablist", { name: "Open files" })).toBeTruthy();
-    expect(screen.getByTitle(/gotoDefinition/i)).toBeTruthy();
+    expect(screen.getByTitle("files.backToChat")).toBeTruthy();
+    expect(
+      within(openFileContentContextMenu()).getByRole("menuitem", {
+        name: "files.gotoDefinition",
+      }),
+    ).toBeTruthy();
+  });
+
+  it("copies and pastes the CodeMirror selection from the file context menu", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "class Main {}",
+      truncated: false,
+    });
+    const writeText = vi.fn(async () => undefined);
+    const readText = vi.fn(async () => "pasted text");
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText, readText },
+    });
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-file-menu-clipboard"
+        workspacePath="/repo"
+        filePath="src/Main.java"
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const editor = (await screen.findByTestId("mock-codemirror")) as HTMLTextAreaElement;
+    editor.setSelectionRange(0, 5);
+    fireEvent.select(editor);
+    fireEvent.click(
+      within(openFileContentContextMenu()).getByRole("menuitem", {
+        name: "files.copyItem",
+      }),
+    );
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith("class"));
+
+    mockCodeMirrorDispatch.mockClear();
+    fireEvent.click(
+      within(openFileContentContextMenu()).getByRole("menuitem", {
+        name: "files.pasteItem",
+      }),
+    );
+    await waitFor(() => {
+      expect(readText).toHaveBeenCalledTimes(1);
+      expect(mockCodeMirrorDispatch).toHaveBeenCalledWith({
+        changes: { from: 0, to: 5, insert: "pasted text" },
+      });
+    });
+  });
+
+  it("exposes expand selection with a platform shortcut hint in the editor menu", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "class Main {}",
+      truncated: false,
+    });
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-expand-selection-menu"
+        workspacePath="/repo"
+        filePath="src/Main.java"
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByTestId("mock-codemirror");
+    const menu = within(openFileContentContextMenu());
+    const item = menu.getByRole("menuitem", { name: "files.expandSelection" });
+
+    expect(item.querySelector(".renderer-context-menu-item-shortcut")?.textContent).toMatch(
+      /^(⌘W|Ctrl\+W)$/,
+    );
+    expect(item.closest(".fvp-file-context-menu")).not.toBeNull();
+  });
+
+  it("keeps the expand-selection menu action when its shortcut is cleared", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "class Main {}",
+      truncated: false,
+    });
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-expand-selection-menu-no-shortcut"
+        workspacePath="/repo"
+        filePath="src/Main.java"
+        expandSelectionShortcut={null}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByTestId("mock-codemirror");
+    const item = within(openFileContentContextMenu()).getByRole("menuitem", {
+      name: "files.expandSelection",
+    });
+
+    expect(item.querySelector(".renderer-context-menu-item-shortcut")).toBeNull();
+  });
+
+  it("preserves selected content when clipboard write fails during Cut", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "class Main {}",
+      truncated: false,
+    });
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: vi.fn(async () => {
+          throw new Error("permission denied");
+        }),
+        readText: vi.fn(),
+      },
+    });
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-file-menu-cut-failure"
+        workspacePath="/repo"
+        filePath="src/Main.java"
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const editor = (await screen.findByTestId("mock-codemirror")) as HTMLTextAreaElement;
+    editor.setSelectionRange(0, 5);
+    fireEvent.select(editor);
+    mockCodeMirrorDispatch.mockClear();
+    fireEvent.click(
+      within(openFileContentContextMenu()).getByRole("menuitem", {
+        name: "files.cutItem",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(mockPushErrorToast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "files.clipboardActionFailedTitle" }),
+      );
+    });
+    expect(mockCodeMirrorDispatch.mock.calls.some(([transaction]) => transaction?.changes)).toBe(
+      false,
+    );
+    expect(editor.value).toBe("class Main {}");
+  });
+
+  it("disables mutating clipboard actions in preview mode", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "# Preview",
+      truncated: false,
+    });
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-file-menu-preview"
+        workspacePath="/repo"
+        filePath="README.md"
+        initialMode="preview"
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByTestId("file-markdown-preview");
+    fireEvent.contextMenu(screen.getByTestId("file-markdown-preview"));
+    const menu = screen.getByRole("menu", { name: "files.fileContextMenu" });
+    expect(
+      (
+        within(menu).getByRole("menuitem", {
+          name: "files.cutItem",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    expect(
+      (
+        within(menu).getByRole("menuitem", {
+          name: "files.pasteItem",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    expect(within(menu).getByRole("menuitem", { name: "files.edit" })).toBeTruthy();
+    expect(
+      within(menu).queryByRole("menuitem", { name: "files.expandSelection" }),
+    ).toBeNull();
+  });
+
+  it("reveals the active file from the file content context menu", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "class Main {}",
+      truncated: false,
+    });
+    const onRevealInFileTree = vi.fn();
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-reveal-file"
+        workspacePath="/repo"
+        filePath="src/features/Main.java"
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onRevealInFileTree={onRevealInFileTree}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByTestId("mock-codemirror");
+    fireEvent.click(
+      within(openFileContentContextMenu()).getByRole("menuitem", {
+        name: "files.revealInFileTree",
+      }),
+    );
+
+    expect(onRevealInFileTree).toHaveBeenCalledOnce();
+    expect(onRevealInFileTree).toHaveBeenCalledWith("src/features/Main.java");
   });
 
   it("opens a specific file tab in the detached explorer without activating or closing it", async () => {
@@ -383,6 +1046,118 @@ describe("FileViewPanel navigation", () => {
     expect(onCloseTab).not.toHaveBeenCalled();
   });
 
+  it("targets the invoked background tab and renders icons for root actions", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "class Main {}",
+      truncated: false,
+    });
+    const onCloseTab = vi.fn();
+    const onActivateTab = vi.fn();
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-tab-menu"
+        workspacePath="/repo"
+        filePath="src/Main.java"
+        openTabs={["src/Main.java", "src/Foo.java"]}
+        activeTabPath="src/Main.java"
+        onActivateTab={onActivateTab}
+        onCloseTab={onCloseTab}
+        onCloseOtherTabs={vi.fn()}
+        onCloseAllTabs={vi.fn()}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByTestId("mock-codemirror");
+    fireEvent.contextMenu(screen.getByRole("tab", { name: "Foo.java" }), {
+      clientX: 120,
+      clientY: 80,
+    });
+
+    const menu = screen.getByRole("menu", { name: "files.tabContextMenu" });
+    expect(
+      menu.querySelectorAll(
+        ":scope > .renderer-context-menu-item .renderer-context-menu-item-icon",
+      ),
+    ).toHaveLength(5);
+    fireEvent.click(within(menu).getByRole("menuitem", { name: "files.closeCurrentTab" }));
+    expect(onCloseTab).toHaveBeenCalledWith("src/Foo.java");
+  });
+
+  it("disables close-other for a single file tab", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "class Main {}",
+      truncated: false,
+    });
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-single-tab-menu"
+        workspacePath="/repo"
+        filePath="src/Main.java"
+        openTabs={["src/Main.java"]}
+        activeTabPath="src/Main.java"
+        onCloseTab={vi.fn()}
+        onCloseOtherTabs={vi.fn()}
+        onCloseAllTabs={vi.fn()}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByTestId("mock-codemirror");
+    fireEvent.contextMenu(screen.getByRole("tab", { name: "Main.java" }));
+    expect(
+      (
+        screen.getByRole("menuitem", {
+          name: "files.closeOtherTabs",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+  });
+
+  it("opens the invoked background tab from the context menu in a detached window", async () => {
+    vi.mocked(readWorkspaceFile).mockResolvedValue({
+      content: "class Main {}",
+      truncated: false,
+    });
+
+    render(
+      <FileViewPanel
+        workspaceId="ws-context-detached"
+        workspaceName="mossx"
+        workspacePath="/repo"
+        filePath="src/Main.java"
+        openTabs={["src/Main.java", "src/Foo.java"]}
+        activeTabPath="src/Main.java"
+        onCloseAllTabs={vi.fn()}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByTestId("mock-codemirror");
+    fireEvent.contextMenu(screen.getByRole("tab", { name: "Foo.java" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "files.openDetachedTab" }));
+
+    await waitFor(() => {
+      expect(mockOpenNewDetachedFileExplorerWindow).toHaveBeenCalledWith(
+        expect.objectContaining({ initialFilePath: "src/Foo.java" }),
+      );
+    });
+  });
+
   it("prefers provided highlight markers over workspace git diff fetch", async () => {
     vi.mocked(readWorkspaceFile).mockResolvedValue({
       content: "line 1\nline 2\nline 3",
@@ -394,9 +1169,7 @@ describe("FileViewPanel navigation", () => {
         workspaceId="ws-highlight"
         workspacePath="/repo"
         filePath="src/Main.java"
-        gitStatusFiles={[
-          { path: "src/Main.java", status: "M", additions: 1, deletions: 1 },
-        ]}
+        gitStatusFiles={[{ path: "src/Main.java", status: "M", additions: 1, deletions: 1 }]}
         highlightMarkers={{ added: [2], modified: [3] }}
         openTargets={[]}
         openAppIconById={{}}
@@ -417,7 +1190,7 @@ describe("FileViewPanel navigation", () => {
     });
   });
 
-  it("falls back to workspace git diff fetch when provided highlight markers are empty", async () => {
+  it("loads workspace git diff after blame is enabled when provided highlight markers are empty", async () => {
     vi.mocked(readWorkspaceFile).mockResolvedValue({
       content: "line 1\nline 2\nline 3",
       truncated: false,
@@ -429,9 +1202,7 @@ describe("FileViewPanel navigation", () => {
         workspaceId="ws-highlight-empty"
         workspacePath="/repo"
         filePath="src/Main.java"
-        gitStatusFiles={[
-          { path: "src/Main.java", status: "M", additions: 3, deletions: 0 },
-        ]}
+        gitStatusFiles={[{ path: "src/Main.java", status: "M", additions: 3, deletions: 0 }]}
         highlightMarkers={{ added: [], modified: [] }}
         openTargets={[]}
         openAppIconById={{}}
@@ -442,7 +1213,11 @@ describe("FileViewPanel navigation", () => {
     );
 
     await screen.findByTestId("mock-codemirror");
-    expect(getGitFileFullDiff).toHaveBeenCalledWith("ws-highlight-empty", "src/Main.java");
+    expect(getGitFileFullDiff).not.toHaveBeenCalled();
+    toggleFileGitBlame();
+    await waitFor(() => {
+      expect(getGitFileFullDiff).toHaveBeenCalledWith("ws-highlight-empty", "src/Main.java");
+    });
   });
 
   it("mounts the editor before slow git markers resolve", async () => {
@@ -457,9 +1232,7 @@ describe("FileViewPanel navigation", () => {
         workspaceId="ws-slow-git-marker"
         workspacePath="/repo"
         filePath="src/value.ts"
-        gitStatusFiles={[
-          { path: "src/value.ts", status: "M", additions: 1, deletions: 0 },
-        ]}
+        gitStatusFiles={[{ path: "src/value.ts", status: "M", additions: 1, deletions: 0 }]}
         highlightMarkers={{ added: [], modified: [] }}
         openTargets={[]}
         openAppIconById={{}}
@@ -470,14 +1243,16 @@ describe("FileViewPanel navigation", () => {
     );
 
     await waitFor(() => {
-      expect(
-        (screen.getByTestId("mock-codemirror") as HTMLTextAreaElement).value,
-      ).toBe("const value = 1;");
+      expect((screen.getByTestId("mock-codemirror") as HTMLTextAreaElement).value).toBe(
+        "const value = 1;",
+      );
     });
-    expect(getGitFileFullDiff).toHaveBeenCalledWith(
-      "ws-slow-git-marker",
-      "src/value.ts",
-    );
+    expect(getGitFileFullDiff).not.toHaveBeenCalled();
+    toggleFileGitBlame();
+    await waitFor(() => {
+      expect(getGitFileFullDiff).toHaveBeenCalledWith("ws-slow-git-marker", "src/value.ts");
+      expect(screen.getByTestId("mock-codemirror")).toBeTruthy();
+    });
   });
 
   it("drops stale git marker results after switching files", async () => {
@@ -507,6 +1282,8 @@ describe("FileViewPanel navigation", () => {
     );
 
     await screen.findByTestId("mock-codemirror");
+    toggleFileGitBlame();
+    await waitFor(() => expect(getGitFileFullDiff).toHaveBeenCalledTimes(1));
     mockCodeMirrorDispatch.mockClear();
 
     rerender(
@@ -552,9 +1329,7 @@ describe("FileViewPanel navigation", () => {
         workspaceId="ws-absolute-path"
         workspacePath="/repo"
         filePath="/repo/src/Main.java"
-        gitStatusFiles={[
-          { path: "src/Main.java", status: "M", additions: 1, deletions: 0 },
-        ]}
+        gitStatusFiles={[{ path: "src/Main.java", status: "M", additions: 1, deletions: 0 }]}
         highlightMarkers={{ added: [], modified: [] }}
         openTargets={[]}
         openAppIconById={{}}
@@ -565,8 +1340,11 @@ describe("FileViewPanel navigation", () => {
     );
 
     await screen.findByTestId("mock-codemirror");
+    toggleFileGitBlame();
     expect(readWorkspaceFile).toHaveBeenCalledWith("ws-absolute-path", "src/Main.java");
-    expect(getGitFileFullDiff).toHaveBeenCalledWith("ws-absolute-path", "src/Main.java");
+    await waitFor(() => {
+      expect(getGitFileFullDiff).toHaveBeenCalledWith("ws-absolute-path", "src/Main.java");
+    });
   });
 
   it("normalizes Windows absolute file paths case-insensitively before reading and fetching git diff", async () => {
@@ -581,9 +1359,7 @@ describe("FileViewPanel navigation", () => {
         workspaceId="ws-windows-absolute-path"
         workspacePath="C:/Users/Chen/Project"
         filePath="c:/users/chen/project/src/Main.java"
-        gitStatusFiles={[
-          { path: "src/Main.java", status: "M", additions: 1, deletions: 0 },
-        ]}
+        gitStatusFiles={[{ path: "src/Main.java", status: "M", additions: 1, deletions: 0 }]}
         highlightMarkers={{ added: [], modified: [] }}
         openTargets={[]}
         openAppIconById={{}}
@@ -594,14 +1370,11 @@ describe("FileViewPanel navigation", () => {
     );
 
     await screen.findByTestId("mock-codemirror");
-    expect(readWorkspaceFile).toHaveBeenCalledWith(
-      "ws-windows-absolute-path",
-      "src/Main.java",
-    );
-    expect(getGitFileFullDiff).toHaveBeenCalledWith(
-      "ws-windows-absolute-path",
-      "src/Main.java",
-    );
+    toggleFileGitBlame();
+    expect(readWorkspaceFile).toHaveBeenCalledWith("ws-windows-absolute-path", "src/Main.java");
+    await waitFor(() => {
+      expect(getGitFileFullDiff).toHaveBeenCalledWith("ws-windows-absolute-path", "src/Main.java");
+    });
   });
 
   it("uses repo-relative git path for diff when git root is a workspace subdirectory", async () => {
@@ -609,7 +1382,9 @@ describe("FileViewPanel navigation", () => {
       content: "APP_HOST=0.0.0.0\n",
       truncated: false,
     });
-    vi.mocked(getGitFileFullDiff).mockResolvedValue("@@ -1,1 +1,2 @@\n-APP_HOST=0.0.0.0\n+APP_HOST=127.0.0.1");
+    vi.mocked(getGitFileFullDiff).mockResolvedValue(
+      "@@ -1,1 +1,2 @@\n-APP_HOST=0.0.0.0\n+APP_HOST=127.0.0.1",
+    );
 
     const { container } = render(
       <FileViewPanel
@@ -617,9 +1392,7 @@ describe("FileViewPanel navigation", () => {
         workspacePath="/tmp/JinSen"
         gitRoot="kmllm-search-showcar-py"
         filePath="kmllm-search-showcar-py/.env.example"
-        gitStatusFiles={[
-          { path: ".env.example", status: "M", additions: 1, deletions: 1 },
-        ]}
+        gitStatusFiles={[{ path: ".env.example", status: "M", additions: 1, deletions: 1 }]}
         highlightMarkers={{ added: [], modified: [] }}
         openTargets={[]}
         openAppIconById={{}}
@@ -630,8 +1403,11 @@ describe("FileViewPanel navigation", () => {
     );
 
     await screen.findByTestId("mock-codemirror");
-    expect(getGitFileFullDiff).toHaveBeenCalledWith("ws-subrepo", ".env.example");
-    expect(container.querySelector(".fvp-filepath")?.className).toContain("git-m");
+    toggleFileGitBlame();
+    await waitFor(() => {
+      expect(getGitFileFullDiff).toHaveBeenCalledWith("ws-subrepo", ".env.example");
+    });
+    expect(container.querySelector(".fvp-tab.is-active")?.className).toContain("git-m");
   });
 
   it("does not apply subrepo repo-relative git status to workspace root file with same relative path", async () => {
@@ -647,9 +1423,7 @@ describe("FileViewPanel navigation", () => {
         workspacePath="/tmp/JinSen"
         gitRoot="kmllm-search-showcar-py"
         filePath="README.md"
-        gitStatusFiles={[
-          { path: "README.md", status: "M", additions: 1, deletions: 1 },
-        ]}
+        gitStatusFiles={[{ path: "README.md", status: "M", additions: 1, deletions: 1 }]}
         highlightMarkers={{ added: [], modified: [] }}
         openTargets={[]}
         openAppIconById={{}}
@@ -661,7 +1435,7 @@ describe("FileViewPanel navigation", () => {
 
     await screen.findByTestId("file-markdown-preview");
     expect(getGitFileFullDiff).not.toHaveBeenCalled();
-    expect(container.querySelector(".fvp-filepath")?.className).not.toContain("git-m");
+    expect(container.querySelector(".fvp-tab.is-active")?.className).not.toContain("git-m");
   });
 
   it("reads file content via external spec route when path is under custom spec root", async () => {
@@ -718,7 +1492,7 @@ describe("FileViewPanel navigation", () => {
 
     const editor = (await screen.findByTestId("mock-codemirror")) as HTMLTextAreaElement;
     fireEvent.change(editor, { target: { value: "line 2" } });
-    fireEvent.click(screen.getByRole("button", { name: /save|files\.save/i }));
+    clickFileContextMenuItem(/files\.save/i);
 
     await waitFor(() => {
       expect(writeExternalSpecFile).toHaveBeenCalledWith(
@@ -782,7 +1556,7 @@ describe("FileViewPanel navigation", () => {
 
     const editor = (await screen.findByTestId("mock-codemirror")) as HTMLTextAreaElement;
     fireEvent.change(editor, { target: { value: "const a = 2;" } });
-    fireEvent.click(screen.getByRole("button", { name: /save|files\.save/i }));
+    fireEvent.keyDown(window, { key: "s", metaKey: true });
 
     await waitFor(() => {
       expect(writeWorkspaceFile).not.toHaveBeenCalled();
@@ -801,10 +1575,13 @@ describe("FileViewPanel image preview", () => {
 
   it("prefers backend data URLs for local image preview", async () => {
     vi.mocked(readLocalImageDataUrl).mockResolvedValue("data:image/png;base64,abc123");
-    vi.stubGlobal("fetch", vi.fn(async () => ({
-      ok: true,
-      blob: async () => new Blob(["image-bytes"], { type: "image/png" }),
-    })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        blob: async () => new Blob(["image-bytes"], { type: "image/png" }),
+      })),
+    );
 
     render(
       <FileViewPanel
@@ -832,10 +1609,13 @@ describe("FileViewPanel image preview", () => {
 
   it("falls back to asset URLs when backend image data URL is unavailable", async () => {
     vi.mocked(readLocalImageDataUrl).mockResolvedValue(null);
-    vi.stubGlobal("fetch", vi.fn(async () => ({
-      ok: true,
-      blob: async () => new Blob(["image-bytes"], { type: "image/png" }),
-    })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        blob: async () => new Blob(["image-bytes"], { type: "image/png" }),
+      })),
+    );
 
     render(
       <FileViewPanel
@@ -942,11 +1722,12 @@ describe("FileViewPanel markdown modes", () => {
     expect(screen.queryByTestId("file-markdown-preview")).toBeNull();
     expect(vi.mocked(readWorkspaceFile)).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole("button", { name: /edit/i }));
-    expect((await screen.findByTestId("mock-codemirror") as HTMLTextAreaElement).value)
-      .toContain("# Oversized README");
+    clickFileContextMenuItem(/files\.edit/i);
+    expect(((await screen.findByTestId("mock-codemirror")) as HTMLTextAreaElement).value).toContain(
+      "# Oversized README",
+    );
 
-    fireEvent.click(screen.getByRole("button", { name: /preview/i }));
+    clickFileContextMenuItem(/files\.preview/i);
     await waitFor(() => {
       expect(container.querySelector(".fvp-code-preview")).toBeTruthy();
     });
@@ -972,12 +1753,12 @@ describe("FileViewPanel markdown modes", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+    clickFileContextMenuItem(/files\.edit/i);
 
     const editor = (await screen.findByTestId("mock-codemirror")) as HTMLTextAreaElement;
     fireEvent.change(editor, { target: { value: "# Updated" } });
 
-    fireEvent.click(screen.getByRole("button", { name: /preview/i }));
+    clickFileContextMenuItem(/files\.preview/i);
 
     await waitFor(() => {
       expect(container.querySelector(".fvp-preview-scroll")).toBeTruthy();
@@ -985,7 +1766,7 @@ describe("FileViewPanel markdown modes", () => {
       expect(screen.getByText("Updated")).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+    clickFileContextMenuItem(/files\.edit/i);
 
     const updatedEditor = (await screen.findByTestId("mock-codemirror")) as HTMLTextAreaElement;
     expect(updatedEditor.value).toBe("# Updated");
@@ -1344,7 +2125,9 @@ describe("FileViewPanel markdown modes", () => {
     await screen.findByTestId("file-markdown-preview");
     fireEvent.click(screen.getByRole("button", { name: /files\.annotateForAi L3/i }));
 
-    const input = screen.getByPlaceholderText(/files\.annotationPlaceholder/i) as HTMLTextAreaElement;
+    const input = screen.getByPlaceholderText(
+      /files\.annotationPlaceholder/i,
+    ) as HTMLTextAreaElement;
     fireEvent.change(input, { target: { value: "abcdef" } });
     input.focus();
     input.setSelectionRange(4, 4);
@@ -1429,9 +2212,7 @@ describe("FileViewPanel markdown modes", () => {
 
     expect(document.activeElement).toBe(screen.getByLabelText("composer input"));
     expect(
-      (screen.getByPlaceholderText(
-        /files\.annotationPlaceholder/i,
-      ) as HTMLTextAreaElement).value,
+      (screen.getByPlaceholderText(/files\.annotationPlaceholder/i) as HTMLTextAreaElement).value,
     ).toBe("abcdef");
   });
 
@@ -1533,7 +2314,7 @@ describe("FileViewPanel markdown modes", () => {
     );
 
     await screen.findByTestId("file-markdown-preview");
-    fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+    clickFileContextMenuItem(/files\.edit/i);
     await screen.findByTestId("mock-codemirror");
 
     rerender(
@@ -1589,7 +2370,7 @@ describe("FileViewPanel markdown modes", () => {
     );
 
     await screen.findByTestId("file-markdown-preview");
-    fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+    clickFileContextMenuItem(/files\.edit/i);
     const editor = (await screen.findByTestId("mock-codemirror")) as HTMLTextAreaElement;
     onActiveFileLineRangeChange.mockClear();
 
@@ -1622,9 +2403,10 @@ describe("FileViewPanel markdown modes", () => {
 
   it("drops pending editor line range publication after switching files", async () => {
     vi.mocked(readWorkspaceFile).mockImplementation(async (_workspaceId, path) => ({
-      content: path === "docs/guide.md"
-        ? ["one", "two", "three"].join("\n")
-        : ["alpha", "beta"].join("\n"),
+      content:
+        path === "docs/guide.md"
+          ? ["one", "two", "three"].join("\n")
+          : ["alpha", "beta"].join("\n"),
       truncated: false,
     }));
     const onActiveFileLineRangeChange = vi.fn();
@@ -1644,15 +2426,10 @@ describe("FileViewPanel markdown modes", () => {
       onCloseTab: vi.fn(),
       onCloseAllTabs: vi.fn(),
     };
-    const { rerender } = render(
-      <FileViewPanel
-        {...baseProps}
-        filePath="docs/guide.md"
-      />,
-    );
+    const { rerender } = render(<FileViewPanel {...baseProps} filePath="docs/guide.md" />);
 
     await screen.findByTestId("file-markdown-preview");
-    fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+    clickFileContextMenuItem(/files\.edit/i);
     const editor = (await screen.findByTestId("mock-codemirror")) as HTMLTextAreaElement;
     onActiveFileLineRangeChange.mockClear();
 
@@ -1665,11 +2442,7 @@ describe("FileViewPanel markdown modes", () => {
 
       act(() => {
         rerender(
-          <FileViewPanel
-            {...baseProps}
-            filePath="docs/other.md"
-            activeTabPath="docs/other.md"
-          />,
+          <FileViewPanel {...baseProps} filePath="docs/other.md" activeTabPath="docs/other.md" />,
         );
       });
 
@@ -1718,6 +2491,7 @@ describe("FileViewPanel markdown modes", () => {
     });
 
     expect(getCodeIntelDefinition).not.toHaveBeenCalled();
+    expect(getCodeIntelImplementations).not.toHaveBeenCalled();
     expect(getCodeIntelReferences).not.toHaveBeenCalled();
   });
 
@@ -1773,24 +2547,14 @@ describe("FileViewPanel markdown modes", () => {
       onClose: vi.fn(),
     };
 
-    const { rerender } = render(
-      <FileViewPanel
-        key="stable-mermaid-before"
-        {...panelProps}
-      />,
-    );
+    const { rerender } = render(<FileViewPanel key="stable-mermaid-before" {...panelProps} />);
 
     await screen.findByTestId("file-markdown-preview");
     fireEvent.click(screen.getByRole("tab", { name: "Render" }));
     await screen.findByTestId("file-markdown-mermaid-preview");
     expect(screen.getByRole("tab", { name: "Render" }).getAttribute("aria-selected")).toBe("true");
 
-    rerender(
-      <FileViewPanel
-        key="stable-mermaid-after"
-        {...panelProps}
-      />,
-    );
+    rerender(<FileViewPanel key="stable-mermaid-after" {...panelProps} />);
 
     await screen.findByTestId("file-markdown-mermaid-preview");
     expect(screen.getByRole("tab", { name: "Render" }).getAttribute("aria-selected")).toBe("true");
@@ -1887,10 +2651,7 @@ describe("FileViewPanel markdown modes", () => {
 
   it("resets markdown renderer state when switching to another markdown file", async () => {
     vi.mocked(readWorkspaceFile).mockImplementation(async (_workspaceId, path) => ({
-      content:
-        path === "README.md"
-          ? "```mermaid\ngraph TD\nA-->B\n```"
-          : "# Guide\n\nFresh body",
+      content: path === "README.md" ? "```mermaid\ngraph TD\nA-->B\n```" : "# Guide\n\nFresh body",
       truncated: false,
     }));
     mermaidInitialize.mockClear();
@@ -1906,24 +2667,14 @@ describe("FileViewPanel markdown modes", () => {
       onClose: vi.fn(),
     };
 
-    const { rerender } = render(
-      <FileViewPanel
-        {...baseProps}
-        filePath="README.md"
-      />,
-    );
+    const { rerender } = render(<FileViewPanel {...baseProps} filePath="README.md" />);
 
     await screen.findByTestId("file-markdown-preview");
     fireEvent.click(screen.getByRole("tab", { name: "Render" }));
     await screen.findByTestId("file-markdown-mermaid-preview");
     expect(mermaidRender).toHaveBeenCalledTimes(1);
 
-    rerender(
-      <FileViewPanel
-        {...baseProps}
-        filePath="docs/guide.md"
-      />,
-    );
+    rerender(<FileViewPanel {...baseProps} filePath="docs/guide.md" />);
 
     await screen.findByTestId("file-markdown-preview");
     expect(screen.getByText("Guide")).toBeTruthy();
@@ -2079,12 +2830,7 @@ describe("FileViewPanel markdown modes", () => {
 
   it("keeps shell-group compatibility for zsh and dotfile scripts", async () => {
     vi.mocked(readWorkspaceFile).mockResolvedValue({
-      content: [
-        "#!/usr/bin/env zsh",
-        "",
-        "# setup env",
-        "export APP_ENV=dev",
-      ].join("\n"),
+      content: ["#!/usr/bin/env zsh", "", "# setup env", "export APP_ENV=dev"].join("\n"),
       truncated: false,
     });
 
@@ -2102,7 +2848,7 @@ describe("FileViewPanel markdown modes", () => {
     );
 
     await screen.findByTestId("mock-codemirror");
-    fireEvent.click(screen.getByRole("button", { name: /preview/i }));
+    clickFileContextMenuItem(/files\.preview/i);
     await screen.findByTestId("file-structured-preview");
     expect(screen.getByText("setup env")).toBeTruthy();
     expect(screen.getByText("Commands")).toBeTruthy();
@@ -2140,11 +2886,7 @@ describe("FileViewPanel markdown modes", () => {
 
   it("switches file modes locally without extra workspace reads", async () => {
     vi.mocked(readWorkspaceFile).mockResolvedValue({
-      content: [
-        "# build image",
-        "FROM node:20-alpine",
-        "WORKDIR /app",
-      ].join("\n"),
+      content: ["# build image", "FROM node:20-alpine", "WORKDIR /app"].join("\n"),
       truncated: false,
     });
 
@@ -2164,10 +2906,10 @@ describe("FileViewPanel markdown modes", () => {
     await screen.findByTestId("mock-codemirror");
     expect(vi.mocked(readWorkspaceFile)).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole("button", { name: /preview/i }));
+    clickFileContextMenuItem(/files\.preview/i);
     await screen.findByTestId("file-structured-preview");
 
-    fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+    clickFileContextMenuItem(/files\.edit/i);
     await screen.findByTestId("mock-codemirror");
 
     expect(vi.mocked(readWorkspaceFile)).toHaveBeenCalledTimes(1);
@@ -2176,25 +2918,15 @@ describe("FileViewPanel markdown modes", () => {
   it("keeps the main-window fixed sample matrix on one render-profile-driven chain", async () => {
     const sampleContentByPath: Record<string, string> = {
       "README.md": ["# Workspace title", "", "- item"].join("\n"),
-      "Dockerfile": [
-        "# build image",
-        "FROM node:20-alpine",
-        "WORKDIR /app",
-      ].join("\n"),
-      "docker-compose.yml": [
-        "services:",
-        "  app:",
-        "    image: mossx:dev",
-      ].join("\n"),
-      ".env.local": [
-        "# local overrides",
-        "APP_ENV=dev",
-        "API_BASE=http://localhost:3000",
-      ].join("\n"),
+      Dockerfile: ["# build image", "FROM node:20-alpine", "WORKDIR /app"].join("\n"),
+      "docker-compose.yml": ["services:", "  app:", "    image: mossx:dev"].join("\n"),
+      ".env.local": ["# local overrides", "APP_ENV=dev", "API_BASE=http://localhost:3000"].join(
+        "\n",
+      ),
       "build.gradle.kts": [
         "// gradle setup",
         "plugins {",
-        "  kotlin(\"jvm\") version \"1.9.24\"",
+        '  kotlin("jvm") version "1.9.24"',
         "}",
       ].join("\n"),
     };
@@ -2231,32 +2963,22 @@ describe("FileViewPanel markdown modes", () => {
     };
 
     const { container, rerender } = render(
-      <FileViewPanel
-        {...baseProps}
-        filePath="README.md"
-        activeTabPath="README.md"
-      />,
+      <FileViewPanel {...baseProps} filePath="README.md" activeTabPath="README.md" />,
     );
 
     await screen.findByTestId("file-markdown-preview");
     expect(screen.queryByTestId("mock-codemirror")).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: /edit/i }));
-    expect((await screen.findByTestId("mock-codemirror") as HTMLTextAreaElement).value).toBe(
+    clickFileContextMenuItem(/files\.edit/i);
+    expect(((await screen.findByTestId("mock-codemirror")) as HTMLTextAreaElement).value).toBe(
       sampleContentByPath["README.md"],
     );
 
-    rerender(
-      <FileViewPanel
-        {...baseProps}
-        filePath="Dockerfile"
-        activeTabPath="Dockerfile"
-      />,
-    );
+    rerender(<FileViewPanel {...baseProps} filePath="Dockerfile" activeTabPath="Dockerfile" />);
 
     await findCodeMirrorContaining("FROM node:20-alpine");
     expect(screen.queryByText("Workspace title")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /preview/i }));
+    clickFileContextMenuItem(/files\.preview/i);
     await screen.findByTestId("file-structured-preview");
 
     rerender(
@@ -2269,33 +2991,23 @@ describe("FileViewPanel markdown modes", () => {
 
     await findCodeMirrorContaining("services:");
     expect(screen.queryByTestId("file-structured-preview")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /preview/i }));
+    clickFileContextMenuItem(/files\.preview/i);
     await waitFor(() => {
       expect(container.querySelector(".fvp-code-preview")).toBeTruthy();
     });
     expect(screen.queryByTestId("file-markdown-preview")).toBeNull();
 
-    rerender(
-      <FileViewPanel
-        {...baseProps}
-        filePath=".env.local"
-        activeTabPath=".env.local"
-      />,
-    );
+    rerender(<FileViewPanel {...baseProps} filePath=".env.local" activeTabPath=".env.local" />);
 
     await findCodeMirrorContaining("APP_ENV=dev");
     expect(screen.queryByText("services:")).toBeNull();
 
     rerender(
-      <FileViewPanel
-        {...baseProps}
-        filePath="build.gradle.kts"
-        activeTabPath="build.gradle.kts"
-      />,
+      <FileViewPanel {...baseProps} filePath="build.gradle.kts" activeTabPath="build.gradle.kts" />,
     );
 
-    await findCodeMirrorContaining("kotlin(\"jvm\")");
-    fireEvent.click(screen.getByRole("button", { name: /preview/i }));
+    await findCodeMirrorContaining('kotlin("jvm")');
+    clickFileContextMenuItem(/files\.preview/i);
     await waitFor(() => {
       expect(container.querySelector(".fvp-code-preview")).toBeTruthy();
     });
@@ -2305,11 +3017,7 @@ describe("FileViewPanel markdown modes", () => {
 
   it("keeps structured preview only on the top-level preview path", async () => {
     vi.mocked(readWorkspaceFile).mockResolvedValue({
-      content: [
-        "# production image",
-        "FROM node:20-alpine",
-        "RUN pnpm install",
-      ].join("\n"),
+      content: ["# production image", "FROM node:20-alpine", "RUN pnpm install"].join("\n"),
       truncated: false,
     });
 
@@ -2327,7 +3035,7 @@ describe("FileViewPanel markdown modes", () => {
     );
 
     await screen.findByTestId("mock-codemirror");
-    fireEvent.click(screen.getByRole("button", { name: /preview/i }));
+    clickFileContextMenuItem(/files\.preview/i);
 
     await screen.findByTestId("file-structured-preview");
     expect(screen.getByText("FROM")).toBeTruthy();
@@ -2336,11 +3044,7 @@ describe("FileViewPanel markdown modes", () => {
 
   it("falls back to low-cost code preview for truncated structured files", async () => {
     vi.mocked(readWorkspaceFile).mockResolvedValue({
-      content: [
-        "# production image",
-        "FROM node:20-alpine",
-        "RUN pnpm install",
-      ].join("\n"),
+      content: ["# production image", "FROM node:20-alpine", "RUN pnpm install"].join("\n"),
       truncated: true,
     });
 
@@ -2358,7 +3062,7 @@ describe("FileViewPanel markdown modes", () => {
     );
 
     await screen.findByTestId("mock-codemirror");
-    fireEvent.click(screen.getByRole("button", { name: /preview/i }));
+    clickFileContextMenuItem(/files\.preview/i);
 
     await waitFor(() => {
       expect(container.querySelector(".fvp-code-preview")).toBeTruthy();
@@ -2567,7 +3271,7 @@ describe("FileViewPanel document preview modes", () => {
       expect(screen.getByTestId("tabular-preview")).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+    clickFileContextMenuItem(/files\.edit/i);
     expect(await screen.findByTestId("mock-codemirror")).not.toBeNull();
   });
 });
@@ -2580,7 +3284,9 @@ describe("FileViewPanel code preview viewport pipeline", () => {
 
   it("uses virtualized rows for large code preview instead of mounting every line", async () => {
     vi.mocked(readWorkspaceFile).mockResolvedValue({
-      content: Array.from({ length: 1_500 }, (_, index) => `const value${index} = ${index};`).join("\n"),
+      content: Array.from({ length: 1_500 }, (_, index) => `const value${index} = ${index};`).join(
+        "\n",
+      ),
       truncated: false,
     });
 
@@ -2601,8 +3307,9 @@ describe("FileViewPanel code preview viewport pipeline", () => {
     await waitFor(() => {
       expect(container.querySelector(".fvp-code-preview.is-virtualized")).toBeTruthy();
     });
-    expect(container.querySelector(".fvp-code-preview")?.getAttribute("data-code-preview-line-count"))
-      .toBe("1500");
+    expect(
+      container.querySelector(".fvp-code-preview")?.getAttribute("data-code-preview-line-count"),
+    ).toBe("1500");
     expect(container.querySelectorAll(".fvp-code-line").length).toBeLessThan(1_500);
   });
 });

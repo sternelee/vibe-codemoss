@@ -1,6 +1,9 @@
 import type { ConversationItem, IntentCanvasContextSendAttachment } from "../types";
 import { parseIntentCanvasContextSummaries } from "../features/intent-canvas/utils/messageContext";
-import { findEquivalentReasoningObservationIndex } from "../features/threads/assembly/conversationNormalization";
+import {
+  findEquivalentReasoningObservationIndex,
+  withMessagePresentationMetadata,
+} from "../features/threads/assembly/conversationNormalization";
 import {
   formatCollabAgentStates,
   normalizeCollabAgentStatusMap,
@@ -520,12 +523,12 @@ export function normalizeItem(
     if (item.role === "assistant" && isAssistantNoContentPlaceholder(normalizedText)) {
       normalizedText = "";
     }
-    return {
+    return withMessagePresentationMetadata({
       ...item,
       text: options?.preserveMessageTextLength
         ? normalizedText
         : truncateText(normalizedText),
-    };
+    });
   }
   if (item.kind === "explore") {
     return item;

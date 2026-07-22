@@ -24,6 +24,7 @@
     "check:app-shell:runtime-contract": "node scripts/check-app-shell-runtime-contract.mjs",
     "check:git-history:runtime-contract": "node scripts/check-git-history-runtime-contract.mjs",
     "check:git-history:static-imports": "node scripts/check-refactor-imports.mjs src/features/git-history/components/git-history-panel/components",
+    "check:messages-boundaries": "node scripts/check-messages-boundaries.mjs",
     "check:branding": "node scripts/check-branding.mjs",
     "check:runtime-contracts": "npm run check:app-shell:runtime-contract && npm run check:git-history:runtime-contract",
     "check:engine-capability-matrix": "node scripts/check-engine-capability-matrix.mjs",
@@ -81,6 +82,7 @@
     "tauri:build:win": "npm run doctor:win && tauri build --config src-tauri/tauri.windows.conf.json"
   },
   "dependencies": {
+    "@codemirror/commands": "^6.10.2",
     "@codemirror/lang-css": "^6.3.1",
     "@codemirror/lang-html": "^6.4.11",
     "@codemirror/lang-java": "^6.0.2",

@@ -1,8 +1,12 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type {
+  BrowserContextSendAttachment,
+  IntentCanvasContextSendAttachment,
+} from "../../../types";
 import { MessageRow, ReasoningRow } from "./MessagesRows";
-import { parseReasoning } from "./messagesReasoning";
+import { parseReasoning } from "../presentation/messagesReasoning";
 
 const markdownCalls = vi.hoisted(() => ({
   calls: [] as Array<{
@@ -65,6 +69,94 @@ describe("MessagesRows stream mitigation", () => {
 
   afterEach(() => {
     cleanup();
+  });
+
+  it("rerenders a memoized row when browser context attachment changes", () => {
+    const baseItem = {
+      id: "user-browser-attachment",
+      kind: "message" as const,
+      role: "user" as const,
+      text: "same user message",
+    };
+    const attachment = (summary: string): BrowserContextSendAttachment => ({
+      kind: "browser_snapshot",
+      attachmentId: `browser-${summary}`,
+      browserSessionId: "browser-session-1",
+      snapshotId: "snapshot-1",
+      workspaceId: "workspace-1",
+      title: "Browser context",
+      url: "https://example.com/docs",
+      capturedAt: 1,
+      stale: false,
+      summary,
+      privacy: {
+        redactionApplied: false,
+        redactedKinds: [],
+        omittedKinds: [],
+      },
+    });
+    const { rerender } = render(
+      <MessageRow
+        item={{ ...baseItem, browserContextAttachment: attachment("first browser summary") }}
+      />,
+    );
+
+    expect(screen.getByText("first browser summary")).toBeTruthy();
+
+    rerender(
+      <MessageRow
+        item={{ ...baseItem, browserContextAttachment: attachment("second browser summary") }}
+      />,
+    );
+
+    expect(screen.getByText("second browser summary")).toBeTruthy();
+    expect(screen.queryByText("first browser summary")).toBeNull();
+  });
+
+  it("rerenders a memoized row when intent canvas attachments change", () => {
+    const baseItem = {
+      id: "user-intent-attachment",
+      kind: "message" as const,
+      role: "user" as const,
+      text: "same user message",
+    };
+    const attachment = (title: string): IntentCanvasContextSendAttachment => ({
+      kind: "intent_canvas_context",
+      attachmentId: `intent-${title}`,
+      canvasId: "canvas-1",
+      title,
+      mode: "focused",
+      compressionMode: "none",
+      truncated: false,
+      payloadCharacters: 10,
+      rawPayload: "{}",
+      semanticNodes: { total: 1, sent: 1, omitted: 0 },
+      semanticEdges: { total: 1, sent: 1, omitted: 0 },
+      evidence: { total: 1, sent: 1, omitted: 0 },
+      visualTextBlocks: { total: 1, sent: 1, omitted: 0 },
+    });
+    const { rerender } = render(
+      <MessageRow
+        item={{
+          ...baseItem,
+          intentCanvasContextAttachments: [attachment("First canvas context")],
+        }}
+      />,
+    );
+
+    expect(screen.getByText("First canvas context")).toBeTruthy();
+
+    rerender(
+      <MessageRow
+        item={{
+          ...baseItem,
+          intentCanvasContextAttachments: [attachment("Second canvas context")],
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Second canvas context")).toBeTruthy();
+    expect(screen.queryByText("First canvas context")).toBeNull();
   });
 
   it("raises assistant markdown throttle only when mitigation is active", () => {

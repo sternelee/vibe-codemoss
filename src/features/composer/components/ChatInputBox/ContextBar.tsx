@@ -20,7 +20,7 @@ import {
   MESSAGES_LIVE_CONTROLS_UPDATED_EVENT,
   readLocalBooleanFlag,
   writeLocalBooleanFlag,
-} from '../../../messages/constants/liveCanvasControls';
+} from '../../../../live-canvas/liveCanvasControls';
 import { CODEX_AUTO_COMPACTION_THRESHOLD_OPTIONS } from '../../../codex/constants/codexAutoCompactionThreshold';
 
 type CodexAutoCompactionSettingsPatch = {

@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConversationItem } from "../../../types";
 import type { ConversationState } from "../../threads/contracts/conversationCurtainContracts";
-import { MESSAGES_LIVE_CONTROLS_UPDATED_EVENT } from "../constants/liveCanvasControls";
+import { MESSAGES_LIVE_CONTROLS_UPDATED_EVENT } from "../../../live-canvas/liveCanvasControls";
 import { Messages } from "./Messages";
 
 vi.mock("./Markdown", () => ({
@@ -15,9 +15,9 @@ vi.mock("./Markdown", () => ({
 // History collapsing ships effectively disabled in production (window = 10000).
 // These behavior tests exercise the collapse/expand logic at its original
 // threshold; only the three >30-item cases below are affected.
-vi.mock("./messagesRenderUtils", async (importOriginal) => {
+vi.mock("../utils/messagesRenderUtils", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("./messagesRenderUtils")>();
+    await importOriginal<typeof import("../utils/messagesRenderUtils")>();
   return {
     ...actual,
     VISIBLE_MESSAGE_WINDOW: 30,

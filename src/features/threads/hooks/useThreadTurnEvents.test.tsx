@@ -207,6 +207,87 @@ describe("useThreadTurnEvents", () => {
     expect(safeMessageActivity).toHaveBeenCalled();
   });
 
+  it("projects live Codex subagent identity in the initial ensure action", () => {
+    const { result, dispatch } = makeOptions();
+
+    act(() => {
+      result.current.onThreadStarted("ws-1", {
+        id: "child-thread",
+        parentThreadId: "parent-thread",
+        agentNickname: "Herschel",
+        preview: "我",
+        source: {
+          subagent: {
+            thread_spawn: {
+              parent_thread_id: "parent-thread",
+              depth: 1,
+              agent_path: "/root/cohesion_audit",
+              agent_nickname: "Herschel",
+              agent_role: null,
+            },
+          },
+        },
+        threadSource: "subagent",
+      });
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "ensureThread",
+      workspaceId: "ws-1",
+      threadId: "child-thread",
+      engine: "codex",
+      parentThreadId: "parent-thread",
+      name: "Herschel",
+    });
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "setThreadName",
+        workspaceId: "ws-1",
+        threadId: "child-thread",
+        name: "我",
+      }),
+    );
+  });
+
+  it("falls back to live subagent source metadata when the nickname is absent", () => {
+    const { result, dispatch } = makeOptions();
+
+    act(() => {
+      result.current.onThreadStarted("ws-1", {
+        id: "child-thread",
+        preview: "我",
+        source: {
+          subagent: {
+            thread_spawn: {
+              parent_thread_id: "parent-thread",
+              depth: 1,
+              agent_path: "C:\\agents\\cohesion_audit",
+              agent_nickname: null,
+              agent_role: null,
+            },
+          },
+        },
+      });
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "ensureThread",
+      workspaceId: "ws-1",
+      threadId: "child-thread",
+      engine: "codex",
+      parentThreadId: "parent-thread",
+      name: "cohesion_audit",
+    });
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "setThreadName",
+        workspaceId: "ws-1",
+        threadId: "child-thread",
+        name: "我",
+      }),
+    );
+  });
+
   it("suppresses the thread/started raised by an in-flight codex prewarm", () => {
     // 乐观创建刚发出 thread/start，真 id 未知：此刻到达的 codex thread/started
     // 只可能是预热自己触发的，放进侧边栏就会与 codex-pending-* 并列成两条空会话。

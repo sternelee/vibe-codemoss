@@ -1277,6 +1277,11 @@ describe("conversationAssembler", () => {
         kind: "message",
         role: "user",
         text: "生成一张图，要美女",
+        presentationMetadata: {
+          displayText: "生成一张图，要美女",
+          stickyCandidateText: "生成一张图，要美女",
+          contexts: [],
+        },
       },
       {
         id: "optimistic-generated-image:thread-1:optimistic-user-1",

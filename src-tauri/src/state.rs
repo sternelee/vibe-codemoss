@@ -35,6 +35,7 @@ pub(crate) struct AppState {
     pub(crate) detached_external_change_runtime: Mutex<DetachedExternalChangeRuntime>,
     pub(crate) runtime_manager: Arc<crate::runtime::RuntimeManager>,
     pub(crate) renderer_heartbeats: Mutex<crate::renderer_stability::RendererHeartbeatStore>,
+    pub(crate) semantic_navigation_runtime: crate::code_intel_lsp::SemanticNavigationRuntime,
     pub(crate) engine_manager: EngineManager,
 }
 
@@ -140,6 +141,9 @@ impl AppState {
             runtime_manager,
             renderer_heartbeats: Mutex::new(
                 crate::renderer_stability::RendererHeartbeatStore::default(),
+            ),
+            semantic_navigation_runtime: crate::code_intel_lsp::SemanticNavigationRuntime::new(
+                data_dir.join("language-servers"),
             ),
             engine_manager,
         }

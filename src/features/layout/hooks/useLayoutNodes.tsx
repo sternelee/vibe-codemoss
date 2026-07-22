@@ -38,7 +38,10 @@ import {
   type GitRepositoryActionRequest,
 } from "../../git/types/gitRepositoryActions";
 import type { GitModalPreviewRequest } from "../../git/components/GitDiffPanelTypes";
-import { FileTreePanel } from "../../files/components/FileTreePanel";
+import {
+  FileTreePanel,
+  type FileTreeRevealRequest,
+} from "../../files/components/FileTreePanel";
 import { WorkspaceFileComparePanel } from "../../files/components/WorkspaceFileComparePanel";
 import { WorkspaceSearchPanel } from "../../search/components/WorkspaceSearchPanel";
 import { PromptPanel } from "../../prompts/components/PromptPanel";
@@ -126,7 +129,7 @@ import type {
   ConversationState,
 } from "../../threads/contracts/conversationCurtainContracts";
 import { resolveDiffPathFromWorkspacePath } from "../../../utils/workspacePaths";
-import { resolvePresentationProfile } from "../../messages/presentation/presentationProfile";
+import { resolvePresentationProfile } from "../../../conversation-presentation/presentationProfile";
 import { appendQueuedHandoffBubbleIfNeeded } from "../../threads/utils/queuedHandoffBubble";
 import { isBackgroundRenderGatingEnabled } from "../../threads/utils/realtimePerfFlags";
 import { useWorkspaceSessionActivity } from "../../session-activity/hooks/useWorkspaceSessionActivity";
@@ -169,11 +172,6 @@ const GitDiffPanel = lazy(() =>
 const FileViewPanel = lazy(() =>
   import("../../files/components/FileViewPanel").then((m) => ({
     default: m.FileViewPanel,
-  })),
-);
-const FileHistoryView = lazy(() =>
-  import("../../git-history/components/FileHistoryView").then((m) => ({
-    default: m.FileHistoryView,
   })),
 );
 const ProjectMapPanel = lazy(() =>
@@ -330,9 +328,28 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
     useState<GitModalPreviewRequest | null>(null);
   const [gitModeControlsTarget, setGitModeControlsTarget] =
     useState<HTMLDivElement | null>(null);
+  const [fileTreeRevealRequest, setFileTreeRevealRequest] =
+    useState<FileTreeRevealRequest | null>(null);
   const rewindDialogRequestSerialRef = useRef(0);
   const noteCardSelectionRequestSerialRef = useRef(0);
   const gitModalPreviewRequestSerialRef = useRef(0);
+  const fileTreeRevealRequestSerialRef = useRef(0);
+  const handleRevealInFileTree = useCallback(
+    (path: string) => {
+      const workspaceId = options.activeWorkspace?.id;
+      if (!workspaceId) {
+        return;
+      }
+      onFilePanelModeChange("files");
+      fileTreeRevealRequestSerialRef.current += 1;
+      setFileTreeRevealRequest({
+        workspaceId,
+        path,
+        requestId: fileTreeRevealRequestSerialRef.current,
+      });
+    },
+    [onFilePanelModeChange, options.activeWorkspace?.id],
+  );
   const historyRetryInFlightRef = useRef<Promise<unknown> | null>(null);
   const activeThreadStatus = options.activeThreadId
     ? (options.threadStatusById[options.activeThreadId] ?? null)
@@ -1337,6 +1354,9 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
             onCheckout: options.onCheckoutBranch,
             onCreate: options.onCreateBranch,
             onUpdate: options.onUpdateBranch,
+            onUpdateAllRepositories: options.onUpdateAllRepositories,
+            onCheckoutAllRepositories: options.onCheckoutAllRepositories,
+            onLoadCommonRepositoryBranches: options.onLoadCommonRepositoryBranches,
             onCommit: handleComposerGitCommit,
             onPush: handleComposerGitPush,
             disabled: options.isWorktreeWorkspace,
@@ -1358,6 +1378,9 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
       options.onCheckoutBranch,
       options.onCreateBranch,
       options.onUpdateBranch,
+      options.onUpdateAllRepositories,
+      options.onCheckoutAllRepositories,
+      options.onLoadCommonRepositoryBranches,
       handleComposerGitCommit,
       handleComposerGitPush,
       options.isWorktreeWorkspace,
@@ -1878,6 +1901,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
         gitignoredFiles={options.gitignoredFiles}
         gitignoredDirectories={options.gitignoredDirectories}
         onRefreshFiles={options.onRefreshFiles}
+        revealRequest={fileTreeRevealRequest}
       />
     );
   } else if (options.filePanelMode === "search") {
@@ -2084,14 +2108,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
     />
   );
 
-  const fileViewPanelNode = options.centerMode === "fileHistory" && options.fileHistoryTarget ? (
-    <Suspense fallback={<HeavyPanelFallback />}>
-      <FileHistoryView
-        target={options.fileHistoryTarget}
-        onClose={options.onCloseFileHistory ?? (() => undefined)}
-      />
-    </Suspense>
-  ) : options.editorFilePath && options.activeWorkspace ? (
+  const fileViewPanelNode = options.editorFilePath && options.activeWorkspace ? (
       <Suspense fallback={<HeavyPanelFallback />}>
         <FileViewPanel
           workspaceId={options.activeWorkspace.id}
@@ -2112,6 +2129,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
           activeTabPath={options.editorFilePath}
           onActivateTab={options.onActivateEditorTab}
           onCloseTab={options.onCloseEditorTab}
+          onCloseOtherTabs={options.onCloseOtherEditorTabs}
           onCloseAllTabs={options.onCloseAllEditorTabs}
           onReorderTabs={options.onReorderEditorTabs}
           fileReferenceMode={options.fileReferenceMode}
@@ -2131,6 +2149,8 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
           isEditorFileMaximized={options.isEditorFileMaximized}
           onToggleEditorFileMaximized={options.onToggleEditorFileMaximized}
           onNavigateToLocation={options.onOpenFile}
+          onOpenFileHistory={options.onOpenFileHistory}
+          onRevealInFileTree={handleRevealInFileTree}
           onClose={options.onExitEditor}
           onInsertText={options.onInsertComposerText}
           onCreateCodeAnnotation={handleCreateCodeAnnotation}
@@ -2151,6 +2171,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
           fileRenderPressure={fileRenderPressure}
           saveFileShortcut={options.saveFileShortcut}
           findInFileShortcut={options.findInFileShortcut}
+          expandSelectionShortcut={options.expandSelectionShortcut}
         />
       </Suspense>
     ) : null;

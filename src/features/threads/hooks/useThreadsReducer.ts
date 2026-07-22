@@ -158,22 +158,37 @@ type ThreadProviderBindingFields = Pick<
   | "providerAvailability"
 >;
 
-function normalizeProviderBindingValue(value: string | null | undefined) {
+function normalizeEnsureThreadMetadataValue(value: string | null | undefined) {
   return typeof value === "string" && value.trim().length > 0
     ? value.trim()
+    : undefined;
+}
+
+function parentThreadIdFromEnsureThreadAction(
+  action: Extract<ThreadAction, { type: "ensureThread" }>,
+) {
+  const parentThreadId = normalizeEnsureThreadMetadataValue(action.parentThreadId);
+  return parentThreadId && parentThreadId !== action.threadId
+    ? parentThreadId
     : undefined;
 }
 
 function providerBindingFromEnsureThreadAction(
   action: Extract<ThreadAction, { type: "ensureThread" }>,
 ): Partial<ThreadProviderBindingFields> {
-  const sourceLabel = normalizeProviderBindingValue(action.sourceLabel);
-  const providerProfileId = normalizeProviderBindingValue(action.providerProfileId);
-  const providerProfileSource = normalizeProviderBindingValue(
+  const sourceLabel = normalizeEnsureThreadMetadataValue(action.sourceLabel);
+  const providerProfileId = normalizeEnsureThreadMetadataValue(
+    action.providerProfileId,
+  );
+  const providerProfileSource = normalizeEnsureThreadMetadataValue(
     action.providerProfileSource,
   );
-  const providerProfileName = normalizeProviderBindingValue(action.providerProfileName);
-  const providerAvailability = normalizeProviderBindingValue(action.providerAvailability);
+  const providerProfileName = normalizeEnsureThreadMetadataValue(
+    action.providerProfileName,
+  );
+  const providerAvailability = normalizeEnsureThreadMetadataValue(
+    action.providerAvailability,
+  );
   return {
     ...(sourceLabel ? { sourceLabel } : {}),
     ...(providerProfileId ? { providerProfileId } : {}),
@@ -216,6 +231,17 @@ function conversationItemsShallowEqual(
   left: ConversationItem,
   right: ConversationItem,
 ) {
+  if (left.kind === "message" && right.kind === "message") {
+    const {
+      presentationMetadata: _leftPresentationMetadata,
+      ...leftSourceFields
+    } = left;
+    const {
+      presentationMetadata: _rightPresentationMetadata,
+      ...rightSourceFields
+    } = right;
+    return shallowRecordEqual(leftSourceFields, rightSourceFields);
+  }
   return shallowRecordEqual(
     left as unknown as Record<string, unknown>,
     right as unknown as Record<string, unknown>,
@@ -468,6 +494,8 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         // overwriting explicitly set engines.
         if (
           (!action.engine || existing.engineSource) &&
+          action.name === undefined &&
+          action.parentThreadId === undefined &&
           action.folderId === undefined &&
           action.autoSession === undefined &&
           action.sourceLabel === undefined &&
@@ -478,16 +506,25 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         ) {
           return state;
         }
+        const ensuredName = normalizeEnsureThreadMetadataValue(action.name);
+        const ensuredParentThreadId = parentThreadIdFromEnsureThreadAction(action);
         const providerBindingPatch = providerBindingFromEnsureThreadAction(action);
         const updated = {
           ...existing,
-          engineSource: action.engine ?? existing.engineSource,
+          engineSource: existing.engineSource ?? action.engine,
+          name: ensuredName ?? existing.name,
+          parentThreadId:
+            ensuredParentThreadId && ensuredParentThreadId !== existing.id
+              ? ensuredParentThreadId
+              : existing.parentThreadId,
           folderId: action.folderId ?? existing.folderId,
           autoSession: action.autoSession ?? existing.autoSession ?? null,
           ...providerBindingPatch,
         };
         if (
           updated.engineSource === existing.engineSource &&
+          updated.name === existing.name &&
+          (updated.parentThreadId ?? null) === (existing.parentThreadId ?? null) &&
           updated.folderId === existing.folderId &&
           updated.autoSession === existing.autoSession &&
           providerBindingFieldsEqual(updated, existing)
@@ -544,6 +581,10 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
             {
               ...pendingThread,
               id: newThreadId,
+              name:
+                normalizeEnsureThreadMetadataValue(action.name) ?? pendingThread.name,
+              parentThreadId:
+                parentThreadIdFromEnsureThreadAction(action) ?? pendingThread.parentThreadId,
               ...providerBindingFromEnsureThreadAction(action),
             },
             oldThreadId,
@@ -643,14 +684,16 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
       const fallbackName = action.threadId.startsWith("claude:")
         ? "Claude Session"
         : `Agent ${list.length + 1}`;
+      const parentThreadId = parentThreadIdFromEnsureThreadAction(action);
       const thread: ThreadSummary = {
         id: action.threadId,
-        name: fallbackName,
+        name: normalizeEnsureThreadMetadataValue(action.name) ?? fallbackName,
         // 新建会话以当前时间戳排序，使其出现在列表顶部而非底部（updatedAt: 0 会被排到最旧）
         updatedAt: Date.now(),
         engineSource: action.engine,
         folderId: action.folderId ?? null,
         autoSession: action.autoSession ?? null,
+        ...(parentThreadId ? { parentThreadId } : {}),
         ...providerBindingFromEnsureThreadAction(action),
       };
       return {
@@ -2370,13 +2413,26 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
             const selectedEngine = thread.selectedEngine || existing.selectedEngine;
             const nativeThreadIds = thread.nativeThreadIds || existing.nativeThreadIds;
             const autoSession = thread.autoSession ?? existing.autoSession ?? null;
-            const name = shouldPreferExistingThreadName(existing.name, thread.name)
+            const incomingParentThreadId =
+              thread.parentThreadId && thread.parentThreadId !== thread.id
+                ? thread.parentThreadId
+                : null;
+            const existingParentThreadId =
+              existing.parentThreadId && existing.parentThreadId !== existing.id
+                ? existing.parentThreadId
+                : null;
+            const name = shouldPreferExistingThreadName(
+              existing.name,
+              thread.name,
+            )
               ? existing.name
               : thread.name;
             return mergeProviderBindingFields(
               {
                 ...thread,
                 name,
+                parentThreadId:
+                  incomingParentThreadId ?? existingParentThreadId ?? null,
                 engineSource,
                 threadKind,
                 selectedEngine,

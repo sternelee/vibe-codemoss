@@ -1,8 +1,10 @@
 import type { ComponentProps, ReactNode } from "react";
 
-import { MessageForkConfirmDialog } from "../../messages/components/MessageForkConfirmDialog";
-import { Messages } from "../../messages/components/Messages";
-import type { MessagesProps } from "../../messages/components/messagesTypes";
+import {
+  MessageForkConfirmDialog,
+  Messages,
+  type MessagesProps,
+} from "../../messages";
 import {
   shallowEqual,
   useActiveCanvasSelector,

@@ -55,7 +55,7 @@ const ALLOWED_NOTIFICATION_SOUND_IDS = new Set([
 ]);
 const allowedEmailSenderProviders = new Set(["126", "163", "qq", "custom"]);
 const allowedEmailSenderSecurity = new Set(["ssl_tls", "start_tls", "none"]);
-const DEFAULT_ENABLED_CURATED_SKILL_IDS = ["lazy-senior-dev"];
+const DEFAULT_ENABLED_CURATED_SKILL_IDS = ["lazy-senior-dev", "caveman"];
 
 function defaultEnabledCuratedSkillIds(): string[] {
   return [...DEFAULT_ENABLED_CURATED_SKILL_IDS];
@@ -228,7 +228,15 @@ const defaultSettings: AppSettings = {
   toggleFilesSurfaceShortcut: "cmd+shift+e",
   saveFileShortcut: "cmd+s",
   findInFileShortcut: "cmd+f",
+  expandSelectionShortcut: "cmd+w",
   toggleGitDiffListViewShortcut: "alt+shift+v",
+  toggleGitGraphShortcut: null,
+  openNotesShortcut: null,
+  openIntentCanvasShortcut: null,
+  openRadarShortcut: null,
+  openProjectMapShortcut: null,
+  openBrowserDockShortcut: null,
+  openFileCompareShortcut: null,
   increaseUiScaleShortcut: "cmd+=",
   decreaseUiScaleShortcut: "cmd+-",
   resetUiScaleShortcut: "cmd+0",
@@ -246,6 +254,7 @@ const defaultSettings: AppSettings = {
   customThemePresetId: "vscode-dark-modern",
   customSkillDirectories: [],
   enabledCuratedSkillIds: defaultEnabledCuratedSkillIds(),
+  curatedSkillDefaultsVersion: 1,
   enabledBuiltInAgentIds: [],
   canvasWidthMode: "narrow",
   layoutMode: "default",

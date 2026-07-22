@@ -37,6 +37,7 @@ export type ThreadEventHandlersOptions = {
   applyCollabThreadLinks: (
     threadId: string,
     item: Record<string, unknown>,
+    workspaceId?: string,
   ) => void;
   approvalAllowlistRef: MutableRefObject<Record<string, string[][]>>;
   pendingInterruptsRef: MutableRefObject<WorkspaceScopedMap<true>>;

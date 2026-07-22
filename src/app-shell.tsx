@@ -68,7 +68,7 @@ import { usePlanApplyHandlers } from "./app-shell-parts/usePlanApplyHandlers";
 import { useThreadScopedCollaborationMode } from "./app-shell-parts/useThreadScopedCollaborationMode";
 import { GitHubPanelData, SettingsView } from "./app-shell-parts/lazyViews";
 import { useCreateSessionLoading } from "./app-shell-parts/useCreateSessionLoading";
-import type { AgentTaskScrollRequest } from "./features/messages/types";
+import type { AgentTaskScrollRequest } from "./features/messages";
 import { useAppShellWorkspaceFlowsSection } from "./app-shell-parts/useAppShellWorkspaceFlowsSection";
 import { defineRuntimeThreadShellBoundary } from "./app-shell-parts/runtimeThreadBoundary";
 import { useAppShellWorkspaceHomeState } from "./app-shell-parts/useAppShellWorkspaceHomeState";
@@ -91,6 +91,7 @@ import { useAppShellDesktopChrome } from "./app-shell-parts/useAppShellDesktopCh
 import { useAppShellModelSettingsAction } from "./app-shell-parts/useAppShellModelSettingsAction";
 import { useAppShellEditorLayoutSection } from "./app-shell-parts/useAppShellEditorLayoutSection";
 import { useAppShellSearchPaletteSection } from "./app-shell-parts/useAppShellSearchPaletteSection";
+import { useAppShellQuickSwitcherSection } from "./app-shell-parts/useAppShellQuickSwitcherSection";
 import { useAppShellClaudeThinkingSection } from "./app-shell-parts/useAppShellClaudeThinkingSection";
 import {
   buildLatestAgentRuns,
@@ -99,6 +100,10 @@ import {
 
 export function AppShell() {
   const { t } = useTranslation();
+  const handleOpenGitHistoryFromFileHistory = useCallback(() => {
+    setAppMode("gitHistory");
+  }, []);
+
   const {
     claudeThinkingVisible,
     handleResolvedClaudeThinkingVisibleChange,
@@ -120,6 +125,9 @@ export function AppShell() {
     scaleShortcutTitle,
     scaleShortcutText,
     queueSaveSettings,
+    increaseUiScale,
+    decreaseUiScale,
+    resetUiScale,
   } = useAppSettingsController();
   useCodeCssVars(appSettings);
   const {
@@ -412,16 +420,21 @@ export function AppShell() {
     editorNavigationTarget,
     editorHighlightTarget,
     fileCompareSession,
-    fileHistoryTarget,
+    fileHistoryTabs,
+    activeGitHistoryTabId,
     openFileTabs,
     handleOpenFile,
     handleOpenWorkspaceFileCompare,
     handleOpenScratchFileCompare,
     handleCloseFileCompare,
     handleOpenFileHistory,
+    handleActivateGitHistoryTab,
     handleCloseFileHistory,
+    handleCloseOtherFileHistories,
+    handleCloseAllFileHistories,
     handleActivateFileTab,
     handleCloseFileTab,
+    handleCloseOtherFileTabs,
     handleCloseAllFileTabs,
     handleReorderFileTabs,
     handleExitEditor,
@@ -440,6 +453,7 @@ export function AppShell() {
     prDiffsLoading: gitPullRequestDiffsLoading,
     prDiffsError: gitPullRequestDiffsError,
     onOpenEditorLayoutRequest: requestEditorOpenLayout,
+    onOpenGitHistoryRequest: handleOpenGitHistoryFromFileHistory,
   });
 
   useEffect(() => {
@@ -649,6 +663,9 @@ export function AppShell() {
     handleCheckoutBranch,
     handleCreateBranch,
     handleUpdateBranch,
+    handleUpdateAllRepositories,
+    handleCheckoutAllRepositories,
+    handleLoadCommonRepositoryBranches,
     handleOpenDetachedFileExplorer,
     handlePickGitRoot,
     handleRevertAllGitChanges,
@@ -1638,7 +1655,8 @@ export function AppShell() {
       activeImages,
       activeFusingMessageId,
       fileCompareSession,
-      fileHistoryTarget,
+      fileHistoryTabs,
+      activeGitHistoryTabId,
       activeItems,
       activeParentWorkspace,
       activePath,
@@ -1857,6 +1875,7 @@ export function AppShell() {
       handleCheckoutBranch,
       handleCloseAllFileTabs,
       handleCloseFileTab,
+      handleCloseOtherFileTabs,
       handleCommit,
       handleCommitAndPush,
       handleCommitAndSync,
@@ -1865,6 +1884,9 @@ export function AppShell() {
       handleCopyThread,
       handleCreateBranch,
       handleUpdateBranch,
+      handleUpdateAllRepositories,
+      handleCheckoutAllRepositories,
+      handleLoadCommonRepositoryBranches,
       handleCreatePrompt,
       handleDebugClick,
       handleDeletePrompt,
@@ -1891,7 +1913,10 @@ export function AppShell() {
       handleOpenScratchFileCompare,
       handleCloseFileCompare,
       handleOpenFileHistory,
+      handleActivateGitHistoryTab,
       handleCloseFileHistory,
+      handleCloseOtherFileHistories,
+      handleCloseAllFileHistories,
       handleOpenMailSession,
       handleOpenModelSettings,
       handleRefreshModelConfig,
@@ -2317,6 +2342,27 @@ export function AppShell() {
     appShellDomainContextsRef.current = appShellDomainContexts;
   }, [appShellDomainContexts]);
 
+  const quickSwitcherSection = useAppShellQuickSwitcherSection({
+    activeWorkspaceId,
+    activityTimeline: workspaceActivity.timeline,
+    expandRightPanel,
+    handleOpenFile,
+    handleToggleTerminalPanel,
+    isCompact,
+    isSearchPaletteOpen,
+    openSettings,
+    selectWorkspace,
+    setActiveTab,
+    setActiveThreadId,
+    setAppMode,
+    setCenterMode,
+    setFilePanelMode,
+    setGitPanelMode,
+    setIsSearchPaletteOpen,
+    threadsByWorkspace,
+    workspaces,
+  });
+
   const searchAndComposerSection = useAppShellSearchAndComposerSection({
     activeEditorFilePath,
     activeWorkspace,
@@ -2325,6 +2371,7 @@ export function AppShell() {
     canInterrupt,
     centerMode,
     clearActiveImages,
+    closeQuickSwitcher: quickSwitcherSection.closeQuickSwitcher,
     connectWorkspace,
     exitDiffView,
     filePanelMode,
@@ -2332,13 +2379,27 @@ export function AppShell() {
     gitPanelMode,
     gitPullRequestDiffs,
     handleDraftChange,
+    handleAddAgent,
     handleOpenFile,
+    handleOpenQuickSwitcher: quickSwitcherSection.handleOpenQuickSwitcher,
+    handleQuickSwitcherNavigate: quickSwitcherSection.handleQuickSwitcherNavigate,
+    handleQuickSwitcherSelectFile:
+      quickSwitcherSection.handleQuickSwitcherSelectFile,
+    handleQuickSwitcherSelectSession:
+      quickSwitcherSection.handleQuickSwitcherSelectSession,
     handleSend,
     interruptTurn,
     isCompact,
     isSearchPaletteOpen,
+    isQuickSwitcherOpen: quickSwitcherSection.isQuickSwitcherOpen,
     kanbanTasks,
     queueMessage,
+    quickSwitcherSessionGroups: quickSwitcherSection.quickSwitcherSessionGroups,
+    quickSwitcherRecentFileGroups: quickSwitcherSection.quickSwitcherRecentFileGroups,
+    increaseUiScale,
+    decreaseUiScale,
+    resetUiScale,
+    searchContentFilters,
     searchPaletteQuery,
     searchResults,
     searchScope,

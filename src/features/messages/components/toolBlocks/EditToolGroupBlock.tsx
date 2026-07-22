@@ -17,7 +17,7 @@ import {
   EDIT_NEW_KEYS,
   EDIT_CONTENT_KEYS,
 } from './toolConstants';
-import { computeDiff, computeDiffFromUnifiedPatch, type DiffStats } from '../../utils/diffUtils';
+import { computeDiff, computeDiffFromUnifiedPatch, type DiffStats } from '../../../../utils/diff';
 import { ToolMarkerShell } from './ToolMarkerShell';
 import {
   FileChangeRow,

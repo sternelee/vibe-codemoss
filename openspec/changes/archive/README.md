@@ -2,13 +2,21 @@
 
 本页为 `mossx` 已归档 OpenSpec proposal 的完整可点击索引。目录名中的日期是 archive date，不代表 proposal 首次创建时间。
 
-- Updated At: `2026-07-18`
-- Indexed proposals: `640`
+- Updated At: `2026-07-22`
+- Indexed proposals: `642`
 - Source of truth: `openspec/changes/archive/<archive-date>-<change-id>/proposal.md`
 - Back to current changes: [`../README.md`](../README.md)
 - Back to workspace overview: [`../../project.md`](../../project.md)
 
-## 2026-07 (106)
+## 2026-07 (108)
+
+### 2026-07-22
+
+- [`2026-07-22-add-open-file-reveal-in-tree`](2026-07-22-add-open-file-reveal-in-tree/proposal.md) — verified implementation，已同步 `filetree-multitab-open` 与 `independent-file-explorer-workspace`
+
+### 2026-07-20
+
+- [`2026-07-20-add-caveman-curated-skill-bundle`](2026-07-20-add-caveman-curated-skill-bundle/proposal.md) — verified implementation，已同步 main spec
 
 ### 2026-07-18
 

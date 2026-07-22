@@ -6,7 +6,7 @@ import type {
   IntentCanvasOpenRequest,
 } from "../../intent-canvas/types";
 import type { OrchestrationDispatchConfirmation } from "../../agent-orchestration";
-import type { AgentTaskScrollRequest } from "../../messages/types";
+import type { AgentTaskScrollRequest } from "../../messages";
 import type { SubagentInfo } from "../../status-panel/types";
 import type {
   EditorHighlightTarget,
@@ -72,12 +72,16 @@ import type { ErrorToast } from "../../../services/toasts";
 import type { LoadingProgressDialogConfig } from "../../app/hooks/useLoadingProgressDialogState";
 import type { WorkspaceDirectoryEntry } from "../../../services/tauri";
 import type { CodeAnnotationBridgeProps } from "../../code-annotations/types";
-import type { RuntimeReconnectRecoveryCallbackResult } from "../../messages/components/runtimeReconnect";
+import type { RuntimeReconnectRecoveryCallbackResult } from "../../../runtime-recovery/runtimeReconnect";
 import type { QueuedHandoffBubble } from "../../threads/utils/queuedHandoffBubble";
 import type { SessionRadarEntry } from "../../session-activity/hooks/useSessionRadarFeed";
 import type { CodexProviderProfileSelection } from "../../threads/constants/codexProviderProfiles";
 import type { RepositoryGitStatus } from "../../git/hooks/useMultiRepositoryGitStatus";
 import type { RepositoryCommitSelection } from "../../git/components/GitMultiRepositoryChanges";
+import type {
+  GitRepositoryBatchResult,
+  GitRepositoryCommonBranchesResult,
+} from "../../git/types/gitRepositoryActions";
 
 export type ThreadActivityStatus = {
   isProcessing: boolean;
@@ -293,6 +297,7 @@ export type LayoutNodesFlatOptions = {
   closeCurrentSessionShortcut: string | null;
   saveFileShortcut: string | null;
   findInFileShortcut: string | null;
+  expandSelectionShortcut: string | null;
   toggleGitDiffListViewShortcut: string | null;
   onOpenSpecHub: () => void;
   onOpenWorkspaceHome: (workspaceId?: string) => void;
@@ -335,6 +340,12 @@ export type LayoutNodesFlatOptions = {
     name: string,
     repositoryRootOverride?: string,
   ) => Promise<GitBranchUpdateResult | null>;
+  onUpdateAllRepositories?: () => Promise<GitRepositoryBatchResult | null>;
+  onCheckoutAllRepositories?: (
+    branchName: string,
+    eligibleRepositoryRoots?: readonly string[],
+  ) => Promise<GitRepositoryBatchResult | null>;
+  onLoadCommonRepositoryBranches?: () => Promise<GitRepositoryCommonBranchesResult | null>;
   onCopyThread: () => void | Promise<void>;
   onLockPanel?: () => void;
   onToggleTerminal: () => void;
@@ -356,9 +367,7 @@ export type LayoutNodesFlatOptions = {
   centerMode: CenterMode;
   setCenterMode: (mode: CenterMode) => void;
   fileCompareSession: FileCompareSession | null;
-  fileHistoryTarget?: FileHistoryTarget | null;
   onOpenFileHistory?: (target: FileHistoryTarget) => void;
-  onCloseFileHistory?: () => void;
   editorSplitCompanion: EditorSplitCompanion;
   setEditorSplitCompanion: (companion: EditorSplitCompanion) => void;
   editorSplitLayout: "vertical" | "horizontal";
@@ -371,6 +380,7 @@ export type LayoutNodesFlatOptions = {
   openEditorTabs: string[];
   onActivateEditorTab: (path: string) => void;
   onCloseEditorTab: (path: string) => void;
+  onCloseOtherEditorTabs: (path: string) => void;
   onCloseAllEditorTabs: () => void;
   onReorderEditorTabs: (nextOrder: string[]) => void;
   onActiveEditorLineRangeChange: (
@@ -894,6 +904,9 @@ export type ChromeLayoutNodesOptions = Pick<
   | "onCheckoutBranch"
   | "onCreateBranch"
   | "onUpdateBranch"
+  | "onUpdateAllRepositories"
+  | "onCheckoutAllRepositories"
+  | "onLoadCommonRepositoryBranches"
   | "onCopyThread"
   | "onLockPanel"
   | "onToggleTerminal"
@@ -929,9 +942,7 @@ export type EditorLayoutNodesOptions = Pick<
   | "centerMode"
   | "setCenterMode"
   | "fileCompareSession"
-  | "fileHistoryTarget"
   | "onOpenFileHistory"
-  | "onCloseFileHistory"
   | "editorSplitCompanion"
   | "setEditorSplitCompanion"
   | "editorSplitLayout"
@@ -944,6 +955,7 @@ export type EditorLayoutNodesOptions = Pick<
   | "openEditorTabs"
   | "onActivateEditorTab"
   | "onCloseEditorTab"
+  | "onCloseOtherEditorTabs"
   | "onCloseAllEditorTabs"
   | "onReorderEditorTabs"
   | "onActiveEditorLineRangeChange"
@@ -1253,6 +1265,7 @@ export type PanelsLayoutNodesOptions = Pick<
   | "closeCurrentSessionShortcut"
   | "saveFileShortcut"
   | "findInFileShortcut"
+  | "expandSelectionShortcut"
   | "toggleGitDiffListViewShortcut"
   | "onOpenWorkspaceHome"
 >;

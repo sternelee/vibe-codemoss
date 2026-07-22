@@ -66,21 +66,55 @@ ADDED by change: file-view-code-intelligence-navigation-2026-03-01
 
 ### Requirement: LSP Failure and Unsupported Fallback
 
-系统 MUST 对 LSP 不可用、查询失败、结果为空等场景提供可解释回退。
+系统 MUST 对 provider 不可用、查询失败、当前 cursor 非 symbol、结果为空等场景提供 action-specific、localized、可解释回退。
 
 #### Scenario: backend lsp command unavailable
 
-- **GIVEN** 当前环境不支持 definition/references 查询
-- **WHEN** 用户触发导航或引用查询
-- **THEN** 系统 MUST 显示“当前环境不支持”提示
+- **GIVEN** 当前环境不支持 definition/references/implementation 查询
+- **WHEN** 用户触发对应 action
+- **THEN** 系统 MUST 使用当前 UI language 显示“当前环境不支持”的 action-specific 提示
 - **AND** MUST 保持编辑器可继续正常使用
+
+#### Scenario: cursor is not on a navigable symbol
+
+- **GIVEN** 光标位于 whitespace、comment、string、punctuation 或其他非 symbol 位置
+- **WHEN** 用户触发 definition、references 或 implementation action
+- **THEN** 系统 MUST 按 action 提示应将光标放在 class、method、variable、type 或 interface 等适用 symbol 上
+- **AND** MUST NOT 直接展示 backend raw English error
 
 #### Scenario: query failure is surfaced without breaking editor
 
-- **GIVEN** LSP 查询执行失败
+- **GIVEN** provider 查询因 timeout、file access 或 runtime failure 执行失败
 - **WHEN** 前端收到错误响应
-- **THEN** 系统 MUST 显示错误提示并允许用户重试
+- **THEN** 系统 MUST 显示可区分的 localized failure 提示并允许用户重试
 - **AND** MUST NOT 导致编辑器崩溃或内容丢失
+
+### Requirement: Modifier Hover MUST Reveal Navigable Symbol Affordance
+
+File editor SHALL 在用户按住 platform-primary modifier 时，为鼠标下可导航 identifier 提供 link-like visual affordance，且 MUST NOT 因 hover 触发 backend navigation request。
+
+#### Scenario: Modifier hover enters an identifier
+
+- **WHEN** 用户在 macOS 按住 `Cmd` 或在 Windows/Linux 按住 `Ctrl`
+- **AND** pointer 位于 syntax tree 识别的 identifier/symbol token 上
+- **THEN** token MUST 显示 underline
+- **AND** pointer MUST 显示 clickable cursor
+
+#### Scenario: Modifier hover enters a non-symbol region
+
+- **WHEN** pointer 位于 whitespace、comment、string 或 punctuation
+- **THEN** editor MUST NOT 显示 link-like affordance
+
+#### Scenario: Modifier hover state ends
+
+- **WHEN** modifier keyup、pointer leaves editor、window blur 或 document visibility 结束当前 interaction
+- **THEN** active symbol decoration MUST be cleared immediately
+
+#### Scenario: Hover does not query provider
+
+- **WHEN** pointer 在按住 modifier 时跨 symbol 移动
+- **THEN** editor MUST resolve affordance from local editor state
+- **AND** MUST NOT call definition/reference/implementation backend solely because of hover
 
 ### Requirement: Non-Regression for Existing File Workflows
 
@@ -116,3 +150,129 @@ File view code intelligence navigation SHALL treat browser-derived code candidat
 #### Scenario: Candidate confidence is low
 - **WHEN** a browser code candidate has low confidence
 - **THEN** the UI or AI context SHALL preserve the low confidence state and SHALL NOT present it as a confirmed file mapping
+
+### Requirement: Editor MUST Support Go To Implementation
+
+系统 SHALL 在 file editor 提供“Go to Implementations” action，并 MUST 复用既有 open-at-location 与 candidate selection surface。
+
+#### Scenario: A symbol has one implementation
+- **WHEN** 用户在 interface、trait、class 或 method symbol 上触发 go-to-implementation
+- **AND** backend 返回唯一 target
+- **THEN** editor MUST 直接打开或激活目标文件并定位到目标位置
+
+#### Scenario: A symbol has multiple implementations
+- **WHEN** backend 返回多个 implementation targets
+- **THEN** editor MUST 展示具名 candidate list
+- **AND** 用户选择后 MUST 跳转到对应 target
+
+#### Scenario: No implementation exists
+- **WHEN** backend 返回空 implementation result
+- **THEN** editor MUST 显示明确 empty feedback
+- **AND** MUST NOT 清空或修改当前文件内容
+
+### Requirement: Rust Files MUST Participate In Code Intelligence Navigation
+
+Rust source files SHALL 支持 definition、references 与 implementation navigation，semantic provider 可用时 MUST 使用其 scope/type-aware result。
+
+#### Scenario: Navigate a Rust definition
+- **WHEN** 用户在 `.rs` file 的 symbol 上触发 definition
+- **THEN** 系统 MUST 返回可导航 Rust definition 或明确 empty feedback
+
+#### Scenario: Navigate Rust trait implementations
+- **WHEN** 用户在 Rust trait 或 trait method 上触发 go-to-implementation
+- **THEN** 系统 MUST 返回 `impl Trait for Type` 等 semantic targets
+- **AND** unrelated same-name functions MUST NOT 作为 semantic result 混入
+
+### Requirement: Existing Languages MUST Keep A Safe Implementation Fallback
+
+Java、TS/JS 与 Rust SHALL 在 semantic implementation provider 不可用时识别明确 implementation declarations，并 MUST 保持 multi-target behavior。
+
+#### Scenario: Java or TypeScript interface has implementations
+- **WHEN** 用户对 interface/class name 触发 go-to-implementation
+- **THEN** fallback MAY 返回明确 `implements` 或 `extends` declaration
+- **AND** candidates MUST 保持 workspace-contained、deduplicated 与 deterministic
+
+#### Scenario: Unsupported language triggers implementation query
+- **WHEN** 当前 file language 不支持 semantic 或 fallback implementation lookup
+- **THEN** backend MUST 返回可解释 unsupported error
+- **AND** frontend MUST NOT crash
+
+### Requirement: File Editor MUST Expose Navigation Resolution Mode
+
+File editor SHALL 对最近一次 navigation query 显示 localized resolution mode，并 MUST 区分 semantic certainty 与 fast-search fallback。
+
+#### Scenario: Semantic result is returned
+- **WHEN** definition、references 或 implementation query 使用 semantic provider 完成
+- **THEN** UI MUST 显示“语义导航”及对应 language/provider identity
+- **AND** single-target result MUST 继续直接跳转，不增加确认弹窗
+
+#### Scenario: Fast-search fallback is returned
+- **WHEN** semantic infrastructure 不可用且 bounded heuristic fallback 完成
+- **THEN** UI MUST 显示“快速搜索（降级）”warning feedback
+- **AND** MUST 说明结果可能包含同名项而不是显示 generic failure
+
+#### Scenario: Cached result is reused
+- **WHEN** navigation result 从 frontend cache 命中
+- **THEN** UI MUST 保留原始 mode/provider/fallback metadata
+- **AND** MUST NOT 把 cached fallback 误标为 semantic result
+
+### Requirement: Navigation Retrieval Feedback MUST Be Action-Specific And Retryable
+
+File editor SHALL 对 query preparation、empty、timeout、provider failure 与 retry 提供 compact、localized、action-specific feedback。
+
+#### Scenario: Provider is preparing
+- **WHEN** 用户首次触发可能 cold-start 的 Java 或 TypeScript semantic query
+- **THEN** UI MUST 显示当前 action 与 language-specific loading copy
+- **AND** editor content、selection 与 typing MUST 保持可操作
+
+#### Scenario: Query fails or times out
+- **WHEN** navigation query 在 fallback 前后仍失败或 frontend timeout
+- **THEN** UI MUST 显示 localized reason category 与 retry action
+- **AND** retry MUST 重用当前 cursor/action contract，禁止修改文件内容
+
+#### Scenario: Candidate or reference results are shown
+- **WHEN** query 返回 multiple candidates 或 reference list
+- **THEN** panel header MUST 显示 action、result count 与 resolution mode
+- **AND** existing keyboard/click navigation behavior MUST remain available
+
+### Requirement: Missing Semantic Providers MUST Offer Platform-Specific Installation Hints
+
+File editor SHALL 在 semantic provider executable unavailable 时，以 installation guidance 直接替换 generic fallback notice，按 current language 与 desktop operating system 展示可复制的 installation command 或 official download guide command，并 MUST 提供安装后的 explicit retry，同时保持 fallback result 可用。
+
+#### Scenario: macOS Java provider is missing
+- **WHEN** Java navigation 以 `provider-unavailable` 降级且客户端运行在 macOS
+- **THEN** warning surface MUST 直接显示未检测到 Java language server
+- **AND** MUST 明确显示 Homebrew `jdtls` install command
+- **AND** MUST NOT 同时显示 generic “语言服务当前不可用，已改用快速搜索” notice
+- **AND** user MUST 能复制 command
+- **AND** MUST 能在安装完成后重新检测当前 navigation action
+
+#### Scenario: Missing provider fallback has a single target
+- **WHEN** definition 或 implementation 以 `provider-unavailable` 降级且 heuristic fallback 只返回一个 target
+- **THEN** warning surface MUST 保持 installation guidance 可见
+- **AND** fallback target MUST 继续作为可点击结果提供
+- **AND** UI MUST NOT 在 warning 首次 render 前自动跳转并销毁该提示
+
+#### Scenario: Windows or Linux Java provider is missing
+- **WHEN** Java navigation 以 `provider-unavailable` 降级且客户端运行在 Windows 或 Linux
+- **THEN** warning surface MUST 直接显示未检测到 Java language server
+- **AND** MUST 使用当前 shell syntax 显示打开 Eclipse official download page 的 command
+- **AND** MUST NOT 声称某个非通用 package manager 已完成安装
+- **AND** MUST 提供安装后重新检测入口
+
+#### Scenario: TypeScript JavaScript or Rust provider is missing
+- **WHEN** TS/JS 或 Rust navigation 以 `provider-unavailable` 降级
+- **THEN** warning surface MUST 直接显示未检测到对应 language server
+- **AND** MUST 显示对应 npm 或 rustup command
+- **AND** MUST 标识 current operating system
+- **AND** MUST 提供安装后重新检测入口
+
+#### Scenario: Provider failure is not an installation problem
+- **WHEN** fallback reason 是 timeout、provider exit、invalid response 或 generic failure
+- **THEN** UI MUST NOT 显示 installation command
+- **AND** existing retry/error feedback MUST remain available
+
+#### Scenario: Clipboard API is unavailable
+- **WHEN** install hint 已显示但 clipboard API 不可用
+- **THEN** command MUST remain selectable and readable
+- **AND** navigation panel MUST NOT throw、hide retry 或 hide fallback results

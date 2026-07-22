@@ -4,6 +4,7 @@ import {
   __getPrepareThreadItemsCallCountForTests,
   __resetPrepareThreadItemsCallCountForTests,
 } from "../../../utils/threadItems";
+import { withoutMessagePresentationMetadata } from "./threadReducerTestProjection";
 import { initialState, threadReducer } from "./useThreadsReducer";
 import type { ThreadState } from "./useThreadsReducer";
 
@@ -19,6 +20,88 @@ describe("threadReducer", () => {
     expect(threads[0]?.name).toBe("Agent 1");
     expect(next.activeThreadIdByWorkspace["ws-1"]).toBe("thread-1");
     expect(next.threadStatusById["thread-1"]?.isProcessing).toBe(false);
+  });
+
+  it("creates a live subagent summary with its parent and nickname atomically", () => {
+    const next = threadReducer(initialState, {
+      type: "ensureThread",
+      workspaceId: "ws-1",
+      threadId: "child-thread",
+      engine: "codex",
+      parentThreadId: "parent-thread",
+      name: "Herschel",
+    });
+
+    expect(next.threadsByWorkspace["ws-1"]?.[0]).toMatchObject({
+      id: "child-thread",
+      name: "Herschel",
+      parentThreadId: "parent-thread",
+      engineSource: "codex",
+    });
+
+    const repeated = threadReducer(next, {
+      type: "ensureThread",
+      workspaceId: "ws-1",
+      threadId: "child-thread",
+      engine: "codex",
+      parentThreadId: "parent-thread",
+      name: "Herschel",
+    });
+    expect(repeated).toBe(next);
+  });
+
+  it("enriches an existing provisional subagent summary in one update", () => {
+    const provisional = threadReducer(initialState, {
+      type: "ensureThread",
+      workspaceId: "ws-1",
+      threadId: "child-thread",
+      engine: "codex",
+    });
+
+    const enriched = threadReducer(provisional, {
+      type: "ensureThread",
+      workspaceId: "ws-1",
+      threadId: "child-thread",
+      parentThreadId: "parent-thread",
+      name: "Herschel",
+    });
+
+    expect(enriched).not.toBe(provisional);
+    expect(enriched.threadsByWorkspace["ws-1"]?.[0]).toMatchObject({
+      id: "child-thread",
+      name: "Herschel",
+      parentThreadId: "parent-thread",
+    });
+  });
+
+  it("keeps the live parent while accepting a stronger refreshed name", () => {
+    const live = threadReducer(initialState, {
+      type: "ensureThread",
+      workspaceId: "ws-1",
+      threadId: "child-thread",
+      engine: "codex",
+      parentThreadId: "parent-thread",
+      name: "Herschel",
+    });
+
+    const refreshed = threadReducer(live, {
+      type: "setThreads",
+      workspaceId: "ws-1",
+      threads: [
+        {
+          id: "child-thread",
+          name: "Named child",
+          updatedAt: Date.now(),
+          engineSource: "codex",
+        },
+      ],
+    });
+
+    expect(refreshed.threadsByWorkspace["ws-1"]?.[0]).toMatchObject({
+      id: "child-thread",
+      name: "Named child",
+      parentThreadId: "parent-thread",
+    });
   });
 
   it("does not churn state when selecting an already active read thread", () => {
@@ -712,7 +795,7 @@ describe("threadReducer", () => {
       ],
     });
 
-    expect(next.itemsByThread["thread-1"]).toEqual([
+    expect(withoutMessagePresentationMetadata(next.itemsByThread["thread-1"])).toEqual([
       {
         id: "assistant-1",
         kind: "message",
@@ -773,7 +856,7 @@ describe("threadReducer", () => {
       ],
     });
 
-    expect(next.itemsByThread["thread-1"]).toEqual([
+    expect(withoutMessagePresentationMetadata(next.itemsByThread["thread-1"])).toEqual([
       {
         id: "assistant-1",
         kind: "message",
@@ -846,7 +929,7 @@ describe("threadReducer", () => {
       ],
     });
 
-    expect(next.itemsByThread["thread-1"]).toEqual([
+    expect(withoutMessagePresentationMetadata(next.itemsByThread["thread-1"])).toEqual([
       {
         id: "user-older-1",
         kind: "message",
@@ -913,7 +996,7 @@ describe("threadReducer", () => {
       ],
     });
 
-    expect(next.itemsByThread["thread-1"]).toEqual([
+    expect(withoutMessagePresentationMetadata(next.itemsByThread["thread-1"])).toEqual([
       {
         id: "optimistic-user-1",
         kind: "message",
@@ -968,7 +1051,7 @@ describe("threadReducer", () => {
       ],
     });
 
-    expect(next.itemsByThread["thread-1"]).toEqual([
+    expect(withoutMessagePresentationMetadata(next.itemsByThread["thread-1"])).toEqual([
       {
         id: "user-1",
         kind: "message",
@@ -1020,7 +1103,7 @@ describe("threadReducer", () => {
       ],
     });
 
-    expect(next.itemsByThread["thread-1"]).toEqual([
+    expect(withoutMessagePresentationMetadata(next.itemsByThread["thread-1"])).toEqual([
       {
         id: "user-remote-1",
         kind: "message",
@@ -1063,7 +1146,7 @@ describe("threadReducer", () => {
       ],
     });
 
-    expect(next.itemsByThread["thread-1"]).toEqual([
+    expect(withoutMessagePresentationMetadata(next.itemsByThread["thread-1"])).toEqual([
       {
         id: "user-remote-1",
         kind: "message",
@@ -1119,7 +1202,7 @@ describe("threadReducer", () => {
       ],
     });
 
-    expect(next.itemsByThread["thread-1"]).toEqual([
+    expect(withoutMessagePresentationMetadata(next.itemsByThread["thread-1"])).toEqual([
       {
         id: "user-remote-1",
         kind: "message",
@@ -1195,7 +1278,7 @@ describe("threadReducer", () => {
       ],
     });
 
-    expect(next.itemsByThread["thread-1"]).toEqual([
+    expect(withoutMessagePresentationMetadata(next.itemsByThread["thread-1"])).toEqual([
       {
         id: "user-remote-1",
         kind: "message",

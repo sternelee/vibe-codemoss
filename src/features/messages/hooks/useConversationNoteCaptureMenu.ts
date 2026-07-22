@@ -15,7 +15,7 @@ import {
 import type { ConversationItem } from "../../../types";
 import { buildSemanticThreadNote } from "../../../utils/threadText";
 import type { NoteCaptureDraft } from "../../note-cards/types";
-import { resolveUserMessagePresentation } from "../components/messagesUserPresentation";
+import { resolveUserMessagePresentation } from "../presentation/messagesUserPresentation";
 import { snapshotConversationSelection } from "../utils/conversationSelection";
 
 const NOTE_CAPTURE_TITLE_MAX_LENGTH = 60;
@@ -71,6 +71,7 @@ export function useConversationNoteCaptureMenu({
             text: item.text,
             selectedAgentName: item.selectedAgentName,
             selectedAgentIcon: item.selectedAgentIcon,
+            presentationMetadata: item.presentationMetadata,
             enableCollaborationBadge: true,
           }).displayText,
       });

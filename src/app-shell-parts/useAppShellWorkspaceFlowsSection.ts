@@ -18,7 +18,7 @@ import type { CenterMode } from "../features/app/hooks/useGitPanelController";
 import { useWorktreeSetupScript } from "../features/app/hooks/useWorktreeSetupScript";
 import { buildClaudeResumeTerminalCommand } from "../features/app/utils/claudeResumeCommand";
 import { writeTerminalSession } from "../services/tauri";
-import type { AgentTaskScrollRequest } from "../features/messages/types";
+import type { AgentTaskScrollRequest } from "../features/messages";
 import type {
   AppMode,
   AppSettings,

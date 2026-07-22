@@ -6,6 +6,7 @@ import { LockScreenOverlay } from "../features/app/components/LockScreenOverlay"
 import { RuntimeConsoleDock } from "../features/app/components/RuntimeConsoleDock";
 import {
   GlobalSearchTitlebarButton,
+  QuickSwitcherTitlebarButton,
   SidebarCollapseButton,
   TitlebarExpandControls,
 } from "../features/layout/components/SidebarToggleControls";
@@ -23,6 +24,7 @@ import {
 import {
   GitHistoryPanel,
   KanbanView,
+  QuickSwitcher,
   ReleaseNotesModal,
   SearchPalette,
   SpecHub,
@@ -91,6 +93,7 @@ export function renderAppShell(ctx: RenderAppShellContext) {
     GitHubPanelData,
     SettingsView,
     activeEngine,
+    activeEditorFilePath,
     activeTab,
     activeThreadId,
     activeWorkspace,
@@ -107,6 +110,7 @@ export function renderAppShell(ctx: RenderAppShellContext) {
     clonePrompt,
     closeReleaseNotes,
     closeSearchPalette,
+    closeQuickSwitcher,
     closeSettings,
     closeWorktreeCreateResult,
     dismissLoadingProgressDialog,
@@ -137,6 +141,8 @@ export function renderAppShell(ctx: RenderAppShellContext) {
     fileViewPanelNode,
     noteCardsPanelNode,
     fileComparePanelNode,
+    fileHistoryTabs,
+    activeGitHistoryTabId,
     projectMapPanelNode,
     intentCanvasPanelNode,
     browserDockNode,
@@ -153,6 +159,10 @@ export function renderAppShell(ctx: RenderAppShellContext) {
     handleAddWorkspace,
     handleAppModeChange,
     handleCloseGitHistoryPanel,
+    handleActivateGitHistoryTab,
+    handleCloseFileHistory,
+    handleCloseOtherFileHistories,
+    handleCloseAllFileHistories,
     handleCloseTaskConversation,
     handleContinueLatestConversation,
     handleDeleteWorkspaceConversations,
@@ -177,6 +187,10 @@ export function renderAppShell(ctx: RenderAppShellContext) {
     handleRenamePromptConfirm,
     handleRevealActiveWorkspace,
     handleOpenSearchPalette,
+    handleOpenQuickSwitcher,
+    handleQuickSwitcherNavigate,
+    handleQuickSwitcherSelectFile,
+    handleQuickSwitcherSelectSession,
     handleSearchPaletteMoveSelection,
     handleSelectDiffForPanel,
     handleSelectSearchResult,
@@ -200,6 +214,7 @@ export function renderAppShell(ctx: RenderAppShellContext) {
     isPanelLocked,
     isPhone,
     isSearchPaletteOpen,
+    isQuickSwitcherOpen,
     isSoloMode,
     isTablet,
     kanbanConversationWidth,
@@ -228,6 +243,7 @@ export function renderAppShell(ctx: RenderAppShellContext) {
     planPanelNode,
     queueSaveSettings,
     recentThreads,
+    quickSwitcherSessionGroups,
     reduceTransparency,
     windowTransparencyEnabled,
     windowOpacity,
@@ -387,6 +403,12 @@ export function renderAppShell(ctx: RenderAppShellContext) {
         onSelectWorkspacePath={handleSelectWorkspacePathForGitHistory}
         onOpenDiffPath={handleSelectDiffForPanel}
         onRequestClose={handleCloseGitHistoryPanel}
+        fileHistoryTabs={fileHistoryTabs}
+        activeTabId={activeGitHistoryTabId}
+        onActivateTab={handleActivateGitHistoryTab}
+        onCloseFileHistoryTab={handleCloseFileHistory}
+        onCloseOtherFileHistoryTabs={handleCloseOtherFileHistories}
+        onCloseAllFileHistoryTabs={handleCloseAllFileHistories}
         {...codeAnnotationBridgeProps}
       />
     </Suspense>
@@ -426,13 +448,19 @@ export function renderAppShell(ctx: RenderAppShellContext) {
       data-tauri-drag-region="false"
     >
       {isMacDesktop ? (
-        <GlobalSearchTitlebarButton
-          onOpen={handleOpenSearchPalette}
-          shortcutLabel={formatShortcutForPlatform(
-            appSettings.toggleGlobalSearchShortcut,
-            true,
-          )}
-        />
+        <>
+          <GlobalSearchTitlebarButton
+            onOpen={handleOpenSearchPalette}
+            shortcutLabel={formatShortcutForPlatform(
+              appSettings.toggleGlobalSearchShortcut,
+              true,
+            )}
+          />
+          <QuickSwitcherTitlebarButton
+            onOpen={handleOpenQuickSwitcher}
+            shortcutLabel="⌘E"
+          />
+        </>
       ) : null}
       <SidebarCollapseButton {...sidebarToggleProps} />
     </div>
@@ -710,6 +738,21 @@ export function renderAppShell(ctx: RenderAppShellContext) {
             }}
             onContentFilterToggle={handleToggleSearchContentFilter}
             onClose={closeSearchPalette}
+          />
+        </Suspense>
+      ) : null}
+      {isQuickSwitcherOpen ? (
+        <Suspense fallback={null}>
+          <QuickSwitcher
+            activeWorkspaceId={activeWorkspace?.id ?? null}
+            activeThreadId={activeThreadId}
+            activeFilePath={activeEditorFilePath}
+            workspaces={workspaces}
+            sessionGroups={quickSwitcherSessionGroups}
+            onNavigate={handleQuickSwitcherNavigate}
+            onSelectSession={handleQuickSwitcherSelectSession}
+            onSelectFile={handleQuickSwitcherSelectFile}
+            onClose={closeQuickSwitcher}
           />
         </Suspense>
       ) : null}

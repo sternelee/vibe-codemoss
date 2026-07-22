@@ -779,7 +779,13 @@ function flattenComparablePaths(
   output: Map<string, string>,
 ): void {
   if (Array.isArray(value)) {
-    output.set(prefix, JSON.stringify(value));
+    if (value.length === 0) {
+      output.set(prefix, "[]");
+      return;
+    }
+    value.forEach((entry, index) => {
+      flattenComparablePaths(`${prefix}.${index}`, entry, output);
+    });
     return;
   }
   if (value && typeof value === "object") {

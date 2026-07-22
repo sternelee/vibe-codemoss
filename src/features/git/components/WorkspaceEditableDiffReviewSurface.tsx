@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import FileIcon from "../../../components/FileIcon";
 import { UnsavedChangesDialog } from "../../../components/ui/UnsavedChangesDialog";
 import { getGitFileFullDiff } from "../../../services/tauri";
-import { computeDiffFromUnifiedPatch } from "../../messages/utils/diffUtils";
+import { computeDiffFromUnifiedPatch } from "../../../utils/diff";
 import { resolveFileRenderProfile } from "../../files/utils/fileRenderProfile";
 import {
   resolveFileReadTarget,
