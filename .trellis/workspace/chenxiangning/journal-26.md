@@ -1469,3 +1469,36 @@ Review 并修复 Git History repository color collision、branch group 与 branc
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1069: 完善 Composer 提示词增强入口
+
+**Date**: 2026-07-23
+**Task**: 完善 Composer 提示词增强入口
+**Branch**: `feature/v-0.7.7`
+
+### Summary
+
+在 Composer 工具面板增加提示词增强入口，复用 Cmd+/ 能力；移除 OpenCode enhancer option，优化浅色主题按钮、icon-only quick actions 与紧凑面板间距，并补齐 focused tests 与 OpenSpec artifacts。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1618ee32e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
