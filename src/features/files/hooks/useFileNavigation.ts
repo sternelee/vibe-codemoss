@@ -68,6 +68,12 @@ function navigationLanguageFromPath(filePath: string) {
   if (extension === "rs") {
     return "Rust";
   }
+  if (extension === "py" || extension === "pyi") {
+    return "Python";
+  }
+  if (extension === "go") {
+    return "Go";
+  }
   return null;
 }
 

@@ -164,6 +164,44 @@ describe("FileViewPanel navigation", () => {
     }
   });
 
+  it.each([
+    ["Python", "src/main.py"],
+    ["Python stub", "src/types.pyi"],
+    ["Go", "cmd/main.go"],
+  ])("prewarms the %s semantic provider after 750ms idle", async (_language, filePath) => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(readWorkspaceFile).mockResolvedValue({
+        content: "symbol",
+        truncated: false,
+      });
+
+      render(
+        <FileViewPanel
+          workspaceId="ws-python-go-prewarm"
+          workspacePath="/repo"
+          filePath={filePath}
+          openTargets={[]}
+          openAppIconById={{}}
+          selectedOpenAppId=""
+          onSelectOpenAppId={vi.fn()}
+          onClose={vi.fn()}
+        />,
+      );
+
+      await act(async () => {
+        vi.advanceTimersByTime(750);
+        await Promise.resolve();
+      });
+      expect(prepareCodeIntel).toHaveBeenCalledWith(
+        "ws-python-go-prewarm",
+        filePath,
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("cancels semantic prewarm for unsupported or unmounted files", async () => {
     vi.useFakeTimers();
     try {

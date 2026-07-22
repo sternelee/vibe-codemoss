@@ -101,6 +101,20 @@ export function getLanguageServerInstallHint(
       platform,
     };
   }
+  if (normalizedLanguage === "python") {
+    return {
+      command: "npm install -g pyright",
+      kind: "install",
+      platform,
+    };
+  }
+  if (normalizedLanguage === "go") {
+    return {
+      command: "go install golang.org/x/tools/gopls@latest",
+      kind: "install",
+      platform,
+    };
+  }
   return null;
 }
 

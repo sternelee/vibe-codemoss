@@ -108,7 +108,9 @@ fn semantic_provider_for_language(language: LanguageKind) -> Option<SemanticProv
         LanguageKind::Rust => Some(SemanticProvider::RustAnalyzer),
         LanguageKind::Java => Some(SemanticProvider::EclipseJdtLs),
         LanguageKind::TsJs => Some(SemanticProvider::TypeScriptLanguageServer),
-        LanguageKind::Python | LanguageKind::Go | LanguageKind::Yaml => None,
+        LanguageKind::Python => Some(SemanticProvider::Pyright),
+        LanguageKind::Go => Some(SemanticProvider::Gopls),
+        LanguageKind::Yaml => None,
     }
 }
 
@@ -1520,14 +1522,20 @@ pub async fn code_intel_implementations(
     state: State<'_, AppState>,
 ) -> Result<Value, String> {
     let language = LanguageKind::from_path(&file_path).ok_or_else(|| {
-        "Implementation navigation currently supports Java, TS/JS, and Rust files".to_string()
+        "Implementation navigation currently supports Python, TS/JS, Go, Rust, and Java files"
+            .to_string()
     })?;
     if !matches!(
         language,
-        LanguageKind::Java | LanguageKind::TsJs | LanguageKind::Rust
+        LanguageKind::Java
+            | LanguageKind::Python
+            | LanguageKind::TsJs
+            | LanguageKind::Go
+            | LanguageKind::Rust
     ) {
         return Err(
-            "Implementation navigation currently supports Java, TS/JS, and Rust files".to_string(),
+            "Implementation navigation currently supports Python, TS/JS, Go, Rust, and Java files"
+                .to_string(),
         );
     }
 
@@ -1627,7 +1635,15 @@ mod tests {
             semantic_provider_for_language(LanguageKind::TsJs),
             Some(SemanticProvider::TypeScriptLanguageServer)
         );
-        assert_eq!(semantic_provider_for_language(LanguageKind::Python), None);
+        assert_eq!(
+            semantic_provider_for_language(LanguageKind::Python),
+            Some(SemanticProvider::Pyright)
+        );
+        assert_eq!(
+            semantic_provider_for_language(LanguageKind::Go),
+            Some(SemanticProvider::Gopls)
+        );
+        assert_eq!(semantic_provider_for_language(LanguageKind::Yaml), None);
         assert_eq!(
             semantic_fallback_reason_code("Language server initialize timed out"),
             "initialize-timeout"

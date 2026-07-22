@@ -35,6 +35,8 @@ pub(crate) enum SemanticProvider {
     RustAnalyzer,
     EclipseJdtLs,
     TypeScriptLanguageServer,
+    Pyright,
+    Gopls,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -85,6 +87,8 @@ impl SemanticProvider {
             Self::RustAnalyzer => "rust-analyzer",
             Self::EclipseJdtLs => "eclipse-jdt-ls",
             Self::TypeScriptLanguageServer => "typescript-language-server",
+            Self::Pyright => "pyright",
+            Self::Gopls => "gopls",
         }
     }
 
@@ -92,6 +96,8 @@ impl SemanticProvider {
         match self {
             Self::RustAnalyzer => "rust",
             Self::EclipseJdtLs => "java",
+            Self::Pyright => "python",
+            Self::Gopls => "go",
             Self::TypeScriptLanguageServer => match file
                 .extension()
                 .and_then(|value| value.to_str())
@@ -112,6 +118,8 @@ impl SemanticProvider {
             Self::RustAnalyzer => "MOSSX_RUST_ANALYZER_BIN",
             Self::EclipseJdtLs => "MOSSX_JAVA_LANGUAGE_SERVER_BIN",
             Self::TypeScriptLanguageServer => "MOSSX_TYPESCRIPT_LANGUAGE_SERVER_BIN",
+            Self::Pyright => "MOSSX_PYRIGHT_LANGUAGE_SERVER_BIN",
+            Self::Gopls => "MOSSX_GOPLS_BIN",
         }
     }
 
@@ -120,6 +128,8 @@ impl SemanticProvider {
             Self::RustAnalyzer => "rust-analyzer",
             Self::EclipseJdtLs => "jdtls",
             Self::TypeScriptLanguageServer => "typescript-language-server",
+            Self::Pyright => "pyright-langserver",
+            Self::Gopls => "gopls",
         }
     }
 
@@ -133,7 +143,9 @@ impl SemanticProvider {
     fn lifecycle_after_initialize(self) -> SemanticLifecycle {
         match self {
             Self::EclipseJdtLs => SemanticLifecycle::Indexing,
-            Self::RustAnalyzer | Self::TypeScriptLanguageServer => SemanticLifecycle::Ready,
+            Self::RustAnalyzer | Self::TypeScriptLanguageServer | Self::Pyright | Self::Gopls => {
+                SemanticLifecycle::Ready
+            }
         }
     }
 
@@ -142,7 +154,9 @@ impl SemanticProvider {
             Self::EclipseJdtLs => json!({
                 "settings": { "java": { "progressReports": { "enabled": true } } }
             }),
-            Self::RustAnalyzer | Self::TypeScriptLanguageServer => Value::Null,
+            Self::RustAnalyzer | Self::TypeScriptLanguageServer | Self::Pyright | Self::Gopls => {
+                Value::Null
+            }
         }
     }
 
@@ -165,8 +179,8 @@ impl SemanticProvider {
         cache_root: &Path,
     ) -> Result<Vec<OsString>, String> {
         match self {
-            Self::RustAnalyzer => Ok(Vec::new()),
-            Self::TypeScriptLanguageServer => Ok(vec![OsString::from("--stdio")]),
+            Self::RustAnalyzer | Self::Gopls => Ok(Vec::new()),
+            Self::TypeScriptLanguageServer | Self::Pyright => Ok(vec![OsString::from("--stdio")]),
             Self::EclipseJdtLs => {
                 let data_dir = self
                     .data_dir(workspace_root, cache_root)
@@ -1300,6 +1314,23 @@ mod tests {
     }
 
     #[test]
+    fn installed_python_provider_is_discovered_from_extended_cli_paths_when_available() {
+        if std::env::var_os(SemanticProvider::Pyright.override_env()).is_some() {
+            return;
+        }
+        let Some(discovered) =
+            find_cli_binary(SemanticProvider::Pyright.default_executable(), None)
+        else {
+            return;
+        };
+
+        assert_eq!(
+            resolve_provider_executable(SemanticProvider::Pyright),
+            discovered.into_os_string(),
+        );
+    }
+
+    #[test]
     fn provider_launch_arguments_are_language_specific() {
         let root = PathBuf::from("/workspace");
         let cache = std::env::temp_dir().join("ccgui-lsp-args");
@@ -1313,12 +1344,46 @@ mod tests {
                 .unwrap(),
             vec![OsString::from("--stdio")]
         );
+        assert_eq!(
+            SemanticProvider::Pyright
+                .launch_args(&root, &cache)
+                .unwrap(),
+            vec![OsString::from("--stdio")]
+        );
+        assert!(SemanticProvider::Gopls
+            .launch_args(&root, &cache)
+            .unwrap()
+            .is_empty());
         let java_args = SemanticProvider::EclipseJdtLs
             .launch_args(&root, &cache)
             .unwrap();
         assert_eq!(java_args.first(), Some(&OsString::from("-data")));
         assert_eq!(java_args.len(), 2);
         let _ = std::fs::remove_dir_all(cache);
+    }
+
+    #[test]
+    fn python_and_go_provider_descriptors_are_stable() {
+        assert_eq!(SemanticProvider::Pyright.id(), "pyright");
+        assert_eq!(
+            SemanticProvider::Pyright.language_id(Path::new("src/main.py")),
+            "python"
+        );
+        assert_eq!(
+            SemanticProvider::Pyright.default_executable(),
+            "pyright-langserver"
+        );
+        assert_eq!(
+            SemanticProvider::Pyright.override_env(),
+            "MOSSX_PYRIGHT_LANGUAGE_SERVER_BIN"
+        );
+        assert_eq!(SemanticProvider::Gopls.id(), "gopls");
+        assert_eq!(
+            SemanticProvider::Gopls.language_id(Path::new("cmd/main.go")),
+            "go"
+        );
+        assert_eq!(SemanticProvider::Gopls.default_executable(), "gopls");
+        assert_eq!(SemanticProvider::Gopls.override_env(), "MOSSX_GOPLS_BIN");
     }
 
     #[test]
