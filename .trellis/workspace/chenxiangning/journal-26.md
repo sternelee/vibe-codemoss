@@ -1303,3 +1303,36 @@ Review 并修复 Git History repository color collision、branch group 与 branc
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1064: 完成 Quick Switcher 最近活动面板
+
+**Date**: 2026-07-22
+**Task**: 完成 Quick Switcher 最近活动面板
+**Branch**: `feature/v-076`
+
+### Summary
+
+实现三栏 Quick Switcher：快速导航、按 workspace 分组的最近会话/文件、全局 top 30、用户打开与 AI 修改 MRU、Spec Hub 独立窗口及完整键盘交互；用户视觉验收通过，93 个增量测试、targeted ESLint、typecheck、AppShell runtime contract、large-file sentry、OpenSpec strict validation 通过，未运行全量测试。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b9624384e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
