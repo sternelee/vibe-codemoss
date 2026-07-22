@@ -14,7 +14,7 @@ const STORAGE_KEY = "ccgui.quickSwitcher.recentFilesByWorkspace";
 export const QUICK_SWITCHER_RECENT_FILES_CHANGED =
   "ccgui:quick-switcher-recent-files-changed";
 
-type RecentFilesByWorkspace = Record<string, QuickSwitcherRecentFile[]>;
+export type RecentFilesByWorkspace = Record<string, QuickSwitcherRecentFile[]>;
 
 export type RecentFileMutation =
   | {
@@ -99,7 +99,7 @@ export function normalizeStoredRecentFiles(
   );
 }
 
-function readRecentFilesByWorkspace(): RecentFilesByWorkspace {
+export function getQuickSwitcherRecentFilesSnapshot(): RecentFilesByWorkspace {
   return normalizeStoredRecentFiles(
     getClientStoreSync<unknown>("app", STORAGE_KEY),
   );
@@ -111,16 +111,7 @@ export function getQuickSwitcherRecentFiles(
   if (!workspaceId) {
     return [];
   }
-  return readRecentFilesByWorkspace()[workspaceId] ?? [];
-}
-
-export function getQuickSwitcherRecentFileGroups(
-  workspaces: Array<{ id: string; name: string }>,
-): QuickSwitcherRecentFileGroup[] {
-  return projectQuickSwitcherRecentFileGroups(
-    readRecentFilesByWorkspace(),
-    workspaces,
-  );
+  return getQuickSwitcherRecentFilesSnapshot()[workspaceId] ?? [];
 }
 
 export function projectQuickSwitcherRecentFileGroups(
@@ -202,7 +193,7 @@ function persistMutations(mutations: RecentFileMutation[]): void {
   if (!mutations.length) {
     return;
   }
-  const current = readRecentFilesByWorkspace();
+  const current = getQuickSwitcherRecentFilesSnapshot();
   const next = applyRecentFileMutations(current, mutations);
   if (JSON.stringify(current) === JSON.stringify(next)) {
     return;
