@@ -210,6 +210,8 @@ const files = {
     "annotationSelectionToolbar": "코드 선택 주석",
     "annotationUnavailableForSelection": "선택 항목을 현재 파일 줄에 매핑할 수 없습니다",
     "backToChat": "채팅으로 돌아가기",
+    "navigationBack": "이전 위치로 이동",
+    "navigationForward": "다음 위치로 이동",
     "preview": "미리 보기",
     "edit": "편집",
     "source": "소스",

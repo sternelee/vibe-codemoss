@@ -224,6 +224,8 @@ const files = {
     annotationUnavailableForSelection:
       "Selection cannot map to current file lines",
     backToChat: "Back to chat",
+    navigationBack: "Navigate back",
+    navigationForward: "Navigate forward",
     preview: "Preview",
     edit: "Edit",
     source: "Source",

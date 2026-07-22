@@ -210,6 +210,8 @@ const files = {
     "annotationSelectionToolbar": "कोड चयन एनोटेशन",
     "annotationUnavailableForSelection": "चयन को वर्तमान फ़ाइल पंक्तियों से मैप नहीं किया जा सकता",
     "backToChat": "चैट पर वापस जाएँ",
+    "navigationBack": "पीछे जाएँ",
+    "navigationForward": "आगे जाएँ",
     "preview": "पूर्वावलोकन",
     "edit": "संपादित करें",
     "source": "स्रोत",

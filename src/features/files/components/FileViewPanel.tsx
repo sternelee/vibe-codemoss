@@ -146,6 +146,9 @@ import { resolveFileGitScope } from "../utils/fileGitScope";
 
 export { resolveEditorAnnotationWidgetOrder } from "./fileViewPanelShared";
 
+const NAVIGATE_BACK_SHORTCUT = "cmd+alt+arrowleft";
+const NAVIGATE_FORWARD_SHORTCUT = "cmd+alt+arrowright";
+
 function resetGitLineMarkersIfNeeded(markers: GitLineMarkers): GitLineMarkers {
   if (markers.added.length === 0 && markers.modified.length === 0) {
     return markers;
@@ -263,7 +266,6 @@ export function FileViewPanel({
   onNavigateToLocation,
   onOpenFileHistory,
   onRevealInFileTree,
-  onClose,
   onInsertText,
   onCreateCodeAnnotation,
   onCaptureNote,
@@ -862,6 +864,10 @@ export function FileViewPanel({
     resolveDefinitionAtOffset,
     openFindPanelInEditor,
     toggleFindPanelInEditor,
+    canNavigateBack,
+    canNavigateForward,
+    navigateBack,
+    navigateForward,
   } = useFileNavigation({
     workspaceId,
     workspacePath,
@@ -1180,14 +1186,37 @@ export function FileViewPanel({
     return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, [handleSave, saveFileShortcut]);
 
-  // Handle close with unsaved changes
-  const handleClose = useCallback(() => {
-    if (effectiveIsDirty) {
-      const confirmed = window.confirm(t("files.discardChangesMessage"));
-      if (!confirmed) return;
+  useEffect(() => {
+    if (onSingleRowLeadingAction) {
+      return;
     }
-    onClose();
-  }, [effectiveIsDirty, onClose, t]);
+    const handleNavigationShortcut = (event: KeyboardEvent) => {
+      if (
+        canNavigateBack &&
+        matchesShortcutForPlatform(event, NAVIGATE_BACK_SHORTCUT)
+      ) {
+        event.preventDefault();
+        navigateBack();
+        return;
+      }
+      if (
+        canNavigateForward &&
+        matchesShortcutForPlatform(event, NAVIGATE_FORWARD_SHORTCUT)
+      ) {
+        event.preventDefault();
+        navigateForward();
+      }
+    };
+    window.addEventListener("keydown", handleNavigationShortcut, true);
+    return () =>
+      window.removeEventListener("keydown", handleNavigationShortcut, true);
+  }, [
+    canNavigateBack,
+    canNavigateForward,
+    navigateBack,
+    navigateForward,
+    onSingleRowLeadingAction,
+  ]);
 
   // Switch to edit mode
   const handleEnterEdit = useCallback(() => {
@@ -2497,20 +2526,47 @@ export function FileViewPanel({
 
   const renderHeader = () => (
     <div className="fvp-header-row">
-      <button
-        type="button"
-        className="icon-button fvp-back"
-        onClick={onSingleRowLeadingAction ?? handleClose}
-        aria-label={singleRowLeadingLabel ?? t("files.backToChat")}
-        title={singleRowLeadingLabel ?? t("files.backToChat")}
-        data-tauri-drag-region="false"
-      >
-        {singleRowLeadingDirection === "right" && onSingleRowLeadingAction ? (
-          <ArrowRight size={16} aria-hidden />
-        ) : (
-          <ArrowLeft size={16} aria-hidden />
-        )}
-      </button>
+      {onSingleRowLeadingAction ? (
+        <button
+          type="button"
+          className="icon-button fvp-back"
+          onClick={onSingleRowLeadingAction}
+          aria-label={singleRowLeadingLabel ?? t("files.backToChat")}
+          title={singleRowLeadingLabel ?? t("files.backToChat")}
+          data-tauri-drag-region="false"
+        >
+          {singleRowLeadingDirection === "right" ? (
+            <ArrowRight size={16} aria-hidden />
+          ) : (
+            <ArrowLeft size={16} aria-hidden />
+          )}
+        </button>
+      ) : (
+        <>
+          <button
+            type="button"
+            className="icon-button fvp-back"
+            onClick={navigateBack}
+            disabled={!canNavigateBack}
+            aria-label={t("files.navigationBack")}
+            title={`${t("files.navigationBack")} (${formatShortcutForPlatform(NAVIGATE_BACK_SHORTCUT)})`}
+            data-tauri-drag-region="false"
+          >
+            <ArrowLeft size={16} aria-hidden />
+          </button>
+          <button
+            type="button"
+            className="icon-button fvp-back"
+            onClick={navigateForward}
+            disabled={!canNavigateForward}
+            aria-label={t("files.navigationForward")}
+            title={`${t("files.navigationForward")} (${formatShortcutForPlatform(NAVIGATE_FORWARD_SHORTCUT)})`}
+            data-tauri-drag-region="false"
+          >
+            <ArrowRight size={16} aria-hidden />
+          </button>
+        </>
+      )}
       <div className="fvp-header-row-tabs">{renderTabs("fvp-tabs-inline")}</div>
       <div className="fvp-header-row-right">
         {effectiveIsDirty ? (

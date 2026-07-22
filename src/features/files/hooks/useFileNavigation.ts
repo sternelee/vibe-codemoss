@@ -21,6 +21,7 @@ import {
   resolveWorkspaceRelativePath,
 } from "../../../utils/workspacePaths";
 import { lspPositionToEditorLocation, offsetToLspPosition } from "../utils/lspPosition";
+import { useFileNavigationHistory } from "./useFileNavigationHistory";
 import {
   areFileUrisEquivalent,
   CODE_INTEL_CACHE_TTL_MS,
@@ -177,6 +178,20 @@ export function useFileNavigation({
   const navigationFlashTimerRef = useRef<number | null>(null);
   const prewarmScopeRef = useRef<string | null>(null);
   const currentFileUri = useMemo(() => toFileUri(absolutePath), [absolutePath]);
+  const {
+    recordCrossFileNavigation,
+    canNavigateBack,
+    canNavigateForward,
+    navigateBack,
+    navigateForward,
+    restoreHistoryViewport,
+  } = useFileNavigationHistory({
+    workspaceId,
+    filePath,
+    isSameWorkspacePath,
+    onNavigateToLocation,
+    cmRef,
+  });
 
   useEffect(() => {
     const language = navigationLanguageFromPath(filePath);
@@ -301,6 +316,13 @@ export function useFileNavigation({
       });
 
       if (relativePath && onNavigateToLocation) {
+        if (!isSameWorkspacePath(relativePath, filePath)) {
+          recordCrossFileNavigation({
+            path: relativePath,
+            line,
+            column,
+          });
+        }
         onNavigateToLocation(relativePath, { line, column });
         return;
       }
@@ -327,6 +349,7 @@ export function useFileNavigation({
       focusEditorAtLocationWithRetry,
       isSameWorkspacePath,
       onNavigateToLocation,
+      recordCrossFileNavigation,
       setMode,
       workspacePath,
     ],
@@ -681,6 +704,11 @@ export function useFileNavigation({
       0,
       () => {
         appliedNavigationRequestRef.current = navigationTarget.requestId;
+        restoreHistoryViewport(
+          navigationTarget.path,
+          navigationTarget.line,
+          navigationTarget.column,
+        );
       },
     );
   }, [
@@ -689,6 +717,7 @@ export function useFileNavigation({
     isLoading,
     isSameWorkspacePath,
     navigationTarget,
+    restoreHistoryViewport,
     setMode,
   ]);
 
@@ -745,5 +774,9 @@ export function useFileNavigation({
     resolveDefinitionAtOffset,
     openFindPanelInEditor,
     toggleFindPanelInEditor,
+    canNavigateBack,
+    canNavigateForward,
+    navigateBack,
+    navigateForward,
   };
 }

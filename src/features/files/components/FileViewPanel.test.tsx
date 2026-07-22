@@ -850,7 +850,7 @@ describe("FileViewPanel navigation", () => {
     ).toBe(false);
     expect(container.querySelector(".fvp-topbar")).toBeNull();
     expect(screen.getByRole("tablist", { name: "Open files" })).toBeTruthy();
-    expect(screen.getByTitle("files.backToChat")).toBeTruthy();
+    expect(screen.queryByTitle("files.backToChat")).toBeNull();
     expect(
       within(openFileContentContextMenu()).getByRole("menuitem", {
         name: "files.gotoDefinition",

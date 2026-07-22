@@ -218,6 +218,8 @@ const files = {
     annotationSelectionToolbar: "代码选区标注",
     annotationUnavailableForSelection: "当前选区无法关联到新文件行",
     backToChat: "返回聊天",
+    navigationBack: "后退",
+    navigationForward: "前进",
     preview: "预览",
     edit: "编辑",
     source: "源码",

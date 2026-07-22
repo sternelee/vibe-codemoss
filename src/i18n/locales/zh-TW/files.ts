@@ -210,6 +210,8 @@ const files = {
     "annotationSelectionToolbar": "程式碼選取標註",
     "annotationUnavailableForSelection": "選取範圍無法對應至目前檔案的行",
     "backToChat": "返回對話",
+    "navigationBack": "返回上一處",
+    "navigationForward": "前往下一處",
     "preview": "預覽",
     "edit": "編輯",
     "source": "原始碼",

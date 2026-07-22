@@ -210,6 +210,8 @@ const files = {
     "annotationSelectionToolbar": "コード選択の注釈",
     "annotationUnavailableForSelection": "選択範囲を現在のファイル行に対応付けできません",
     "backToChat": "チャットに戻る",
+    "navigationBack": "前の場所に戻る",
+    "navigationForward": "次の場所に進む",
     "preview": "プレビュー",
     "edit": "編集",
     "source": "ソース",

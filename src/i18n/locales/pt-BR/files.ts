@@ -210,6 +210,8 @@ const files = {
     "annotationSelectionToolbar": "Anotação da seleção de código",
     "annotationUnavailableForSelection": "A seleção não pode ser mapeada para as linhas atuais do arquivo",
     "backToChat": "Voltar ao chat",
+    "navigationBack": "Voltar na navegação",
+    "navigationForward": "Avançar na navegação",
     "preview": "Prévia",
     "edit": "Editar",
     "source": "Código-fonte",

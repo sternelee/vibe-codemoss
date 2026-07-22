@@ -210,6 +210,8 @@ const files = {
     "annotationSelectionToolbar": "Аннотация выделенного кода",
     "annotationUnavailableForSelection": "Выделение не удаётся сопоставить со строками текущего файла",
     "backToChat": "Назад в чат",
+    "navigationBack": "Назад",
+    "navigationForward": "Вперёд",
     "preview": "Просмотр",
     "edit": "Редактировать",
     "source": "Исходник",
