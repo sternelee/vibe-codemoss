@@ -268,6 +268,8 @@ const files = {
     "navigationImplementationError": "구현을 찾지 못했습니다. 다시 시도하세요.",
     "navigationTimeout": "이동 요청 시간이 초과되었습니다. 다시 시도하세요.",
     "navigationPreparing": "코드 탐색을 준비하는 중…",
+    "navigationIndexing": "언어 서버가 아직 인덱싱 중입니다. 잠시 후 다시 시도하세요.",
+    "navigationTemporarilyDegraded": "언어 서버가 일시적으로 사용 중입니다. 다시 시도하세요.",
     "navigationModeSemantic": "시맨틱 탐색",
     "navigationModeFastSearch": "빠른 검색",
     "navigationModeFastSearchFallback": "빠른 검색(대체)",

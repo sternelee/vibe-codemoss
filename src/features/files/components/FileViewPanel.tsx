@@ -2603,6 +2603,10 @@ export function FileViewPanel({
   // ── Footer ──
   const navigationModeLabel = navigationStatus?.phase === "loading"
     ? t("files.navigationPreparing")
+    : navigationStatus?.phase === "indexing"
+      ? navigationStatus.lifecycle === "indexing"
+        ? t("files.navigationIndexing")
+        : t("files.navigationTemporarilyDegraded")
     : navigationStatus?.mode === "semantic"
       ? t("files.navigationModeSemantic")
       : navigationStatus

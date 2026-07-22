@@ -268,6 +268,8 @@ const files = {
     "navigationImplementationError": "कार्यान्वयन नहीं खोज सके। कृपया पुनः प्रयास करें।",
     "navigationTimeout": "नेविगेशन अनुरोध का समय समाप्त हो गया। कृपया पुनः प्रयास करें।",
     "navigationPreparing": "कोड नेविगेशन तैयार किया जा रहा है…",
+    "navigationIndexing": "भाषा सर्वर अभी इंडेक्स बना रहा है। थोड़ी देर बाद फिर प्रयास करें।",
+    "navigationTemporarilyDegraded": "भाषा सर्वर अभी व्यस्त है। फिर प्रयास करें।",
     "navigationModeSemantic": "सिमेंटिक नेविगेशन",
     "navigationModeFastSearch": "तेज़ खोज",
     "navigationModeFastSearchFallback": "तेज़ खोज (फ़ॉलबैक)",

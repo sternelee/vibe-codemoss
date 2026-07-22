@@ -26,6 +26,7 @@ describe("FileViewNavigationPanel installation recovery", () => {
           locations: [],
           mode: "fast-search",
           provider: "heuristic",
+          lifecycle: "degraded",
           language: "Java",
           fallbackReasonCode: "provider-unavailable",
         }}

@@ -2,6 +2,7 @@ import { normalizeComparablePath, normalizeFsPath } from "../../../utils/workspa
 import { isMacPlatform, isWindowsPlatform } from "../../../utils/platform";
 import type {
   CodeNavigationFallbackReason,
+  CodeNavigationLifecycle,
   CodeNavigationMode,
 } from "../../../services/tauri/openCode";
 
@@ -27,11 +28,12 @@ export type CodeNavigationResultSnapshot = {
   provider: string;
   language: string | null;
   fallbackReasonCode: CodeNavigationFallbackReason | null;
+  lifecycle: CodeNavigationLifecycle;
 };
 
 export type CodeNavigationQueryStatus = CodeNavigationResultSnapshot & {
   action: CodeNavigationAction;
-  phase: "loading" | "success" | "fallback" | "error";
+  phase: "loading" | "indexing" | "success" | "fallback" | "error";
 };
 
 export type RecentTrigger = {

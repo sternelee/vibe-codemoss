@@ -268,6 +268,8 @@ const files = {
     "navigationImplementationError": "Не удалось найти реализации. Повторите попытку.",
     "navigationTimeout": "Время ожидания запроса перехода истекло. Повторите попытку.",
     "navigationPreparing": "Подготовка навигации по коду…",
+    "navigationIndexing": "Языковой сервер всё ещё индексирует проект. Повторите попытку чуть позже.",
+    "navigationTemporarilyDegraded": "Языковой сервер временно занят. Повторите попытку.",
     "navigationModeSemantic": "Семантическая навигация",
     "navigationModeFastSearch": "Быстрый поиск",
     "navigationModeFastSearchFallback": "Быстрый поиск (резервный)",

@@ -268,6 +268,8 @@ const files = {
     "navigationImplementationError": "実装を検索できませんでした。再試行してください。",
     "navigationTimeout": "ナビゲーションリクエストがタイムアウトしました。再試行してください。",
     "navigationPreparing": "コードナビゲーションを準備しています…",
+    "navigationIndexing": "言語サーバーはインデックス作成中です。しばらくしてから再試行してください。",
+    "navigationTemporarilyDegraded": "言語サーバーは一時的にビジーです。再試行してください。",
     "navigationModeSemantic": "セマンティックナビゲーション",
     "navigationModeFastSearch": "高速検索",
     "navigationModeFastSearchFallback": "高速検索（フォールバック）",

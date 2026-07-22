@@ -268,6 +268,8 @@ const files = {
     "navigationImplementationError": "尋找實作失敗，請重試。",
     "navigationTimeout": "導覽要求逾時。請重試。",
     "navigationPreparing": "正在準備程式碼導覽…",
+    "navigationIndexing": "語言伺服器仍在建立索引，請稍後重試。",
+    "navigationTemporarilyDegraded": "語言伺服器暫時忙碌，請重試。",
     "navigationModeSemantic": "語意導覽",
     "navigationModeFastSearch": "快速搜尋",
     "navigationModeFastSearchFallback": "快速搜尋（降級）",

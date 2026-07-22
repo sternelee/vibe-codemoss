@@ -288,6 +288,8 @@ const files = {
     navigationImplementationError: "查找实现失败，请重试。",
     navigationTimeout: "导航请求超时，请重试",
     navigationPreparing: "正在准备代码导航…",
+    navigationIndexing: "语言服务仍在建立索引，请稍后重试",
+    navigationTemporarilyDegraded: "语言服务暂时响应较慢，请稍后重试",
     navigationModeSemantic: "语义导航",
     navigationModeFastSearch: "快速搜索",
     navigationModeFastSearchFallback: "快速搜索（降级）",

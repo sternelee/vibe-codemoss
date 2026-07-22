@@ -276,6 +276,12 @@ vi.mock("../../../services/tauri", () => ({
   getCodeIntelDefinition: vi.fn(),
   getCodeIntelImplementations: vi.fn(),
   getCodeIntelReferences: vi.fn(),
+  prepareCodeIntel: vi.fn(async () => ({
+    language: "TypeScript",
+    provider: "typescript-language-server",
+    lifecycle: "ready",
+    fallbackReasonCode: null,
+  })),
 }));
 
 vi.mock("../detachedFileExplorer", () => {

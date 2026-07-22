@@ -17,6 +17,7 @@ import {
   getCodeIntelImplementations,
   getCodeIntelReferences,
   getGitFileFullDiff,
+  prepareCodeIntel,
   readLocalImageDataUrl,
   readExternalAbsoluteFile,
   readExternalSpecFile,
@@ -99,6 +100,83 @@ describe("FileViewPanel navigation", () => {
     vi.clearAllMocks();
     mockCodeMirrorDispatch.mockReset();
     mockOpenNewDetachedFileExplorerWindow.mockClear();
+  });
+
+  it("prewarms the shared TypeScript server for JavaScript after 750ms idle", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(readWorkspaceFile).mockResolvedValue({
+        content: "export const value = 1;",
+        truncated: false,
+      });
+
+      render(
+        <FileViewPanel
+          workspaceId="ws-js-prewarm"
+          workspacePath="/repo"
+          filePath="src/value.js"
+          openTargets={[]}
+          openAppIconById={{}}
+          selectedOpenAppId=""
+          onSelectOpenAppId={vi.fn()}
+          onClose={vi.fn()}
+        />,
+      );
+
+      expect(prepareCodeIntel).not.toHaveBeenCalled();
+      await act(async () => {
+        vi.advanceTimersByTime(749);
+        await Promise.resolve();
+      });
+      expect(prepareCodeIntel).not.toHaveBeenCalled();
+      await act(async () => {
+        vi.advanceTimersByTime(1);
+        await Promise.resolve();
+      });
+      expect(prepareCodeIntel).toHaveBeenCalledWith("ws-js-prewarm", "src/value.js");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("cancels semantic prewarm for unsupported or unmounted files", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(readWorkspaceFile).mockResolvedValue({ content: "notes", truncated: false });
+      const unsupported = render(
+        <FileViewPanel
+          workspaceId="ws-prewarm-cleanup"
+          workspacePath="/repo"
+          filePath="notes/readme.txt"
+          openTargets={[]}
+          openAppIconById={{}}
+          selectedOpenAppId=""
+          onSelectOpenAppId={vi.fn()}
+          onClose={vi.fn()}
+        />,
+      );
+      act(() => vi.advanceTimersByTime(750));
+      expect(prepareCodeIntel).not.toHaveBeenCalled();
+      unsupported.unmount();
+
+      const supported = render(
+        <FileViewPanel
+          workspaceId="ws-prewarm-cleanup"
+          workspacePath="/repo"
+          filePath="src/Main.java"
+          openTargets={[]}
+          openAppIconById={{}}
+          selectedOpenAppId=""
+          onSelectOpenAppId={vi.fn()}
+          onClose={vi.fn()}
+        />,
+      );
+      supported.unmount();
+      act(() => vi.advanceTimersByTime(750));
+      expect(prepareCodeIntel).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("navigates directly when definition has a single target", async () => {
@@ -364,6 +442,7 @@ describe("FileViewPanel navigation", () => {
       language: "java",
       mode: "fast-search",
       provider: "heuristic",
+      lifecycle: "degraded",
       fallbackReasonCode: "provider-unavailable",
       result: [buildLocation("src/Foo.java", 5, 4)],
     });
@@ -424,6 +503,7 @@ describe("FileViewPanel navigation", () => {
         language: "java",
         mode: "fast-search",
         provider: "heuristic",
+        lifecycle: "degraded",
         fallbackReasonCode: "provider-unavailable",
         result: [buildLocation("src/Foo.java", 9, 2)],
       }),
@@ -438,6 +518,7 @@ describe("FileViewPanel navigation", () => {
         language: "java",
         mode: "fast-search",
         provider: "heuristic",
+        lifecycle: "degraded",
         fallbackReasonCode: "provider-unavailable",
         result: [buildLocation("src/Foo.java", 9, 2)],
       }),
@@ -491,6 +572,7 @@ describe("FileViewPanel navigation", () => {
       language: "TS/JS",
       mode: "fast-search",
       provider: "heuristic",
+      lifecycle: "degraded",
       fallbackReasonCode: "provider-unavailable",
       result: [],
     });
@@ -535,8 +617,9 @@ describe("FileViewPanel navigation", () => {
       line: 0,
       character: 0,
       language: "Java",
-      mode: "fast-search",
-      provider: "heuristic",
+      mode: "semantic",
+      provider: "eclipse-jdt-ls",
+      lifecycle: "indexing",
       fallbackReasonCode: "request-timeout",
       result: [],
     });
@@ -556,11 +639,17 @@ describe("FileViewPanel navigation", () => {
 
     await screen.findByTestId("mock-codemirror");
     clickFileContextMenuItem("files.findReferences");
-    await screen.findByText("files.navigationFallbackNotice");
+    await waitFor(() => {
+      expect(document.querySelector(".fvp-navigation-status-detail")?.textContent)
+        .toContain("files.navigationIndexing");
+    });
     expect(screen.queryByText(/download\.eclipse\.org\/jdtls/)).toBeNull();
     expect(screen.queryByRole("button", {
       name: "files.navigationCopyInstallCommand",
     })).toBeNull();
+    expect(screen.getByRole("button", {
+      name: /retry/i,
+    })).toBeTruthy();
   });
 
   it("shows the target language while a semantic provider is preparing", async () => {
@@ -603,6 +692,7 @@ describe("FileViewPanel navigation", () => {
       language: "java",
       mode: "semantic",
       provider: "eclipse-jdt-ls",
+      lifecycle: "ready",
       fallbackReasonCode: null,
       result: [],
     });
@@ -624,6 +714,7 @@ describe("FileViewPanel navigation", () => {
         language: "java",
         mode: "semantic",
         provider: "eclipse-jdt-ls",
+        lifecycle: "ready",
         fallbackReasonCode: null,
         result: [buildLocation("src/Foo.java", 9, 2)],
       });

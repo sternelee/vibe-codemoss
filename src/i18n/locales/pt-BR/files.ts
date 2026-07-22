@@ -268,6 +268,8 @@ const files = {
     "navigationImplementationError": "Não foi possível buscar implementações. Tente novamente.",
     "navigationTimeout": "A solicitação de navegação expirou. Tente novamente.",
     "navigationPreparing": "Preparando a navegação de código…",
+    "navigationIndexing": "O servidor de linguagem ainda está indexando. Tente novamente em instantes.",
+    "navigationTemporarilyDegraded": "O servidor de linguagem está temporariamente ocupado. Tente novamente.",
     "navigationModeSemantic": "Navegação semântica",
     "navigationModeFastSearch": "Busca rápida",
     "navigationModeFastSearchFallback": "Busca rápida (alternativa)",

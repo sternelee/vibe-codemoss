@@ -112,6 +112,7 @@ describe("fileViewNavigationUtils", () => {
           }],
           mode: "fast-search" as const,
           provider: "heuristic",
+          lifecycle: "degraded" as const,
           language: "java",
           fallbackReasonCode: "provider-unavailable" as const,
         },
