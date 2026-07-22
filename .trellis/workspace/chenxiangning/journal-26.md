@@ -1436,3 +1436,36 @@ Review 并修复 Git History repository color collision、branch group 与 branc
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1068: 修复智能体 completion 选择错位
+
+**Date**: 2026-07-22
+**Task**: 修复智能体 completion 选择错位
+**Branch**: `feature/v-076`
+
+### Summary
+
+修复 shared completion 中 presentation-only header/separator 与 raw item 的索引错位；补齐 mouse、Enter、Tab 回归测试，同步并归档 OpenSpec。focused 9/9、typecheck、lint 通过；按用户要求未重跑全量测试。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `853090af7` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
