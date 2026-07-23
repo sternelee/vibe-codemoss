@@ -586,12 +586,12 @@ export const TimelineRowRenderer = memo(function TimelineRowRenderer({
           <span className="messages-lightweight-row-summary-eyebrow">
             {t("messages.conversationLightweightRowEyebrow")}
           </span>
-          <strong>
+          <span className="messages-lightweight-row-summary-title">
             {t("messages.conversationLightweightRowTitle", {
               kind: rowKindLabel,
               count: itemCount,
             })}
-          </strong>
+          </span>
           <span>
             {t("messages.conversationLightweightRowMeta", {
               weight: hydrationState.renderWeight,

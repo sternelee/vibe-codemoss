@@ -16,6 +16,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { TooltipIconButton } from "@/components/ui/tooltip-icon-button";
 import {
   Command,
   CommandEmpty,
@@ -23,7 +24,6 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  CommandSeparator,
 } from "@/components/ui/command";
 import type {
   BranchInfo,
@@ -46,6 +46,11 @@ import {
 const EMPTY_BRANCHES: BranchInfo[] = [];
 const EMPTY_BRANCH_ITEMS: GitBranchListItem[] = [];
 const EMPTY_REPOSITORIES: GitRepositorySummary[] = [];
+const DEFAULT_EXPANDED_BRANCH_SECTIONS = {
+  recent: true,
+  local: false,
+  remote: false,
+};
 
 /** 切换仓库时的最小 loading 时长，保证 loading 态可见、避免闪烁 */
 const BRANCH_SWITCH_MIN_LOADING_MS = 120;
@@ -253,9 +258,7 @@ function ComposerBranchBadgeComponent({
   const [error, setError] = useState<string | null>(null);
   const [switchingRepositoryRoot, setSwitchingRepositoryRoot] = useState<string | null>(null);
   const [expandedSections, setExpandedSections] = useState({
-    recent: false,
-    local: false,
-    remote: false,
+    ...DEFAULT_EXPANDED_BRANCH_SECTIONS,
   });
   const [expandedScopes, setExpandedScopes] = useState<Set<string>>(() => new Set());
   const [updatePending, setUpdatePending] = useState(false);
@@ -378,7 +381,7 @@ function ComposerBranchBadgeComponent({
     setGlobalActionPending(null);
     setGlobalActionFeedback(null);
     setSwitchingRepositoryRoot(null);
-    setExpandedSections({ recent: false, local: false, remote: false });
+    setExpandedSections({ ...DEFAULT_EXPANDED_BRANCH_SECTIONS });
     setExpandedScopes(new Set());
   }, []);
 
@@ -429,7 +432,7 @@ function ComposerBranchBadgeComponent({
         ]);
         setActiveRepositoryRoot(repositoryRoot);
         setQuery("");
-        setExpandedSections({ recent: false, local: false, remote: false });
+        setExpandedSections({ ...DEFAULT_EXPANDED_BRANCH_SECTIONS });
         setExpandedScopes(new Set());
       } catch (caughtError) {
         setError(caughtError instanceof Error ? caughtError.message : String(caughtError));
@@ -579,7 +582,72 @@ function ComposerBranchBadgeComponent({
         </PopoverTrigger>
         <PopoverContent align="start" side="top" sideOffset={6} className="composer-git-command-center w-[32rem] max-w-[calc(100vw-2rem)] p-0">
           <Command>
-            <CommandInput value={query} onValueChange={(value) => { setQuery(value); setError(null); setGlobalActionFeedback(null); }} placeholder={showGlobalCheckout ? t("workspace.searchBranches") : showRepositoryList ? t("git.switchRepository") : t("workspace.searchOrCreateBranch")} autoFocus aria-label={showGlobalCheckout ? t("workspace.searchBranches") : showRepositoryList ? t("git.switchRepository") : t("workspace.searchBranches")} />
+            <div className="composer-git-command-header">
+              <CommandInput value={query} onValueChange={(value) => { setQuery(value); setError(null); setGlobalActionFeedback(null); }} placeholder={showGlobalCheckout ? t("workspace.searchBranches") : showRepositoryList ? t("git.switchRepository") : t("workspace.searchOrCreateBranch")} autoFocus aria-label={showGlobalCheckout ? t("workspace.searchBranches") : showRepositoryList ? t("git.switchRepository") : t("workspace.searchBranches")} />
+              {showRepositoryList ? (
+                <div className="composer-git-header-actions" role="group" aria-label={t("git.sectionActions", { title: t("git.switchRepository") })}>
+                  {onUpdateAllRepositories ? (
+                    <TooltipIconButton
+                      label={t("git.repositoryBatchUpdateAll")}
+                      className="composer-git-header-action"
+                      disabled={globalActionPending !== null}
+                      onClick={() => void handleUpdateAll()}
+                    >
+                      {globalActionPending === "update" ? (
+                        <LoaderCircle className="size-4 animate-spin" aria-hidden />
+                      ) : (
+                        <RefreshCw className="size-4" aria-hidden />
+                      )}
+                    </TooltipIconButton>
+                  ) : null}
+                  {onCheckoutAllRepositories && onLoadCommonRepositoryBranches ? (
+                    <TooltipIconButton
+                      label={t("git.repositoryBatchCheckoutAll")}
+                      className="composer-git-header-action"
+                      disabled={globalActionPending !== null}
+                      onClick={() => void handleOpenGlobalCheckout()}
+                    >
+                      <GitBranch className="size-4" aria-hidden />
+                    </TooltipIconButton>
+                  ) : null}
+                </div>
+              ) : !showGlobalCheckout ? (
+                <div className="composer-git-header-actions" role="group" aria-label={t("git.sectionActions", { title: triggerBranchName })}>
+                  {onUpdate && effectiveCurrentBranch ? (
+                    <TooltipIconButton
+                      label={t("git.historyBranchMenuUpdate")}
+                      className="composer-git-header-action"
+                      disabled={updatePending}
+                      onClick={() => void handleUpdate()}
+                    >
+                      {updatePending ? (
+                        <LoaderCircle className="size-4 animate-spin" aria-hidden />
+                      ) : (
+                        <RefreshCw className="size-4" aria-hidden />
+                      )}
+                    </TooltipIconButton>
+                  ) : null}
+                  {onCommit ? (
+                    <TooltipIconButton
+                      label={t("git.commit")}
+                      className="composer-git-header-action"
+                      onClick={() => void runAction(() => onCommit(effectiveRepositoryRoot))}
+                    >
+                      <GitCommitHorizontal className="size-4" aria-hidden />
+                    </TooltipIconButton>
+                  ) : null}
+                  {onPush ? (
+                    <TooltipIconButton
+                      label={t("git.push")}
+                      className="composer-git-header-action"
+                      onClick={() => void runAction(() => onPush(effectiveRepositoryRoot))}
+                    >
+                      <Upload className="size-4" aria-hidden />
+                    </TooltipIconButton>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
             <CommandList>
               <CommandEmpty>{repositoriesLoading ? t("git.scanningRepositories") : t("workspace.noBranchesFound")}</CommandEmpty>
               {showGlobalCheckout ? (
@@ -629,23 +697,6 @@ function ComposerBranchBadgeComponent({
                 </>
               ) : showRepositoryList ? (
                 <>
-                  <CommandGroup className="p-0.5">
-                    <div className="grid grid-cols-2 gap-1">
-                      <CommandItem className="h-7 justify-center py-0" value="__global_update_all" disabled={!onUpdateAllRepositories || globalActionPending !== null} onSelect={() => void handleUpdateAll()}>
-                        {globalActionPending === "update" ? (
-                          <LoaderCircle className="size-4 animate-spin" aria-hidden />
-                        ) : (
-                          <RefreshCw className="size-4" aria-hidden />
-                        )}
-                        <span>{t("git.repositoryBatchUpdateAll")}</span>
-                      </CommandItem>
-                      <CommandItem className="h-7 justify-center py-0" value="__global_checkout_all" disabled={!onCheckoutAllRepositories || !onLoadCommonRepositoryBranches || globalActionPending !== null} onSelect={() => void handleOpenGlobalCheckout()}>
-                        <GitBranch className="size-4" aria-hidden />
-                        <span>{t("git.repositoryBatchCheckoutAll")}</span>
-                      </CommandItem>
-                    </div>
-                  </CommandGroup>
-                  <CommandSeparator />
                   <CommandGroup>
                     {repositories.map((repository) => (
                     <CommandItem
@@ -683,31 +734,6 @@ function ComposerBranchBadgeComponent({
                       </CommandItem>
                     </CommandGroup>
                   ) : null}
-                  <CommandGroup>
-                    {onUpdate && effectiveCurrentBranch ? (
-                      <CommandItem value="__action_update" disabled={updatePending} onSelect={() => void handleUpdate()}>
-                        {updatePending ? (
-                          <LoaderCircle className="size-4 animate-spin" aria-hidden />
-                        ) : (
-                          <RefreshCw className="size-4" aria-hidden />
-                        )}
-                        <span>{t("git.historyBranchMenuUpdate")}</span>
-                      </CommandItem>
-                    ) : null}
-                    {onCommit ? (
-                      <CommandItem value="__action_commit" onSelect={() => void runAction(() => onCommit(effectiveRepositoryRoot))}>
-                        <GitCommitHorizontal className="size-4" aria-hidden />
-                        <span>{t("git.commit")}</span>
-                      </CommandItem>
-                    ) : null}
-                    {onPush ? (
-                      <CommandItem value="__action_push" onSelect={() => void runAction(() => onPush(effectiveRepositoryRoot))}>
-                        <Upload className="size-4" aria-hidden />
-                        <span>{t("git.push")}</span>
-                      </CommandItem>
-                    ) : null}
-                  </CommandGroup>
-                  <CommandSeparator />
                   {recentBranches.length > 0 ? (
                     <BranchSection
                       id="recent"

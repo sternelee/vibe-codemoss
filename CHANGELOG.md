@@ -2,6 +2,114 @@
 
 ---
 
+##### **2026年7月23日（v0.7.7）**
+
+中文：
+
+✨ Features
+- 升级应用版本号到 `0.7.7`，同步前端包配置、lockfile 与 Tauri 打包配置
+- `feat(composer)`: 完善提示词增强入口，将增强操作收敛到 Composer 主操作区，并统一按钮状态、提示文案与主题样式
+- `feat(files)`: 文件编辑器新增 workspace-scoped 语义导航历史，支持 Back / Forward 快捷返回跳转前后的文件、光标与滚动视口
+- `feat(lsp)`: 为 Python / Pyright 与 Go / gopls 接入 definition、references、implementation 语义导航；语言服务保持用户独立安装，缺失时显示安装指引并安全降级
+- `feat(git)`: Git changed-file 分区与多仓库摘要新增 additions / deletions 统计，提交前即可快速判断每组改动规模
+- `feat(git-history)`: File History 支持调整 commit rail 与 previous/source 栏宽度，拖拽采用平滑帧更新并保留长行横向滚动；Git 中间区域 split preview 复用同一 aligned CodeMirror renderer，同时保留双栏/单栏与全文/区域 controls
+- `feat(vendors)`: Vendor Settings 增加 Grok CLI 文档入口与 unsupported 状态占位，不误导为已完成集成
+
+🔧 Improvements
+- `fix(app)`: workspace Home 复用共享 Composer，pinned threads 复用统一 ThreadList 行为；session title 会过滤 AGENTS、environment 与 SessionStart bootstrap 内容，避免内部上下文成为会话标题
+- `fix(ui)`: Git Update / Commit / Push 收敛为 branch header 快捷操作，recent branches 默认展开；文件树支持单击打开或折叠，Markdown 增加明确的编辑/预览切换
+- `fix(ui)`: 统一 workspace project dropdown、Home、message anchors 与 Market 导航的布局、token、图标和文案；窄对话容器会自动隐藏 anchor rail，长会话折叠态限制 marker 数量
+
+🐛 Fixes
+- `fix(composer)`: 修复 `#` 智能体补全菜单包含 section header 或 separator 时的选择索引错位；鼠标点击以及 Enter / Tab 键确认现在都会选中界面高亮的真实智能体，不再误选相邻项
+- `fix(code-intel)`: 稳定 LSP request timeout、cancellation、session eviction 与 provider failure 生命周期，避免软超时误杀可复用会话或影响其他 workspace / language server
+- `fix(files)`: 修复文件编辑器快捷键映射与 context menu shortcut 展示，保持 macOS / Windows / Linux 的平台语义一致
+- `fix(theme)`: 修复深色主题下侧栏折叠按钮的背景与边界色，避免控件融入背景或出现错误亮色
+- `fix(quick-switcher)`: 修复冷启动 hydration 中等价 workspace 引用反复读取 storage 并发布状态的问题，避免触发 React maximum update depth
+- `fix(git)`: 修复多仓库 changed-file 的 inline preview、Discard 与刷新操作丢失 repository identity 的问题，确保同名相对路径始终作用于正确仓库
+- `fix(git)`: 手动刷新现在统一更新 status、diff、log 与 repository summaries；文件树会保留用户对自动展开 gitignored 路径的手动折叠选择
+
+English:
+
+✨ Features
+- Bump the app version to `0.7.7` across frontend package metadata, the lockfile, and Tauri bundle configuration
+- `feat(composer)`: complete the prompt-enhancer entry point by consolidating the action in the Composer primary controls and aligning button state, guidance, and theme styling
+- `feat(files)`: add workspace-scoped semantic navigation history to the file editor, with Back / Forward restoring the target file, cursor, and scroll viewport
+- `feat(lsp)`: add definition, references, and implementation navigation for Python / Pyright and Go / gopls; language servers remain user-installed, with installation guidance and safe fallback when unavailable
+- `feat(git)`: show addition and deletion totals in Git changed-file sections and multi-repository summaries so the size of each change group is visible before commit
+- `feat(git-history)`: make the File History commit rail and previous/source columns resizable with frame-coalesced dragging and per-pane horizontal scrolling; reuse the same aligned CodeMirror renderer for center-area split previews while retaining split/unified and full/focused controls
+- `feat(vendors)`: add a Grok CLI documentation entry and explicit unsupported placeholder to Vendor Settings without implying a completed integration
+
+🔧 Improvements
+- `fix(app)`: reuse the shared Composer on workspace Home and unified ThreadList behavior for pinned threads; filter AGENTS, environment, and SessionStart bootstrap content out of generated session titles
+- `fix(ui)`: expose Git Update, Commit, and Push as branch-header quick actions, expand recent branches by default, support single-click file opening and folder toggling, and add an explicit Markdown edit/preview switch
+- `fix(ui)`: align the workspace project dropdown, Home, message anchors, and Market navigation across layout, tokens, icons, and copy; hide the anchor rail in narrow conversation containers and cap collapsed markers for long sessions
+
+🐛 Fixes
+- `fix(composer)`: fix selection index drift in the `#` agent completion menu when section headers or separators are present; mouse selection and Enter / Tab confirmation now choose the actual highlighted agent instead of an adjacent item
+- `fix(code-intel)`: stabilize LSP request timeout, cancellation, session eviction, and provider-failure lifecycles so soft timeouts do not kill reusable sessions or affect unrelated workspaces and language servers
+- `fix(files)`: correct file-editor shortcut mappings and context-menu shortcut labels while preserving native semantics across macOS, Windows, and Linux
+- `fix(theme)`: correct the collapsed-sidebar control background and border colors in dark themes so the control remains visible without an incorrect light accent
+- `fix(quick-switcher)`: stop equivalent workspace references during cold-start hydration from repeatedly reading storage and publishing state, preventing React maximum-update-depth failures
+- `fix(git)`: preserve repository identity for multi-repository changed-file inline previews, Discard actions, and refreshes so identical relative paths always target the correct repository
+- `fix(git)`: make manual refresh update status, diffs, logs, and repository summaries together, and preserve manual collapse choices for folders auto-expanded to reveal gitignored paths
+
+---
+
+##### **2026年7月22日（v0.7.6）**
+
+中文：
+
+✨ Features
+- 升级应用版本号到 `0.7.6`，同步前端包配置、lockfile 与 Tauri 打包配置
+- `feat(curated-skills)`: 内置 Caveman 精选技能，补齐资源注册、设置入口、provider 支持状态与 Desktop / remote daemon 持久化链路，可直接启用简洁技术沟通模式
+- `feat(git)`: 为多仓库工作区增加全局 branch 操作，并统一单仓与多仓 Git History branch tree；各 repository 保持独立 branch catalog、状态与操作 scope
+- `feat(files)`: 文件编辑器新增行列跳转，统一文件图标，并支持从已打开文件反向定位到文件树；文件标签与文件树右键菜单整合 Open、Reveal、Copy、Git、History 等常用操作
+- `feat(git-history)`: File History 支持多页签，可同时保留多个文件的历史上下文并在页签间切换
+- `feat(quick-switcher)`: 新增最近活动快速切换面板，支持文件、会话与操作的缩写模糊匹配、优先级排序和跨平台快捷键导航
+- `feat(workbench)`: 完善全局搜索与代码导航，新增 LSP definition、reference、implementation 跳转及 Rust 支持；语言服务不可用时提供明确的安装指引与降级路径
+- `feat(mermaid)`: Mermaid 全屏预览支持将图表保存为 PNG，并接入 native file save 流程
+
+🔧 Improvements
+- `refactor(messages)`: 重组消息展示架构，将 row、timeline、orchestration、Markdown、tool presentation 与共享 domain helpers 拆分到明确边界，同时保持 streaming、virtualization 与公共输入 contract 不变
+- `style(composer)`: 压缩多仓库 Git 操作菜单的信息密度，并统一 pinned session 与 workspace row 的视觉对齐
+
+🐛 Fixes
+- `fix(messages)`: 修复消息行 context 与延迟图片 hydration 的 stale state，使用 workspace / thread / message scope 和 generation guard 阻止旧异步结果覆盖当前内容，并正确释放 object URL
+- `fix(status-panel)`: 正确区分 Kimi 提交信息引擎，避免状态面板将其投影为其他 provider
+- `fix(git)`: 稳定跨平台 branch tree 排序并恢复历史分支树的细节交互，避免多仓切换后 branch 信息或操作入口缺失
+- `fix(settings)`: 修复快捷键持久化，并补齐常用功能模块的快捷键配置
+- `fix(files)`: Git 行标记改为按需加载并增加异步竞态保护，避免快速切换文件时旧请求污染当前编辑器
+- `fix(threads)`: 从 live notification、subagent activity 与 catalog payload 统一 Codex subagent identity 和 parent relationship，使子智能体首次出现时即归入正确父会话，避免短暂显示为重复顶层会话
+- `fix(quick-switcher)`: 最近文件数据过滤非文件活动记录，避免会话或操作事件混入文件列表
+
+English:
+
+✨ Features
+- Bump the app version to `0.7.6` across frontend package metadata, the lockfile, and Tauri bundle configuration
+- `feat(curated-skills)`: bundle the Caveman curated skill with resource registration, settings entry points, provider support state, and Desktop / remote-daemon persistence, making concise technical communication available out of the box
+- `feat(git)`: add global branch operations for multi-repository workspaces and unify the Git History branch tree across single- and multi-repository modes, while keeping each repository's branch catalog, state, and action scope isolated
+- `feat(files)`: add line-and-column navigation to the file editor, unify file icons, and reveal open files in the file tree; consolidate common Open, Reveal, Copy, Git, and History actions across file-tab and file-tree context menus
+- `feat(git-history)`: add tabs to File History so multiple files can retain independent history context and remain open for quick switching
+- `feat(quick-switcher)`: add a recent-activity quick switcher with abbreviation-aware fuzzy matching, prioritized files, sessions, and actions, plus cross-platform keyboard navigation
+- `feat(workbench)`: expand global search and code navigation with LSP definition, reference, and implementation jumps plus Rust support; provide explicit installation guidance and fallback behavior when a language server is unavailable
+- `feat(mermaid)`: allow fullscreen Mermaid diagrams to be saved as PNG files through the native file-save flow
+
+🔧 Improvements
+- `refactor(messages)`: reorganize message presentation into explicit row, timeline, orchestration, Markdown, tool-presentation, and shared-domain boundaries while preserving streaming, virtualization, and public-input contracts
+- `style(composer)`: tighten the multi-repository Git action menu and align pinned session rows visually with workspace rows
+
+🐛 Fixes
+- `fix(messages)`: prevent stale message-row context and deferred image hydration from overwriting current content by scoping results to workspace, thread, message, and generation identity, while releasing owned object URLs correctly
+- `fix(status-panel)`: distinguish the Kimi commit-message engine correctly instead of projecting it as another provider in the status panel
+- `fix(git)`: stabilize cross-platform branch-tree ordering and restore detailed Git History branch interactions so branch information and actions remain available after repository switches
+- `fix(settings)`: persist keyboard shortcuts correctly and add shortcut configuration for commonly used modules
+- `fix(files)`: load Git line markers on demand with asynchronous race guards so stale requests cannot contaminate the currently open editor
+- `fix(threads)`: unify Codex subagent identity and parent relationships from live notifications, subagent activity, and catalog payloads, placing child agents under the correct parent on first render instead of briefly duplicating them at the top level
+- `fix(quick-switcher)`: filter non-file activity out of recent files so session and action events do not leak into the file list
+
+---
+
 ##### **2026年7月20日（v0.7.5）**
 
 中文：

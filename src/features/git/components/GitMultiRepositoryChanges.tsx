@@ -45,6 +45,7 @@ type GitMultiRepositoryChangesProps = {
   onStageFile?: (repositoryRoot: string, path: string) => Promise<void>;
   onUnstageFile?: (repositoryRoot: string, path: string) => Promise<void>;
   onDiscardFile?: (repositoryRoot: string, path: string) => Promise<void> | void;
+  onDiscardFiles?: (repositoryRoot: string, paths: string[]) => Promise<void> | void;
   onStageAll?: (repositoryRoot: string) => Promise<void>;
   onOpenFile?: (repositoryRoot: string, path: string) => void;
   onOpenFilePreview?: (
@@ -52,6 +53,7 @@ type GitMultiRepositoryChangesProps = {
     file: DiffFile,
     section: "staged" | "unstaged",
   ) => void;
+  onOpenInlinePreview?: (repositoryRoot: string, path: string) => void;
   onShowFileMenu?: (
     event: ReactMouseEvent<HTMLDivElement>,
     repositoryRoot: string,
@@ -95,9 +97,11 @@ export function GitMultiRepositoryChanges({
   onStageFile,
   onUnstageFile,
   onDiscardFile,
+  onDiscardFiles,
   onStageAll,
   onOpenFile,
   onOpenFilePreview,
+  onOpenInlinePreview,
   onShowFileMenu,
   onRefresh,
 }: GitMultiRepositoryChangesProps) {
@@ -300,6 +304,16 @@ export function GitMultiRepositoryChanges({
               </span>
             ) : null}
             <span className="git-repository-change-group__count">
+              {status.totalAdditions > 0 || status.totalDeletions > 0 ? (
+                <span
+                  className="diff-counts-inline git-filetree-badge"
+                  aria-label={`+${status.totalAdditions} -${status.totalDeletions}`}
+                >
+                  <span className="is-add">+{status.totalAdditions}</span>
+                  <span className="is-sep" aria-hidden>/</span>
+                  <span className="is-del">-{status.totalDeletions}</span>
+                </span>
+              ) : null}
               {t("git.filesChanged", { count: orderedPaths.length })}
             </span>
             <span className="git-repository-change-group__branch">{status.branchName}</span>
@@ -334,6 +348,7 @@ export function GitMultiRepositoryChanges({
                 file,
                 section,
               )}
+              onOpenInlinePreview={onOpenInlinePreview ? (path) => onOpenInlinePreview(status.repositoryRoot, path) : undefined}
               onShowFileMenu={(event, path, section) => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -372,6 +387,7 @@ export function GitMultiRepositoryChanges({
                 await onRefresh?.();
               } : undefined}
               onDiscardFile={onDiscardFile ? (path) => onDiscardFile(status.repositoryRoot, path) : undefined}
+              onDiscardFiles={onDiscardFiles ? (paths) => onDiscardFiles(status.repositoryRoot, paths) : undefined}
               isCommitPathLocked={isCommitPathLocked}
               onSetCommitSelection={(paths, selected) => setGroupSelection(status.repositoryRoot, paths, selected, stagedPaths)}
               onFileClick={(_event, path) => activateRepositoryFile(status, path, "unstaged")}
@@ -380,6 +396,7 @@ export function GitMultiRepositoryChanges({
                 file,
                 section,
               )}
+              onOpenInlinePreview={onOpenInlinePreview ? (path) => onOpenInlinePreview(status.repositoryRoot, path) : undefined}
               onShowFileMenu={(event, path, section) => {
                 event.preventDefault();
                 event.stopPropagation();

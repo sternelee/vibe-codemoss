@@ -611,6 +611,8 @@ const git = {
       "{{count}} files · +{{additions}} / -{{deletions}}",
     historyNoFileChangesInCommit: "No file changes in this commit.",
     historyResizeFileListAndDiff: "Resize file list and diff",
+    historyResizeCommitsAndDiff: "Resize commit list and diff",
+    historyResizeCompareColumns: "Resize previous and source compare columns",
     historySelectFileToViewDiff: "Select a file to view diff.",
     historyBinaryDiffUnavailable:
       "Binary file changed. Diff preview unavailable.",

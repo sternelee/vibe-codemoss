@@ -1436,3 +1436,469 @@ Review 并修复 Git History repository color collision、branch group 与 branc
 ### Next Steps
 
 - None - task complete
+
+
+## Session 1068: 修复智能体 completion 选择错位
+
+**Date**: 2026-07-22
+**Task**: 修复智能体 completion 选择错位
+**Branch**: `feature/v-076`
+
+### Summary
+
+修复 shared completion 中 presentation-only header/separator 与 raw item 的索引错位；补齐 mouse、Enter、Tab 回归测试，同步并归档 OpenSpec。focused 9/9、typecheck、lint 通过；按用户要求未重跑全量测试。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `853090af7` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1069: 完善 Composer 提示词增强入口
+
+**Date**: 2026-07-23
+**Task**: 完善 Composer 提示词增强入口
+**Branch**: `feature/v-0.7.7`
+
+### Summary
+
+在 Composer 工具面板增加提示词增强入口，复用 Cmd+/ 能力；移除 OpenCode enhancer option，优化浅色主题按钮、icon-only quick actions 与紧凑面板间距，并补齐 focused tests 与 OpenSpec artifacts。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1618ee32e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1070: 修复深色侧栏折叠配色
+
+**Date**: 2026-07-23
+**Task**: 修复深色侧栏折叠配色
+**Branch**: `feature/v-0.7.7`
+
+### Summary
+
+补齐 dark/system-dark desktop shell theme tokens，将 collapsed sidebar 的白色硬编码 fallback 改为 theme-aware surface，新增 CSS contract test，并同步归档 OpenSpec fix-dark-collapsed-sidebar-theme。用户视觉验收通过；focused Vitest 3/3、lint、typecheck、large-file、当前 OpenSpec strict validation 通过。full suite 的既存 AppShell startup 8 项因 collectAiFileMutations 收到 undefined timeline 失败，与本次 CSS/spec 变更无调用链。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `88a501df0` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1071: 稳定语义导航生命周期
+
+**Date**: 2026-07-23
+**Task**: 稳定语义导航生命周期
+**Branch**: `feature/v-0.7.7`
+
+### Summary
+
+Java、TypeScript/JavaScript 与 Rust 语义导航统一 15 秒 soft timeout、健康 session 保留、provider lifecycle、750ms idle prewarm、JDT data owner lock 与 dev/release cache isolation；完成增量测试、cross-layer review 和 OpenSpec verify。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `706ca2e78` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1072: 归档语义导航 OpenSpec
+
+**Date**: 2026-07-23
+**Task**: 归档语义导航 OpenSpec
+**Branch**: `feature/v-0.7.7`
+
+### Summary
+
+将 stabilize-semantic-navigation-lifecycle delta specs 同步到 semantic-code-navigation-provider 与 file-view-code-intelligence-navigation 主规范，并归档已完成变更。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b9121bd54` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1073: 文件语义导航历史与视口恢复
+
+**Date**: 2026-07-23
+**Task**: 文件语义导航历史与视口恢复
+**Branch**: `feature/v-0.7.7`
+
+### Summary
+
+Main File Editor 增加仅限跨文件语义跳转的 Back/Forward 历史；返回与前进时恢复光标位置和滚动位置；补齐快捷键、国际化、增量回归测试，并完成 OpenSpec 与 Trellis 归档。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `da6fa9786` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1074: 修复文件编辑器快捷键映射
+
+**Date**: 2026-07-23
+**Task**: 修复文件编辑器快捷键映射
+**Branch**: `feature/v-0.7.7`
+
+### Summary
+
+补齐 IDEA 风格文件右键菜单快捷键与真实 keyboard bindings；修复 CodeMirror function key converter 将 Alt-F7 错写为 Alt-f7 的 regression，统一 F1-F12 canonical uppercase；增加真实 keydown 回归。验证 focused Vitest 5 files / 139 tests、typecheck、lint、OpenSpec strict 均通过；按用户要求未运行全量测试。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `3dbbf083c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1075: 接入 Python 与 Go LSP 语义导航
+
+**Date**: 2026-07-23
+**Task**: 接入 Python 与 Go LSP 语义导航
+**Branch**: `feature/v-0.7.7`
+
+### Summary
+
+接入 external Pyright 与 gopls provider，补齐 macOS/Windows 多 npm runtime 与 symlink discovery 兼容；同步前端安装提示、回归测试、OpenSpec 与 Trellis 归档。验证通过：lint、typecheck、runtime contracts、102 项前端测试、52 项 Rust 测试、420 项 OpenSpec strict specs。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f249f31e9` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1076: 修复 Quick Switcher 等价状态渲染闭环
+
+**Date**: 2026-07-23
+**Task**: 修复 Quick Switcher 等价状态渲染闭环
+**Branch**: `feature/v-0.7.7`
+
+### Summary
+
+定位 React #185 的真实根因是 Quick Switcher recent-files effect 对等价 projection 重复写入 state；通过复用旧 reference 切断 AppShell 反馈环，补齐 startup contract、focused regression、OpenSpec artifacts，并完成 typecheck、lint、production build 与 strict validation。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `64482fb39` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1077: 修复 Quick Switcher 冷启动状态反馈循环
+
+**Date**: 2026-07-23
+**Task**: 修复 Quick Switcher 冷启动状态反馈循环
+**Branch**: `feature/v-0.7.7`
+
+### Summary
+
+定位安装包首次冷启动 React #185 的剩余反馈边：useQuickSwitcherRecentFiles 在 workspace hydration 重建等价数组时重复读取 storage 并发布派生 state。将 state 收敛为 normalized storage source snapshot，以稳定 workspace catalog 和 useMemo 纯投影分组；保留订阅前 mutation、真实 storage event 与 workspace rename。新增 3 类回归场景，增量执行 3 个测试文件共 19 项，并通过 targeted ESLint、typecheck、production build；同步并归档 OpenSpec fix-cold-start-update-depth-loop。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `99dff6a97` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1078: 修复多仓 Git 差异作用域
+
+**Date**: 2026-07-23
+**Task**: 修复多仓 Git 差异作用域
+**Branch**: `feature/v-0.7.7`
+
+### Summary
+
+基于工作区变更补齐并归档 OpenSpec；修复多 repository center inline diff 的 repositoryRoot 作用域、unstaged section discard-all、diff mode Composer 布局及 branch command header actions。验证 4 个 Vitest 文件共 82 tests、lint、typecheck、targeted OpenSpec strict 与人工验收通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ec2f29e7e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1079: 合并 0.7.7 上游更新
+
+**Date**: 2026-07-23
+**Task**: 合并 0.7.7 上游更新
+**Branch**: `feature/v-0.7.7`
+
+### Summary
+
+完成 upstream 0.7.7 分支语义合并并保留当前工作区 WIP。
+
+### Main Changes
+
+- 合并 upstream/chore/bump-version-0.7.7 到 feature/v-0.7.7。
+- 保留本地多仓 Git diff scope 能力与 upstream Market navigation visuals。
+- stash 恢复后无冲突，未提交的 line-count badge WIP 保持在工作区。
+- 验证：Sidebar/HomeChat 相关 67 tests passed；npm run typecheck passed。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9fd0ad211` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1080: 完善 Git Diff 统计与历史预览
+
+**Date**: 2026-07-23
+**Task**: 完善 Git Diff 统计与历史预览
+**Branch**: `feature/v-0.7.7`
+
+### Summary
+
+新增 Git Diff 分区行数统计；修复 File History 拖拽卡顿与清理逻辑；保留中间预览 toolbar 并统一 split text aligned CodeMirror renderer；补齐 OpenSpec 与 focused regression tests。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `18e0fbb18` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 1081: 合并 0.7.7 上游分支
+
+**Date**: 2026-07-23
+**Task**: 合并 0.7.7 上游分支
+**Branch**: `feature/v-0.7.7`
+
+### Summary
+
+将 upstream/chore/bump-version-0.7.7 以 no-ff merge 合入 feature/v-0.7.7；合并 tree 零内容差异、无冲突，并核对 Git Diff 统计、aligned preview 与 splitter drag symbols 均保留。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `11a249e04` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

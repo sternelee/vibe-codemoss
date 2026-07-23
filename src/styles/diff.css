@@ -673,10 +673,10 @@
 .git-status-refresh-button svg,
 .git-status-refresh-icon {
   display: block;
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
   stroke: currentColor !important;
-  stroke-width: 2.4;
+  stroke-width: 1.9;
   opacity: 1 !important;
 }
 
@@ -784,6 +784,60 @@ button.diff-section-indicator:focus-visible {
   margin-left: 0;
   font-variant-numeric: tabular-nums;
   flex: 0 0 auto;
+}
+
+.diff-section-line-stats-badge {
+  margin-left: 0;
+  font-size: 10px;
+}
+
+.diff-section-line-stats-badge .is-add {
+  color: var(--success, #22c55e);
+}
+
+.diff-section-line-stats-badge .is-del {
+  color: var(--destructive, #f87171);
+}
+
+.diff-section-line-stats-badge .is-sep {
+  color: var(--text-muted);
+}
+
+.editable-diff-compare .editable-diff-compare-columns.is-resizable {
+  grid-template-columns:
+    minmax(0, var(--read-only-previous-column-ratio, 0.5fr))
+    8px
+    minmax(0, var(--read-only-source-column-ratio, 0.5fr));
+  overflow: auto;
+}
+
+.editable-diff-compare .editable-diff-compare-columns.is-resizable > .file-compare-column {
+  min-width: 0;
+}
+
+.read-only-compare-resizer {
+  position: relative;
+  min-width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+  background: color-mix(in srgb, var(--surface-control, #1a2230) 58%, transparent);
+}
+
+.read-only-compare-resizer::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 50%;
+  width: 1px;
+  background: color-mix(in srgb, var(--border-default) 88%, transparent);
+  transform: translateX(-0.5px);
+  pointer-events: none;
+}
+
+.read-only-compare-resizer:hover::after,
+.read-only-compare-resizer:focus-visible::after,
+body[data-read-only-compare-resizing="true"] .read-only-compare-resizer::after {
+  background: color-mix(in srgb, var(--accent-primary, #2563eb) 72%, transparent);
 }
 
 .diff-section-indicator.is-staged {
@@ -972,9 +1026,28 @@ button.diff-section-indicator:focus-visible {
 }
 
 .git-repository-change-group__count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: var(--text-muted);
   font-size: 11px;
   white-space: nowrap;
+}
+
+.git-repository-change-group__count .diff-counts-inline.git-filetree-badge {
+  font-size: 10px;
+}
+
+.git-repository-change-group__count .diff-counts-inline.git-filetree-badge .is-add {
+  color: var(--success, #22c55e);
+}
+
+.git-repository-change-group__count .diff-counts-inline.git-filetree-badge .is-del {
+  color: var(--destructive, #f87171);
+}
+
+.git-repository-change-group__count .diff-counts-inline.git-filetree-badge .is-sep {
+  color: var(--text-muted);
 }
 
 .git-repository-commit-summary {

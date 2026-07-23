@@ -578,6 +578,8 @@ const git = {
       "{{count}} 个文件 · +{{additions}} / -{{deletions}}",
     historyNoFileChangesInCommit: "该提交没有文件变更。",
     historyResizeFileListAndDiff: "调整文件列表与 Diff 区域大小",
+    historyResizeCommitsAndDiff: "调整提交列表与 Diff 区域大小",
+    historyResizeCompareColumns: "调整上一版本与源代码对比栏宽度",
     historySelectFileToViewDiff: "请选择一个文件查看 Diff。",
     historyBinaryDiffUnavailable: "该文件为二进制文件，无法预览 Diff。",
     historyDiffTooLargeTruncated:

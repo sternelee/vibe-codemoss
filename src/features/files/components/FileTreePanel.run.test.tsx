@@ -256,7 +256,6 @@ describe("FileTreePanel run action isolation", () => {
 
       const docsRow = screen.getByRole("button", { name: /docs/ });
       fireEvent.click(docsRow);
-      fireEvent.doubleClick(docsRow);
       await screen.findByRole("button", { name: "readme.txt" });
       expect(docsRow.classList.contains("is-primary")).toBe(true);
     } finally {
@@ -390,9 +389,9 @@ describe("FileTreePanel run action isolation", () => {
       />,
     );
 
-    fireEvent.doubleClick(screen.getByRole("button", { name: /packages/ }));
-    fireEvent.doubleClick(screen.getByRole("button", { name: /app/ }));
-    fireEvent.doubleClick(screen.getByRole("button", { name: /src/ }));
+    fireEvent.click(screen.getByRole("button", { name: /packages/ }));
+    fireEvent.click(screen.getByRole("button", { name: /app/ }));
+    fireEvent.click(screen.getByRole("button", { name: /src/ }));
     fireEvent.contextMenu(screen.getByRole("button", { name: "main.ts" }));
     const trigger = await screen.findByRole("menuitem", { name: "git.repositoryMenuTitle" });
     fireEvent.mouseEnter(trigger);
@@ -442,7 +441,7 @@ describe("FileTreePanel run action isolation", () => {
       />,
     );
 
-    fireEvent.doubleClick(screen.getByRole("button", { name: /services/ }));
+    fireEvent.click(screen.getByRole("button", { name: /services/ }));
     const apiRow = screen.getByRole("button", { name: /api/ });
     fireEvent.contextMenu(apiRow);
     const gitMenuTrigger = await screen.findByRole("menuitem", { name: "git.repositoryMenuTitle" });
@@ -604,7 +603,7 @@ describe("FileTreePanel run action isolation", () => {
       />,
     );
 
-    fireEvent.doubleClick(screen.getByRole("button", { name: /services/ }));
+    fireEvent.click(screen.getByRole("button", { name: /services/ }));
     fireEvent.contextMenu(screen.getByRole("button", { name: /api/ }));
     const trigger = await screen.findByRole("menuitem", { name: "git.repositoryMenuTitle" });
     fireEvent.mouseEnter(trigger);
@@ -666,15 +665,15 @@ describe("FileTreePanel run action isolation", () => {
       />,
     );
 
-    fireEvent.doubleClick(screen.getByRole("button", { name: /src/ }));
+    fireEvent.click(screen.getByRole("button", { name: /src/ }));
     expect(screen.getByText("index.ts")).toBeTruthy();
-    fireEvent.doubleClick(screen.getByRole("button", { name: /app/ }));
+    fireEvent.click(screen.getByRole("button", { name: /app/ }));
     expect(screen.getByText("main.ts")).toBeTruthy();
 
-    fireEvent.doubleClick(screen.getByRole("button", { name: /src/ }));
+    fireEvent.click(screen.getByRole("button", { name: /src/ }));
     expect(screen.queryByText("main.ts")).toBeNull();
 
-    fireEvent.doubleClick(screen.getByRole("button", { name: /src/ }));
+    fireEvent.click(screen.getByRole("button", { name: /src/ }));
     expect(screen.getByText("main.ts")).toBeTruthy();
   });
 
@@ -759,7 +758,7 @@ describe("FileTreePanel run action isolation", () => {
       />,
     );
 
-    fireEvent.doubleClick(screen.getByRole("button", { name: "README.md" }));
+    fireEvent.click(screen.getByRole("button", { name: "README.md" }));
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith("read_workspace_file", {
         workspaceId: "workspace-1",
@@ -796,7 +795,7 @@ describe("FileTreePanel run action isolation", () => {
       />,
     );
 
-    fireEvent.doubleClick(screen.getByRole("button", { name: /src/ }));
+    fireEvent.click(screen.getByRole("button", { name: /src/ }));
     const fileLabel = screen.getByText("index.ts");
     expect(fileLabel.className).toContain("git-m");
   });
@@ -850,6 +849,61 @@ describe("FileTreePanel run action isolation", () => {
     expect(ignoredFolderLabels).not.toContain("src");
   });
 
+  it("lets users collapse folders auto-expanded to show gitignored children", () => {
+    const previousInvokeImplementation = invokeMock.getMockImplementation();
+    invokeMock.mockImplementation(async (...args: any[]) =>
+      previousInvokeImplementation ? previousInvokeImplementation(...args) : null,
+    );
+
+    try {
+      render(
+        <FileTreePanel
+          workspaceId="workspace-1"
+          workspacePath="/tmp/workspace"
+          files={[
+            "src-tauri/target/debug/app",
+            "src-tauri/src/main.rs",
+            "src-tauri/Cargo.toml",
+          ]}
+          directories={[
+            "src-tauri",
+            "src-tauri/target",
+            "src-tauri/target/debug",
+            "src-tauri/src",
+          ]}
+          isLoading={false}
+          filePanelMode="files"
+          onFilePanelModeChange={() => undefined}
+          onOpenFile={() => undefined}
+          onInsertText={() => undefined}
+          openTargets={[]}
+          openAppIconById={{}}
+          selectedOpenAppId=""
+          onSelectOpenAppId={() => undefined}
+          gitStatusFiles={[]}
+          gitignoredFiles={new Set<string>()}
+          gitignoredDirectories={new Set<string>(["target"])}
+        />,
+      );
+
+      const srcTauriRow = screen.getByRole("button", { name: /src-tauri/ });
+      expect(screen.getByRole("button", { name: /target/ })).toBeTruthy();
+      expect(srcTauriRow.querySelector(".file-tree-chevron")?.className).toContain("is-open");
+
+      invokeMock.mockClear();
+      fireEvent.click(srcTauriRow);
+
+      expect(screen.queryByRole("button", { name: /target/ })).toBeNull();
+      expect(srcTauriRow.querySelector(".file-tree-chevron")?.className).not.toContain("is-open");
+      expect(invokeMock).not.toHaveBeenCalledWith(
+        "list_workspace_directory_children",
+        expect.any(Object),
+      );
+    } finally {
+      invokeMock.mockImplementation(previousInvokeImplementation ?? (async () => null));
+    }
+  });
+
   it("applies git color class for repo-relative status when git root is a workspace subdirectory", () => {
     render(
       <FileTreePanel
@@ -879,7 +933,7 @@ describe("FileTreePanel run action isolation", () => {
       />,
     );
 
-    fireEvent.doubleClick(screen.getByRole("button", { name: /kmllm-search-showcar-py/ }));
+    fireEvent.click(screen.getByRole("button", { name: /kmllm-search-showcar-py/ }));
     const fileLabel = screen.getByText("README.md");
     expect(fileLabel.className).toContain("git-m");
   });
@@ -941,10 +995,10 @@ describe("FileTreePanel run action isolation", () => {
     expect(serviceALabel.closest(".file-tree-row")?.className).toContain("is-git-repository");
     expect(serviceBLabel.closest(".file-tree-row")?.className).toContain("is-git-repository");
 
-    fireEvent.doubleClick(serviceALabel.closest("button") as HTMLButtonElement);
-    fireEvent.doubleClick(serviceBLabel.closest("button") as HTMLButtonElement);
-    fireEvent.doubleClick(screen.getAllByText("src")[0]?.closest("button") as HTMLButtonElement);
-    fireEvent.doubleClick(screen.getAllByText("src")[1]?.closest("button") as HTMLButtonElement);
+    fireEvent.click(serviceALabel.closest("button") as HTMLButtonElement);
+    fireEvent.click(serviceBLabel.closest("button") as HTMLButtonElement);
+    fireEvent.click(screen.getAllByText("src")[0]?.closest("button") as HTMLButtonElement);
+    fireEvent.click(screen.getAllByText("src")[1]?.closest("button") as HTMLButtonElement);
 
     expect(screen.getByText("api.ts").className).toContain("git-u");
     expect(screen.getByText("web.ts").className).toContain("git-a");
@@ -979,7 +1033,7 @@ describe("FileTreePanel run action isolation", () => {
       />,
     );
 
-    fireEvent.doubleClick(screen.getByRole("button", { name: /kmllm-search-showcar-py/ }));
+    fireEvent.click(screen.getByRole("button", { name: /kmllm-search-showcar-py/ }));
     const readmeLabels = screen.getAllByText("README.md");
     expect(readmeLabels).toHaveLength(2);
     const highlightedLabels = readmeLabels.filter((label) =>
@@ -1103,7 +1157,7 @@ describe("FileTreePanel run action isolation", () => {
       />,
     );
 
-    fireEvent.doubleClick(screen.getByRole("button", { name: /src/ }));
+    fireEvent.click(screen.getByRole("button", { name: /src/ }));
 
     const listZone = container.querySelector(".file-tree-list");
     expect(listZone?.classList.contains("is-virtualized")).toBe(true);
@@ -1237,7 +1291,7 @@ describe("FileTreePanel run action isolation", () => {
     expect(screen.queryByRole("button", { name: "files.openRunConsole" })).toBeNull();
   });
 
-  it("uses single click for selection and double click for file open", () => {
+  it("opens files with a single click", () => {
     const onOpenFile = vi.fn();
     render(
       <FileTreePanel
@@ -1259,12 +1313,10 @@ describe("FileTreePanel run action isolation", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "README.md" }));
-    expect(onOpenFile).not.toHaveBeenCalled();
-    fireEvent.doubleClick(screen.getByRole("button", { name: "README.md" }));
     expect(onOpenFile).toHaveBeenCalledWith("README.md");
   });
 
-  it("keeps single click on folder as selection and uses double click to toggle children", () => {
+  it("toggles folders with a single click while keeping chevron behavior", () => {
     const onOpenFile = vi.fn();
     render(
       <FileTreePanel
@@ -1287,6 +1339,8 @@ describe("FileTreePanel run action isolation", () => {
 
     expect(screen.queryByText("index.ts")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /src/ }));
+    expect(screen.getByText("index.ts")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /src/ }));
     expect(screen.queryByText("index.ts")).toBeNull();
     const srcRow = screen.getByRole("button", { name: /src/ });
     const srcChevron = srcRow.querySelector(".file-tree-chevron");
@@ -1295,7 +1349,7 @@ describe("FileTreePanel run action isolation", () => {
     expect(screen.getByText("index.ts")).toBeTruthy();
     fireEvent.click(srcChevron as Element);
     expect(screen.queryByText("index.ts")).toBeNull();
-    fireEvent.doubleClick(screen.getByRole("button", { name: /src/ }));
+    fireEvent.click(screen.getByRole("button", { name: /src/ }));
     expect(screen.getByText("index.ts")).toBeTruthy();
     expect(onOpenFile).not.toHaveBeenCalled();
     expect(invokeMock).not.toHaveBeenCalledWith(
@@ -1338,7 +1392,7 @@ describe("FileTreePanel run action isolation", () => {
       />,
     );
 
-    fireEvent.doubleClick(screen.getByRole("button", { name: /node_modules/ }));
+    fireEvent.click(screen.getByRole("button", { name: /node_modules/ }));
     expect(await screen.findByText("package.json")).toBeTruthy();
     expect(invokeMock).toHaveBeenCalledWith("list_workspace_directory_children", {
       workspaceId: "workspace-1",
@@ -1394,8 +1448,8 @@ describe("FileTreePanel run action isolation", () => {
       />,
     );
 
-    fireEvent.doubleClick(screen.getByRole("button", { name: /packages/ }));
-    fireEvent.doubleClick(screen.getByRole("button", { name: /large/ }));
+    fireEvent.click(screen.getByRole("button", { name: /packages/ }));
+    fireEvent.click(screen.getByRole("button", { name: /large/ }));
 
     expect(await screen.findByText("index.ts")).toBeTruthy();
     expect(invokeMock).toHaveBeenCalledWith("list_workspace_directory_children", {
@@ -1441,8 +1495,8 @@ describe("FileTreePanel run action isolation", () => {
       />,
     );
 
-    fireEvent.doubleClick(screen.getByRole("button", { name: /packages/ }));
-    fireEvent.doubleClick(screen.getByRole("button", { name: /large/ }));
+    fireEvent.click(screen.getByRole("button", { name: /packages/ }));
+    fireEvent.click(screen.getByRole("button", { name: /large/ }));
 
     rerender(
       <FileTreePanel
@@ -1543,11 +1597,11 @@ describe("FileTreePanel run action isolation", () => {
       />,
     );
 
-    fireEvent.doubleClick(screen.getByRole("button", { name: /docs/ }));
-    fireEvent.doubleClick(screen.getByRole("button", { name: /empty/ }));
+    fireEvent.click(screen.getByRole("button", { name: /docs/ }));
+    fireEvent.click(screen.getByRole("button", { name: /empty/ }));
     await waitFor(() => expect(invokeMock).toHaveBeenCalledTimes(1));
-    fireEvent.doubleClick(screen.getByRole("button", { name: /empty/ }));
-    fireEvent.doubleClick(screen.getByRole("button", { name: /empty/ }));
+    fireEvent.click(screen.getByRole("button", { name: /empty/ }));
+    fireEvent.click(screen.getByRole("button", { name: /empty/ }));
 
     expect(invokeMock).toHaveBeenCalledTimes(1);
   });
@@ -1611,13 +1665,13 @@ describe("FileTreePanel run action isolation", () => {
       />,
     );
 
-    fireEvent.doubleClick(screen.getByRole("button", { name: /node_modules/ }));
+    fireEvent.click(screen.getByRole("button", { name: /node_modules/ }));
     expect(await screen.findByRole("button", { name: /@babel/ })).toBeTruthy();
 
-    fireEvent.doubleClick(screen.getByRole("button", { name: /@babel/ }));
+    fireEvent.click(screen.getByRole("button", { name: /@babel/ }));
     expect(await screen.findByRole("button", { name: /core/ })).toBeTruthy();
 
-    fireEvent.doubleClick(screen.getByRole("button", { name: /core/ }));
+    fireEvent.click(screen.getByRole("button", { name: /core/ }));
     expect(await screen.findByText("index.js")).toBeTruthy();
 
     expect(invokeMock).toHaveBeenCalledWith("list_workspace_directory_children", {
@@ -1845,7 +1899,7 @@ describe("FileTreePanel run action isolation", () => {
       />,
     );
 
-    fireEvent.doubleClick(screen.getByRole("button", { name: /src/ }));
+    fireEvent.click(screen.getByRole("button", { name: /src/ }));
     fireEvent.contextMenu(screen.getByRole("button", { name: "index.ts" }));
     fireEvent.click(await screen.findByRole("menuitem", { name: "files.newFile" }));
     const fileInput = screen.getByPlaceholderText("files.newFileNamePlaceholder");
@@ -1891,7 +1945,7 @@ describe("FileTreePanel run action isolation", () => {
       />,
     );
 
-    fireEvent.doubleClick(screen.getByRole("button", { name: /node_modules/ }));
+    fireEvent.click(screen.getByRole("button", { name: /node_modules/ }));
     expect(await screen.findByRole("button", { name: "files.retryLoadFiles" })).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "files.retryLoadFiles" }));

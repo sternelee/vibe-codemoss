@@ -27,6 +27,7 @@ import {
   formatCodeAnnotationLineRange,
   isSameCodeAnnotationPath,
 } from "../../code-annotations/utils/codeAnnotations";
+import { WorkspaceReadOnlyDiffCompare } from "./WorkspaceReadOnlyDiffCompare";
 
 type GitDiffViewerItem = {
   path: string;
@@ -48,6 +49,7 @@ type GitDiffViewerProps = {
   showContentModeControls?: boolean;
   showAllContentControl?: boolean;
   toolbarOnly?: boolean;
+  alignedTextPreview?: boolean;
   headerControlsTarget?: HTMLElement | null;
   onRequestClose?: (() => void) | null;
   fullDiffLoader?: ((path: string) => Promise<string>) | null;
@@ -562,6 +564,7 @@ export function GitDiffViewer({
   showContentModeControls,
   showAllContentControl = true,
   toolbarOnly = false,
+  alignedTextPreview = false,
   headerControlsTarget = null,
   onRequestClose = null,
   fullDiffLoader = null,
@@ -1081,13 +1084,40 @@ export function GitDiffViewer({
     };
   }, [fullDiffLoader, fullDiffTargetPath, loadFullDiff, workspaceId]);
 
+  const alignedPreviewCandidate =
+    alignedTextPreview
+    && !toolbarOnly
+    && !pullRequest
+    && diffStyle === "split"
+    && stickyEntry
+    && !stickyEntry.isImage
+      ? stickyEntry
+      : null;
+  const alignedPreviewContentMode = alignedPreviewCandidate
+    ? controlledContentMode
+      ?? fileContentModes[alignedPreviewCandidate.path]
+      ?? initialContentMode
+    : null;
+  const alignedPreviewDiff = alignedPreviewCandidate
+    ? alignedPreviewContentMode === "all"
+      && fullDiffByPath[alignedPreviewCandidate.path]?.trim()
+        ? fullDiffByPath[alignedPreviewCandidate.path]
+        : alignedPreviewCandidate.diff
+    : null;
+  const alignedPreviewEntry = alignedPreviewDiff?.trim()
+    ? alignedPreviewCandidate
+    : null;
+
   return (
       <div
         className={`diff-viewer-frame ${showEmbeddedAnchorBar ? "has-embedded-anchor" : ""} ${
           embeddedAnchorVariant === "modal-pager" ? "is-anchor-modal-pager" : ""
         }`}
       >
-        <div className="diff-viewer" ref={containerRef}>
+        <div
+          className={`diff-viewer${alignedPreviewEntry ? " has-aligned-text-preview" : ""}`}
+          ref={containerRef}
+        >
           {stickyEntry && effectiveHeaderControlsTarget
             ? createPortal(
                 <div className="diff-viewer-header-controls is-external">
@@ -1273,7 +1303,7 @@ export function GitDiffViewer({
             </div>
           </div>
         )}
-        {!toolbarOnly && showAnchorBar && stickyEntry && !showEmbeddedAnchorBar && (
+        {!toolbarOnly && !alignedPreviewEntry && showAnchorBar && stickyEntry && !showEmbeddedAnchorBar && (
           <div
             className="diff-viewer-anchor-floating"
             role="group"
@@ -1293,7 +1323,16 @@ export function GitDiffViewer({
             {listView === "tree" ? t("git.selectFileToViewDiff") : t("git.noChangesDetected")}
           </div>
         )}
-        {!toolbarOnly && !error && effectiveDiffs.length > 0 && (
+        {!toolbarOnly && !error && alignedPreviewEntry && alignedPreviewDiff ? (
+          <div className="diff-viewer-aligned-text-preview">
+            <WorkspaceReadOnlyDiffCompare
+              filePath={alignedPreviewEntry.path}
+              diff={alignedPreviewDiff}
+              resizableColumns
+            />
+          </div>
+        ) : null}
+        {!toolbarOnly && !error && !alignedPreviewEntry && effectiveDiffs.length > 0 && (
           <div
             className="diff-viewer-list"
             ref={listRef}
@@ -1354,7 +1393,7 @@ export function GitDiffViewer({
           </div>
         )}
         </div>
-        {!toolbarOnly && showEmbeddedAnchorBar && stickyEntry && (
+        {!toolbarOnly && !alignedPreviewEntry && showEmbeddedAnchorBar && stickyEntry && (
           <div className="diff-viewer-anchor-dock" role="group" aria-label="Change anchors">
             {anchorControls}
           </div>

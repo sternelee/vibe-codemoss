@@ -140,19 +140,21 @@ describe("ComposerBranchBadge", () => {
     expect(screen.getByText("git.repositoryRecentBranches")).toBeTruthy();
     expect(screen.getByText("git.repositoryLocalBranches")).toBeTruthy();
     expect(screen.getByText(/git\.repositoryRemoteBranches/)).toBeTruthy();
-    expect(screen.getByRole("button", { name: "git.repositoryRecentBranches" }).getAttribute("aria-expanded")).toBe("false");
+    expect(screen.getByRole("button", { name: "git.repositoryRecentBranches" }).getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByRole("button", { name: "git.repositoryLocalBranches" }).getAttribute("aria-expanded")).toBe("false");
     expect(screen.getByRole("button", { name: "git.repositoryRemoteBranches" }).getAttribute("aria-expanded")).toBe("false");
+    expect(screen.getByRole("button", { name: "git.historyBranchMenuUpdate" }).classList.contains("composer-git-header-action")).toBe(true);
+    expect(screen.queryByText("git.historyBranchMenuUpdate")).toBeNull();
 
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "main" } });
     expect(screen.getAllByText("main").length).toBeGreaterThan(1);
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "" } });
 
-    const updateAction = screen.getByText("git.historyBranchMenuUpdate").closest("[cmdk-item]");
-    await act(async () => fireEvent.click(updateAction as HTMLElement));
+    const updateAction = screen.getByRole("button", { name: "git.historyBranchMenuUpdate" });
+    await act(async () => fireEvent.click(updateAction));
     expect(onUpdate).toHaveBeenCalledTimes(1);
     expect(document.querySelector(".lucide-loader-circle")).not.toBeNull();
-    fireEvent.click(updateAction as HTMLElement);
+    fireEvent.click(updateAction);
     expect(onUpdate).toHaveBeenCalledTimes(1);
 
     await act(async () => {
@@ -238,29 +240,24 @@ describe("ComposerBranchBadge", () => {
     expect(onSelectRepository).toHaveBeenCalledWith("service-b");
 
     await waitFor(() => {
-      const action = document
-        .querySelector(".lucide-git-commit-horizontal")
-        ?.closest<HTMLElement>("[cmdk-item]");
-      expect(action).not.toBeNull();
-      fireEvent.click(action as HTMLElement);
+      const action = screen.getByRole("button", { name: "git.commit" });
+      expect(action.classList.contains("composer-git-header-action")).toBe(true);
+      fireEvent.click(action);
     });
     expect(onCommit).toHaveBeenCalledWith("service-b");
 
     await act(async () => fireEvent.click(screen.getByRole("button", { name: /main/i })));
     await act(async () => fireEvent.click(screen.getByText("service-b")));
     await waitFor(() => {
-      const action = document
-        .querySelector(".lucide-upload")
-        ?.closest<HTMLElement>("[cmdk-item]");
-      expect(action).not.toBeNull();
-      fireEvent.click(action as HTMLElement);
+      const action = screen.getByRole("button", { name: "git.push" });
+      expect(action.classList.contains("composer-git-header-action")).toBe(true);
+      fireEvent.click(action);
     });
     expect(onPush).toHaveBeenCalledWith("service-b");
 
     await act(async () => fireEvent.click(screen.getByRole("button", { name: /main/i })));
     await act(async () => fireEvent.click(screen.getByText("service-b")));
     await waitFor(() => expect(screen.getByRole("button", { name: "git.repositoryRecentBranches" })).toBeTruthy());
-    fireEvent.click(screen.getByRole("button", { name: "git.repositoryRecentBranches" }));
     await act(async () => fireEvent.click(screen.getAllByText("feature/test")[0]));
     expect(onCheckout).toHaveBeenCalledWith("feature/test");
   });
@@ -303,10 +300,16 @@ describe("ComposerBranchBadge", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /main/i }));
-    const updateAll = screen.getByText("git.repositoryBatchUpdateAll").closest("[cmdk-item]") as HTMLElement;
-    const checkoutAll = screen.getByText("git.repositoryBatchCheckoutAll").closest("[cmdk-item]") as HTMLElement;
+    const updateAll = screen.getByRole("button", { name: "git.repositoryBatchUpdateAll" });
+    const checkoutAll = screen.getByRole("button", { name: "git.repositoryBatchCheckoutAll" });
     expect(updateAll.parentElement).toBe(checkoutAll.parentElement);
-    expect(updateAll.classList.contains("h-7")).toBe(true);
+    expect(updateAll.classList.contains("composer-git-header-action")).toBe(true);
+    expect(checkoutAll.classList.contains("composer-git-header-action")).toBe(true);
+    expect(updateAll.closest(".composer-git-command-header")).toBeTruthy();
+    expect(updateAll.textContent).toBe("");
+    expect(checkoutAll.textContent).toBe("");
+    expect(updateAll.querySelector("svg")).toBeTruthy();
+    expect(checkoutAll.querySelector("svg")).toBeTruthy();
     expect(document.querySelector("[cmdk-group-heading]")).toBeNull();
 
     fireEvent.click(updateAll);
@@ -351,7 +354,7 @@ describe("ComposerBranchBadge", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /main/i }));
-    await act(async () => fireEvent.click(screen.getByText("git.repositoryBatchCheckoutAll")));
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "git.repositoryBatchCheckoutAll" })));
     expect((await screen.findByRole("alert")).textContent).toContain("service-c");
     expect(screen.getAllByText("main").length).toBeGreaterThan(1);
     expect(screen.getByText("2/3")).toBeTruthy();
@@ -390,7 +393,7 @@ describe("ComposerBranchBadge", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /main/i }));
-    fireEvent.click(screen.getByText("git.repositoryBatchCheckoutAll"));
+    fireEvent.click(screen.getByRole("button", { name: "git.repositoryBatchCheckoutAll" }));
     expect(screen.getByText("git.repositoryBatchLoadingBranches")).toBeTruthy();
     await act(async () => resolveBranches?.({
       localBranches: [],
@@ -421,7 +424,7 @@ describe("ComposerBranchBadge", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /main/i }));
-    await act(async () => fireEvent.click(screen.getByText("git.repositoryBatchCheckoutAll")));
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "git.repositoryBatchCheckoutAll" })));
     expect(screen.getByText("git.repositoryBatchNoCommonBranches")).toBeTruthy();
   });
 

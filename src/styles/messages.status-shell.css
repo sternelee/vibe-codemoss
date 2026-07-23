@@ -1,9 +1,9 @@
 /*
  * Notion-style anchor rail.
  *
- * Collapsed: a compact column of short horizontal dashes, each
- * positioned by its message's real scroll offset; the currently
- * visible message lights up (`.is-active`).
+ * Collapsed: a compact column of short horizontal dashes, capped for
+ * long conversations; the currently visible message lights up
+ * (`.is-active`) when its bucket is visible.
  *
  * Hovering anywhere on the rail expands a full outline panel that
  * flies out to the right, listing every user message so the reader can
@@ -123,6 +123,16 @@
 }
 
 @media (max-width: 1100px) {
+  .messages-anchor-rail {
+    display: none;
+  }
+
+  .messages-shell.has-anchor-rail .messages-full {
+    padding-left: 0;
+  }
+}
+
+@container (max-width: 960px) {
   .messages-anchor-rail {
     display: none;
   }
