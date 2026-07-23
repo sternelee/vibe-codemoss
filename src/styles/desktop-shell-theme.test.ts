@@ -55,6 +55,8 @@ describe("desktop shell theme contract", () => {
   it("keeps the workspace project dropdown aligned with shadcn menu tokens", () => {
     const dropdownRule = getCssRuleBlock(mainCss, ".workspace-project-dropdown");
     const searchRule = getCssRuleBlock(mainCss, ".workspace-project-search");
+    const searchFocusRule = getCssRuleBlock(mainCss, ".workspace-project-search:focus-within");
+    const groupLabelRule = getCssRuleBlock(mainCss, ".workspace-project-group-label");
     const itemRule = getCssRuleBlock(mainCss, ".workspace-project-item");
     const activeItemRule = getCssRuleBlock(mainCss, ".workspace-project-item.is-active");
 
@@ -62,10 +64,13 @@ describe("desktop shell theme contract", () => {
     expect(dropdownRule).toContain("background: var(--popover);");
     expect(dropdownRule).toContain("color: var(--popover-foreground);");
     expect(dropdownRule).not.toContain("border-radius: 18px;");
-    expect(searchRule).toContain("border-bottom: 1px solid var(--border);");
+    expect(searchRule).toContain("border-bottom: 1px solid var(--border-subtle);");
     expect(searchRule).toContain("background: transparent;");
+    expect(searchFocusRule).toContain("box-shadow: none;");
+    expect(groupLabelRule).toContain("font-weight: 400;");
     expect(itemRule).toContain("min-height: 32px;");
     expect(itemRule).toContain("border-radius: var(--radius-sm, 6px);");
+    expect(itemRule).toContain("font-weight: 400;");
     expect(activeItemRule).toContain("background: var(--accent);");
     expect(activeItemRule).toContain("color: var(--accent-foreground);");
     expect(activeItemRule).not.toContain("#ffffff");
