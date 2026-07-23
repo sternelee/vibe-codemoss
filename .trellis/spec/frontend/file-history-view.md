@@ -43,6 +43,7 @@ WorkspaceReadOnlyDiffCompare({
   diff: string;
   loadFullDiff?: ((path: string) => Promise<string>) | null;
   useFullDiff?: boolean;
+  resizableColumns?: boolean;
 }): JSX.Element
 
 CompareEditorColumn({
@@ -91,6 +92,11 @@ Daemon method 使用同字段顺序与语义，其中 pagination 的 `offset/lim
 - difference navigation MUST work for read-only CodeMirror。`CompareEditorColumn` 只在 plain-text fallback 时跳过 programmatic selection/scroll，不得仅因 `editable=false` 跳过。
 - `.file-history-view` MUST 是 named inline-size container。Workbench 宽屏使用 bounded commit rail + `minmax(0, 1fr)` diff；narrow threshold MUST 基于 container 而不是 viewport。
 - File History scope MUST 将 `.editable-diff-compare-columns` 和 `.file-compare-column` 的 fixed minimum 收敛为 `minmax(0, 1fr)` / `min-width: 0`，让 compare 消费剩余宽度；long lines 由 CodeMirror pane 自己滚动。
+- File History 下面面板 MUST 拆为 3 个区域：commit rail / previous column / source column；commit rail ↔ diff 之间与 previous ↔ source 之间 MUST 各渲染一个 8px 拖拽手柄，并支持双击复位到默认宽度/比例。拖拽过程中 MUST 使用 `window.mousemove/mouseup` 监听，且 reset on unmount/target change。
+- splitter drag MUST 基于 `mousedown` 时的 width/ratio snapshot 计算，禁止把累计位移重复叠加到 current value；高频视觉更新 MUST 通过 ref + `requestAnimationFrame` 写 CSS custom property，避免每次 `mousemove` 触发 React render。
+- File History 拖拽 commit rail 手柄时宽度 MUST clamp 到 [200px, 60% of container]；拖拽 previous ↔ source 手柄时 previous fr 占比 MUST clamp 到 [0.2, 0.8]。
+- Git 中间区域 preview MUST 保留既有 toolbar controls；split text body MUST 复用 `WorkspaceReadOnlyDiffCompare` 的 aligned CodeMirror renderer。unified、image、binary 与 PR preview MUST 保留既有 specialized renderer。
+- File History 的 compare 容器 MUST 不再以 `overflow: hidden` 截断超宽 compare 内容；超宽行 MUST 由 `.cm-scroller` 自身 `overflow: auto` 横向滚动呈现，columns container 宽度 MUST NOT 被内容撑宽。
 - `loadFileHistoryStyles()` MUST 同时加载 diff、file-view compare 和 file-history styles。
 - `FileTreePanel.onOpenFileHistory` MUST optional；callback 缺失、folder target、invalid/escaping path、没有 owning repository 时不显示入口。
 - `GitDiffPanel.onOpenFileHistory` MUST optional；single/multi changed-file menu 只在 callback、workspace identity 与 valid repository-relative target 同时存在时显示 History。
@@ -123,6 +129,10 @@ Daemon method 使用同字段顺序与语义，其中 pagination 的 `offset/lim
 | previous/source change | red deletion / green addition | 不得两栏都显示 generic blue modified |
 | difference navigation | read-only editor scrolls to active line | 不得把 programmatic navigation 当 mutation 禁用 |
 | long source line | editor-local horizontal scroll | 不得撑宽 File History workspace |
+| commit rail ↔ diff splitter drag | commit rail width 在 [200px, 60% container] 平滑变化，diff 区域随之收放 | mouseup 后释放监听、cursor 复位 |
+| previous ↔ source splitter drag | previous column fr 在 [0.2, 0.8] 平滑变化 | clamp 后不允许 0 或 1 边界出现 |
+| 任一 splitter double-click | 该区域 MUST 复位到默认 commit rail ~26% / previous 50% | 不得保留 stale width 跨 target 切换 |
+| narrow container ≤720px | splitter 隐藏、stack 为 commit rail 上 / diff 下 | 不依赖 viewport media query |
 | Git Diff single multi-selection | clicked row target only | selected paths 不得替换 History path |
 | Git Diff multi A/B same path | clicked `repositoryRoot + path` | 不得 path-only 串仓 |
 | Git Diff explicit root `""` | empty string preserved | 不得 fallback configured root |
@@ -160,7 +170,8 @@ Daemon method 使用同字段顺序与语义，其中 pagination 的 `offset/lim
 - `WorkspaceReadOnlyDiffCompare.test.ts`：assert previous/source reconstruction、read-only columns、difference navigation 与 stale full-diff guard。
 - `WorkspaceReadOnlyDiffCompare.test.ts`：assert multi-hunk old/new gutter labels 使用 patch coordinates，separator 为 `null`。
 - `WorkspaceFileComparePanel.compare-editor.test.tsx`：assert normal read-only draft renders CodeMirror with `editable=false`、semantic tone/markers、navigation dispatch；explicit unsupported reason retains plain-text fallback。
-- `file-history-layout.test.ts`：assert named container、bounded wide grid、narrow stacked rows、fluid two-pane column override。
+- `file-history-layout.test.ts`：assert named container、bounded wide grid、narrow stacked rows、fluid two-pane column override、`.file-history-vertical-resizer` / `.file-history-compare-resizer` 选择器存在、`.file-history-compare-grid` 不再用 `overflow: hidden` 截断 compare 内容。
+- `FileHistoryView.test.tsx`：assert splitter 渲染存在、mousedown→mousemove→mouseup 调整 commit rail width（clamp）、双击复位、内 splitter 调整 previous fr（clamp）。
 - `file-history-layout.test.ts`：assert deletion/addition scoped selectors 与 red/green theme colors 存在。
 - `useGitPanelController.test.tsx`：assert multi-tab open/deduplicate/activate/close，active close 按右邻、左邻、Git Graph 顺序 fallback；切换其他 center surface 不得清空 Git Graph session tabs。
 - `GitDiffPanelFileContextMenu.test.ts`：assert History ordering、History-only 与 empty action set。

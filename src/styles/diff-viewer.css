@@ -29,6 +29,23 @@
   padding-top: 0;
 }
 
+.diff-viewer.has-aligned-text-preview {
+  overflow: hidden;
+}
+
+.diff-viewer-aligned-text-preview {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+}
+
+.diff-viewer-aligned-text-preview > .editable-diff-compare {
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+}
+
 .diff-viewer-pr {
   margin: 12px 16px 16px;
   padding: 16px;

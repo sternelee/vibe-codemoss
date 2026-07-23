@@ -2095,6 +2095,7 @@ export function useLayoutNodes(input: LayoutNodesOptions): LayoutNodesResult {
       isLoading={options.gitDiffLoading}
       error={options.gitDiffError}
       diffStyle={options.gitDiffViewStyle}
+      alignedTextPreview
       onDiffStyleChange={options.onGitDiffViewStyleChange}
       pullRequest={options.selectedPullRequest}
       pullRequestComments={options.selectedPullRequestComments}
