@@ -576,4 +576,44 @@ describe("GitMultiRepositoryChanges", () => {
       "unstaged",
     );
   });
+
+  it("renders per-repo line-stats badge from totalAdditions/totalDeletions", () => {
+    const status = repositoryStatus("a");
+    status.totalAdditions = 12;
+    status.totalDeletions = 4;
+    render(
+      <GitMultiRepositoryChanges
+        workspaceId="ws-1"
+        statuses={[status]}
+        isLoading={false}
+        commitMessage=""
+        commitLoading={false}
+      />,
+    );
+
+    const header = document.querySelector(".git-repository-change-group__header");
+    const badge = header?.querySelector(".diff-counts-inline.git-filetree-badge");
+    expect(badge).toBeTruthy();
+    expect(badge?.getAttribute("aria-label")).toBe("+12 -4");
+    expect(badge?.textContent).toContain("+12");
+    expect(badge?.textContent).toContain("-4");
+  });
+
+  it("hides per-repo line-stats badge when both totals are zero", () => {
+    const status = repositoryStatus("a");
+    status.totalAdditions = 0;
+    status.totalDeletions = 0;
+    render(
+      <GitMultiRepositoryChanges
+        workspaceId="ws-1"
+        statuses={[status]}
+        isLoading={false}
+        commitMessage=""
+        commitLoading={false}
+      />,
+    );
+
+    const header = document.querySelector(".git-repository-change-group__header");
+    expect(header?.querySelector(".diff-counts-inline.git-filetree-badge")).toBeNull();
+  });
 });

@@ -304,6 +304,16 @@ export function GitMultiRepositoryChanges({
               </span>
             ) : null}
             <span className="git-repository-change-group__count">
+              {status.totalAdditions > 0 || status.totalDeletions > 0 ? (
+                <span
+                  className="diff-counts-inline git-filetree-badge"
+                  aria-label={`+${status.totalAdditions} -${status.totalDeletions}`}
+                >
+                  <span className="is-add">+{status.totalAdditions}</span>
+                  <span className="is-sep" aria-hidden>/</span>
+                  <span className="is-del">-{status.totalDeletions}</span>
+                </span>
+              ) : null}
               {t("git.filesChanged", { count: orderedPaths.length })}
             </span>
             <span className="git-repository-change-group__branch">{status.branchName}</span>

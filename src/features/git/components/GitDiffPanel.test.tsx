@@ -1590,7 +1590,7 @@ describe("GitDiffPanel", () => {
     );
 
     const discardButtons = document.querySelectorAll<HTMLButtonElement>(
-      ".diff-row-action--discard",
+      ".diff-row.git-filetree-row .diff-row-action--discard",
     );
     expect(discardButtons).toHaveLength(2);
 
@@ -2066,7 +2066,7 @@ describe("GitDiffPanel", () => {
     expect(fileRowChildren[0]?.classList.contains("diff-status-letter")).toBe(true);
     expect(fileRowChildren[1]?.classList.contains("diff-file-icon")).toBe(true);
     expect(fileRow?.querySelector(".diff-row-meta .diff-status-letter")).toBeNull();
-    expect(document.querySelector(".diff-counts-inline.git-filetree-badge")).toBeNull();
+    expect(fileRow?.querySelector(".diff-counts-inline.git-filetree-badge")).toBeNull();
   });
 
   it("does not render inline file stats in the compact Source Control list", () => {
@@ -2086,7 +2086,8 @@ describe("GitDiffPanel", () => {
 
     expect(screen.queryByText("+12.3k")).toBeNull();
     expect(screen.queryByText("-10k")).toBeNull();
-    expect(document.querySelector(".diff-counts-inline.git-filetree-badge")).toBeNull();
+    const fileRow = document.querySelector(".diff-row.git-filetree-row");
+    expect(fileRow?.querySelector(".diff-counts-inline.git-filetree-badge")).toBeNull();
   });
 
   it("renders single-path diff package folders in a.b.c style", () => {
@@ -2184,6 +2185,83 @@ describe("GitDiffPanel", () => {
     expect(header?.lastElementChild?.className).toContain("bg-secondary");
     expect(header?.lastElementChild?.className).toContain("text-secondary-foreground");
     expect(header?.lastElementChild?.className).toContain("sm:min-w-4");
+  });
+
+  it("renders section line-stats badge aggregating additions and deletions in flat mode", () => {
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        gitDiffListView="flat"
+        stagedFiles={[
+          { path: "src/alpha.ts", status: "M", additions: 3, deletions: 1 },
+          { path: "src/beta.ts", status: "M", additions: 5, deletions: 2 },
+        ]}
+        unstagedFiles={[
+          { path: "src/gamma.ts", status: "M", additions: 7, deletions: 4 },
+        ]}
+      />,
+    );
+
+    const headers = document.querySelectorAll(".git-filetree-section-header");
+    expect(headers).toHaveLength(2);
+    const [stagedHeader, unstagedHeader] = headers;
+    expect(stagedHeader?.querySelector(".diff-section-line-stats-badge")?.textContent).toContain("+8");
+    expect(stagedHeader?.querySelector(".diff-section-line-stats-badge")?.textContent).toContain("-3");
+    expect(stagedHeader?.querySelector(".diff-section-line-stats-badge")?.getAttribute("aria-label")).toBe("+8 -3");
+    expect(unstagedHeader?.querySelector(".diff-section-line-stats-badge")?.textContent).toContain("+7");
+    expect(unstagedHeader?.querySelector(".diff-section-line-stats-badge")?.textContent).toContain("-4");
+    expect(unstagedHeader?.querySelector(".diff-section-line-stats-badge")?.getAttribute("aria-label")).toBe("+7 -4");
+  });
+
+  it("renders section line-stats badge aggregating additions and deletions in tree mode", () => {
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        gitDiffListView="tree"
+        stagedFiles={[
+          { path: "src/dir1/a.ts", status: "M", additions: 2, deletions: 0 },
+          { path: "src/dir2/b.ts", status: "M", additions: 1, deletions: 4 },
+        ]}
+      />,
+    );
+
+    const header = document.querySelector(".git-filetree-section-header");
+    expect(header?.querySelector(".diff-section-line-stats-badge")?.textContent).toContain("+3");
+    expect(header?.querySelector(".diff-section-line-stats-badge")?.textContent).toContain("-4");
+  });
+
+  it("hides section line-stats badge when both totals are zero", () => {
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        gitDiffListView="flat"
+        stagedFiles={[
+          { path: "src/zero.ts", status: "M", additions: 0, deletions: 0 },
+        ]}
+      />,
+    );
+
+    expect(document.querySelector(".diff-section-line-stats-badge")).toBeNull();
+  });
+
+  it("keeps section line-stats badge visible when section is collapsed", () => {
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        gitDiffListView="flat"
+        stagedFiles={[
+          { path: "src/alpha.ts", status: "M", additions: 2, deletions: 1 },
+        ]}
+      />,
+    );
+
+    const toggle = screen.getByRole("button", { name: "Staged Changes (1)" });
+    fireEvent.click(toggle);
+
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(document.querySelector(".diff-section-line-stats-badge")).toBeTruthy();
+    expect(document.querySelector(".diff-section-line-stats-badge")?.textContent).toContain("+2");
+    expect(document.querySelector(".diff-section-line-stats-badge")?.textContent).toContain("-1");
   });
 
   it("collapses and expands a flat section from the section header", () => {

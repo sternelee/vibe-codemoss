@@ -29,6 +29,7 @@ export function loadDiffStyles() {
     () => import("./git-diff-modal.css"),
     () => import("./diff.css"),
     () => import("./diff-viewer.css"),
+    () => import("./file-view-panel.css"),
   ]);
 }
 

@@ -54,6 +54,7 @@ import {
   GitFileTreeIcon,
   isDeletedDiffFile,
   renderSectionCountBadge,
+  renderSectionLineStatsBadge,
   renderSectionIndicator,
   TREE_INDENT_STEP,
 } from "./GitDiffPanelFileSections";
@@ -303,6 +304,13 @@ function DiffTreeSection({
     }
     return "partial";
   }, [excludedPathSet, files, includedPathSet, partialPathSet]);
+  const sectionLineStats = useMemo(() => files.reduce(
+    (acc, file) => ({
+      additions: acc.additions + (file.additions ?? 0),
+      deletions: acc.deletions + (file.deletions ?? 0),
+    }),
+    { additions: 0, deletions: 0 },
+  ), [files]);
   const showSectionActions =
     toggleableFilePaths.length > 0 ||
     actionFilePaths.length > 0;
@@ -543,6 +551,7 @@ function DiffTreeSection({
             onDiscardFiles={onDiscardFiles}
           />
         )}
+        {renderSectionLineStatsBadge(sectionLineStats.additions, sectionLineStats.deletions)}
         {renderSectionCountBadge(files.length)}
       </div>
       {!isCollapsed ? (
