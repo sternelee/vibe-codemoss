@@ -19,3 +19,37 @@ describe("MessagesAnchorRail styles", () => {
     );
   });
 });
+
+describe("conversation lightweight typography", () => {
+  it("keeps lightweight banner and row titles at regular text emphasis", () => {
+    const shellCss = readFileSync(
+      resolve(process.cwd(), "src/styles/messages.part1-shell.css"),
+      "utf8",
+    );
+    const promptSource = readFileSync(
+      resolve(
+        process.cwd(),
+        "src/features/messages/timeline/components/ConversationLightweightPrompt.tsx",
+      ),
+      "utf8",
+    );
+    const rowRendererSource = readFileSync(
+      resolve(
+        process.cwd(),
+        "src/features/messages/timeline/components/TimelineRowRenderer.tsx",
+      ),
+      "utf8",
+    );
+
+    expect(promptSource).not.toContain("<strong>{t(titleKey)}</strong>");
+    expect(rowRendererSource).not.toContain(
+      '<strong>\n            {t("messages.conversationLightweightRowTitle"',
+    );
+    expect(shellCss).not.toMatch(
+      /\.messages-lightweight-mode-banner\s+strong,[\s\S]*?font-size:\s*var\(--message-title-font-size\)/,
+    );
+    expect(shellCss).not.toMatch(
+      /\.messages-lightweight-row-summary-main\s*>\s*strong,[\s\S]*?white-space:\s*nowrap;/,
+    );
+  });
+});

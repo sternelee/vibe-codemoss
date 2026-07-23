@@ -207,16 +207,10 @@
 .messages-lightweight-mode-banner-eyebrow,
 .messages-lightweight-row-summary-eyebrow {
   color: var(--text-faint);
-  font-size: var(--message-caption-font-size);
-  font-weight: 750;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.messages-lightweight-mode-banner strong,
-.messages-lightweight-row-summary strong {
-  color: var(--text-strong);
-  font-size: var(--message-title-font-size);
+  font-size: var(--message-meta-font-size);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .messages-lightweight-mode-banner-eyebrow {
@@ -224,9 +218,15 @@
   white-space: nowrap;
 }
 
-.messages-lightweight-mode-banner strong {
-  flex: 0 0 auto;
+.messages-lightweight-mode-banner-title,
+.messages-lightweight-row-summary-title {
+  color: var(--text-default);
   font-size: var(--message-meta-font-size);
+  font-weight: 400;
+}
+
+.messages-lightweight-mode-banner-title {
+  flex: 0 0 auto;
   line-height: 1.2;
 }
 
@@ -296,7 +296,7 @@
   min-width: 0;
 }
 
-.messages-lightweight-row-summary-main > strong,
+.messages-lightweight-row-summary-main > .messages-lightweight-row-summary-title,
 .messages-lightweight-row-summary-main > span:last-child {
   overflow: hidden;
   text-overflow: ellipsis;

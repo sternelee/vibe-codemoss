@@ -48,7 +48,7 @@ export function ConversationLightweightPrompt({
         <span className="messages-lightweight-mode-banner-eyebrow">
           {t("messages.conversationLightweightModeEyebrow")}
         </span>
-        <strong>{t(titleKey)}</strong>
+        <span className="messages-lightweight-mode-banner-title">{t(titleKey)}</span>
         <span>
           {t(descriptionKey, {
             heavyRows: heavyRowCount,
